@@ -37,15 +37,9 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="0">
-     <widget class="QDialogButtonBox" name="mButtonBox">
-      <property name="standardButtons">
-       <set>QDialogButtonBox::Close|QDialogButtonBox::Help</set>
-      </property>
-     </widget>
-    </item>
    </layout>
   </widget>
+  <widget class="QStatusBar" name="mStatusBar"/>
   <widget class="QToolBar" name="mComposerToolbar">
    <property name="windowTitle">
     <string>Composer</string>
@@ -96,6 +90,8 @@
    <attribute name="toolBarBreak">
     <bool>true</bool>
    </attribute>
+   <addaction name="mActionPan"/>
+   <addaction name="mActionMouseZoom"/>
    <addaction name="mActionSelectMoveItem"/>
    <addaction name="mActionMoveItemContent"/>
    <addaction name="mActionGroupItems"/>
@@ -148,6 +144,9 @@
    <property name="toolTip">
     <string>Zoom full</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+0</string>
+   </property>
   </action>
   <action name="mActionZoomIn">
    <property name="icon">
@@ -160,6 +159,9 @@
    <property name="toolTip">
     <string>Zoom in</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl++</string>
+   </property>
   </action>
   <action name="mActionZoomOut">
    <property name="icon">
@@ -171,6 +173,21 @@
    </property>
    <property name="toolTip">
     <string>Zoom out</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
+   </property>
+  </action>
+  <action name="mActionMouseZoom">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomToSelected.svg</normaloff>:/images/themes/default/mActionZoomToSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom</string>
    </property>
   </action>
   <action name="mActionAddNewMap">
@@ -275,6 +292,69 @@
     <string>Refresh view</string>
    </property>
   </action>
+  <action name="mActionShowGrid">
+   <property name="text">
+    <string>Show Grid</string>
+   </property>
+   <property name="toolTip">
+    <string>Show grid</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+'</string>
+   </property>
+  </action>
+  <action name="mActionSnapGrid">
+   <property name="text">
+    <string>Snap to Grid</string>
+   </property>
+   <property name="toolTip">
+    <string>Snap to grid</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+'</string>
+   </property>
+  </action>
+  <action name="mActionShowGuides">
+   <property name="text">
+    <string>Show Guides</string>
+   </property>
+   <property name="toolTip">
+    <string>Show guides</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+;</string>
+   </property>
+  </action>
+  <action name="mActionSnapGuides">
+   <property name="text">
+    <string>Snap to Guides</string>
+   </property>
+   <property name="toolTip">
+    <string>Snap to guides</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+;</string>
+   </property>
+  </action>
+  <action name="mActionSmartGuides">
+   <property name="text">
+    <string>Smart Guides</string>
+   </property>
+   <property name="toolTip">
+    <string>Smart guides</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+;</string>
+   </property>
+  </action>
+  <action name="mActionClearGuides">
+   <property name="text">
+    <string>Clear Guides</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear guides</string>
+   </property>
+  </action>
   <action name="mActionAddImage">
    <property name="icon">
     <iconset resource="../../images/images.qrc">
@@ -302,6 +382,9 @@
    <property name="toolTip">
     <string>Group items</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
   </action>
   <action name="mActionUngroupItems">
    <property name="text">
@@ -309,6 +392,9 @@
    </property>
    <property name="toolTip">
     <string>Ungroup items</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+G</string>
    </property>
   </action>
   <action name="mActionRaiseItems">
@@ -318,6 +404,9 @@
    <property name="toolTip">
     <string>Raise selected items</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+]</string>
+   </property>
   </action>
   <action name="mActionLowerItems">
    <property name="text">
@@ -325,6 +414,9 @@
    </property>
    <property name="toolTip">
     <string>Lower selected items</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+[</string>
    </property>
   </action>
   <action name="mActionMoveItemsToTop">
@@ -334,6 +426,9 @@
    <property name="toolTip">
     <string>Move selected items to top</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+]</string>
+   </property>
   </action>
   <action name="mActionMoveItemsToBottom">
    <property name="text">
@@ -341,6 +436,9 @@
    </property>
    <property name="toolTip">
     <string>Move selected items to bottom</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+[</string>
    </property>
   </action>
   <action name="mActionLoadFromTemplate">
@@ -453,7 +551,7 @@
   </action>
   <action name="mActionUndo">
    <property name="icon">
-    <iconset resource="../../images/images.qrc">
+    <iconset>
      <normalon>:/images/themes/default/mActionUndo.png</normalon>
     </iconset>
    </property>
@@ -672,7 +770,16 @@
    <property name="shortcut">
     <string>Ctrl+Alt+]</string>
    </property>
-  </action>  
+  </action>
+  <action name="mActionPan">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/mActionPan.svg</normaloff>:/images/themes/default/mActionPan.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Pan Composer</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="../../images/images.qrc"/>
