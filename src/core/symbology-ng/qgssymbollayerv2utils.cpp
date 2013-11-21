@@ -2259,7 +2259,7 @@ bool QgsSymbolLayerV2Utils::functionFromSldElement( QDomElement &element, QStrin
   }
   else
   {
-    function = expr->dump();
+    function = expr->expression();
   }
 
   delete expr;
@@ -2924,4 +2924,26 @@ QString QgsSymbolLayerV2Utils::symbolPathToName( QString path )
 
   return QgsProject::instance()->writePath( path );
 }
+
+QPointF QgsSymbolLayerV2Utils::polygonCentroid( const QPolygonF& points )
+{
+  //Calculate the centroid of points
+  double cx = 0, cy = 0;
+  double area, sum = 0;
+  for ( int i = points.count() - 1, j = 0; j < points.count(); i = j++ )
+  {
+    const QPointF& p1 = points[i];
+    const QPointF& p2 = points[j];
+    area = p1.x() * p2.y() - p1.y() * p2.x();
+    sum += area;
+    cx += ( p1.x() + p2.x() ) * area;
+    cy += ( p1.y() + p2.y() ) * area;
+  }
+  sum *= 3.0;
+  cx /= sum;
+  cy /= sum;
+
+  return QPointF( cx, cy );
+}
+
 

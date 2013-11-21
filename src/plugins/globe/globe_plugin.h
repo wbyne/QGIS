@@ -50,6 +50,8 @@ class QAction;
 class QToolBar;
 class QgisInterface;
 
+namespace osgEarth { namespace QtGui { class ViewerWidget; } }
+namespace osgEarth { namespace Util { class SkyNode; } }
 
 class GlobePlugin : public QObject, public QgisPlugin
 {
@@ -73,10 +75,14 @@ class GlobePlugin : public QObject, public QgisPlugin
     //! show the help document
     void help();
 
-    //! Emitted when a new set of image layers has been received
+    //! Called when a new set of image layers has been received
     void imageLayersChanged();
-    //! Emitted when a new set of elevation layers has been received
+    //! Called when a new set of elevation layers has been received
     void elevationLayersChanged();
+    //! Set a different base map (QString::NULL will disable the base map)
+    void setBaseMap( QString url );
+    //! Called when the extents of the map change
+    void setSkyParameters( bool enabled, const QDateTime& dateTime, bool autoAmbience );
     //! Called when the extents of the map change
     void extentsChanged();
     //! Sync globe extent to mapCanavas
@@ -106,6 +112,8 @@ class GlobePlugin : public QObject, public QgisPlugin
     //! Place an OSG model on the globe
     void placeNode( osg::Node* node, double lat, double lon, double alt = 0.0 );
 
+    osgViewer::Viewer* osgViewer() { return mOsgViewer; }
+
     //! Recursive copy folder
     static void copyFolder( QString sourceFolder, QString destFolder );
 
@@ -129,13 +137,17 @@ class GlobePlugin : public QObject, public QgisPlugin
     //! OSG Viewer
     osgViewer::Viewer* mOsgViewer;
     //! QT viewer widget
-    QWidget* mViewerWidget;
+    osgEarth::QtGui::ViewerWidget* mViewerWidget;
     //! Settings Dialog
     QgsGlobePluginDialog *mSettingsDialog;
     //! OSG root node
     osg::Group* mRootNode;
     //! Map node
     osgEarth::MapNode* mMapNode;
+    //! Base layer
+    osg::ref_ptr<osgEarth::ImageLayer> mBaseLayer;
+    //! Sky node
+    osg::ref_ptr<osgEarth::Util::SkyNode> mSkyNode;
     //! QGIS maplayer
     osgEarth::ImageLayer* mQgisMapLayer;
     //! Tile source

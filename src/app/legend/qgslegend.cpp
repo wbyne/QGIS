@@ -114,8 +114,11 @@ QgsLegend::QgsLegend( QgsMapCanvas *canvas, QWidget * parent, const char *name )
 
   connect( mMapCanvas, SIGNAL( layersChanged() ),
            this, SLOT( refreshCheckStates() ) );
+#if 0
+  // too much
   connect( mMapCanvas, SIGNAL( extentsChanged() ),
            this, SLOT( updateLegendItemSymbologies() ) );
+#endif
 
   // Initialise the line indicator widget.
   mInsertionLine = new QWidget( viewport() );
@@ -292,6 +295,9 @@ void QgsLegend::removeAll()
   updateMapCanvasLayerSet();
   setIconSize( mMinimumIconSize );
   mDropTarget = 0;
+  mUpdateDrawingOrder = true;
+  emit updateDrawingOrderChecked( true );
+  emit updateDrawingOrderUnchecked( false );
 }
 
 void QgsLegend::setLayersVisible( bool visible )

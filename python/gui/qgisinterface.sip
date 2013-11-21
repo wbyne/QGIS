@@ -408,12 +408,14 @@ class QgisInterface : QObject
     virtual QAction *actionSelectFreehand() = 0;
     virtual QAction *actionSelectRadius() = 0;
     virtual QAction *actionIdentify() = 0;
+    virtual QAction *actionFeatureAction() = 0;
     virtual QAction *actionMeasure() = 0;
     virtual QAction *actionMeasureArea() = 0;
     virtual QAction *actionZoomFullExtent() = 0;
     virtual QAction *actionZoomToLayer() = 0;
     virtual QAction *actionZoomToSelected() = 0;
     virtual QAction *actionZoomLast() = 0;
+    virtual QAction *actionZoomNext() = 0;
     virtual QAction *actionZoomActualSize() = 0;
     virtual QAction *actionMapTips() = 0;
     virtual QAction *actionNewBookmark() = 0;

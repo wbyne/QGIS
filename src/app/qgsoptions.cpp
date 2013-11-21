@@ -410,6 +410,51 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WFlags fl ) :
   //display the crs as friendly text rather than in wkt
   leProjectGlobalCrs->setText( mDefaultCrs.authid() + " - " + mDefaultCrs.description() );
 
+  //default datum transformations
+  settings.beginGroup( "/Projections" );
+  QStringList projectionKeys = settings.allKeys();
+
+  //collect src and dest entries that belong together
+  QMap< QPair< QString, QString >, QPair< int, int > > transforms;
+  QStringList::const_iterator pkeyIt = projectionKeys.constBegin();
+  for ( ; pkeyIt != projectionKeys.constEnd(); ++pkeyIt )
+  {
+    if ( pkeyIt->contains( "srcTransform" ) || pkeyIt->contains( "destTransform" ) )
+    {
+      QStringList split = pkeyIt->split( "/" );
+      QString srcAuthId, destAuthId;
+      if ( split.size() > 0 )
+      {
+        srcAuthId = split.at( 0 );
+      }
+      if ( split.size() > 1 )
+      {
+        destAuthId = split.at( 1 ).split( "_" ).at( 0 );
+      }
+
+      if ( pkeyIt->contains( "srcTransform" ) )
+      {
+        transforms[ qMakePair( srcAuthId, destAuthId )].first = settings.value( *pkeyIt ).toInt();
+      }
+      else if ( pkeyIt->contains( "destTransform" ) )
+      {
+        transforms[ qMakePair( srcAuthId, destAuthId )].second = settings.value( *pkeyIt ).toInt();
+      }
+    }
+  }
+  settings.endGroup();
+
+  QMap< QPair< QString, QString >, QPair< int, int > >::const_iterator transformIt = transforms.constBegin();
+  for ( ; transformIt != transforms.constEnd(); ++transformIt )
+  {
+    const QPair< int, int >& v = transformIt.value();
+    QTreeWidgetItem* item = new QTreeWidgetItem();
+    item->setText( 0, transformIt.key().first );
+    item->setText( 1, transformIt.key().second );
+    item->setText( 2, QString::number( v.first ) );
+    item->setText( 3, QString::number( v.second ) );
+    mDefaultDatumTransformTreeWidget->addTopLevelItem( item );
+  }
 
   // Set the units for measuring
   QGis::UnitType myDisplayUnits = QGis::fromLiteral( settings.value( "/qgis/measure/displayunits", QGis::toLiteral( QGis::Meters ) ).toString() );
@@ -637,6 +682,65 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WFlags fl ) :
   }
 
   //
+  // Composer settings
+  //
+
+  //default composer font
+  mComposerFontComboBox->blockSignals( true );
+
+  QString composerFontFamily = settings.value( "/Composer/defaultFont" ).toString();
+
+  QFont *tempComposerFont = new QFont( composerFontFamily );
+  // is exact family match returned from system?
+  if ( tempComposerFont->family() == composerFontFamily )
+  {
+    mComposerFontComboBox->setCurrentFont( *tempComposerFont );
+  }
+  delete tempComposerFont;
+
+  mComposerFontComboBox->blockSignals( false );
+
+  //default composer grid color
+  int gridRed, gridGreen, gridBlue, gridAlpha;
+  gridRed = settings.value( "/Composer/gridRed", 190 ).toInt();
+  gridGreen = settings.value( "/Composer/gridGreen", 190 ).toInt();
+  gridBlue = settings.value( "/Composer/gridBlue", 190 ).toInt();
+  gridAlpha = settings.value( "/Composer/gridAlpha", 100 ).toInt();
+  QColor gridColor = QColor( gridRed, gridGreen, gridBlue, gridAlpha );
+  mGridColorButton->setColor( gridColor );
+  mGridColorButton->setColorDialogTitle( tr( "Select grid color" ) );
+  mGridColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+
+  //default composer grid style
+  QString gridStyleString;
+  gridStyleString = settings.value( "/Composer/gridStyle", "Dots" ).toString();
+  mGridStyleComboBox->insertItem( 0, tr( "Solid" ) );
+  mGridStyleComboBox->insertItem( 1, tr( "Dots" ) );
+  mGridStyleComboBox->insertItem( 2, tr( "Crosses" ) );
+  if ( gridStyleString == "Solid" )
+  {
+    mGridStyleComboBox->setCurrentIndex( 0 );
+  }
+  else if ( gridStyleString == "Crosses" )
+  {
+    mGridStyleComboBox->setCurrentIndex( 2 );
+  }
+  else
+  {
+    //default grid is dots
+    mGridStyleComboBox->setCurrentIndex( 1 );
+  }
+
+  //grid defaults
+  mGridResolutionSpinBox->setValue( settings.value( "/Composer/defaultSnapGridResolution", 10.0 ).toDouble() );
+  mGridToleranceSpinBox->setValue( settings.value( "/Composer/defaultSnapGridTolerance", 2 ).toDouble() );
+  mOffsetXSpinBox->setValue( settings.value( "/Composer/defaultSnapGridOffsetX", 0 ).toDouble() );
+  mOffsetYSpinBox->setValue( settings.value( "/Composer/defaultSnapGridOffsetY", 0 ).toDouble() );
+
+  //guide defaults
+  mGuideToleranceSpinBox->setValue( settings.value( "/Composer/defaultSnapGuideTolerance", 2 ).toDouble() );
+
+  //
   // Locale settings
   //
   QString mySystemLocale = QLocale::system().name();
@@ -749,6 +853,21 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WFlags fl ) :
 //! Destructor
 QgsOptions::~QgsOptions()
 {
+}
+
+void QgsOptions::setCurrentPage( QString pageWidgetName )
+{
+  //find the page with a matching widget name
+  for ( int idx = 0; idx < mOptionsStackedWidget->count(); ++idx )
+  {
+    QWidget * currentPage = mOptionsStackedWidget->widget( idx );
+    if ( currentPage->objectName() == pageWidgetName )
+    {
+      //found the page, set it as current
+      mOptionsStackedWidget->setCurrentIndex( idx );
+      return;
+    }
+  }
 }
 
 void QgsOptions::on_cbxProjectDefaultNew_toggled( bool checked )
@@ -1167,6 +1286,43 @@ void QgsOptions::saveOptions()
   settings.setValue( "Map/scales", myPaths );
 
   //
+  // Composer settings
+  //
+
+  //default font
+  QString composerFont = mComposerFontComboBox->currentFont().family();
+  settings.setValue( "/Composer/defaultFont", composerFont );
+
+  //grid color
+  settings.setValue( "/Composer/gridRed", mGridColorButton->color().red() );
+  settings.setValue( "/Composer/gridGreen", mGridColorButton->color().green() );
+  settings.setValue( "/Composer/gridBlue", mGridColorButton->color().blue() );
+  settings.setValue( "/Composer/gridAlpha", mGridColorButton->color().alpha() );
+
+  //grid style
+  if ( mGridStyleComboBox->currentText() == tr( "Solid" ) )
+  {
+    settings.setValue( "/Composer/gridStyle", "Solid" );
+  }
+  else if ( mGridStyleComboBox->currentText() == tr( "Dots" ) )
+  {
+    settings.setValue( "/Composer/gridStyle", "Dots" );
+  }
+  else if ( mGridStyleComboBox->currentText() == tr( "Crosses" ) )
+  {
+    settings.setValue( "/Composer/gridStyle", "Crosses" );
+  }
+
+  //grid defaults
+  settings.setValue( "/Composer/defaultSnapGridResolution", mGridResolutionSpinBox->value() );
+  settings.setValue( "/Composer/defaultSnapGridTolerance", mGridToleranceSpinBox->value() );
+  settings.setValue( "/Composer/defaultSnapGridOffsetX", mOffsetXSpinBox->value() );
+  settings.setValue( "/Composer/defaultSnapGridOffsetY", mOffsetYSpinBox->value() );
+
+  //guide defaults
+  settings.setValue( "/Composer/defaultSnapGuideTolerance", mGuideToleranceSpinBox->value() );
+
+  //
   // Locale settings
   //
   settings.setValue( "locale/userLocale", cboLocale->itemData( cboLocale->currentIndex() ).toString() );
@@ -1196,6 +1352,8 @@ void QgsOptions::saveOptions()
   {
     mStyleSheetBuilder->saveToSettings( mStyleSheetNewOpts );
   }
+
+  saveDefaultDatumTransformations();
 }
 
 void QgsOptions::rejectOptions()
@@ -1551,7 +1709,7 @@ void QgsOptions::on_mOptionsStackedWidget_currentChanged( int theIndx )
 {
   Q_UNUSED( theIndx );
   // load gdal driver list when gdal tab is first opened
-  if ( mOptionsStackedWidget->currentWidget()->objectName() == QString( "mOptionsPage_02" )
+  if ( mOptionsStackedWidget->currentWidget()->objectName() == QString( "mOptionsPageGDAL" )
        && ! mLoadedGdalDriverList )
   {
     loadGdalDriverList();
@@ -1848,5 +2006,70 @@ void QgsOptions::saveContrastEnhancement( QComboBox *cbox, QString name )
   QSettings settings;
   QString value = cbox->itemData( cbox->currentIndex() ).toString();
   settings.setValue( "/Raster/defaultContrastEnhancementAlgorithm/" + name, value );
+}
+
+void QgsOptions::on_mRemoveDefaultTransformButton_clicked()
+{
+  QList<QTreeWidgetItem*> items = mDefaultDatumTransformTreeWidget->selectedItems();
+  for ( int i = 0; i < items.size(); ++i )
+  {
+    int idx = mDefaultDatumTransformTreeWidget->indexOfTopLevelItem( items.at( i ) );
+    if ( idx >= 0 )
+    {
+      delete mDefaultDatumTransformTreeWidget->takeTopLevelItem( idx );
+    }
+  }
+}
+
+void QgsOptions::on_mAddDefaultTransformButton_clicked()
+{
+  QTreeWidgetItem* item = new QTreeWidgetItem();
+  item->setText( 0, "" );
+  item->setText( 1, "" );
+  item->setText( 2, "" );
+  item->setText( 3, "" );
+  item->setFlags( Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable );
+  mDefaultDatumTransformTreeWidget->addTopLevelItem( item );
+}
+
+void QgsOptions::saveDefaultDatumTransformations()
+{
+  QSettings s;
+  s.beginGroup( "/Projections" );
+  QStringList groupKeys = s.allKeys();
+  QStringList::const_iterator groupKeyIt = groupKeys.constBegin();
+  for ( ; groupKeyIt != groupKeys.constEnd(); ++groupKeyIt )
+  {
+    if ( groupKeyIt->contains( "srcTransform" ) || groupKeyIt->contains( "destTransform" ) )
+    {
+      s.remove( *groupKeyIt );
+    }
+  }
+
+  int nDefaultTransforms = mDefaultDatumTransformTreeWidget->topLevelItemCount();
+  for ( int i = 0; i < nDefaultTransforms; ++i )
+  {
+    QTreeWidgetItem* item = mDefaultDatumTransformTreeWidget->topLevelItem( i );
+    QString srcAuthId = item->text( 0 );
+    QString destAuthId = item->text( 1 );
+    if ( srcAuthId.isEmpty() || destAuthId.isEmpty() )
+    {
+      continue;
+    }
+
+    bool conversionOk;
+    int srcDatumTransform = item->text( 2 ).toInt( &conversionOk );
+    if ( conversionOk )
+    {
+      s.setValue( srcAuthId + "//" + destAuthId + "_srcTransform" , srcDatumTransform );
+    }
+    int destDatumTransform = item->text( 3 ).toInt( &conversionOk );
+    if ( conversionOk )
+    {
+      s.setValue( srcAuthId + "//" + destAuthId + "_destTransform" , destDatumTransform );
+    }
+  }
+
+  s.endGroup();
 }
 
