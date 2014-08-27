@@ -124,7 +124,7 @@ class CORE_EXPORT QgsRasterBlock
     }
 
     // Data type in bytes
-    int dataTypeSize( ) const
+    int dataTypeSize() const
     {
       return typeSize( mDataType );
     }
@@ -291,6 +291,10 @@ class CORE_EXPORT QgsRasterBlock
 
     void applyNoDataValues( const QgsRasterRangeList & rangeList );
 
+    /** apply band scale and offset to raster block values
+     * @@note added in 2.3 */
+    void applyScaleOffset( double scale, double offset );
+
     /** \brief Get error */
     QgsError error() const { return mError; }
 
@@ -356,6 +360,8 @@ class CORE_EXPORT QgsRasterBlock
 
     // No data value
     double mNoDataValue;
+
+    static const QRgb mNoDataColor;
 
     // Data block for numerical data types, not used with image data types
     // QByteArray does not seem to be intended for large data blocks, does it?

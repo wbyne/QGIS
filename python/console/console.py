@@ -96,8 +96,6 @@ class PythonConsoleWidget(QWidget):
 
         self.settings = QSettings()
 
-        self.options = optionsDialog(self)
-
         self.shell = ShellScintilla(self)
         self.setFocusProxy(self.shell)
         self.shellOut = ShellOutputScintilla(self)
@@ -534,14 +532,14 @@ class PythonConsoleWidget(QWidget):
         self.saveFileButton.triggered.connect(self.saveScriptFile)
         self.saveAsFileButton.triggered.connect(self.saveAsScriptFile)
         self.helpButton.triggered.connect(self.openHelp)
-        self.connect(self.options.buttonBox, SIGNAL("accepted()"),
-                     self.prefChanged)
         self.connect(self.listClassMethod, SIGNAL('itemClicked(QTreeWidgetItem*, int)'),
                      self.onClickGoToLine)
         self.lineEditFind.returnPressed.connect(self._findText)
         self.findNextButton.clicked.connect(self._findNext)
         self.findPrevButton.clicked.connect(self._findPrev)
         self.lineEditFind.textChanged.connect(self._textFindChanged)
+
+        self.tabEditorWidget.restoreTabsOrAddNew()
 
     def _findText(self):
         self.tabEditorWidget.currentWidget().newEditor.findText(True)
@@ -645,14 +643,11 @@ class PythonConsoleWidget(QWidget):
                                                                                                               error.strerror)
             self.callWidgetMessageBarEditor(msgText, 2, False)
 
-    def saveAsScriptFile(self, index=-1):
+    def saveAsScriptFile(self, index=None):
         tabWidget = self.tabEditorWidget.currentWidget()
-        if index != -1:
-            tabWidget = self.tabEditorWidget.widget(index)
-        index = self.tabEditorWidget.currentIndex()
-        if tabWidget is None:
-            return
-        if tabWidget.path is None:
+        if not index:
+            index = self.tabEditorWidget.currentIndex()
+        if not tabWidget.path:
             pathFileName = self.tabEditorWidget.tabText(index) + '.py'
             fileNone = True
         else:
@@ -684,12 +679,11 @@ class PythonConsoleWidget(QWidget):
         QgsContextHelp.run( "PythonConsole" )
 
     def openSettings(self):
-        self.options.exec_()
-
-    def prefChanged(self):
-        self.shell.refreshSettingsShell()
-        self.shellOut.refreshSettingsOutput()
-        self.tabEditorWidget.refreshSettingsEditor()
+        options = optionsDialog(self)
+        if options.exec_():
+            self.shell.refreshSettingsShell()
+            self.shellOut.refreshSettingsOutput()
+            self.tabEditorWidget.refreshSettingsEditor()
 
     def callWidgetMessageBar(self, text):
         self.shellOut.widgetMessageBar(iface, text)

@@ -25,6 +25,7 @@
 #include "qgslogger.h"
 #include "qstring.h"
 
+#include <QKeyEvent>
 #include <QMenu>
 #include <QProgressDialog>
 #include <QSettings>
@@ -110,6 +111,7 @@ QgsRuleBasedRendererV2Widget::QgsRuleBasedRendererV2Widget( QgsVectorLayer* laye
 
 QgsRuleBasedRendererV2Widget::~QgsRuleBasedRendererV2Widget()
 {
+  qDeleteAll( mCopyBuffer );
   delete mRenderer;
 }
 
@@ -366,6 +368,23 @@ QList<QgsSymbolV2*> QgsRuleBasedRendererV2Widget::selectedSymbols()
   return symbolList;
 }
 
+QgsRuleBasedRendererV2::RuleList QgsRuleBasedRendererV2Widget::selectedRules()
+{
+  QgsRuleBasedRendererV2::RuleList rl;
+  QItemSelection sel = viewRules->selectionModel()->selection();
+  foreach ( QItemSelectionRange range, sel )
+  {
+    QModelIndex parent = range.parent();
+    QgsRuleBasedRendererV2::Rule* parentRule = mModel->ruleForIndex( parent );
+    QgsRuleBasedRendererV2::RuleList& children = parentRule->children();
+    for ( int row = range.top(); row <= range.bottom(); row++ )
+    {
+      rl.append( children[row]->clone() );
+    }
+  }
+  return rl;
+}
+
 void QgsRuleBasedRendererV2Widget::refreshSymbolView()
 {
   // TODO: model/view
@@ -375,6 +394,30 @@ void QgsRuleBasedRendererV2Widget::refreshSymbolView()
     treeRules->populateRules();
   }
   */
+}
+
+void QgsRuleBasedRendererV2Widget::keyPressEvent( QKeyEvent* event )
+{
+  if ( !event )
+  {
+    return;
+  }
+
+  if ( event->key() == Qt::Key_C && event->modifiers() == Qt::ControlModifier )
+  {
+    qDeleteAll( mCopyBuffer );
+    mCopyBuffer.clear();
+    mCopyBuffer = selectedRules();
+  }
+  else if ( event->key() == Qt::Key_V && event->modifiers() == Qt::ControlModifier )
+  {
+    QgsRuleBasedRendererV2::RuleList::const_iterator rIt = mCopyBuffer.constBegin();
+    for ( ; rIt != mCopyBuffer.constEnd(); ++rIt )
+    {
+      int rows = mModel->rowCount();
+      mModel->insertRule( QModelIndex(), rows, ( *rIt )->clone() );
+    }
+  }
 }
 
 #include "qgssymbollevelsv2dialog.h"
@@ -458,7 +501,7 @@ void QgsRuleBasedRendererV2Widget::countFeatures()
 
   QgsRenderContext renderContext;
   renderContext.setRendererScale( 0 ); // ignore scale
-  mRenderer->startRender( renderContext, mLayer );
+  mRenderer->startRender( renderContext, mLayer->pendingFields() );
 
   int nFeatures = mLayer->pendingFeatureCount();
   QProgressDialog p( tr( "Calculating feature count." ), tr( "Abort" ), 0, nFeatures );
@@ -533,8 +576,9 @@ QgsRendererRulePropsDialog::QgsRendererRulePropsDialog( QgsRuleBasedRendererV2::
   if ( mRule->dependsOnScale() )
   {
     groupScale->setChecked( true );
-    spinMinScale->setValue( rule->scaleMinDenom() );
-    spinMaxScale->setValue( rule->scaleMaxDenom() );
+    // caution: rule uses scale denom, scale widget uses true scales
+    mScaleRangeWidget->setMaximumScale( 1.0 / rule->scaleMinDenom() );
+    mScaleRangeWidget->setMinimumScale( 1.0 / rule->scaleMaxDenom() );
   }
 
   if ( mRule->symbol() )
@@ -555,11 +599,16 @@ QgsRendererRulePropsDialog::QgsRendererRulePropsDialog( QgsRuleBasedRendererV2::
 
   connect( btnExpressionBuilder, SIGNAL( clicked() ), this, SLOT( buildExpression() ) );
   connect( btnTestFilter, SIGNAL( clicked() ), this, SLOT( testFilter() ) );
+
+  QSettings settings;
+  restoreGeometry( settings.value( "/Windows/QgsRendererRulePropsDialog/geometry" ).toByteArray() );
 }
 
 QgsRendererRulePropsDialog::~QgsRendererRulePropsDialog()
 {
   delete mSymbol;
+  QSettings settings;
+  settings.setValue( "/Windows/QgsRendererRulePropsDialog/geometry", saveGeometry() );
 }
 
 void QgsRendererRulePropsDialog::buildExpression()
@@ -589,7 +638,7 @@ void QgsRendererRulePropsDialog::testFilter()
 
   QApplication::setOverrideCursor( Qt::WaitCursor );
 
-  QgsFeatureIterator fit = mLayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ) );
+  QgsFeatureIterator fit = mLayer->getFeatures();
 
   int count = 0;
   QgsFeature f;
@@ -612,8 +661,9 @@ void QgsRendererRulePropsDialog::accept()
   mRule->setFilterExpression( editFilter->text() );
   mRule->setLabel( editLabel->text() );
   mRule->setDescription( editDescription->text() );
-  mRule->setScaleMinDenom( groupScale->isChecked() ? spinMinScale->value() : 0 );
-  mRule->setScaleMaxDenom( groupScale->isChecked() ? spinMaxScale->value() : 0 );
+  // caution: rule uses scale denom, scale widget uses true scales
+  mRule->setScaleMinDenom( groupScale->isChecked() ? mScaleRangeWidget->minimumScaleDenom() : 0 );
+  mRule->setScaleMaxDenom( groupScale->isChecked() ? mScaleRangeWidget->maximumScaleDenom() : 0 );
   mRule->setSymbol( groupSymbol->isChecked() ? mSymbol->clone() : NULL );
 
   QDialog::accept();
@@ -680,8 +730,8 @@ QVariant QgsRuleBasedRendererV2Model::data( const QModelIndex &index, int role )
         {
           return rule->filterExpression().isEmpty() ? tr( "(no filter)" ) : rule->filterExpression();
         }
-      case 2: return rule->dependsOnScale() ? _formatScale( rule->scaleMinDenom() ) : QVariant();
-      case 3: return rule->dependsOnScale() ? _formatScale( rule->scaleMaxDenom() ) : QVariant();
+      case 2: return rule->dependsOnScale() ? _formatScale( rule->scaleMaxDenom() ) : QVariant();
+      case 3: return rule->dependsOnScale() ? _formatScale( rule->scaleMinDenom() ) : QVariant();
       case 4:
         if ( mFeatureCountMap.count( rule ) == 1 )
         {

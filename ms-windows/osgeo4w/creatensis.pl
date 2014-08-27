@@ -28,7 +28,7 @@ my $version;
 my $binary;
 my $root = "http://download.osgeo.org/osgeo4w";
 my $ininame = "setup.ini";
-my $arch = "";
+my $arch = "x86_64";
 my $help;
 
 my $result = GetOptions(
@@ -47,7 +47,7 @@ my $result = GetOptions(
 
 pod2usage(1) if $help;
 
-my $wgetopt = $verbose ? "" : "-q";
+my $wgetopt = $verbose ? "" : "-nv";
 
 unless(-f "nsis/System.dll") {
 	mkdir "nsis", 0755 unless -d "nsis";
@@ -70,21 +70,29 @@ my %dep;
 my %file;
 my %lic;
 my %sdesc;
+my %md5;
 my $package;
 
 system "wget $wgetopt -O setup.ini -c $root$archpath/$ininame";
 die "download of setup.ini failed" if $?;
 open F, "setup.ini" || die "setup.ini not found";
 while(<F>) {
+	my $file;
+	my $md5;
+
 	chop;
 	if(/^@ (\S+)/) {
 		$package = $1;
 	} elsif( /^requires: (.*)$/ ) {
 		@{$dep{$package}} = split / /, $1;
-	} elsif( /^install:\s+(\S+)\s+/) {
-		$file{$package} = $1 unless exists $file{$package};
-	} elsif( /^license:\s+(\S+)\s+/) {
-		$lic{$package} = $1 unless exists $lic{$package};
+	} elsif( ($file,$md5) = /^install:\s+(\S+)\s+.*\s+(\S+)$/) {
+		$file{$package} = $file unless exists $file{$package};
+		$file =~ s/^.*\///;
+		$md5{$file} = $md5 unless exists $md5{$file};
+	} elsif( ($file,$md5) = /^license:\s+(\S+)\s+.*\s+(\S+)$/) {
+		$lic{$package} = $file unless exists $lic{$package};
+		$file =~ s/^.*\///;
+		$md5{$file} = $md5 unless exists $md5{$file};
 	} elsif( /^sdesc:\s*"(.*)"\s*$/) {
 		$sdesc{$package} = $1 unless exists $sdesc{$package};
 	}
@@ -144,7 +152,29 @@ foreach my $p ( keys %pkgs ) {
 
 		print "Downloading $file [$f]...\n" if $verbose;
 		system "wget $wgetopt -c $f";
-		die "download of $f failed" if $?;
+		die "download of $f failed" if $? or ! -f $file;
+
+		if( exists $md5{$file} ) {
+			my $md5;
+			open F, "md5sum $file|";
+			while(<F>) {
+				if( /^(\S+)\s+\*?$file$/ ) {
+					$md5 = $1;
+				}
+			}
+			close F;
+
+			die "No md5sum of $p determined [$file]" unless defined $md5;
+			if( $md5 eq $md5{$file} ) {
+				print "md5sum of $file verified.\n" if $verbose;
+			} else {
+				die "md5sum mismatch for $file [$md5 vs $md5{$file{$p}}]"
+			}
+		}
+		else
+		{
+			die "md5sum for $file not found.\n";
+		}
 	}
 }
 
@@ -194,7 +224,7 @@ unless(-d $unpacked ) {
 		print O "$pn $p 0\n";
 
 		print "Unpacking $p...\n" if $verbose;
-		system "tar $taropt -C $unpacked -xjvf $p | gzip -c >$unpacked/etc/setup/$pn.lst.gz";
+		system "bash -c 'tar $taropt -C $unpacked -xjvf $p | gzip -c >$unpacked/etc/setup/$pn.lst.gz && [ \${PIPESTATUS[0]} == 0 -a \${PIPESTATUS[1]} == 0 ]'";
 		die "unpacking of $p failed" if $?;
 	}
 
@@ -398,7 +428,7 @@ $cmd .= " -DARCH='$arch'";
 $cmd .= " QGIS-Installer.nsi";
 
 system $cmd;
-die "running nsis failed" if $?;
+die "running nsis failed [$cmd]" if $?;
 
 open P, ">osgeo4w/binary$archpostfix-$version";
 print P $binary;
@@ -425,7 +455,7 @@ creatensis.pl [options] [packages...]
     -packagename=s	name of package (defaults to 'QGIS')
     -shortname=s	shortname used for batch file (defaults to 'qgis')
     -mirror=s		default mirror (defaults to 'http://download.osgeo.org/osgeo4w')
-    -arch=s		architecture (x86 or x86_64; defaults to '')
+    -arch=s		architecture (x86 or x86_64; defaults to 'x86_64')
     -help		this help
 
   If no packages are given 'qgis-full' and it's dependencies will be retrieved

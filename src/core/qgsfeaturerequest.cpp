@@ -19,6 +19,9 @@
 
 #include <QStringList>
 
+//constants
+const QString QgsFeatureRequest::AllAttributes = QString( "#!allattributes!#" );
+
 QgsFeatureRequest::QgsFeatureRequest()
     : mFilter( FilterNone )
     , mFilterExpression( 0 )
@@ -70,6 +73,7 @@ QgsFeatureRequest& QgsFeatureRequest::operator=( const QgsFeatureRequest & rh )
     mFilterExpression = 0;
   }
   mAttrs = rh.mAttrs;
+  mSimplifyMethod = rh.mSimplifyMethod;
   return *this;
 }
 
@@ -120,18 +124,30 @@ QgsFeatureRequest& QgsFeatureRequest::setSubsetOfAttributes( const QgsAttributeL
   return *this;
 }
 
-
 QgsFeatureRequest& QgsFeatureRequest::setSubsetOfAttributes( const QStringList& attrNames, const QgsFields& fields )
 {
+  if ( attrNames.contains( QgsFeatureRequest::AllAttributes ) )
+  {
+    //attribute string list contains the all attributes flag, so we must fetch all attributes
+    return *this;
+  }
+
   mFlags |= SubsetOfAttributes;
   mAttrs.clear();
 
-  for ( int idx = 0; idx < fields.count(); ++idx )
+  foreach ( const QString& attrName, attrNames )
   {
-    if ( attrNames.contains( fields[idx].name() ) )
-      mAttrs.append( idx );
+    int attrNum = fields.fieldNameIndex( attrName );
+    if ( attrNum != -1 && !mAttrs.contains( attrNum ) )
+      mAttrs.append( attrNum );
   }
 
+  return *this;
+}
+
+QgsFeatureRequest& QgsFeatureRequest::setSimplifyMethod( const QgsSimplifyMethod& simplifyMethod )
+{
+  mSimplifyMethod = simplifyMethod;
   return *this;
 }
 
@@ -174,3 +190,28 @@ bool QgsFeatureRequest::acceptFeature( const QgsFeature& feature )
 
   return true;
 }
+
+#include "qgsfeatureiterator.h"
+#include "qgslogger.h"
+
+QgsAbstractFeatureSource::~QgsAbstractFeatureSource()
+{
+  while ( !mActiveIterators.empty() )
+  {
+    QgsAbstractFeatureIterator *it = *mActiveIterators.begin();
+    QgsDebugMsg( "closing active iterator" );
+    it->close();
+  }
+}
+
+void QgsAbstractFeatureSource::iteratorOpened( QgsAbstractFeatureIterator* it )
+{
+  mActiveIterators.insert( it );
+}
+
+void QgsAbstractFeatureSource::iteratorClosed( QgsAbstractFeatureIterator* it )
+{
+  mActiveIterators.remove( it );
+}
+
+

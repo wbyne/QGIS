@@ -46,7 +46,7 @@ class TreeFilterProxyModel : public QSortFilterProxyModel
     bool filterAcceptsRow( int sourceRow, const QModelIndex &sourceParent ) const
     {
       QgsCptCityDataItem* item = mModel->dataItem( mModel->index( sourceRow, 0, sourceParent ) );
-      return ( item && ! item->type() == QgsCptCityDataItem::ColorRamp );
+      return ( item && !( item->type() == QgsCptCityDataItem::ColorRamp ) );
     }
     // bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
 
@@ -145,8 +145,7 @@ QgsCptCityColorRampV2Dialog::QgsCptCityColorRampV2Dialog( QgsCptCityColorRampV2*
   QgsDebugMsg( "looking for ramp " + mRamp->schemeName() );
   if ( mRamp->schemeName() != "" )
   {
-    bool found = false;
-    found = updateRamp();
+    bool found = updateRamp();
     if ( ! found )
     {
       tabBar->setCurrentIndex( 1 );

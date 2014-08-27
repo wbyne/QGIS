@@ -17,6 +17,9 @@
 
 #include "qgscomposeritemgroup.h"
 #include "qgscomposition.h"
+#include "qgscomposerutils.h"
+#include "qgslogger.h"
+#include "qgscomposermodel.h"
 
 #include <QPen>
 #include <QPainter>
@@ -30,13 +33,16 @@ QgsComposerItemGroup::QgsComposerItemGroup( QgsComposition* c )
 
 QgsComposerItemGroup::~QgsComposerItemGroup()
 {
+  //loop through group members and remove them from the scene
   QSet<QgsComposerItem*>::iterator itemIt = mItems.begin();
   for ( ; itemIt != mItems.end(); ++itemIt )
   {
     if ( *itemIt )
     {
+      //inform model that we are about to remove an item from the scene
+      mComposition->itemsModel()->setItemRemoved( *itemIt );
       mComposition->removeItem( *itemIt );
-      ( *itemIt )->setFlag( QGraphicsItem::ItemIsSelectable, true );
+      ( *itemIt )->setIsGroupMember( false );
     }
   }
 }
@@ -57,42 +63,41 @@ void QgsComposerItemGroup::addItem( QgsComposerItem* item )
 
   mItems.insert( item );
   item->setSelected( false );
-  item->setFlag( QGraphicsItem::ItemIsSelectable, false ); //item in groups cannot be selected
+  item->setIsGroupMember( true );
 
-  //update extent (which is in scene coordinates)
-  double minXItem = item->transform().dx();
-  double minYItem = item->transform().dy();
-  double maxXItem = minXItem + item->rect().width();
-  double maxYItem = minYItem + item->rect().height();
-
-  if ( mSceneBoundingRectangle.isEmpty() ) //we add the first item
+  //update extent
+  if ( mBoundingRectangle.isEmpty() ) //we add the first item
   {
-    mSceneBoundingRectangle.setLeft( minXItem );
-    mSceneBoundingRectangle.setTop( minYItem );
-    mSceneBoundingRectangle.setRight( maxXItem );
-    mSceneBoundingRectangle.setBottom( maxYItem );
+    mBoundingRectangle = QRectF( 0, 0, item->rect().width(), item->rect().height() );
+    //call method of superclass to avoid repositioning of items
+    QgsComposerItem::setSceneRect( QRectF( item->pos().x(), item->pos().y(), item->rect().width(), item->rect().height() ) );
+
+    if ( item->itemRotation() != 0 )
+    {
+      setItemRotation( item->itemRotation() );
+    }
   }
   else
   {
-    if ( minXItem < mSceneBoundingRectangle.left() )
+    if ( item->itemRotation() != itemRotation() )
     {
-      mSceneBoundingRectangle.setLeft( minXItem );
+      //items have mixed rotation, so reset rotation of group
+      mBoundingRectangle = mapRectToScene( mBoundingRectangle );
+      setItemRotation( 0 );
+      mBoundingRectangle = mBoundingRectangle.united( item->mapRectToScene( item->rect() ) );
+      //call method of superclass to avoid repositioning of items
+      QgsComposerItem::setSceneRect( mBoundingRectangle );
     }
-    if ( minYItem < mSceneBoundingRectangle.top() )
+    else
     {
-      mSceneBoundingRectangle.setTop( minYItem );
-    }
-    if ( maxXItem > mSceneBoundingRectangle.right() )
-    {
-      mSceneBoundingRectangle.setRight( maxXItem );
-    }
-    if ( maxYItem > mSceneBoundingRectangle.bottom() )
-    {
-      mSceneBoundingRectangle.setBottom( maxYItem );
+      //items have same rotation, so keep rotation of group
+      mBoundingRectangle = mBoundingRectangle.united( mapRectFromItem( item, item->rect() ) );
+      QPointF newPos = mapToScene( mBoundingRectangle.topLeft().x(), mBoundingRectangle.topLeft().y() );
+      mBoundingRectangle = QRectF( 0, 0, mBoundingRectangle.width(), mBoundingRectangle.height() );
+      QgsComposerItem::setSceneRect( QRectF( newPos.x(), newPos.y(), mBoundingRectangle.width(), mBoundingRectangle.height() ) );
     }
   }
 
-  QgsComposerItem::setSceneRect( mSceneBoundingRectangle ); //call method of superclass to avoid repositioning of items
 }
 
 void QgsComposerItemGroup::removeItems()
@@ -100,7 +105,7 @@ void QgsComposerItemGroup::removeItems()
   QSet<QgsComposerItem*>::iterator item_it = mItems.begin();
   for ( ; item_it != mItems.end(); ++item_it )
   {
-    ( *item_it )->setFlag( QGraphicsItem::ItemIsSelectable, true ); //enable item selection again
+    ( *item_it )->setIsGroupMember( false );
     ( *item_it )->setSelected( true );
   }
   mItems.clear();
@@ -124,39 +129,35 @@ void QgsComposerItemGroup::paint( QPainter * painter, const QStyleOptionGraphics
 
 void QgsComposerItemGroup::setSceneRect( const QRectF& rectangle )
 {
-  //calculate values between 0 and 1 for boundaries of all contained items, depending on their positions in the item group rectangle.
-  //then position the item boundaries in the new item group rect such that these values are the same
-  double xLeftCurrent = transform().dx();
-  double xRightCurrent = xLeftCurrent + rect().width();
-  double yTopCurrent = transform().dy();
-  double yBottomCurrent = yTopCurrent + rect().height();
-
-  double xItemLeft, xItemRight, yItemTop, yItemBottom;
-  double xItemLeftNew, xItemRightNew, yItemTopNew, yItemBottomNew;
-  double xParamLeft, xParamRight, yParamTop, yParamBottom;
-
+  //resize all items in this group
+  //first calculate new group rectangle in current group coordsys
+  QPointF newOrigin = mapFromScene( rectangle.topLeft() );
+  QRectF newRect = QRectF( newOrigin.x(), newOrigin.y(), rectangle.width(), rectangle.height() );
 
   QSet<QgsComposerItem*>::iterator item_it = mItems.begin();
   for ( ; item_it != mItems.end(); ++item_it )
   {
-    xItemLeft = ( *item_it )->transform().dx();
-    xItemRight = xItemLeft + ( *item_it )->rect().width();
-    yItemTop = ( *item_it )->transform().dy();
-    yItemBottom = yItemTop + ( *item_it )->rect().height();
+    //each item needs to be scaled relatively to the final size of the group
+    QRectF itemRect = mapRectFromItem(( *item_it ), ( *item_it )->rect() );
+    QgsComposerUtils::relativeResizeRect( itemRect, rect(), newRect );
 
-    xParamLeft = ( xItemLeft - xLeftCurrent ) / ( xRightCurrent - xLeftCurrent );
-    xParamRight = ( xItemRight - xLeftCurrent ) / ( xRightCurrent - xLeftCurrent );
-    yParamTop = ( yItemTop - yTopCurrent ) / ( yBottomCurrent - yTopCurrent );
-    yParamBottom = ( yItemBottom - yTopCurrent ) / ( yBottomCurrent - yTopCurrent );
-
-    xItemLeftNew = xParamLeft * rectangle.right()  + ( 1 - xParamLeft ) * rectangle.left();
-    xItemRightNew = xParamRight * rectangle.right() + ( 1 - xParamRight ) * rectangle.left();
-    yItemTopNew = yParamTop * rectangle.bottom() + ( 1 - yParamTop ) * rectangle.top();
-    yItemBottomNew = yParamBottom * rectangle.bottom() + ( 1 - yParamBottom ) * rectangle.top();
-
-    ( *item_it )->setSceneRect( QRectF( xItemLeftNew, yItemTopNew, xItemRightNew - xItemLeftNew, yItemBottomNew - yItemTopNew ) );
+    QPointF newPos = mapToScene( itemRect.topLeft() );
+    ( *item_it )->setSceneRect( QRectF( newPos.x(), newPos.y(), itemRect.width(), itemRect.height() ) );
   }
+  //lastly, set new rect for group
   QgsComposerItem::setSceneRect( rectangle );
+}
+
+void QgsComposerItemGroup::setVisibility( const bool visible )
+{
+  //also set visibility for all items within the group
+  QSet<QgsComposerItem*>::iterator item_it = mItems.begin();
+  for ( ; item_it != mItems.end(); ++item_it )
+  {
+    ( *item_it )->setVisibility( visible );
+  }
+  //lastly set visibility for group item itself
+  QgsComposerItem::setVisibility( visible );
 }
 
 void QgsComposerItemGroup::drawFrame( QPainter* p )

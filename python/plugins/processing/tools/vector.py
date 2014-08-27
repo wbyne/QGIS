@@ -25,6 +25,8 @@ __copyright__ = '(C) 2013, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import uuid
+
 from PyQt4.QtCore import *
 from qgis.core import *
 from processing.core.ProcessingConfig import ProcessingConfig
@@ -44,7 +46,7 @@ def features(layer):
         def __init__(self, layer):
             self.layer = layer
             self.selection = False
-            self.iter = layer.getFeatures()            
+            self.iter = layer.getFeatures()
             if ProcessingConfig.getSetting(ProcessingConfig.USE_SELECTED):
                 selected = layer.selectedFeatures()
                 if len(selected) > 0:
@@ -123,6 +125,20 @@ def values(layer, *attributes):
         ret[attr] = values
     return ret
 
+def testForUniqueness( fieldList1, fieldList2 ):
+    '''Returns a modified version of fieldList2, removing naming
+    collisions with fieldList1.'''
+    changed = True
+    while changed:
+        changed = False
+        for i in range(0,len(fieldList1)):
+            for j in range(0,len(fieldList2)):
+                if fieldList1[i].name() == fieldList2[j].name():
+                    field = fieldList2[j]
+                    name = createUniqueFieldName( field.name(), fieldList1 )
+                    fieldList2[j] = QgsField(name, field.type(), len=field.length(), prec=field.precision(), comment=field.comment())
+                    changed = True
+    return fieldList2
 
 def spatialindex(layer):
     """Creates a spatial index for the passed vector layer.
@@ -135,34 +151,27 @@ def spatialindex(layer):
 
 
 def createUniqueFieldName(fieldName, fieldList):
+    def nextname(name):
+        num = 1
+        while True:
+            returnname ='{name}_{num}'.format(name=name[:8], num=num)
+            yield returnname
+            num += 1
+
+    def found(name):
+        return any(f.name() == name for f in fieldList)
+
     shortName = fieldName[:10]
 
-    if len(fieldList) == 0:
+    if not fieldList:
         return shortName
 
-    fieldNames = [f.name() for f in fieldList]
-
-    if shortName not in fieldNames:
+    if not found(shortName):
         return shortName
 
-    shortName = fieldName[:8] + '_1'
-    changed = True
-    while changed:
-        changed = False
-        for n in fieldList:
-            if n == shortName:
-
-                # Create unique field name
-                num = int(shortName[-1:])
-                if num < 9:
-                    shortName = shortName[:8] + '_' + str(num + 1)
-                else:
-                    shortName = shortName[:7] + '_' + str(num + 1)
-
-                changed = True
-
-    return shortName
-
+    for newname in nextname(shortName):
+        if not found(newname):
+            return newname
 
 def findOrCreateField(layer, fieldList, fieldName, fieldLen=24, fieldPrec=15):
     idx = layer.fieldNameIndex(fieldName)
@@ -251,10 +260,10 @@ def combineVectorFields(layerA, layerB):
     """Create single field map from two input field maps.
     """
     fields = []
-    fieldsA = layerA.dataProvider().fields()
+    fieldsA = layerA.pendingFields()
     fields.extend(fieldsA)
     namesA = [unicode(f.name()).lower() for f in fieldsA]
-    fieldsB = layerB.dataProvider().fields()
+    fieldsB = layerB.pendingFields()
     for field in fieldsB:
         name = unicode(field.name()).lower()
         if name in namesA:
@@ -267,3 +276,208 @@ def combineVectorFields(layerA, layerB):
         fields.append(field)
 
     return fields
+
+
+def duplicateInMemory(layer, newName='', addToRegistry=False):
+    """Return a memory copy of a layer
+
+    layer: QgsVectorLayer that shall be copied to memory.
+    new_name: The name of the copied layer.
+    add_to_registry: if True, the new layer will be added to the QgsMapRegistry
+
+    Returns an in-memory copy of a layer.
+    """
+    if newName is '':
+        newName = layer.name() + ' (Memory)'
+
+    if layer.type() == QgsMapLayer.VectorLayer:
+        geomType = layer.geometryType()
+        if geomType == QGis.Point:
+            strType = 'Point'
+        elif geomType == QGis.Line:
+            strType = 'Line'
+        elif geomType == QGis.Polygon:
+            strType = 'Polygon'
+        else:
+            raise RuntimeError('Layer is whether Point nor Line nor Polygon')
+    else:
+        raise RuntimeError('Layer is not a VectorLayer')
+
+    crs = layer.crs().authid().lower()
+    myUuid = str(uuid.uuid4())
+    uri = '%s?crs=%s&index=yes&uuid=%s' % (strType, crs, myUuid)
+    memLayer = QgsVectorLayer(uri, newName, 'memory')
+    memProvider = memLayer.dataProvider()
+
+    provider = layer.dataProvider()
+    fields = provider.fields().toList()
+    memProvider.addAttributes(fields)
+    memLayer.updateFields()
+
+    for ft in provider.getFeatures():
+        memProvider.addFeatures([ft])
+
+    if addToRegistry:
+        if memLayer.isValid():
+            QgsMapLayerRegistry.instance().addMapLayer(memLayer)
+        else:
+            raise RuntimeError('Layer invalid')
+
+    return memLayer
+
+def checkMinDistance(point, index, distance, points):
+    """Check if distance from given point to all other points is greater
+    than given value.
+    """
+    if distance == 0:
+        return True
+
+    neighbors = index.nearestNeighbor(point, 1)
+    if len(neighbors) == 0:
+        return True
+
+    if neighbors[0] in points:
+        np = points[neighbors[0]]
+        if np.sqrDist(point) < (distance * distance):
+            return False
+
+    return True
+
+from PyQt4.QtCore import *
+from qgis.core import *
+
+GEOM_TYPE_MAP = {
+    QGis.WKBPoint: 'Point',
+    QGis.WKBLineString: 'LineString',
+    QGis.WKBPolygon: 'Polygon',
+    QGis.WKBMultiPoint: 'MultiPoint',
+    QGis.WKBMultiLineString: 'MultiLineString',
+    QGis.WKBMultiPolygon: 'MultiPolygon',
+    }
+
+TYPE_MAP = {
+    str : QVariant.String,
+    float: QVariant.Double,
+    int: QVariant.Int
+    }
+
+def _fieldName(self, f):
+    if isinstance(f, basestring):
+        return f
+    return f.name()
+
+def _toQgsField(self, f):
+    if isinstance(f, QgsField):
+        return f
+    return QgsField(f[0], TYPE_MAP.get(f[1], QVariant.String))
+
+class VectorWriter:
+
+    MEMORY_LAYER_PREFIX = 'memory:'
+
+
+    def __init__(self, fileName, encoding, fields, geometryType,
+                 crs, options=None):
+        self.fileName = fileName
+        self.isMemory = False
+        self.memLayer = None
+        self.writer = None
+
+        if encoding is None:
+            settings = QSettings()
+            encoding = settings.value('/Processing/encoding', 'System', type=str)
+
+        if self.fileName.startswith(self.MEMORY_LAYER_PREFIX):
+            self.isMemory = True
+
+            uri = self.GEOM_TYPE_MAP[geometryType]
+            if crs.isValid():
+                uri += '?crs=' + crs.authid() + '&'
+            fieldsdesc = ['field=' + _fieldName(f) for f in fields]
+
+            fieldsstring = '&'.join(fieldsdesc)
+            uri += fieldsstring
+            self.memLayer = QgsVectorLayer(uri, self.fileName, 'memory')
+            self.writer = self.memLayer.dataProvider()
+        else:
+            formats = QgsVectorFileWriter.supportedFiltersAndFormats()
+            OGRCodes = {}
+            for (key, value) in formats.items():
+                extension = unicode(key)
+                extension = extension[extension.find('*.') + 2:]
+                extension = extension[:extension.find(' ')]
+                OGRCodes[extension] = value
+
+            extension = self.fileName[self.fileName.rfind('.') + 1:]
+            if extension not in OGRCodes:
+                extension = 'shp'
+                self.filename = self.filename + 'shp'
+
+            qgsfields = QgsFields()
+            for field in fields:
+                qgsfields.append(_toQgsField(field))
+
+            self.writer = QgsVectorFileWriter(self.fileName, encoding,
+                qgsfields, geometryType, crs, OGRCodes[extension])
+
+    def addFeature(self, feature):
+        if self.isMemory:
+            self.writer.addFeatures([feature])
+        else:
+            self.writer.addFeature(feature)
+
+import csv
+import codecs
+import cStringIO
+
+
+class TableWriter:
+
+    def __init__(self, fileName, encoding, fields):
+        self.fileName = fileName
+        if not self.fileName.lower().endswith('csv'):
+            self.fileName += '.csv'
+
+        self.encoding = encoding
+        if self.encoding is None or encoding == 'System':
+            self.encoding = 'utf-8'
+
+        with open(self.fileName, 'wb') as csvFile:
+            self.writer = UnicodeWriter(csvFile, encoding=self.encoding)
+            if len(fields) != 0:
+                self.writer.writerow(fields)
+
+    def addRecord(self, values):
+        with open(self.fileName, 'ab') as csvFile:
+            self.writer = UnicodeWriter(csvFile, encoding=self.encoding)
+            self.writer.writerow(values)
+
+    def addRecords(self, records):
+        with open(self.fileName, 'ab') as csvFile:
+            self.writer = UnicodeWriter(csvFile, encoding=self.encoding)
+            self.writer.writerows(records)
+
+
+class UnicodeWriter:
+
+    def __init__(self, f, dialect=csv.excel, encoding='utf-8', **kwds):
+        self.queue = cStringIO.StringIO()
+        self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
+        self.stream = f
+        self.encoder = codecs.getincrementalencoder(encoding)()
+
+    def writerow(self, row):
+        row = map(unicode, row)
+        try:
+            self.writer.writerow([s.encode('utf-8') for s in row])
+        except:
+            self.writer.writerow(row)
+        data = self.queue.getvalue()
+        data = data.decode('utf-8')
+        data = self.encoder.encode(data)
+        self.stream.write(data)
+        self.queue.truncate(0)
+
+    def writerows(self, rows):
+        for row in rows:
+            self.writerow(row)

@@ -30,6 +30,7 @@
 #include "qgsproject.h"
 #include "qgsexpression.h"
 
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMessageBox>
 #include <QStandardItemModel>
@@ -68,10 +69,30 @@ void QgsCategorizedSymbolRendererV2Model::addCategory( const QgsRendererCategory
   endInsertRows();
 }
 
+QgsRendererCategoryV2 QgsCategorizedSymbolRendererV2Model::category( const QModelIndex &index )
+{
+  if ( !mRenderer )
+  {
+    return QgsRendererCategoryV2();
+  }
+  const QgsCategoryList& catList = mRenderer->categories();
+  int row = index.row();
+  if ( row >= catList.size() )
+  {
+    return QgsRendererCategoryV2();
+  }
+  return catList.at( row );
+}
+
 
 Qt::ItemFlags QgsCategorizedSymbolRendererV2Model::flags( const QModelIndex & index ) const
 {
-  Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+  if ( !index.isValid() )
+  {
+    return Qt::ItemIsDropEnabled;
+  }
+
+  Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled | Qt::ItemIsUserCheckable;
   if ( index.column() == 1 || index.column() == 2 )
   {
     flags |= Qt::ItemIsEditable;
@@ -91,7 +112,11 @@ QVariant QgsCategorizedSymbolRendererV2Model::data( const QModelIndex &index, in
 
   const QgsRendererCategoryV2 category = mRenderer->categories().value( index.row() );
 
-  if ( role == Qt::DisplayRole || role == Qt::ToolTipRole )
+  if ( role == Qt::CheckStateRole && index.column() == 0 )
+  {
+    return category.renderState() ? Qt::Checked : Qt::Unchecked;
+  }
+  else if ( role == Qt::DisplayRole || role == Qt::ToolTipRole )
   {
     switch ( index.column() )
     {
@@ -123,7 +148,17 @@ QVariant QgsCategorizedSymbolRendererV2Model::data( const QModelIndex &index, in
 
 bool QgsCategorizedSymbolRendererV2Model::setData( const QModelIndex & index, const QVariant & value, int role )
 {
-  if ( !index.isValid() || role != Qt::EditRole )
+  if ( !index.isValid() )
+    return false;
+
+  if ( index.column() == 0 && role == Qt::CheckStateRole )
+  {
+    mRenderer->updateCategoryRenderState( index.row(), value == Qt::Checked );
+    emit dataChanged( index, index );
+    return true;
+  }
+
+  if ( role != Qt::EditRole )
     return false;
 
   switch ( index.column() )
@@ -170,7 +205,10 @@ QVariant QgsCategorizedSymbolRendererV2Model::headerData( int section, Qt::Orien
 
 int QgsCategorizedSymbolRendererV2Model::rowCount( const QModelIndex &parent ) const
 {
-  if ( parent.column() > 0 || !mRenderer ) return 0;
+  if ( parent.isValid() || !mRenderer )
+  {
+    return 0;
+  }
   return mRenderer->categories().size();
 }
 
@@ -352,9 +390,14 @@ QgsCategorizedSymbolRendererV2Widget::QgsCategorizedSymbolRendererV2Widget( QgsV
   // setup user interface
   setupUi( this );
 
-  populateColumns();
+  mExpressionWidget->setLayer( mLayer );
 
   cboCategorizedColorRamp->populate( mStyle );
+  int randomIndex = cboCategorizedColorRamp->findText( tr( "Random colors" ) );
+  if ( randomIndex != -1 )
+  {
+    cboCategorizedColorRamp->setCurrentIndex( randomIndex );
+  }
 
   // set project default color ramp
   QString defaultColorRamp = QgsProject::instance()->readEntry( "DefaultStyles", "/ColorRamp", "" );
@@ -378,7 +421,7 @@ QgsCategorizedSymbolRendererV2Widget::QgsCategorizedSymbolRendererV2Widget( QgsV
 
   connect( mModel, SIGNAL( rowsMoved() ), this, SLOT( rowsMoved() ) );
 
-  connect( cboCategorizedColumn, SIGNAL( currentIndexChanged( int ) ), this, SLOT( categoryColumnChanged() ) );
+  connect( mExpressionWidget, SIGNAL( fieldChanged( QString ) ), this, SLOT( categoryColumnChanged( QString ) ) );
 
   connect( viewCategories, SIGNAL( doubleClicked( const QModelIndex & ) ), this, SLOT( categoriesDoubleClicked( const QModelIndex & ) ) );
   connect( viewCategories, SIGNAL( customContextMenuRequested( const QPoint& ) ),  this, SLOT( contextMenuViewCategories( const QPoint& ) ) );
@@ -389,7 +432,6 @@ QgsCategorizedSymbolRendererV2Widget::QgsCategorizedSymbolRendererV2Widget( QgsV
   connect( btnDeleteAllCategories, SIGNAL( clicked() ), this, SLOT( deleteAllCategories() ) );
   connect( btnAddCategory, SIGNAL( clicked() ), this, SLOT( addCategory() ) );
 
-  connect( btnExpression, SIGNAL( clicked() ), this, SLOT( setExpression() ) );
   // update GUI from renderer
   updateUiFromRenderer();
 
@@ -398,7 +440,7 @@ QgsCategorizedSymbolRendererV2Widget::QgsCategorizedSymbolRendererV2Widget( QgsV
 
   advMenu->addAction( tr( "Symbol levels..." ), this, SLOT( showSymbolLevels() ) );
 
-  mDataDefinedMenus = new QgsRendererV2DataDefinedMenus( advMenu, mLayer->pendingFields(),
+  mDataDefinedMenus = new QgsRendererV2DataDefinedMenus( advMenu, mLayer,
       mRenderer->rotationField(), mRenderer->sizeScaleField(), mRenderer->scaleMethod() );
   connect( mDataDefinedMenus, SIGNAL( rotationFieldChanged( QString ) ), this, SLOT( rotationFieldChanged( QString ) ) );
   connect( mDataDefinedMenus, SIGNAL( sizeScaleFieldChanged( QString ) ), this, SLOT( sizeScaleFieldChanged( QString ) ) );
@@ -419,17 +461,11 @@ void QgsCategorizedSymbolRendererV2Widget::updateUiFromRenderer()
   //mModel->setRenderer ( mRenderer ); // necessary?
 
   // set column
-  disconnect( cboCategorizedColumn, SIGNAL( currentIndexChanged( int ) ), this, SLOT( categoryColumnChanged() ) );
+  disconnect( mExpressionWidget, SIGNAL( fieldChanged( QString ) ), this, SLOT( categoryColumnChanged( QString ) ) );
   QString attrName = mRenderer->classAttribute();
-  mOldClassificationAttribute = attrName;
-  int idx = cboCategorizedColumn->findText( attrName, Qt::MatchExactly );
-  if ( idx == -1 )
-  {
-    cboCategorizedColumn->addItem( attrName );
-    idx = cboCategorizedColumn->count() - 1;
-  }
-  cboCategorizedColumn->setCurrentIndex( idx );
-  connect( cboCategorizedColumn, SIGNAL( currentIndexChanged( int ) ), this, SLOT( categoryColumnChanged() ) );
+  mExpressionWidget->setField( attrName );
+  connect( mExpressionWidget, SIGNAL( fieldChanged( QString ) ), this, SLOT( categoryColumnChanged( QString ) ) );
+
 
   // set source symbol
   if ( mRenderer->sourceSymbol() )
@@ -443,6 +479,7 @@ void QgsCategorizedSymbolRendererV2Widget::updateUiFromRenderer()
   if ( mRenderer->sourceColorRamp() )
   {
     cboCategorizedColorRamp->setSourceColorRamp( mRenderer->sourceColorRamp() );
+    cbxInvertedColorRamp->setChecked( mRenderer->invertedColorRamp() );
   }
 
 }
@@ -515,19 +552,9 @@ void QgsCategorizedSymbolRendererV2Widget::populateCategories()
 {
 }
 
-void QgsCategorizedSymbolRendererV2Widget::populateColumns()
+void QgsCategorizedSymbolRendererV2Widget::categoryColumnChanged( QString field )
 {
-  cboCategorizedColumn->clear();
-  const QgsFields& flds = mLayer->pendingFields();
-  for ( int idx = 0; idx < flds.count(); ++idx )
-  {
-    cboCategorizedColumn->addItem( flds[idx].name() );
-  }
-}
-
-void QgsCategorizedSymbolRendererV2Widget::categoryColumnChanged()
-{
-  mRenderer->setClassAttribute( cboCategorizedColumn->currentText() );
+  mRenderer->setClassAttribute( field );
 }
 
 void QgsCategorizedSymbolRendererV2Widget::categoriesDoubleClicked( const QModelIndex & idx )
@@ -561,7 +588,7 @@ void QgsCategorizedSymbolRendererV2Widget::changeCategorySymbol()
   mRenderer->updateCategorySymbol( catIdx, symbol );
 }
 
-static void _createCategories( QgsCategoryList& cats, QList<QVariant>& values, QgsSymbolV2* symbol, QgsVectorColorRampV2* ramp )
+static void _createCategories( QgsCategoryList& cats, QList<QVariant>& values, QgsSymbolV2* symbol, QgsVectorColorRampV2* ramp, bool invert )
 {
   // sort the categories first
   QgsSymbolLayerV2Utils::sortVariantList( values, Qt::AscendingOrder );
@@ -577,25 +604,25 @@ static void _createCategories( QgsCategoryList& cats, QList<QVariant>& values, Q
     {
       hasNull = true;
     }
-    double x = i / ( double ) num;
+    double x = ( invert ? num - i : i )  / ( double ) num;
     QgsSymbolV2* newSymbol = symbol->clone();
     newSymbol->setColor( ramp->color( x ) );
 
-    cats.append( QgsRendererCategoryV2( value, newSymbol, value.toString() ) );
+    cats.append( QgsRendererCategoryV2( value, newSymbol, value.toString(), true ) );
   }
 
   // add null (default) value if not exists
   if ( !hasNull )
   {
     QgsSymbolV2* newSymbol = symbol->clone();
-    newSymbol->setColor( ramp->color( 1 ) );
-    cats.append( QgsRendererCategoryV2( QVariant( "" ), newSymbol, QString() ) );
+    newSymbol->setColor( ramp->color( invert ? 0 : 1 ) );
+    cats.append( QgsRendererCategoryV2( QVariant( "" ), newSymbol, QString(), true ) );
   }
 }
 
 void QgsCategorizedSymbolRendererV2Widget::addCategories()
 {
-  QString attrName = cboCategorizedColumn->currentText();
+  QString attrName = mExpressionWidget->currentField();
   int idx = mLayer->fieldNameIndex( attrName );
   QList<QVariant> unique_vals;
   if ( idx == -1 )
@@ -649,7 +676,7 @@ void QgsCategorizedSymbolRendererV2Widget::addCategories()
   }
 
   QgsCategoryList cats;
-  _createCategories( cats, unique_vals, mCategorizedSymbol, ramp );
+  _createCategories( cats, unique_vals, mCategorizedSymbol, ramp, cbxInvertedColorRamp->isChecked() );
 
   bool deleteExisting = false;
 
@@ -716,6 +743,7 @@ void QgsCategorizedSymbolRendererV2Widget::addCategories()
   r->setScaleMethod( mRenderer->scaleMethod() );
   r->setSizeScaleField( mRenderer->sizeScaleField() );
   r->setRotationField( mRenderer->rotationField() );
+  r->setInvertedColorRamp( cbxInvertedColorRamp->isChecked() );
 
   if ( mModel )
   {
@@ -759,27 +787,11 @@ void QgsCategorizedSymbolRendererV2Widget::deleteAllCategories()
   mModel->removeAllRows();
 }
 
-void QgsCategorizedSymbolRendererV2Widget::setExpression()
-{
-  QgsExpressionBuilderDialog dlg( mLayer, cboCategorizedColumn->currentText(), this );
-  dlg.setWindowTitle( "Set column expression" );
-  if ( dlg.exec() )
-  {
-    QString expression = dlg.expressionText();
-    if ( !expression.isEmpty() )
-    {
-      cboCategorizedColumn->addItem( expression );
-      cboCategorizedColumn->setCurrentIndex( cboCategorizedColumn->count() - 1 );
-    }
-  }
-
-}
-
 void QgsCategorizedSymbolRendererV2Widget::addCategory()
 {
   if ( !mModel ) return;
   QgsSymbolV2 *symbol = QgsSymbolV2::defaultSymbol( mLayer->geometryType() );
-  QgsRendererCategoryV2 cat( QString(), symbol, QString() );
+  QgsRendererCategoryV2 cat( QString(), symbol, QString(), true );
   mModel->addCategory( cat );
 }
 
@@ -822,6 +834,24 @@ QList<QgsSymbolV2*> QgsCategorizedSymbolRendererV2Widget::selectedSymbols()
   return selectedSymbols;
 }
 
+QgsCategoryList QgsCategorizedSymbolRendererV2Widget::selectedCategoryList()
+{
+  QgsCategoryList cl;
+
+  QItemSelectionModel* m = viewCategories->selectionModel();
+  QModelIndexList selectedIndexes = m->selectedRows( 1 );
+
+  if ( m && selectedIndexes.size() > 0 )
+  {
+    QModelIndexList::const_iterator indexIt = selectedIndexes.constBegin();
+    for ( ; indexIt != selectedIndexes.constEnd(); ++indexIt )
+    {
+      cl.append( mModel->category( *indexIt ) );
+    }
+  }
+  return cl;
+}
+
 void QgsCategorizedSymbolRendererV2Widget::showSymbolLevels()
 {
   showSymbolLevelsDialog( mRenderer );
@@ -830,4 +860,26 @@ void QgsCategorizedSymbolRendererV2Widget::showSymbolLevels()
 void QgsCategorizedSymbolRendererV2Widget::rowsMoved()
 {
   viewCategories->selectionModel()->clear();
+}
+
+void QgsCategorizedSymbolRendererV2Widget::keyPressEvent( QKeyEvent* event )
+{
+  if ( !event )
+  {
+    return;
+  }
+
+  if ( event->key() == Qt::Key_C && event->modifiers() == Qt::ControlModifier )
+  {
+    mCopyBuffer.clear();
+    mCopyBuffer = selectedCategoryList();
+  }
+  else if ( event->key() == Qt::Key_V && event->modifiers() == Qt::ControlModifier )
+  {
+    QgsCategoryList::const_iterator rIt = mCopyBuffer.constBegin();
+    for ( ; rIt != mCopyBuffer.constEnd(); ++rIt )
+    {
+      mModel->addCategory( *rIt );
+    }
+  }
 }

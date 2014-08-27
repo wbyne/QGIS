@@ -39,11 +39,12 @@ class QgsHighlight;
   after selecting a point, performs the identification:
   - for raster layers shows value of underlying pixel
   - for vector layers shows feature attributes within search radius
-    (allows to edit values when vector layer is in editing mode)
+    (allows editing values when vector layer is in editing mode)
 */
 class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
 {
     Q_OBJECT
+    Q_FLAGS( LayerType )
 
   public:
 
@@ -56,12 +57,13 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
       LayerSelection
     };
 
-    enum LayerType
+    enum Type
     {
-      AllLayers = -1,
-      VectorLayer,
-      RasterLayer
+      VectorLayer = 1,
+      RasterLayer = 2,
+      AllLayers = VectorLayer | RasterLayer
     };
+    Q_DECLARE_FLAGS( LayerType, Type )
 
     struct IdentifyResult
     {
@@ -121,19 +123,19 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     @return a list of IdentifyResult*/
     QList<IdentifyResult> identify( int x, int y, IdentifyMode mode, LayerType layerType = AllLayers );
 
-  protected:
-    //! rubber bands for layer select mode
-    void deleteRubberBands();
-
   public slots:
     void formatChanged( QgsRasterLayer *layer );
+    void layerDestroyed();
 
   signals:
     void identifyProgress( int, int );
     void identifyMessage( QString );
     void changedRasterResults( QList<IdentifyResult>& );
 
-  private:
+  protected:
+    //! rubber bands for layer select mode
+    void deleteRubberBands();
+
     /** Performs the identification.
     To avoid beeing forced to specify IdentifyMode with a list of layers
     this has been made private and two publics methods are offered
@@ -151,6 +153,8 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     bool identifyRasterLayer( QList<IdentifyResult> *results, QgsRasterLayer *layer, QgsPoint point, QgsRectangle viewExtent, double mapUnitsPerPixel );
     bool identifyVectorLayer( QList<IdentifyResult> *results, QgsVectorLayer *layer, QgsPoint point );
 
+
+  private:
     //! Private helper
     virtual void convertMeasurement( QgsDistanceArea &calc, double &measure, QGis::UnitType &u, bool isArea );
 
@@ -176,5 +180,7 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     //! menu for layer selection
     void handleMenuHover();
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS( QgsMapToolIdentify::LayerType )
 
 #endif

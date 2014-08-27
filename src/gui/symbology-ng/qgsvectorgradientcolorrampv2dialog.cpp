@@ -36,7 +36,15 @@ QgsVectorGradientColorRampV2Dialog::QgsVectorGradientColorRampV2Dialog( QgsVecto
 #endif
 
   btnColor1->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  btnColor1->setColorDialogTitle( tr( "Select ramp color" ) );
+  btnColor1->setContext( "symbology" );
+  btnColor1->setShowNoColor( true );
+  btnColor1->setNoColorString( tr( "Transparent" ) );
   btnColor2->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  btnColor2->setColorDialogTitle( tr( "Select ramp color" ) );
+  btnColor2->setContext( "symbology" );
+  btnColor2->setShowNoColor( true );
+  btnColor2->setNoColorString( tr( "Transparent" ) );
   connect( btnColor1, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( setColor1( const QColor& ) ) );
   connect( btnColor2, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( setColor2( const QColor& ) ) );
 
@@ -288,19 +296,9 @@ void QgsVectorGradientColorRampV2Dialog::stopDoubleClicked( QTreeWidgetItem* ite
     double key = item->data( 0, StopOffsetRole ).toDouble();
     // allow for floating-point values
     double val = key * 100;
-#if QT_VERSION >= 0x40500
     val = QInputDialog::getDouble( this, tr( "Offset of the stop" ),
                                    tr( "Please enter offset in percents (%) of the new stop" ),
                                    val, 0, 100, 2, &ok );
-#else
-    QString res = QInputDialog::getText( this, tr( "Offset of the stop" ),
-                                         tr( "Please enter offset in percents (%) of the new stop" ),
-                                         QLineEdit::Normal, QString::number( val ), &ok );
-    if ( ok )
-      val = res.toDouble( &ok );
-    if ( ok )
-      ok = val >= 0 && val <= 100;
-#endif
     if ( !ok )
       return;
 
@@ -330,19 +328,9 @@ void QgsVectorGradientColorRampV2Dialog::addStop()
 
   bool ok;
   double val = 50.0;
-#if QT_VERSION >= 0x40500
   val = QInputDialog::getDouble( this, tr( "Offset of the stop" ),
                                  tr( "Please enter offset in percents (%) of the new stop" ),
                                  val, 0, 100, 2, &ok );
-#else
-  QString res = QInputDialog::getText( this, tr( "Offset of the stop" ),
-                                       tr( "Please enter offset in percents (%) of the new stop" ),
-                                       QLineEdit::Normal, QString::number( val ), &ok );
-  if ( ok )
-    val = res.toDouble( &ok );
-  if ( ok )
-    ok = val >= 0 && val <= 100;
-#endif
   if ( !ok )
     return;
   activateWindow();

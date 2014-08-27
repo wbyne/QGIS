@@ -14,7 +14,16 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_3">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>1</number>
+   </property>
+   <property name="topMargin">
+    <number>1</number>
+   </property>
+   <property name="rightMargin">
+    <number>1</number>
+   </property>
+   <property name="bottomMargin">
     <number>1</number>
    </property>
    <item row="1" column="0">
@@ -82,13 +91,7 @@
     </layout>
    </item>
    <item row="0" column="0">
-    <layout class="QFormLayout" name="formLayout">
-     <property name="fieldGrowthPolicy">
-      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-     </property>
-     <property name="labelAlignment">
-      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-     </property>
+    <layout class="QGridLayout" name="gridLayout">
      <property name="horizontalSpacing">
       <number>28</number>
      </property>
@@ -110,26 +113,18 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="maximum">
           <double>99999999.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mTextureWidthUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mTextureWidthUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -144,6 +139,9 @@
       <widget class="QDoubleSpinBox" name="mRotationSpinBox">
        <property name="maximum">
         <double>360.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.500000000000000</double>
        </property>
       </widget>
      </item>
@@ -170,16 +168,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="mChangeColorButton">
+        <widget class="QgsColorButtonV2" name="mChangeColorButton">
          <property name="minimumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>0</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>16777215</height>
           </size>
          </property>
@@ -202,16 +200,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="mChangeBorderColorButton">
+        <widget class="QgsColorButtonV2" name="mChangeBorderColorButton">
          <property name="minimumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>0</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>16777215</height>
           </size>
          </property>
@@ -253,23 +251,15 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
+         </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mSvgOutlineWidthUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mSvgOutlineWidthUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -292,11 +282,31 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QgsColorButton</class>
-   <extends>QPushButton</extends>
-   <header>qgscolorbutton.h</header>
+   <class>QgsColorButtonV2</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbuttonv2.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsUnitSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsunitselectionwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>mTextureWidthSpinBox</tabstop>
+  <tabstop>mTextureWidthUnitWidget</tabstop>
+  <tabstop>mRotationSpinBox</tabstop>
+  <tabstop>mChangeColorButton</tabstop>
+  <tabstop>mChangeBorderColorButton</tabstop>
+  <tabstop>mBorderWidthSpinBox</tabstop>
+  <tabstop>mSvgOutlineWidthUnitWidget</tabstop>
+  <tabstop>mDataDefinedPropertiesButton</tabstop>
+  <tabstop>mSvgTreeView</tabstop>
+  <tabstop>mSvgListView</tabstop>
+  <tabstop>mSVGLineEdit</tabstop>
+  <tabstop>mBrowseToolButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

@@ -15,13 +15,14 @@ Required build tools:
 
 Required build deps:
 
-- Qt >= 4.5.0
+- Qt >= 4.7.0
 - Proj >= 4.4.x
 - GEOS >= 3.0
 - Sqlite3 >= 3.0.0
 - GDAL/OGR >= 1.4.x
 - Qwt >= 5.0 & (< 6.1 with internal QwtPolar)
 - expat >= 1.95
+- QScintilla2
 -
 
 Optional dependencies:

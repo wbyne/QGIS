@@ -96,6 +96,8 @@ namespace pal
       bool fixedPosition() const { return fixedPos; }
       //Set label rotation to fixed value
       void setFixedAngle( double a ) { fixedRotation = true; fixedAngle = a; }
+      void setRepeatDistance( double dist ) { repeatDist = dist; }
+      double repeatDistance() const { return repeatDist; }
       void setAlwaysShow( bool bl ) { alwaysShow = bl; }
 
     protected:
@@ -120,8 +122,10 @@ namespace pal
       //Fixed (e.g. data defined) angle only makes sense together with fixed position
       bool fixedRotation;
       double fixedAngle; //fixed angle value (in rad)
+      double repeatDist;
 
       bool alwaysShow; //true is label is to always be shown (but causes overlapping)
+
 
       // array of parts - possibly not necessary
       //int nPart;
@@ -157,6 +161,7 @@ namespace pal
         * \brief create a new generic feature
         *
         * \param feat a pointer for a Feat which contains the spatial entites
+        * \param geom a pointer to a GEOS geometry
         */
       FeaturePart( Feature *feat, const GEOSGeometry* geom );
 
@@ -172,6 +177,7 @@ namespace pal
        * \param y y coordinates of the point
        * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
+       * \param delta_width delta width
        * \param angle orientation of the label
        * \return the number of generated cadidates
        */
@@ -188,6 +194,7 @@ namespace pal
        * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
        * \param mapShape a pointer to the line
+       * \param delta_width delta width
        * \return the number of generated cadidates
        */
       int setPositionForLine( double scale, LabelPosition ***lPos, PointSet *mapShape, double delta_width );
@@ -206,11 +213,12 @@ namespace pal
        * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
        * \param mapShape a pointer to the polygon
+       * \param delta_width delta width
        * \return the number of generated cadidates
        */
       int setPositionForPolygon( double scale, LabelPosition ***lPos, PointSet *mapShape, double delta_width );
 
-
+#if 0
       /**
        * \brief Feature against problem bbox
        * \param bbox[0] problem x min
@@ -219,14 +227,27 @@ namespace pal
        * \param bbox[3] problem y max
        * return A set of feature which are in the bbox or null if the feature is in the bbox
        */
-      //LinkedList<Feature*> *splitFeature( double bbox[4]);
+      LinkedList<Feature*> *splitFeature( double bbox[4] );
 
 
       /**
        * \brief return the feature id
        * \return the feature id
        */
-      //int getId();
+      int getId();
+#endif
+
+      /**
+       * \brief return the feature
+       * \return the feature
+       */
+      Feature* getFeature() { return f; }
+
+      /**
+       * \brief return the geometry
+       * \return the geometry
+       */
+      const GEOSGeometry* getGeometry() const { return the_geom; }
 
       /**
        * \brief return the layer that feature belongs to
@@ -234,12 +255,14 @@ namespace pal
        */
       Layer * getLayer();
 
+#if 0
       /**
        * \brief save the feature into file
        * Called by Pal::save()
        * \param file the file to write
        */
-      //void save(std::ofstream *file);
+      void save( std::ofstream *file );
+#endif
 
       /**
        * \brief generic method to generate candidates
@@ -250,7 +273,6 @@ namespace pal
        * \param bbox_max max values of the map extent
        * \param mapShape generate candidates for this spatial entites
        * \param candidates index for candidates
-       * \param svgmap svg map file
        * \return the number of candidates in *lPos
        */
       int setPosition( double scale, LabelPosition ***lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates
@@ -267,7 +289,7 @@ namespace pal
 
 
       /**
-       * \brief Print feature informations
+       * \brief Print feature information
        * Print feature unique id, geometry type, points, and holes on screen
        */
       void print();

@@ -37,6 +37,8 @@
 #include <qgsfeature.h>
 #include <qgsapplication.h>
 #include <qgsvectorlayer.h>
+#include <qgsvectordataprovider.h>
+#include <qgsmessagebar.h>
 
 #include <qgsgraphdirector.h>
 #include <qgsgraphbuilder.h>
@@ -239,8 +241,8 @@ QgsGraph* RgShortestPathWidget::getPath( QgsPoint& p1, QgsPoint& p2 )
   }
 
   QgsGraphBuilder builder(
-    mPlugin->iface()->mapCanvas()->mapRenderer()->destinationCrs(),
-    mPlugin->iface()->mapCanvas()->mapRenderer()->hasCrsTransformEnabled(),
+    mPlugin->iface()->mapCanvas()->mapSettings().destinationCrs(),
+    mPlugin->iface()->mapCanvas()->mapSettings().hasCrsTransformEnabled(),
     mPlugin->topologyToleranceFactor() );
   {
     const QgsGraphDirector *director = mPlugin->director();
@@ -278,17 +280,27 @@ QgsGraph* RgShortestPathWidget::getPath( QgsPoint& p1, QgsPoint& p2 )
 
   QgsGraph *graph = builder.graph();
 
-  QVector< int > pointIdx( 0, 0 );
-  QVector< double > pointCost( 0, 0.0 );
-
   int startVertexIdx = graph->findVertex( p1 );
 
   int criterionNum = 0;
   if ( mCriterionName->currentIndex() > 0 )
     criterionNum = 1;
 
-  QgsGraph* shortestpathTree = QgsGraphAnalyzer::shortestTree( graph, startVertexIdx, criterionNum );
+  if ( graph->vertexCount() == 0 )
+  {
+    mPlugin->iface()->messageBar()->pushMessage(
+      tr( "Cannot calculate path" ),
+      tr( "The created graph is empty. Please check your input data." ),
+      QgsMessageBar::WARNING,
+      mPlugin->iface()->messageTimeout()
+    );
 
+    delete graph;
+    return NULL;
+  }
+
+
+  QgsGraph* shortestpathTree = QgsGraphAnalyzer::shortestTree( graph, startVertexIdx, criterionNum );
   delete graph;
 
   if ( shortestpathTree->findVertex( p2 ) == -1 )
@@ -371,11 +383,17 @@ void RgShortestPathWidget::exportPath()
   if ( path == NULL )
     return;
 
-  QgsCoordinateTransform ct( mPlugin->iface()->mapCanvas()->mapRenderer()->destinationCrs(),
+  QgsCoordinateTransform ct( mPlugin->iface()->mapCanvas()->mapSettings().destinationCrs(),
                              vl->crs() );
 
   int startVertexIdx = path->findVertex( p1 );
   int stopVertexIdx  = path->findVertex( p2 );
+
+  double time = 0.0;
+  double cost = 0.0;
+
+  Unit timeUnit = Unit::byName( mPlugin->timeUnitName() );
+  Unit distanceUnit = Unit::byName( mPlugin->distanceUnitName() );
 
   QgsPolyline p;
   while ( startVertexIdx != stopVertexIdx )
@@ -384,15 +402,23 @@ void RgShortestPathWidget::exportPath()
     if ( l.empty() )
       break;
     const QgsGraphArc& e = path->arc( l.front() );
+
+    cost += e.property( 0 ).toDouble();
+    time += e.property( 1 ).toDouble();
+
     p.push_front( ct.transform( path->vertex( e.inVertex() ).point() ) );
     stopVertexIdx = e.outVertex();
   }
   p.push_front( ct.transform( p1 ) );
 
-  vl->startEditing();
   QgsFeature f;
+  f.initAttributes( vl->pendingFields().count() );
   f.setGeometry( QgsGeometry::fromPolyline( p ) );
-  vl->addFeature( f );
+  f.setAttribute( 0, cost / distanceUnit.multipler() );
+  f.setAttribute( 1, time / timeUnit.multipler() );
+  QgsFeatureList features;
+  features << f;
+  vl->dataProvider()->addFeatures( features );
   vl->updateExtents();
 
   mPlugin->iface()->mapCanvas()->update();

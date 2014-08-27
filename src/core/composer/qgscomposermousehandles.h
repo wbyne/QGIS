@@ -79,11 +79,18 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
     /**Finds out which mouse move action to choose depending on the scene cursor position*/
     QgsComposerMouseHandles::MouseAction mouseActionForScenePos( const QPointF& sceneCoordPos );
 
+    /**Returns true is user is currently dragging the handles */
+    bool isDragging() { return mIsDragging; }
+
+    /**Returns true is user is currently resizing with the handles */
+    bool isResizing() { return mIsResizing; }
+
   protected:
 
     void mouseMoveEvent( QGraphicsSceneMouseEvent* event );
     void mouseReleaseEvent( QGraphicsSceneMouseEvent* event );
     void mousePressEvent( QGraphicsSceneMouseEvent* event );
+    void mouseDoubleClickEvent( QGraphicsSceneMouseEvent* event );
     void hoverMoveEvent( QGraphicsSceneHoverEvent * event );
     void hoverLeaveEvent( QGraphicsSceneHoverEvent * event );
 
@@ -94,6 +101,9 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
 
     /**Redraws handles when selected item size changes*/
     void selectedItemSizeChanged();
+
+    /**Redraws handles when selected item rotation changes*/
+    void selectedItemRotationChanged();
 
   private:
 
@@ -114,6 +124,8 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
     double mBeginHandleHeight;
 
     QRectF mResizeRect;
+    double mResizeMoveX;
+    double mResizeMoveY;
 
     /**True if user is currently dragging items*/
     bool mIsDragging;
@@ -124,8 +136,13 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
     QGraphicsLineItem* mHAlignSnapItem;
     QGraphicsLineItem* mVAlignSnapItem;
 
-    /**Returns the scene bounds of current selection*/
+    QSizeF mCursorOffset;
+
+    /**Returns the mouse handle bounds of current selection*/
     QRectF selectionBounds() const;
+
+    /**Returns true if all selected items have same rotation, and if so, updates passed rotation variable*/
+    bool selectionRotation( double & rotation ) const;
 
     /**Redraws or hides the handles based on the current selection*/
     void updateHandles();
@@ -146,13 +163,12 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
 
     /**Handles dragging of items during mouse move*/
     void dragMouseMove( const QPointF& currentPosition, bool lockMovement, bool preventSnap );
+
+    /**Calculates the distance of the mouse cursor from thed edge of the mouse handles*/
+    QSizeF calcCursorEdgeOffset( const QPointF &cursorPos );
+
     /**Handles resizing of items during mouse move*/
     void resizeMouseMove( const QPointF& currentPosition, bool lockAspect, bool fromCenter );
-
-    /**Resizes a QRectF relative to the change from boundsBefore to boundsAfter*/
-    void relativeResizeRect( QRectF& rectToResize, const QRectF& boundsBefore, const QRectF& boundsAfter );
-    /**Returns a scaled position given a before and after range*/
-    double relativePosition( double position, double beforeMin, double beforeMax, double afterMin, double afterMax );
 
     /**Return horizontal align snap item. Creates a new graphics line if 0*/
     QGraphicsLineItem* hAlignSnapItem();
@@ -172,7 +188,7 @@ class CORE_EXPORT QgsComposerMouseHandles: public QObject, public QGraphicsRectI
     //helper functions for item align
     void collectAlignCoordinates( QMap< double, const QgsComposerItem* >& alignCoordsX, QMap< double, const QgsComposerItem* >& alignCoordsY );
     bool nearestItem( const QMap< double, const QgsComposerItem* >& coords, double value, double& nearestValue ) const;
-    void checkNearestItem( double checkCoord, const QMap< double, const QgsComposerItem* >& alignCoords, double& smallestDiff, double itemCoordOffset, double& itemCoord, double& alignCoord ) const;
+    void checkNearestItem( double checkCoord, const QMap< double, const QgsComposerItem* >& alignCoords, double& smallestDiff, double itemCoordOffset, double& itemCoord, double& alignCoord );
 
     //tries to return the current QGraphicsView attached to the composition
     QGraphicsView* graphicsView();

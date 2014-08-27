@@ -46,6 +46,7 @@ class GUI_EXPORT QgsCategorizedSymbolRendererV2Model : public QAbstractItemModel
     void setRenderer( QgsCategorizedSymbolRendererV2* renderer );
 
     void addCategory( const QgsRendererCategoryV2 &cat );
+    QgsRendererCategoryV2 category( const QModelIndex &index );
     void deleteRows( QList<int> rows );
     void removeAllRows( );
     void sort( int column, Qt::SortOrder order = Qt::AscendingOrder );
@@ -80,13 +81,12 @@ class GUI_EXPORT QgsCategorizedSymbolRendererV2Widget : public QgsRendererV2Widg
 
   public slots:
     void changeCategorizedSymbol();
-    void categoryColumnChanged();
+    void categoryColumnChanged( QString field );
     void categoriesDoubleClicked( const QModelIndex & idx );
     void addCategory();
     void addCategories();
     void deleteCategories();
     void deleteAllCategories();
-    void setExpression();
 
     void rotationFieldChanged( QString fldName );
     void sizeScaleFieldChanged( QString fldName );
@@ -105,9 +105,6 @@ class GUI_EXPORT QgsCategorizedSymbolRendererV2Widget : public QgsRendererV2Widg
     // Called by virtual refreshSymbolView()
     void populateCategories();
 
-    //! populate column combo
-    void populateColumns();
-
     //! return row index for the currently selected category (-1 if on no selection)
     int currentCategoryRow();
 
@@ -120,7 +117,9 @@ class GUI_EXPORT QgsCategorizedSymbolRendererV2Widget : public QgsRendererV2Widg
     void changeCategorySymbol();
 
     QList<QgsSymbolV2*> selectedSymbols();
+    QgsCategoryList selectedCategoryList();
     void refreshSymbolView() { populateCategories(); }
+    void keyPressEvent( QKeyEvent* event );
 
   protected:
     QgsCategorizedSymbolRendererV2* mRenderer;
@@ -133,6 +132,7 @@ class GUI_EXPORT QgsCategorizedSymbolRendererV2Widget : public QgsRendererV2Widg
 
   private:
     QString mOldClassificationAttribute;
+    QgsCategoryList mCopyBuffer;
 };
 
 #endif // QGSCATEGORIZEDSYMBOLRENDERERV2WIDGET_H

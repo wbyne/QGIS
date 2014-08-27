@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from processing.modeler.ModelerUtils import ModelerUtils
 
 __author__ = 'Alexander Bruy'
 __date__ = 'December 2012'
@@ -25,27 +26,23 @@ __copyright__ = '(C) 2012, Alexander Bruy'
 
 __revision__ = '$Format:%H$'
 
-import pickle
+import codecs
+import sys
+import json
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.Qsci import *
 
 from qgis.core import *
-
-from processing import interface
+from qgis.utils import iface
 
 from processing.gui.ParametersDialog import ParametersDialog
 from processing.gui.HelpEditionDialog import HelpEditionDialog
-from processing.gui.ScriptEdit import ScriptEdit
-
-from processing.modeler.Providers import Providers
-
-from processing.r.RAlgorithm import RAlgorithm
-from processing.r.RUtils import RUtils
+from processing.algs.r.RAlgorithm import RAlgorithm
+from processing.algs.r.RUtils import RUtils
 from processing.script.ScriptAlgorithm import ScriptAlgorithm
 from processing.script.ScriptUtils import ScriptUtils
-
 from processing.ui.ui_DlgScriptEditor import Ui_DlgScriptEditor
 
 import processing.resources_rc
@@ -56,9 +53,15 @@ class ScriptEditorDialog(QDialog, Ui_DlgScriptEditor):
     SCRIPT_PYTHON = 0
     SCRIPT_R = 1
 
+    hasChanged = False
+
     def __init__(self, algType, alg):
         QDialog.__init__(self)
         self.setupUi(self)
+
+        self.setWindowFlags(Qt.WindowMinimizeButtonHint |
+                            Qt.WindowMaximizeButtonHint |
+                            Qt.WindowCloseButtonHint)
 
         # Set icons
         self.btnSave.setIcon(
@@ -85,6 +88,7 @@ class ScriptEditorDialog(QDialog, Ui_DlgScriptEditor):
         self.btnPaste.clicked.connect(self.editor.paste)
         self.btnUndo.clicked.connect(self.editor.undo)
         self.btnRedo.clicked.connect(self.editor.redo)
+        self.editor.textChanged.connect(lambda: self.setHasChanged(True))
 
         self.alg = alg
         self.algType = algType
@@ -98,14 +102,16 @@ class ScriptEditorDialog(QDialog, Ui_DlgScriptEditor):
         self.update = False
         self.help = None
 
+        self.setHasChanged(False)
+
         self.editor.setLexerType(self.algType)
 
     def editHelp(self):
         if self.alg is None:
             if self.algType == self.SCRIPT_PYTHON:
-                alg = ScriptAlgorithm(None, unicode(self.editor.toPlainText()))
+                alg = ScriptAlgorithm(None, unicode(self.editor.text()))
             elif self.algType == self.SCRIPT_R:
-                alg = RAlgorithm(None, unicode(self.editor.toPlainText()))
+                alg = RAlgorithm(None, unicode(self.editor.text()))
         else:
             alg = self.alg
 
@@ -148,12 +154,11 @@ class ScriptEditorDialog(QDialog, Ui_DlgScriptEditor):
             if self.alg is not None:
                 self.alg.script = text
             try:
-                fout = open(self.filename, 'w')
-                fout.write(text)
-                fout.close()
+                with codecs.open(self.filename, 'w', encoding='utf-8') as fout:
+                    fout.write(text)
             except IOError:
                 QMessageBox.warning(self, self.tr('I/O error'),
-                        self.tr('Unable to save edits. Reason:\n %1')
+                        self.tr('Unable to save edits. Reason:\n %s')
                         % unicode(sys.exc_info()[1]))
                 return
             self.update = True
@@ -161,28 +166,30 @@ class ScriptEditorDialog(QDialog, Ui_DlgScriptEditor):
             # If help strings were defined before saving the script for
             # the first time, we do it here
             if self.help:
-                f = open(self.filename + '.help', 'wb')
-                pickle.dump(self.help, f)
-                f.close()
+                with open(self.filename + '.help', 'w') as f:
+                    json.dump(self.help, f)
                 self.help = None
-            QMessageBox.information(self, self.tr('Script saving'),
-                                    self.tr('Script was correctly saved.'))
+            self.setHasChanged(False)
         else:
             self.filename = None
+
+    def setHasChanged(self, hasChanged):
+        self.hasChanged = hasChanged
+        self.btnSave.setEnabled(hasChanged)
 
     def runAlgorithm(self):
         if self.algType == self.SCRIPT_PYTHON:
             alg = ScriptAlgorithm(None, unicode(self.editor.text()))
-            alg.provider = Providers.providers['script']
+            alg.provider = ModelerUtils.providers['script']
         if self.algType == self.SCRIPT_R:
             alg = RAlgorithm(None, unicode(self.editor.text()))
-            alg.provider = Providers.providers['r']
+            alg.provider = ModelerUtils.providers['r']
 
         dlg = alg.getCustomParametersDialog()
         if not dlg:
             dlg = ParametersDialog(alg)
 
-        canvas = interface.iface.mapCanvas()
+        canvas = iface.mapCanvas()
         prevMapTool = canvas.mapTool()
 
         dlg.show()

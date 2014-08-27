@@ -42,6 +42,9 @@ class QgsSymbolLayerV2Utils
     static QString encodePoint( QPointF point );
     static QPointF decodePoint( QString str );
 
+    static QString encodeMapUnitScale( const QgsMapUnitScale& mapUnitScale );
+    static QgsMapUnitScale decodeMapUnitScale( const QString& str );
+
     static QString encodeRealVector( const QVector<qreal>& v );
     static QVector<qreal> decodeRealVector( const QString& s );
 
@@ -57,14 +60,19 @@ class QgsSymbolLayerV2Utils
     static QString encodeScaleMethod( QgsSymbolV2::ScaleMethod scaleMethod );
     static QgsSymbolV2::ScaleMethod decodeScaleMethod( QString str );
 
+    static QPainter::CompositionMode decodeBlendMode( const QString& s );
+
     static QIcon symbolPreviewIcon( QgsSymbolV2* symbol, QSize size );
-    static QIcon symbolLayerPreviewIcon( QgsSymbolLayerV2* layer, QgsSymbolV2::OutputUnit u, QSize size );
+    static QIcon symbolLayerPreviewIcon( QgsSymbolLayerV2* layer, QgsSymbolV2::OutputUnit u, QSize size, const QgsMapUnitScale& scale = QgsMapUnitScale() );
     static QIcon colorRampPreviewIcon( QgsVectorColorRampV2* ramp, QSize size );
 
     static void drawStippledBackround( QPainter* painter, QRect rect );
 
     static QPixmap symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size );
     static QPixmap colorRampPreviewPixmap( QgsVectorColorRampV2* ramp, QSize size );
+
+    /**Returns the maximum estimated bleed for the symbol */
+    static double estimateMaxSymbolBleed( QgsSymbolV2* symbol );
 
     static QgsSymbolV2* loadSymbol( QDomElement& element ) /Factory/;
     static QgsSymbolLayerV2* loadSymbolLayer( QDomElement& element ) /Factory/;
@@ -93,6 +101,7 @@ class QgsSymbolLayerV2Utils
     static bool fillFromSld( QDomElement &element,
                              Qt::BrushStyle &brushStyle, QColor &color );
 
+    //! @note not available in python bindings
 /*
     static void lineToSld( QDomDocument &doc, QDomElement &element,
                            Qt::PenStyle penStyle, QColor color, double width = -1,
@@ -111,12 +120,20 @@ class QgsSymbolLayerV2Utils
                                         QString &path, QString &mime,
                                         QColor &color, double &size );
 
+    /** @deprecated Use wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element, QString name, QColor color, QColor borderColor, Qt::PenStyle borderStyle, double borderWidth, double size ) instead */
     static void wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element,
-                                      QString name, QColor color, QColor borderColor = QColor(),
+        QString name, QColor color, QColor borderColor = QColor(),
+        double borderWidth = -1, double size = -1 ) /Deprecated/ ;
+    static void wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element,
+                                      QString name, QColor color, QColor borderColor, Qt::PenStyle borderStyle,
                                       double borderWidth = -1, double size = -1 );
+    /** @deprecated Use wellKnownMarkerFromSld( QDomElement &element, QString &name, QColor &color, QColor &borderColor, Qt::PenStyle &borderStyle, double &borderWidth, double &size ) instead */
     static bool wellKnownMarkerFromSld( QDomElement &element,
-                                        QString &name, QColor &color, QColor &borderColor,
-                                        double &borderWidth, double &size );
+        QString &name, QColor &color, QColor &borderColor,
+        double &borderWidth, double &size ) /Deprecated/ ;
+    static bool wellKnownMarkerFromSld( QDomElement &element,
+                                        QString &name, QColor &color, QColor &borderColor, Qt::PenStyle &borderStyle,
+                                        double &borderWidth, double &size ) /PyName=wellKnownMarkerFromSld2/ ;
 
     static void externalMarkerToSld( QDomDocument &doc, QDomElement &element,
                                      QString path, QString format, int *markIndex = 0,
@@ -136,7 +153,7 @@ class QgsSymbolLayerV2Utils
                                        double offset = 0.0,
                                        const QVector<qreal>* dashPattern = 0 );
     /**Create ogr feature style string for brush
-        @param fillColr fill color*/
+     @param fillColr fill color*/
     static QString ogrFeatureStyleBrush( const QColor& fillColr );
 
     static void createRotationElement( QDomDocument &doc, QDomElement &element, QString rotationFunc );
@@ -174,13 +191,76 @@ class QgsSymbolLayerV2Utils
     static QgsVectorColorRampV2* loadColorRamp( QDomElement& element ) /Factory/;
     static QDomElement saveColorRamp( QString name, QgsVectorColorRampV2* ramp, QDomDocument& doc );
 
-    /**  parse color definition with format "rgb(0,0,0)" or "0,0,0" */
-    static QColor parseColor( QString colorStr );
+    /**
+     * Attempts to parse a string as a list of colors using a variety of common formats, including hex
+     * codes, rgb and rgba strings.
+     * @param colorStr string representing the color list
+     * @returns list of parsed colors
+     * @note added in 2.5
+     */
+    static QList< QColor > parseColorList( const QString colorStr );
+
+    /**
+     * Attempts to parse mime data as a list of named colors
+     * @param data mime data to parse
+     * @returns list of parsed colors
+     * @note added in 2.5
+     */
+    static QgsNamedColorList colorListFromMimeData( const QMimeData *data );
+
+    /**
+     * Creates mime data from a list of named colors
+     * @param colorList list of named colors
+     * @param allFormats set to true to include additional mime formats, include text/plain and application/x-color
+     * @returns mime data containing encoded colors
+     * @note added in 2.5
+     */
+    static QMimeData* colorListToMimeData( const QgsNamedColorList colorList, const bool allFormats = true );
+
+    /**
+     * Exports colors to a gpl GIMP palette file
+     * @param file destination file
+     * @param paletteName name of palette, which is stored in gpl file
+     * @param colors colors to export
+     * @returns true if export was successful
+     * @see importColorsFromGpl
+    */
+    static bool saveColorsToGpl( QFile &file, const QString paletteName, QgsNamedColorList colors );
+
+    /**
+     * Imports colors from a gpl GIMP palette file
+     * @param file source gpl file
+     * @param ok will be true if file was successfully read
+     * @returns list of imported colors
+     * @see saveColorsToGpl
+    */
+    static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok );
+
+    /**
+     * Attempts to parse a string as a color using a variety of common formats, including hex
+     * codes, rgb and rgba strings.
+     * @param colorStr string representing the color
+     * @param strictEval set to true for stricter color parsing rules
+     * @returns parsed color
+     * @note added in 2.3
+     */
+    static QColor parseColor( QString colorStr, bool strictEval = false );
+
+    /**
+     * Attempts to parse a string as a color using a variety of common formats, including hex
+     * codes, rgb and rgba strings.
+     * @param colorStr string representing the color
+     * @param containsAlpha if colorStr contains an explicit alpha value then containsAlpha will be set to true
+     * @param strictEval set to true for stricter color parsing rules
+     * @returns parsed color
+     * @note added in 2.3
+     */
+    static QColor parseColorWithAlpha( const QString colorStr, bool &containsAlpha, bool strictEval = false );
 
     /**Returns the line width scale factor depending on the unit and the paint device*/
-    static double lineWidthScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u );
+    static double lineWidthScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u, const QgsMapUnitScale& scale = QgsMapUnitScale() );
     /**Returns scale factor painter units -> pixel dimensions*/
-    static double pixelSizeScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u );
+    static double pixelSizeScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u, const QgsMapUnitScale& scale = QgsMapUnitScale() );
     /**Creates a render context for a pixel based device*/
     static QgsRenderContext createRenderContext( QPainter* p );
 
@@ -191,6 +271,11 @@ class QgsSymbolLayerV2Utils
      * @note added in 1.9
      */
     static void blurImageInPlace( QImage& image, const QRect& rect, int radius, bool alphaOnly );
+
+    /** Converts a QColor into a premultiplied ARGB QColor value using a specified alpha value
+     * @note added in 2.3
+     */
+    static void premultiplyColor( QColor& rgb, int alpha );
 
     /**Sorts the passed list in requested order*/
     static void sortVariantList( QList<QVariant>& list, Qt::SortOrder order );
@@ -203,9 +288,31 @@ class QgsSymbolLayerV2Utils
     //! Return a list of svg files at the specified directory
     static QStringList listSvgFilesAt( QString directory );
 
-    //! Get symbol's path from its name
+    /** Get symbol's path from its name.
+     *  If the name is not absolute path the file is searched in SVG paths specified
+     *  in settings svg/searchPathsForSVG.
+     */
     static QString symbolNameToPath( QString name );
 
     //! Get symbols's name from its path
     static QString symbolPathToName( QString path );
+
+    //! Calculate the centroid point of a QPolygonF
+    static QPointF polygonCentroid( const QPolygonF& points );
+
+    /** Return a new valid expression instance for given field or expression string.
+     * If the input is not a valid expression, it is assumed that it is a field name and gets properly quoted.
+     * If the string is empty, returns null pointer.
+     * This is useful when accepting input which could be either a non-quoted field name or expression.
+     * @note added in 2.2
+     */
+    static QgsExpression* fieldOrExpressionToExpression( const QString& fieldOrExpression ) /Factory/;
+
+    /** Return a field name if the whole expression is just a name of the field .
+     *  Returns full expression string if the expression is more complex than just one field.
+     *  Using just expression->expression() method may return quoted field name, but that is not
+     *  wanted for saving (due to backward compatibility) or display in GUI.
+     * @note added in 2.2
+     */
+    static QString fieldOrExpressionFromExpression( QgsExpression* expression );
 };

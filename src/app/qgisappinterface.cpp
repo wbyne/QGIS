@@ -34,7 +34,7 @@
 #include "qgsmaplayerregistry.h"
 #include "qgsmapcanvas.h"
 #include "qgsproject.h"
-#include "qgslegend.h"
+#include "qgslayertreeview.h"
 #include "qgsshortcutsmanager.h"
 #include "qgsattributedialog.h"
 #include "qgsfield.h"
@@ -46,11 +46,11 @@
 
 QgisAppInterface::QgisAppInterface( QgisApp * _qgis )
     : qgis( _qgis ),
-    legendIface( _qgis->legend() ),
+    legendIface( _qgis->layerTreeView() ),
     pluginManagerIface( _qgis->pluginManager() )
 {
   // connect signals
-  connect( qgis->legend(), SIGNAL( currentLayerChanged( QgsMapLayer * ) ),
+  connect( qgis->layerTreeView(), SIGNAL( currentLayerChanged( QgsMapLayer * ) ),
            this, SIGNAL( currentLayerChanged( QgsMapLayer * ) ) );
   connect( qgis, SIGNAL( currentThemeChanged( QString ) ),
            this, SIGNAL( currentThemeChanged( QString ) ) );
@@ -78,6 +78,11 @@ QgsLegendInterface* QgisAppInterface::legendInterface()
 QgsPluginManagerInterface* QgisAppInterface::pluginManagerInterface()
 {
   return &pluginManagerIface;
+}
+
+QgsLayerTreeView*QgisAppInterface::layerTreeView()
+{
+  return qgis->layerTreeView();
 }
 
 void QgisAppInterface::zoomFull()
@@ -283,6 +288,11 @@ void QgisAppInterface::removeWebToolBarIcon( QAction *qAction )
 QToolBar* QgisAppInterface::addToolBar( QString name )
 {
   return qgis->addToolBar( name );
+}
+
+void QgisAppInterface::addToolBar( QToolBar *toolbar, Qt::ToolBarArea area )
+{
+  return qgis->addToolBar( toolbar, area );
 }
 
 void QgisAppInterface::openURL( QString url, bool useQgisDocDirectory )
@@ -536,7 +546,7 @@ QAction *QgisAppInterface::actionRollbackAllEdits() { return qgis->actionRollbac
 QAction *QgisAppInterface::actionCancelEdits() { return qgis->actionCancelEdits(); }
 QAction *QgisAppInterface::actionCancelAllEdits() { return qgis->actionCancelAllEdits(); }
 QAction *QgisAppInterface::actionLayerSaveAs() { return qgis->actionLayerSaveAs(); }
-QAction *QgisAppInterface::actionLayerSelectionSaveAs() { return qgis->actionLayerSelectionSaveAs(); }
+QAction *QgisAppInterface::actionLayerSelectionSaveAs() { return 0; }
 QAction *QgisAppInterface::actionRemoveLayer() { return qgis->actionRemoveLayer(); }
 QAction *QgisAppInterface::actionDuplicateLayer() { return qgis->actionDuplicateLayer(); }
 QAction *QgisAppInterface::actionLayerProperties() { return qgis->actionLayerProperties(); }
@@ -562,7 +572,7 @@ QAction *QgisAppInterface::actionQgisHomePage() { return qgis->actionQgisHomePag
 QAction *QgisAppInterface::actionCheckQgisVersion() { return qgis->actionCheckQgisVersion(); }
 QAction *QgisAppInterface::actionAbout() { return qgis->actionAbout(); }
 
-bool QgisAppInterface::openFeatureForm( QgsVectorLayer *vlayer, QgsFeature &f, bool updateFeatureOnly )
+bool QgisAppInterface::openFeatureForm( QgsVectorLayer *vlayer, QgsFeature &f, bool updateFeatureOnly, bool showModal )
 {
   Q_UNUSED( updateFeatureOnly );
   if ( !vlayer )
@@ -571,11 +581,12 @@ bool QgisAppInterface::openFeatureForm( QgsVectorLayer *vlayer, QgsFeature &f, b
   QgsFeatureAction action( tr( "Attributes changed" ), f, vlayer, -1, -1, QgisApp::instance() );
   if ( vlayer->isEditable() )
   {
-    return action.editFeature();
+    return action.editFeature( showModal );
   }
   else
   {
-    return action.viewFeatureForm();
+    action.viewFeatureForm();
+    return true;
   }
 }
 
@@ -609,16 +620,16 @@ void QgisAppInterface::cacheloadForm( QString uifile )
   }
 }
 
-QDialog* QgisAppInterface::getFeatureForm( QgsVectorLayer *l, QgsFeature &feature )
+QgsAttributeDialog* QgisAppInterface::getFeatureForm( QgsVectorLayer *l, QgsFeature &feature )
 {
   QgsDistanceArea myDa;
 
   myDa.setSourceCrs( l->crs().srsid() );
-  myDa.setEllipsoidalMode( QgisApp::instance()->mapCanvas()->mapRenderer()->hasCrsTransformEnabled() );
+  myDa.setEllipsoidalMode( QgisApp::instance()->mapCanvas()->mapSettings().hasCrsTransformEnabled() );
   myDa.setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
 
   QgsAttributeDialog *dialog = new QgsAttributeDialog( l, &feature, false, NULL, true );
-  return dialog->dialog();
+  return dialog;
 }
 
 QgsVectorLayerTools* QgisAppInterface::vectorLayerTools()

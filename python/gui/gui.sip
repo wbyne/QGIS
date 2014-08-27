@@ -1,10 +1,16 @@
-%Module(name=qgis.gui,
+%Module(name=qgis._gui,
         version=0,
         keyword_arguments="Optional")
+
+%Feature HAVE_QSCI_SIP
 
 %Import QtCore/QtCoremod.sip
 %Import QtGui/QtGuimod.sip
 %Import QtXml/QtXmlmod.sip
+
+%If (HAVE_QSCI_SIP)
+%Import Qsci/qscimod4.sip
+%End
 
 %Import core/core.sip
 
@@ -13,11 +19,24 @@
 %Include qgisinterface.sip
 %Include qgsannotationitem.sip
 %Include qgsattributeeditor.sip
+%Include qgsattributeeditorcontext.sip
 %Include qgsattributedialog.sip
+%Include qgsattributeform.sip
+%Include qgsattributeforminterface.sip
 %Include qgsbusyindicatordialog.sip
 %Include qgscollapsiblegroupbox.sip
+%If (HAVE_QSCI_SIP)
+%Include qgscodeeditor.sip
+%Include qgscodeeditorpython.sip
+%Include qgscodeeditorsql.sip
+%Include qgscodeeditorhtml.sip
+%Include qgscodeeditorcss.sip
+%End
 %Include qgscolorbutton.sip
+%Include qgscolorbuttonv2.sip
 %Include qgscolordialog.sip
+%Include qgscolorswatchgrid.sip
+%Include qgscolorschemelist.sip
 %Include qgscomposerview.sip
 %Include qgscredentialdialog.sip
 %Include qgsdetaileditemdata.sip
@@ -27,7 +46,11 @@
 %Include qgsexpressionbuilderdialog.sip
 %Include qgsexpressionbuilderwidget.sip
 %Include qgsexpressionhighlighter.sip
+%Include qgsfieldcombobox.sip
+%Include qgsfieldexpressionwidget.sip
+%Include qgsfieldmodel.sip
 %Include qgsfieldvalidator.sip
+%Include qgsfieldproxymodel.sip
 %Include qgsfiledropedit.sip
 %Include qgsfilterlineedit.sip
 %Include qgsformannotationitem.sip
@@ -42,11 +65,16 @@
 %Include qgsmapcanvasitem.sip
 %Include qgsmapcanvasmap.sip
 %Include qgsmapcanvassnapper.sip
+%Include qgsmaplayeractionregistry.sip
+%Include qgsmaplayercombobox.sip
+%Include qgsmaplayermodel.sip
+%Include qgsmaplayerproxymodel.sip
 %Include qgsmapoverviewcanvas.sip
 %Include qgsmaptip.sip
 %Include qgsmaptool.sip
 %Include qgsmaptoolemitpoint.sip
 %Include qgsmaptoolidentify.sip
+%Include qgsmaptoolidentifyfeature.sip
 %Include qgsmaptoolpan.sip
 %Include qgsmaptooltouch.sip
 %Include qgsmaptoolzoom.sip
@@ -66,6 +94,8 @@
 %Include qgsrasterpyramidsoptionswidget.sip
 %Include qgsrubberband.sip
 %Include qgsscalecombobox.sip
+%Include qgsscalerangewidget.sip
+%Include qgsscalevisibilitydialog.sip
 %Include qgssearchquerybuilder.sip
 %Include qgstextannotationitem.sip
 %Include qgsvertexmarker.sip
@@ -80,6 +110,8 @@
 %Include qgshighlight.sip
 %Include qgsoptionsdialogbase.sip
 %Include qgssvgannotationitem.sip
+%Include qgsextentgroupbox.sip
+%Include qgsprevieweffect.sip
 
 %Include attributetable/qgsattributetabledelegate.sip
 %Include attributetable/qgsattributetablefiltermodel.sip
@@ -92,6 +124,12 @@
 %Include attributetable/qgsfeaturemodel.sip
 %Include attributetable/qgsfeatureselectionmodel.sip
 %Include attributetable/qgsifeatureselectionmanager.sip
+
+%Include layertree/qgscustomlayerorderwidget.sip
+%Include layertree/qgslayertreemapcanvasbridge.sip
+%Include layertree/qgslayertreemodel.sip
+%Include layertree/qgslayertreeview.sip
+%Include layertree/qgslayertreeviewdefaultactions.sip
 
 %Include raster/qgsmultibandcolorrendererwidget.sip
 %Include raster/qgspalettedrendererwidget.sip
@@ -107,6 +145,7 @@
 %Include symbology-ng/qgscptcitycolorrampv2dialog.sip
 %Include symbology-ng/qgsellipsesymbollayerv2widget.sip
 %Include symbology-ng/qgsgraduatedsymbolrendererv2widget.sip
+%Include symbology-ng/qgsinvertedpolygonrendererwidget.sip
 %Include symbology-ng/qgslayerpropertieswidget.sip
 %Include symbology-ng/qgspenstylecombobox.sip
 %Include symbology-ng/qgspointdisplacementrendererwidget.sip
@@ -130,7 +169,9 @@
 %Include symbology-ng/qgsstylev2exportimportdialog.sip
 %Include symbology-ng/qgssvgselectorwidget.sip
 
-%Include editorwidgets/qgseditorconfigwidget.sip
-%Include editorwidgets/qgseditorwidgetfactory.sip
-%Include editorwidgets/qgseditorwidgetregistry.sip
-%Include editorwidgets/qgseditorwidgetwrapper.sip
+%Include editorwidgets/core/qgseditorconfigwidget.sip
+%Include editorwidgets/core/qgseditorwidgetfactory.sip
+%Include editorwidgets/core/qgseditorwidgetregistry.sip
+%Include editorwidgets/core/qgseditorwidgetwrapper.sip
+
+%Include layertree/qgslayertreeview.sip

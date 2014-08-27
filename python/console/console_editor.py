@@ -581,7 +581,8 @@ class Editor(QsciScintilla):
                 tmpFile = self.createTempFile()
                 filename = tmpFile
 
-            self.parent.pc.shell.runCommand(u"execfile(r'{0}')".format(filename))
+            self.parent.pc.shell.runCommand(u"execfile(u'{0}'.encode('{1}'))"
+                                            .format(filename.replace("\\", "/"), sys.getfilesystemencoding()))
 
     def runSelectedCode(self):
         cmd = self.selectedText()
@@ -900,16 +901,6 @@ class EditorTabWidget(QTabWidget):
         self.connect(self.restoreTabsButton, SIGNAL('clicked()'), self.restoreTabs)
         self.connect(self.clButton, SIGNAL('clicked()'), self.closeRestore)
 
-        # Restore script of the previuos session
-        self.settings = QSettings()
-        tabScripts = self.settings.value("pythonConsole/tabScripts", [])
-        self.restoreTabList = tabScripts
-
-        if self.restoreTabList:
-            self.topFrame.show()
-        else:
-            self.newTabEditor(filename=None)
-
         ## Fixes #7653
         if sys.platform != 'darwin':
             self.setDocumentMode(True)
@@ -947,6 +938,7 @@ class EditorTabWidget(QTabWidget):
         self.newTabButton.setIconSize(QSize(24, 24))
         self.setCornerWidget(self.newTabButton, Qt.TopLeftCorner)
         self.connect(self.newTabButton, SIGNAL('clicked()'), self.newTabEditor)
+
 
     def _currentWidgetChanged(self, tab):
         if self.settings.value("pythonConsole/enableObjectInsp",
@@ -1111,6 +1103,20 @@ class EditorTabWidget(QTabWidget):
                 currWidget.setFocus(Qt.TabFocusReason)
         if currWidget.path in self.restoreTabList:
             self.parent.updateTabListScript(currWidget.path, action='remove')
+
+    def restoreTabsOrAddNew(self):
+        """
+        Restore tabs if they are found in the settings. If none are found it will add a new empty tab.
+        """
+        # Restore script of the previuos session
+        self.settings = QSettings()
+        tabScripts = self.settings.value("pythonConsole/tabScripts", [])
+        self.restoreTabList = tabScripts
+
+        if self.restoreTabList:
+            self.restoreTabs()
+        else:
+            self.newTabEditor(filename=None)
 
     def restoreTabs(self):
         for script in self.restoreTabList:

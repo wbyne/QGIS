@@ -26,6 +26,7 @@
 #include "qgsfield.h"
 #include "qgsmaptoolidentify.h"
 #include "qgscoordinatereferencesystem.h"
+#include "qgsmaplayeractionregistry.h"
 
 #include <QWidget>
 #include <QList>
@@ -41,6 +42,8 @@ class QgsRasterLayer;
 class QgsHighlight;
 class QgsMapCanvas;
 class QDockWidget;
+
+class QwtPlotCurve;
 
 /**
  *@author Gary E.Sherman
@@ -63,9 +66,9 @@ class APP_EXPORT QgsIdentifyResultsFeatureItem: public QTreeWidgetItem
 {
   public:
     QgsIdentifyResultsFeatureItem( const QgsFields &fields, const QgsFeature &feature, const QgsCoordinateReferenceSystem &crs, const QStringList & strings = QStringList() );
-    QgsFields fields() const { return mFields; }
-    QgsFeature feature() const { return mFeature; }
-    QgsCoordinateReferenceSystem crs() { return mCrs; }
+    const QgsFields &fields() const { return mFields; }
+    const QgsFeature &feature() const { return mFeature; }
+    const QgsCoordinateReferenceSystem &crs() { return mCrs; }
 
   private:
     QgsFields mFields;
@@ -81,12 +84,27 @@ class APP_EXPORT QgsIdentifyResultsWebViewItem: public QObject, public QTreeWidg
     QgsIdentifyResultsWebViewItem( QTreeWidget *treeWidget = 0 );
     QgsIdentifyResultsWebView *webView() { return mWebView; }
     void setHtml( const QString &html );
+    /** @note added in 2.1 */
+    void setContent( const QByteArray & data, const QString & mimeType = QString(), const QUrl & baseUrl = QUrl() );
 
   public slots:
     void loadFinished( bool ok );
 
   private:
     QgsIdentifyResultsWebView *mWebView;
+};
+
+class APP_EXPORT QgsIdentifyPlotCurve
+{
+  public:
+
+    QgsIdentifyPlotCurve() { mPlotCurve = 0; }
+    QgsIdentifyPlotCurve( const QMap<QString, QString> &attributes,
+                          QwtPlot* plot, const QString &title = QString(), QColor color = QColor() ) ;
+    ~QgsIdentifyPlotCurve();
+
+  private:
+    QwtPlotCurve* mPlotCurve;
 };
 
 class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdentifyResultsBase
@@ -97,7 +115,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
 
     //! Constructor - takes it own copy of the QgsAttributeAction so
     // that it is independent of whoever created it.
-    QgsIdentifyResultsDialog( QgsMapCanvas *canvas, QWidget *parent = 0, Qt::WFlags f = 0 );
+    QgsIdentifyResultsDialog( QgsMapCanvas *canvas, QWidget *parent = 0, Qt::WindowFlags f = 0 );
 
     ~QgsIdentifyResultsDialog();
 
@@ -124,8 +142,6 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     /** map tool was activated */
     void activate();
 
-    void closeEvent( QCloseEvent *e );
-
   signals:
     void selectedFeatureChanged( QgsVectorLayer *, QgsFeatureId featureId );
 
@@ -140,9 +156,10 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     /** Remove results */
     void clear();
 
+    void updateViewModes();
+
     void show();
 
-    void close();
     void contextMenuEvent( QContextMenuEvent* );
 
     void layerDestroyed();
@@ -154,6 +171,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     void zoomToFeature();
     void copyAttributeValue();
     void copyFeature();
+    void toggleFeatureSelection();
     void copyFeatureAttributes();
     void copyGetFeatureInfoUrl();
     void highlightAll();
@@ -175,9 +193,15 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
 
     QTreeWidgetItem *retrieveAttributes( QTreeWidgetItem *item, QgsAttributeMap &attributes, int &currentIdx );
 
-    void on_buttonBox_helpRequested() { QgsContextHelp::run( metaObject()->className() ); }
+    void helpRequested() { QgsContextHelp::run( metaObject()->className() ); }
+
+    void on_cmbIdentifyMode_currentIndexChanged( int index );
+
+    void on_cmbViewMode_currentIndexChanged( int index );
 
     void on_mExpandNewToolButton_toggled( bool checked );
+
+    void on_cbxAutoFeatureForm_toggled( bool checked );
 
     void on_mExpandToolButton_clicked( bool checked ) { Q_UNUSED( checked ); expandAll(); }
     void on_mCollapseToolButton_clicked( bool checked ) { Q_UNUSED( checked ); collapseAll(); }
@@ -188,7 +212,11 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
 
     void printCurrentItem();
 
+    void mapLayerActionDestroyed();
+
   private:
+    QString representValue( QgsVectorLayer* vlayer, const QString& fieldName, const QVariant& value );
+
     enum ItemDataRole
     {
       GetFeatureInfoUrlRole = Qt::UserRole + 10
@@ -198,6 +226,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     QMap<QTreeWidgetItem *, QgsHighlight * > mHighlights;
     QgsMapCanvas *mCanvas;
     QList<QgsFeature> mFeatures;
+    QMap< QString, QMap< QString, QVariant > > mWidgetCaches;
 
     QgsMapLayer *layer( QTreeWidgetItem *item );
     QgsVectorLayer *vectorLayer( QTreeWidgetItem *item );
@@ -210,15 +239,38 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     void layerProperties( QTreeWidgetItem *object );
     void disconnectLayer( QObject *object );
 
+    void saveWindowLocation();
+
     void setColumnText( int column, const QString & label );
     void expandColumnsToFit();
-    void saveWindowLocation();
 
     void highlightFeature( QTreeWidgetItem *item );
 
     void doAction( QTreeWidgetItem *item, int action );
 
+    void doMapLayerAction( QTreeWidgetItem *item, QgsMapLayerAction* action );
+
     QDockWidget *mDock;
+
+    QVector<QgsIdentifyPlotCurve *> mPlotCurves;
+};
+
+class QgsIdentifyResultsDialogMapLayerAction : public QAction
+{
+    Q_OBJECT
+
+  public:
+    QgsIdentifyResultsDialogMapLayerAction( const QString &name, QObject *parent, QgsMapLayerAction* action, QgsMapLayer* layer, QgsFeature * f ) :
+        QAction( name, parent ), mAction( action ), mFeature( f ), mLayer( layer )
+    {}
+
+  public slots:
+    void execute();
+
+  private:
+    QgsMapLayerAction* mAction;
+    QgsFeature* mFeature;
+    QgsMapLayer* mLayer;
 };
 
 #endif

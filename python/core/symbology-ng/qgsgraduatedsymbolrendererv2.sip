@@ -5,9 +5,10 @@ class QgsRendererRangeV2
 %End
 
   public:
-    QgsRendererRangeV2( double lowerValue, double upperValue, QgsSymbolV2* symbol /Transfer/, QString label );
+    QgsRendererRangeV2( double lowerValue, double upperValue, QgsSymbolV2* symbol /Transfer/, QString label, bool render = true );
     QgsRendererRangeV2( const QgsRendererRangeV2& range );
 
+    // default dtor is ok
     ~QgsRendererRangeV2();
 
     double lowerValue() const;
@@ -21,10 +22,18 @@ class QgsRendererRangeV2
     void setLowerValue( double lowerValue );
     void setUpperValue( double upperValue );
 
+    // @note added in 2.5
+    bool renderState() const;
+    void setRenderState( bool render );
+
     // debugging
     QString dump() const;
 
     void toSld( QDomDocument& doc, QDomElement &element, QgsStringMap props ) const;
+
+  protected:
+    // for cpy+swap idiom
+    void swap( QgsRendererRangeV2 & other );
 };
 
 typedef QList<QgsRendererRangeV2> QgsRangeList;
@@ -42,7 +51,7 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
 
     virtual QgsSymbolV2* symbolForFeature( QgsFeature& feature );
 
-    virtual void startRender( QgsRenderContext& context, const QgsVectorLayer *vlayer );
+    virtual void startRender( QgsRenderContext& context, const QgsFields& fields );
 
     virtual void stopRender( QgsRenderContext& context );
 
@@ -69,8 +78,12 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
     bool updateRangeLabel( int rangeIndex, QString label );
     bool updateRangeUpperValue( int rangeIndex, double value );
     bool updateRangeLowerValue( int rangeIndex, double value );
+    //! @note added in 2.5
+    bool updateRangeRenderState( int rangeIndex, bool render );
 
     void addClass( QgsSymbolV2* symbol );
+    //! @note available in python bindings as addClassRange
+    void addClass( QgsRendererRangeV2 range ) /PyName=addClassRange/;
     void deleteClass( int idx );
     void deleteAllClasses();
 
@@ -99,7 +112,8 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
       int classes,
       Mode mode,
       QgsSymbolV2* symbol /Transfer/,
-      QgsVectorColorRampV2* ramp /Transfer/ ) /Factory/;
+      QgsVectorColorRampV2* ramp /Transfer/,
+      bool inverted = false ) /Factory/;
 
     //! create renderer from XML element
     static QgsFeatureRendererV2* create( QDomElement& element ) /Factory/;
@@ -120,6 +134,9 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
 
     QgsVectorColorRampV2* sourceColorRamp();
     void setSourceColorRamp( QgsVectorColorRampV2* ramp /Transfer/ );
+    //! @note added in 2.1
+    bool invertedColorRamp();
+    void setInvertedColorRamp( bool inverted );
 
     /** Update the color ramp used. Also updates all symbols colors.
       * Doesn't alter current breaks.
@@ -130,12 +147,12 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
     void updateSymbols( QgsSymbolV2* sym /Transfer/ );
 
     //! @note added in 1.6
-    void setRotationField( QString fieldName );
+    void setRotationField( QString fieldOrExpression );
     //! @note added in 1.6
     QString rotationField() const;
 
     //! @note added in 1.6
-    void setSizeScaleField( QString fieldName );
+    void setSizeScaleField( QString fieldOrExpression );
     //! @note added in 1.6
     QString sizeScaleField() const;
 
@@ -144,7 +161,24 @@ class QgsGraduatedSymbolRendererV2 : QgsFeatureRendererV2
     //! @note added in 2.0
     QgsSymbolV2::ScaleMethod scaleMethod() const;
 
+    //! items of symbology items in legend should be checkable
+    // @note added in 2.5
+    virtual bool legendSymbolItemsCheckable() const;
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual bool legendSymbolItemChecked( int index );
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual void checkLegendSymbolItem( int index, bool state = true );
+
+
 
   protected:
     QgsSymbolV2* symbolForValue( double value );
+
+  private:
+    QgsGraduatedSymbolRendererV2( const QgsGraduatedSymbolRendererV2 & );
+    QgsGraduatedSymbolRendererV2 & operator=( const QgsGraduatedSymbolRendererV2 & );
 };

@@ -50,9 +50,26 @@ void QgsMapToolSplitFeatures::canvasReleaseEvent( QMouseEvent * e )
     return;
   }
 
+  bool split = false;
+
+
   //add point to list and to rubber band
   if ( e->button() == Qt::LeftButton )
   {
+    QList<QgsSnappingResult> snapResults;
+
+    //If we snap the first point on a vertex of a line layer, we directly split the feature at this point
+    if ( vlayer->geometryType() == QGis::Line && points().isEmpty() )
+    {
+      if ( mSnapper.snapToCurrentLayer( e->pos(), snapResults, QgsSnapper::SnapToVertex ) == 0 )
+      {
+        if ( snapResults.size() > 0 )
+        {
+          split = true;
+        }
+      }
+    }
+
     int error = addVertex( e->pos() );
     if ( error == 1 )
     {
@@ -74,6 +91,11 @@ void QgsMapToolSplitFeatures::canvasReleaseEvent( QMouseEvent * e )
   }
   else if ( e->button() == Qt::RightButton )
   {
+    split = true;
+  }
+
+  if ( split )
+  {
     deleteTempRubberBand();
 
     //bring up dialog if a split was not possible (polygon) or only done once (line)
@@ -84,8 +106,8 @@ void QgsMapToolSplitFeatures::canvasReleaseEvent( QMouseEvent * e )
     if ( returnCode == 4 )
     {
       QgisApp::instance()->messageBar()->pushMessage(
-        tr( "No feature split done" ),
-        tr( "If there are selected features, the split tool only applies to the selected ones. If you like to split all features under the split line, clear the selection" ),
+        tr( "No features were split" ),
+        tr( "If there are selected features, the split tool only applies to those. If you would like to split all features under the split line, clear the selection." ),
         QgsMessageBar::WARNING,
         QgisApp::instance()->messageTimeout() );
     }
@@ -110,7 +132,7 @@ void QgsMapToolSplitFeatures::canvasReleaseEvent( QMouseEvent * e )
       //several intersections but only one split (most likely line)
       QgisApp::instance()->messageBar()->pushMessage(
         tr( "No feature split done" ),
-        tr( "An error occured during feature splitting" ),
+        tr( "An error occured during splitting." ),
         QgsMessageBar::WARNING,
         QgisApp::instance()->messageTimeout() );
     }

@@ -22,6 +22,8 @@
 
 #include <QSet>
 
+#include "qgscontexthelp.h"
+
 /**
  * \ingroup gui
  * A generic dialog to prompt the user for a Coordinate Reference System.
@@ -50,7 +52,7 @@ class GUI_EXPORT QgsGenericProjectionSelector : public QDialog, private Ui::QgsG
      * Constructor
      */
     QgsGenericProjectionSelector( QWidget *parent = 0,
-                                  Qt::WFlags fl = QgisGui::ModalDialogFlags );
+                                  Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
 
     //! Destructor
     ~QgsGenericProjectionSelector();
@@ -66,6 +68,8 @@ class GUI_EXPORT QgsGenericProjectionSelector : public QDialog, private Ui::QgsG
     void setSelectedCrsName( QString theName );
     void setSelectedCrsId( long theID );
     void setSelectedAuthId( QString authId );
+
+    void on_buttonBox_helpRequested() { QgsContextHelp::run( metaObject()->className() ); }
 
     /**
      * \brief filters this dialog by the given CRSs

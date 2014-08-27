@@ -29,6 +29,7 @@
 #include "qgscontexthelp.h"
 #include "qgspythonutils.h"
 #include "qgspluginsortfilterproxymodel.h"
+#include "qgsmessagebar.h"
 
 const int PLUGMAN_TAB_ALL = 0;
 const int PLUGMAN_TAB_INSTALLED = 1;
@@ -46,7 +47,7 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     Q_OBJECT
   public:
     //! Constructor; set pluginsAreEnabled to false in --noplugins mode
-    QgsPluginManager( QWidget *parent = 0, bool pluginsAreEnabled = true, Qt::WFlags fl = QgisGui::ModalDialogFlags );
+    QgsPluginManager( QWidget *parent = 0, bool pluginsAreEnabled = true, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
 
     //! Destructor
     ~QgsPluginManager();
@@ -100,8 +101,8 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     //! Set tab of the stacked widget (called from the vertical list item)
     void setCurrentTab( int idx );
 
-    //! Update title of the current tab according to current filters
-    void updateTabTitle();
+    //! Update the window title according to the current filters
+    void updateWindowTitle();
 
     //! Handle plugin selection
     void currentPluginChanged( const QModelIndex & theIndex );
@@ -110,10 +111,13 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     void pluginItemChanged( QStandardItem * item );
 
     //! Display details of inactive item too
-    void on_vwPlugins_clicked( const QModelIndex & );
+    void on_vwPlugins_clicked( const QModelIndex & index );
 
     //! Load/unload plugin by double click
     void on_vwPlugins_doubleClicked( const QModelIndex & index );
+
+    //! Handle click in the web wiew
+    void on_wvDetails_linkClicked( const QUrl & url );
 
     //! Update the filter when user changes the filter expression
     void on_leFilter_textChanged( QString theText );
@@ -163,8 +167,14 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     //! Enable all repositories disabled by "Enable selected repository only"
     void clearRepositoryFilter( );
 
-  private:
+    //! show the given message in the Plugin Manager internal message bar
+    void pushMessage( const QString &text, QgsMessageBar::MessageLevel level, int duration = -1 );
 
+  protected:
+    //! Reimplement QgsOptionsDialogBase method as we have a custom window title what would be overwritten by this method
+    void showEvent( QShowEvent* e );
+
+  private:
     //! Load translated descriptions. Source strings implemented in external qgspluginmanager_texts.cpp
     void initTabDescriptions();
 
@@ -205,6 +215,8 @@ class QgsPluginManager : public QgsOptionsDialogBase, private Ui::QgsPluginManag
     QString mCurrentlyDisplayedPlugin;
 
     QList<int> mCheckingOnStartIntervals;
+
+    QgsMessageBar *msgBar;
 };
 
 #endif

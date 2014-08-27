@@ -25,6 +25,7 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import inspect
 import os.path
 import traceback
 import copy
@@ -32,25 +33,21 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import *
 from qgis.core import *
 
+from processing.gui.Help2Html import getHtmlFromRstFile
 from processing.core.ProcessingLog import ProcessingLog
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.GeoAlgorithmExecutionException import \
         GeoAlgorithmExecutionException
-from processing.parameters.Parameter import Parameter
-from processing.parameters.ParameterRaster import ParameterRaster
-from processing.parameters.ParameterVector import ParameterVector
-from processing.parameters.ParameterMultipleInput import ParameterMultipleInput
-from processing.outputs.Output import Output
-from processing.outputs.OutputVector import OutputVector
-from processing.outputs.OutputRaster import OutputRaster
-from processing.outputs.OutputTable import OutputTable
-from processing.outputs.OutputHTML import OutputHTML
-from processing.gdal.GdalUtils import GdalUtils
+from processing.core.parameters import *
+from processing.core.outputs import *
+from processing.algs.gdal.GdalUtils import GdalUtils
 from processing.tools import dataobjects, vector
 from processing.tools.system import *
 
 
 class GeoAlgorithm:
+
+    _icon = QtGui.QIcon(os.path.dirname(__file__) + '/../images/alg.png')
 
     def __init__(self):
         # Parameters needed by the algorithm
@@ -73,7 +70,7 @@ class GeoAlgorithm:
         self.showInModeler = True
         #if true, will show only loaded layers in parameters dialog.
         #Also, if True, the algorithm does not run on the modeler
-		#or batch ptocessing interface
+        #or batch ptocessing interface
         self.allowOnlyOpenedLayers = False
 
         # False if it should not be run a a batch process
@@ -102,20 +99,34 @@ class GeoAlgorithm:
     # methods to overwrite when creating a custom geoalgorithm
 
     def getIcon(self):
-        return QtGui.QIcon(os.path.dirname(__file__) + '/../images/alg.png')
+        return self._icon
 
     @staticmethod
     def getDefaultIcon():
-        return QtGui.QIcon(os.path.dirname(__file__) + '/../images/alg.png')
+        return GeoAlgorithm._icon
 
-    def helpFile(self):
-        """Returns the path to the help file with the description of
-        this algorithm.
+    def help(self):
+        """Returns the help with the description of this algorithm.
+        It returns a tuple boolean, string. IF the boolean value is true, it means that
+        the string contains the actual description. If false, it is an url or path to a file
+        where the description is stored. In both cases, the string or the content of the file
+        have to be HTML, ready to be set into the help display component.
 
-        It should be an HTML file. Returns None if there is no help
-        file available.
+        Returns None if there is no help file available.
+
+        The default implementation looks for an rst file in a help folder under the folder
+        where the algorithm is located.
+        The name of the file is the name console name of the algorithm, without the namespace part
         """
-        return None
+        name = self.commandLineName().split(':')[1].lower()
+        filename = os.path.join(os.path.dirname(inspect.getfile(self.__class__)), 'help', name + '.rst')
+        print filename
+        try:
+            html = getHtmlFromRstFile(filename)
+            return True, html
+        except:
+            return False, None
+
 
     def processAlgorithm(self):
         """Here goes the algorithm itself.
@@ -183,14 +194,14 @@ class GeoAlgorithm:
 
     # =========================================================
 
-    def execute(self, progress, model=None):
+    def execute(self, progress=None, model=None):
         """The method to use to call a processing algorithm.
 
         Although the body of the algorithm is in processAlgorithm(),
         it should be called using this method, since it performs
         some additional operations.
 
-        Raises a GeoAlgorithmExecutionException in case anything goe
+        Raises a GeoAlgorithmExecutionException in case anything goes
         wrong.
         """
         self.model = model
@@ -200,6 +211,7 @@ class GeoAlgorithm:
             self.checkOutputFileExtensions()
             self.runPreExecutionScript(progress)
             self.processAlgorithm(progress)
+            progress.setPercentage(100)
             self.convertUnsupportedFormats(progress)
             self.runPostExecutionScript(progress)
         except GeoAlgorithmExecutionException, gaee:
@@ -231,7 +243,7 @@ class GeoAlgorithm:
         self.runHookScript(scriptFile, progress)
 
     def runHookScript(self, filename, progress):
-        if not os.path.exists(filename):
+        if filename is None or not os.path.exists(filename):
             return
         try:
             script = 'import processing\n'
@@ -345,41 +357,33 @@ class GeoAlgorithm:
                             if layer.source() == inputlayer:
                                 self.crs = layer.crs()
                                 return
-                        if isinstance(param, ParameterRaster) \
-                                or isinstance(param, ParameterMultipleInput) \
-                                and param.datatype \
-                                == ParameterMultipleInput.TYPE_RASTER:
-                            p = QgsProviderRegistry.instance().provider('gdal',
-                                    inputlayer)
-                        else:
-                            p = QgsProviderRegistry.instance().provider('ogr',
-                                    inputlayer)
+                        p = dataobjects.getObjectFromUri(inputlayer)
                         if p is not None:
                             self.crs = p.crs()
+                            p = None
                             return
-        qgis = dataobjects.interface.iface
-        self.crs = qgis.mapCanvas().mapRenderer().destinationCrs()
+        try:
+            from qgis.utils import iface
+            self.crs = iface.mapCanvas().mapRenderer().destinationCrs()
+        except:
+            pass
+
 
     def checkInputCRS(self):
         """It checks that all input layers use the same CRS. If so,
         returns True. False otherwise.
         """
-        crs = None
-        layers = dataobjects.getAllLayers()
+        crsList = []
         for param in self.parameters:
             if isinstance(param, (ParameterRaster, ParameterVector,
                           ParameterMultipleInput)):
                 if param.value:
-                    inputlayers = param.value.split(';')
-                    for inputlayer in inputlayers:
-                        for layer in layers:
-                            if layer.source() == inputlayer:
-                                if crs is None:
-                                    crs = layer.crs()
-                                else:
-                                    if crs != layer.crs():
-                                        return False
-        return True
+                    layers = param.value.split(';')
+                    for item in layers:
+                        crs = dataobjects.getObject(item).crs()
+                        if crs not in crsList:
+                            crsList.append(crs)
+        return len(crsList) == 1
 
     def addOutput(self, output):
         # TODO: check that name does not exist

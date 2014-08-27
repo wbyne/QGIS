@@ -15,30 +15,32 @@
 
 #include "qgsapplication.h"
 #include "qgsattributeaction.h"
-#include "qgsvectordataprovider.h"
-#include "qgsmessagelog.h"
-#include "qgsattributedialog.h"
+#include "qgsattributeform.h"
 #include "qgsattributetablemodel.h"
 #include "qgsdualview.h"
 #include "qgsexpressionbuilderdialog.h"
 #include "qgsfeaturelistmodel.h"
 #include "qgsifeatureselectionmanager.h"
 #include "qgsmapcanvas.h"
+#include "qgsmaplayeractionregistry.h"
+#include "qgsmessagelog.h"
+#include "qgsvectordataprovider.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorlayercache.h"
 
 #include <QDialog>
 #include <QMenu>
-#include <QProgressDialog>
 #include <QMessageBox>
+#include <QProgressDialog>
 
 QgsDualView::QgsDualView( QWidget* parent )
     : QStackedWidget( parent )
     , mEditorContext()
-    , mMasterModel( NULL )
-    , mAttributeDialog( NULL )
-    , mProgressDlg( NULL )
-    , mFeatureSelectionManager( NULL )
+    , mMasterModel( 0 )
+    , mAttributeForm( 0 )
+    , mLayerCache( 0 )
+    , mProgressDlg( 0 )
+    , mFeatureSelectionManager( 0 )
 {
   setupUi( this );
 
@@ -54,12 +56,6 @@ QgsDualView::QgsDualView( QWidget* parent )
   connect( mActionExpressionPreview, SIGNAL( triggered() ), SLOT( previewExpressionBuilder() ) );
   connect( mPreviewActionMapper, SIGNAL( mapped( QObject* ) ), SLOT( previewColumnChanged( QObject* ) ) );
   connect( mFeatureList, SIGNAL( displayExpressionChanged( QString ) ), this, SLOT( previewExpressionChanged( QString ) ) );
-  connect( this, SIGNAL( currentChanged( int ) ), this, SLOT( saveEditChanges() ) );
-}
-
-QgsDualView::~QgsDualView()
-{
-  delete mAttributeDialog;
 }
 
 void QgsDualView::init( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, const QgsFeatureRequest &request, QgsAttributeEditorContext context )
@@ -73,10 +69,14 @@ void QgsDualView::init( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, const Qg
 
   mTableView->setModel( mFilterModel );
   mFeatureList->setModel( mFeatureListModel );
+  mAttributeForm = new QgsAttributeForm( layer, QgsFeature(), mEditorContext );
+  mAttributeEditorScrollArea->setLayout( new QGridLayout() );
+  mAttributeEditorScrollArea->layout()->addWidget( mAttributeForm );
+  mAttributeEditorScrollArea->setWidget( mAttributeForm );
 
-  mAttributeDialog = new QgsAttributeDialog( layer, NULL, false, NULL, true, mEditorContext );
-  if ( mAttributeDialog->dialog() )
-    mAttributeEditorLayout->addWidget( mAttributeDialog->dialog() );
+  mAttributeForm->hideButtonBox();
+
+  connect( mAttributeForm, SIGNAL( attributeChanged( QString, QVariant ) ), this, SLOT( featureFormAttributeChanged() ) );
 
   columnBoxInit();
 }
@@ -156,9 +156,9 @@ void QgsDualView::columnBoxInit()
   mFeatureListPreviewButton->addAction( mActionExpressionPreview );
   mFeatureListPreviewButton->addAction( mActionPreviewColumnsMenu );
 
-  foreach ( const QgsField field, fields )
+  foreach ( const QgsField& field, fields )
   {
-    if ( mLayerCache->layer()->editType( mLayerCache->layer()->fieldNameIndex( field.name() ) ) != QgsVectorLayer::Hidden )
+    if ( mLayerCache->layer()->editorWidgetV2( mLayerCache->layer()->fieldNameIndex( field.name() ) ) != "Hidden" )
     {
       QIcon icon = QgsApplication::getThemeIcon( "/mActionNewAttribute.png" );
       QString text = field.name();
@@ -188,18 +188,6 @@ void QgsDualView::columnBoxInit()
   }
 }
 
-void QgsDualView::hideEvent( QHideEvent* event )
-{
-  saveEditChanges();
-  QStackedWidget::hideEvent( event );
-}
-
-void QgsDualView::focusOutEvent( QFocusEvent* event )
-{
-  saveEditChanges();
-  QStackedWidget::focusOutEvent( event );
-}
-
 void QgsDualView::setView( QgsDualView::ViewMode view )
 {
   setCurrentIndex( view );
@@ -208,6 +196,7 @@ void QgsDualView::setView( QgsDualView::ViewMode view )
 void QgsDualView::setFilterMode( QgsAttributeTableFilterModel::FilterMode filterMode )
 {
   mFilterModel->setFilterMode( filterMode );
+  emit filterChanged();
 }
 
 void QgsDualView::setSelectedOnTop( bool selectedOnTop )
@@ -219,23 +208,16 @@ void QgsDualView::initLayerCache( QgsVectorLayer* layer )
 {
   // Initialize the cache
   QSettings settings;
-  int cacheSize = qMax( 1, settings.value( "/qgis/attributeTableRowCache", "10000" ).toInt() );
+  int cacheSize = settings.value( "/qgis/attributeTableRowCache", "10000" ).toInt();
   mLayerCache = new QgsVectorLayerCache( layer, cacheSize, this );
   mLayerCache->setCacheGeometry( false );
-  if ( 0 == ( QgsVectorDataProvider::SelectAtId & mLayerCache->layer()->dataProvider()->capabilities() ) )
+  if ( 0 == cacheSize || 0 == ( QgsVectorDataProvider::SelectAtId & mLayerCache->layer()->dataProvider()->capabilities() ) )
   {
     connect( mLayerCache, SIGNAL( progress( int, bool & ) ), this, SLOT( progress( int, bool & ) ) );
     connect( mLayerCache, SIGNAL( finished() ), this, SLOT( finished() ) );
 
     mLayerCache->setFullCache( true );
   }
-
-  connect( layer, SIGNAL( editingStarted() ), this, SLOT( editingToggled() ) );
-  connect( layer, SIGNAL( beforeCommitChanges() ), this, SLOT( editingToggled() ) );
-  connect( layer, SIGNAL( editingStopped() ), this, SLOT( editingToggled() ) );
-  connect( layer, SIGNAL( attributeAdded( int ) ), this, SLOT( attributeAdded( int ) ) );
-  connect( layer, SIGNAL( attributeDeleted( int ) ), this, SLOT( attributeDeleted( int ) ) );
-  connect( layer, SIGNAL( featureDeleted( QgsFeatureId ) ), this, SLOT( featureDeleted( QgsFeatureId ) ) );
 }
 
 void QgsDualView::initModels( QgsMapCanvas* mapCanvas, const QgsFeatureRequest& request )
@@ -255,68 +237,34 @@ void QgsDualView::initModels( QgsMapCanvas* mapCanvas, const QgsFeatureRequest& 
   mFeatureListModel = new QgsFeatureListModel( mFilterModel, mFilterModel );
 }
 
+void QgsDualView::on_mFeatureList_aboutToChangeEditSelection( bool& ok )
+{
+  if ( mLayerCache->layer()->isEditable() && !mAttributeForm->save() )
+    ok = false;
+}
+
 void QgsDualView::on_mFeatureList_currentEditSelectionChanged( const QgsFeature &feat )
 {
-  if ( !feat.isValid() )
-    return;
-
-  // Backup old dialog and delete only after creating the new dialog, so we can "hot-swap" the contained QgsFeature
-  QgsAttributeDialog* oldDialog = mAttributeDialog;
-
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
+  if ( !mLayerCache->layer()->isEditable() || mAttributeForm->save() )
   {
-    saveEditChanges();
-    mAttributeEditorLayout->removeWidget( mAttributeDialog->dialog() );
+    mAttributeForm->setFeature( feat );
+    setCurrentEditSelection( QgsFeatureIds() << feat.id() );
   }
-
-  mAttributeDialog = new QgsAttributeDialog( mLayerCache->layer(), new QgsFeature( feat ), true, this, false, mEditorContext );
-  mAttributeEditorLayout->addWidget( mAttributeDialog->dialog() );
-  mAttributeDialog->dialog()->setVisible( true );
-
-  delete oldDialog;
+  else
+  {
+    // Couldn't save feature
+  }
 }
 
 void QgsDualView::setCurrentEditSelection( const QgsFeatureIds& fids )
 {
+  mFeatureList->setCurrentFeatureEdited( false );
   mFeatureList->setEditSelection( fids );
 }
 
-void QgsDualView::saveEditChanges()
+bool QgsDualView::saveEditChanges()
 {
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
-  {
-    if ( mLayerCache->layer() && mLayerCache->layer()->isEditable() )
-    {
-      // Get the current (unedited) feature
-      QgsFeature srcFeat;
-      QgsFeatureId fid = mAttributeDialog->feature()->id();
-      mLayerCache->featureAtId( fid, srcFeat );
-      QgsAttributes src = srcFeat.attributes();
-
-      // Let the dialog write the edited widget values to it's feature
-      mAttributeDialog->accept();
-      // Get the edited feature
-      const QgsAttributes &dst = mAttributeDialog->feature()->attributes();
-
-      if ( src.count() != dst.count() )
-      {
-        // bail out
-        return;
-      }
-
-      mLayerCache->layer()->beginEditCommand( tr( "Attributes changed" ) );
-
-      for ( int i = 0; i < dst.count(); ++i )
-      {
-        if ( dst[i] != src[i] )
-        {
-          mLayerCache->layer()->changeAttributeValue( fid, i, dst[i] );
-        }
-      }
-
-      mLayerCache->layer()->endEditCommand();
-    }
-  }
+  return mAttributeForm->save();
 }
 
 void QgsDualView::previewExpressionBuilder()
@@ -359,15 +307,6 @@ void QgsDualView::previewColumnChanged( QObject* action )
   Q_ASSERT( previewAction );
 }
 
-void QgsDualView::editingToggled()
-{
-  // Reload the attribute dialog widget and commit changes if any
-  if ( mAttributeDialog && mAttributeDialog->dialog() && mAttributeDialog->feature() )
-  {
-    on_mFeatureList_currentEditSelectionChanged( *mAttributeDialog->feature() );
-  }
-}
-
 int QgsDualView::featureCount()
 {
   return mMasterModel->rowCount();
@@ -382,10 +321,11 @@ void QgsDualView::viewWillShowContextMenu( QMenu* menu, QModelIndex atIndex )
 {
   QModelIndex sourceIndex = mFilterModel->mapToSource( atIndex );
 
+  //add user-defined actions to context menu
   if ( mLayerCache->layer()->actions()->size() != 0 )
   {
 
-    QAction *a = menu->addAction( tr( "Run action" ) );
+    QAction *a = menu->addAction( tr( "Run layer action" ) );
     a->setEnabled( false );
 
     for ( int i = 0; i < mLayerCache->layer()->actions()->size(); i++ )
@@ -400,6 +340,22 @@ void QgsDualView::viewWillShowContextMenu( QMenu* menu, QModelIndex atIndex )
     }
   }
 
+  //add actions from QgsMapLayerActionRegistry to context menu
+  QList<QgsMapLayerAction *> registeredActions = QgsMapLayerActionRegistry::instance()->mapLayerActions( mLayerCache->layer() );
+  if ( registeredActions.size() > 0 )
+  {
+    //add a separator between user defined and standard actions
+    menu->addSeparator();
+
+    QList<QgsMapLayerAction*>::iterator actionIt;
+    for ( actionIt = registeredActions.begin(); actionIt != registeredActions.end(); ++actionIt )
+    {
+      QgsAttributeTableMapLayerAction *a = new QgsAttributeTableMapLayerAction(( *actionIt )->text(), this, ( *actionIt ), sourceIndex );
+      menu->addAction(( *actionIt )->text(), a, SLOT( execute() ) );
+    }
+  }
+
+  menu->addSeparator();
   QgsAttributeTableAction *a = new QgsAttributeTableAction( tr( "Open form" ), this, -1, sourceIndex );
   menu->addAction( tr( "Open form" ), a, SLOT( featureForm() ) );
 }
@@ -409,110 +365,9 @@ void QgsDualView::previewExpressionChanged( const QString expression )
   mLayerCache->layer()->setDisplayExpression( expression );
 }
 
-void QgsDualView::attributeDeleted( int attribute )
+void QgsDualView::featureFormAttributeChanged()
 {
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
-  {
-    // Let the dialog write the edited widget values to it's feature
-    mAttributeDialog->accept();
-    // Get the edited feature
-    QgsFeature* feat = mAttributeDialog->feature();
-    feat->deleteAttribute( attribute );
-
-    // Backup old dialog and delete only after creating the new dialog, so we can "hot-swap" the contained QgsFeature
-    QgsAttributeDialog* oldDialog = mAttributeDialog;
-
-    mAttributeEditorLayout->removeWidget( mAttributeDialog->dialog() );
-
-    mAttributeDialog = new QgsAttributeDialog( mLayerCache->layer(), new QgsFeature( *feat ), true, this, false );
-    mAttributeEditorLayout->addWidget( mAttributeDialog->dialog() );
-
-    delete oldDialog;
-  }
-}
-
-void QgsDualView::attributeAdded( int attribute )
-{
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
-  {
-    // Let the dialog write the edited widget values to it's feature
-    mAttributeDialog->accept();
-    // Get the edited feature
-    QgsFeature* feat = mAttributeDialog->feature();
-
-    // Get the feature including the newly added attribute
-    QgsFeature newFeat;
-    mLayerCache->featureAtId( feat->id(), newFeat );
-
-    int offset = 0;
-    for ( int idx = 0; idx < newFeat.attributes().count(); ++idx )
-    {
-      if ( idx == attribute )
-      {
-        offset = 1;
-      }
-      else
-      {
-        newFeat.setAttribute( idx, feat->attribute( idx - offset ) );
-      }
-    }
-
-    *feat = newFeat;
-
-    // Backup old dialog and delete only after creating the new dialog, so we can "hot-swap" the contained QgsFeature
-    QgsAttributeDialog* oldDialog = mAttributeDialog;
-
-    mAttributeEditorLayout->removeWidget( mAttributeDialog->dialog() );
-
-    mAttributeDialog = new QgsAttributeDialog( mLayerCache->layer(), new QgsFeature( *feat ), true, this, false );
-    mAttributeEditorLayout->addWidget( mAttributeDialog->dialog() );
-
-    delete oldDialog;
-  }
-}
-
-void QgsDualView::featureDeleted( QgsFeatureId fid )
-{
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
-  {
-    QgsFeature* feat = mAttributeDialog->feature();
-    if ( feat )
-    {
-      if ( fid == feat->id() )
-      {
-        delete( mAttributeDialog );
-        mAttributeDialog = NULL;
-      }
-    }
-  }
-}
-
-void QgsDualView::reloadAttribute( const int& idx )
-{
-  if ( mAttributeDialog && mAttributeDialog->dialog() )
-  {
-    // Let the dialog write the edited widget values to it's feature
-    mAttributeDialog->accept();
-    // Get the edited feature
-    QgsFeature* feat = mAttributeDialog->feature();
-
-    // Get the feature including the changed attribute
-    QgsFeature newFeat;
-    mLayerCache->featureAtId( feat->id(), newFeat );
-
-    // Update the attribute
-    feat->setAttribute( idx, newFeat.attribute( idx ) );
-
-    // Backup old dialog and delete only after creating the new dialog, so we can "hot-swap" the contained QgsFeature
-    QgsAttributeDialog* oldDialog = mAttributeDialog;
-
-    mAttributeEditorLayout->removeWidget( mAttributeDialog->dialog() );
-
-    mAttributeDialog = new QgsAttributeDialog( mLayerCache->layer(), new QgsFeature( *feat ), true, this, false );
-    mAttributeEditorLayout->addWidget( mAttributeDialog->dialog() );
-
-    delete oldDialog;
-  }
+  mFeatureList->setCurrentFeatureEdited( true );
 }
 
 void QgsDualView::setFilteredFeatures( QgsFeatureIds filteredFeatures )
@@ -575,4 +430,13 @@ void QgsAttributeTableAction::featureForm()
   editedIds << mDualView->masterModel()->rowToId( mFieldIdx.row() );
   mDualView->setCurrentEditSelection( editedIds );
   mDualView->setView( QgsDualView::AttributeEditor );
+}
+
+/*
+ * QgsAttributeTableMapLayerAction
+ */
+
+void QgsAttributeTableMapLayerAction::execute()
+{
+  mDualView->masterModel()->executeMapLayerAction( mAction, mFieldIdx );
 }

@@ -15,15 +15,15 @@ class QgsRasterProjector : QgsRasterInterface
      */
 
     QgsRasterProjector(
-          QgsCoordinateReferenceSystem theSrcCRS,
-          QgsCoordinateReferenceSystem theDestCRS,
-          int theSrcDatumTransform,
-          int theDestDatumTransform,
-          QgsRectangle theDestExtent,
-          int theDestRows, int theDestCols,
-          double theMaxSrcXRes, double theMaxSrcYRes,
-          QgsRectangle theExtent
-        );
+      QgsCoordinateReferenceSystem theSrcCRS,
+      QgsCoordinateReferenceSystem theDestCRS,
+      int theSrcDatumTransform,
+      int theDestDatumTransform,
+      QgsRectangle theDestExtent,
+      int theDestRows, int theDestCols,
+      double theMaxSrcXRes, double theMaxSrcYRes,
+      QgsRectangle theExtent
+    );
 
     QgsRasterProjector(
       QgsCoordinateReferenceSystem theSrcCRS,
@@ -51,7 +51,8 @@ class QgsRasterProjector : QgsRasterInterface
     int dataType( int bandNo ) const;
 
     /** \brief set source and destination CRS */
-    void setCRS( const QgsCoordinateReferenceSystem & theSrcCRS, const QgsCoordinateReferenceSystem & theDestCRS, int srcDatumTransform = -1, int destDatumTransform = -1 );
+    void setCRS( const QgsCoordinateReferenceSystem & theSrcCRS, const QgsCoordinateReferenceSystem & theDestCRS,
+                 int srcDatumTransform = -1, int destDatumTransform = -1 );
 
     /** \brief Get source CRS */
     QgsCoordinateReferenceSystem srcCrs() const;
@@ -64,4 +65,3 @@ class QgsRasterProjector : QgsRasterInterface
 
     QgsRasterBlock *block( int bandNo, const QgsRectangle & extent, int width, int height ) / Factory /;
 };
-

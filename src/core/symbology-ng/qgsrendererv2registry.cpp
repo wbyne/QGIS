@@ -20,6 +20,7 @@
 #include "qgsgraduatedsymbolrendererv2.h"
 #include "qgsrulebasedrendererv2.h"
 #include "qgspointdisplacementrenderer.h"
+#include "qgsinvertedpolygonrenderer.h"
 
 QgsRendererV2Registry::QgsRendererV2Registry()
 {
@@ -44,6 +45,10 @@ QgsRendererV2Registry::QgsRendererV2Registry()
   addRenderer( new QgsRendererV2Metadata( "pointDisplacement",
                                           QObject::tr( "Point displacement" ),
                                           QgsPointDisplacementRenderer::create ) );
+
+  addRenderer( new QgsRendererV2Metadata( "invertedPolygonRenderer",
+                                          QObject::tr( "Inverted polygons" ),
+                                          QgsInvertedPolygonRenderer::create ) );
 }
 
 QgsRendererV2Registry::~QgsRendererV2Registry()
@@ -88,7 +93,7 @@ QgsRendererV2AbstractMetadata* QgsRendererV2Registry::rendererMetadata( QString 
   return mRenderers.value( rendererName );
 }
 
-QgsRendererV2Metadata::~QgsRendererV2Metadata(){}
+QgsRendererV2Metadata::~QgsRendererV2Metadata() {}
 
 QStringList QgsRendererV2Registry::renderersList()
 {

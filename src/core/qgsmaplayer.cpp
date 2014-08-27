@@ -35,10 +35,14 @@
 #include "qgsmaplayer.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsapplication.h"
+#include "qgsmaplayerlegend.h"
 #include "qgsproject.h"
+#include "qgspluginlayerregistry.h"
 #include "qgsprojectfiletransform.h"
 #include "qgsdatasourceuri.h"
 #include "qgsvectorlayer.h"
+#include "qgsrasterlayer.h"
+#include "qgspluginlayer.h"
 #include "qgsproviderregistry.h"
 
 QgsMapLayer::QgsMapLayer( QgsMapLayer::LayerType type,
@@ -50,6 +54,7 @@ QgsMapLayer::QgsMapLayer( QgsMapLayer::LayerType type,
     mID( "" ),
     mLayerType( type ),
     mBlendMode( QPainter::CompositionMode_SourceOver ) // Default to normal blending
+    , mLegend( 0 )
 {
   mCRS = new QgsCoordinateReferenceSystem();
 
@@ -73,16 +78,12 @@ QgsMapLayer::QgsMapLayer( QgsMapLayer::LayerType type,
   mMinScale = 0;
   mMaxScale = 100000000;
   mScaleBasedVisibility = false;
-  mpCacheImage = 0;
 }
 
 QgsMapLayer::~QgsMapLayer()
 {
   delete mCRS;
-  if ( mpCacheImage )
-  {
-    delete mpCacheImage;
-  }
+  delete mLegend;
 }
 
 QgsMapLayer::LayerType QgsMapLayer::type() const
@@ -111,7 +112,7 @@ void QgsMapLayer::setLayerName( const QString & name )
 /** Read property of QString layerName. */
 QString const & QgsMapLayer::name() const
 {
-  QgsDebugMsgLevel( "returning name '" + mLayerName + "'", 3 );
+  QgsDebugMsgLevel( "returning name '" + mLayerName + "'", 4 );
   return mLayerName;
 }
 
@@ -134,7 +135,7 @@ QgsRectangle QgsMapLayer::extent()
 }
 
 /** Write blend mode for layer */
-void QgsMapLayer::setBlendMode( const QPainter::CompositionMode blendMode )
+void QgsMapLayer::setBlendMode( const QPainter::CompositionMode &blendMode )
 {
   mBlendMode = blendMode;
   emit blendModeChanged( blendMode );
@@ -378,6 +379,14 @@ bool QgsMapLayer::readLayerXML( const QDomElement& layerElement )
     mDataUrlFormat = dataUrlElem.attribute( "format", "" );
   }
 
+  //legendUrl
+  QDomElement legendUrlElem = layerElement.firstChildElement( "legendUrl" );
+  if ( !legendUrlElem.isNull() )
+  {
+    mLegendUrl = legendUrlElem.text();
+    mLegendUrlFormat = legendUrlElem.attribute( "format", "" );
+  }
+
   //attribution
   QDomElement attribElem = layerElement.firstChildElement( "attribution" );
   if ( !attribElem.isNull() )
@@ -520,6 +529,17 @@ bool QgsMapLayer::writeLayerXML( QDomElement& layerElement, QDomDocument& docume
     layerElement.appendChild( layerDataUrl );
   }
 
+  // layer legendUrl
+  QString aLegendUrl = legendUrl();
+  if ( !aLegendUrl.isEmpty() )
+  {
+    QDomElement layerLegendUrl = document.createElement( "legendUrl" ) ;
+    QDomText layerLegendUrlText = document.createTextNode( aLegendUrl );
+    layerLegendUrl.appendChild( layerLegendUrlText );
+    layerLegendUrl.setAttribute( "format", legendUrlFormat() );
+    layerElement.appendChild( layerLegendUrl );
+  }
+
   // layer attribution
   QString aAttribution = attribution();
   if ( !aAttribution.isEmpty() )
@@ -579,6 +599,74 @@ bool QgsMapLayer::writeLayerXML( QDomElement& layerElement, QDomDocument& docume
 
 } // bool QgsMapLayer::writeXML
 
+QDomDocument QgsMapLayer::asLayerDefinition( QList<QgsMapLayer *> layers )
+{
+  QDomDocument doc( "qgis-layer-definition" );
+  QDomElement layerselm = doc.createElement( "maplayers" );
+  foreach ( QgsMapLayer* layer, layers )
+  {
+    QDomElement layerelm = doc.createElement( "maplayer" );
+    layer->writeLayerXML( layerelm, doc );
+    layerelm.removeChild( layerelm.firstChildElement( "id" ) );
+    layerselm.appendChild( layerelm );
+  }
+  doc.appendChild( layerselm );
+  return doc;
+}
+
+QList<QgsMapLayer*> QgsMapLayer::fromLayerDefinition( QDomDocument& document )
+{
+  QList<QgsMapLayer*> layers;
+  QDomNodeList layernodes = document.elementsByTagName( "maplayer" );
+  for ( int i = 0; i < layernodes.size(); ++i )
+  {
+    QDomNode layernode = layernodes.at( i );
+    QDomElement layerElem = layernode.toElement();
+
+    QString type = layerElem.attribute( "type" );
+    QgsDebugMsg( type );
+    QgsMapLayer *layer = NULL;
+
+    if ( type == "vector" )
+    {
+      layer = new QgsVectorLayer;
+    }
+    else if ( type == "raster" )
+    {
+      layer = new QgsRasterLayer;
+    }
+    else if ( type == "plugin" )
+    {
+      QString typeName = layerElem.attribute( "name" );
+      layer = QgsPluginLayerRegistry::instance()->createLayer( typeName );
+    }
+
+    bool ok = layer->readLayerXML( layerElem );
+    if ( ok )
+      layers << layer;
+  }
+  return layers;
+}
+
+QList<QgsMapLayer *> QgsMapLayer::fromLayerDefinitionFile( const QString qlrfile )
+{
+  QFile file( qlrfile );
+  if ( !file.open( QIODevice::ReadOnly ) )
+  {
+    QgsDebugMsg( "Can't open file" );
+    return QList<QgsMapLayer*>();
+  }
+
+  QDomDocument doc;
+  if ( !doc.setContent( &file ) )
+  {
+    QgsDebugMsg( "Can't set content" );
+    return QList<QgsMapLayer*>();
+  }
+
+  return QgsMapLayer::fromLayerDefinition( doc );
+}
+
 
 bool QgsMapLayer::writeXml( QDomNode & layer_node, QDomDocument & document )
 {
@@ -588,6 +676,17 @@ bool QgsMapLayer::writeXml( QDomNode & layer_node, QDomDocument & document )
 
   return true;
 } // void QgsMapLayer::writeXml
+
+
+void QgsMapLayer::readCustomProperties( const QDomNode &layerNode, const QString &keyStartsWith )
+{
+  mCustomProperties.readXml( layerNode, keyStartsWith );
+}
+
+void QgsMapLayer::writeCustomProperties( QDomNode &layerNode, QDomDocument &doc ) const
+{
+  mCustomProperties.writeXml( layerNode, doc );
+}
 
 
 
@@ -628,7 +727,7 @@ void QgsMapLayer::toggleScaleBasedVisibility( bool theVisibilityFlag )
   mScaleBasedVisibility = theVisibilityFlag;
 }
 
-bool QgsMapLayer::hasScaleBasedVisibility()
+bool QgsMapLayer::hasScaleBasedVisibility() const
 {
   return mScaleBasedVisibility;
 }
@@ -638,7 +737,7 @@ void QgsMapLayer::setMinimumScale( float theMinScale )
   mMinScale = theMinScale;
 }
 
-float QgsMapLayer::minimumScale()
+float QgsMapLayer::minimumScale() const
 {
   return mMinScale;
 }
@@ -649,7 +748,7 @@ void QgsMapLayer::setMaximumScale( float theMaxScale )
   mMaxScale = theMaxScale;
 }
 
-float QgsMapLayer::maximumScale()
+float QgsMapLayer::maximumScale() const
 {
   return mMaxScale;
 }
@@ -766,7 +865,7 @@ QString QgsMapLayer::loadDefaultStyle( bool & theResultFlag )
   return loadNamedStyle( styleURI(), theResultFlag );
 }
 
-bool QgsMapLayer::loadNamedStyleFromDb( const QString db, const QString theURI, QString &qml )
+bool QgsMapLayer::loadNamedStyleFromDb( const QString &db, const QString &theURI, QString &qml )
 {
   QgsDebugMsg( QString( "db = %1 uri = %2" ).arg( db ).arg( theURI ) );
 
@@ -810,7 +909,7 @@ bool QgsMapLayer::loadNamedStyleFromDb( const QString db, const QString theURI, 
   return theResultFlag;
 }
 
-QString QgsMapLayer::loadNamedStyle( const QString theURI, bool &theResultFlag )
+QString QgsMapLayer::loadNamedStyle( const QString &theURI, bool &theResultFlag )
 {
   QgsDebugMsg( QString( "uri = %1 myURI = %2" ).arg( theURI ).arg( publicSource() ) );
 
@@ -849,7 +948,7 @@ QString QgsMapLayer::loadNamedStyle( const QString theURI, bool &theResultFlag )
     }
     else
     {
-      myErrorMessage = tr( "style not found in database" );
+      myErrorMessage = tr( "Style not found in database" );
     }
   }
 
@@ -948,7 +1047,7 @@ QString QgsMapLayer::saveDefaultStyle( bool & theResultFlag )
   return saveNamedStyle( styleURI(), theResultFlag );
 }
 
-QString QgsMapLayer::saveNamedStyle( const QString theURI, bool & theResultFlag )
+QString QgsMapLayer::saveNamedStyle( const QString &theURI, bool &theResultFlag )
 {
   QString myErrorMessage;
   QDomDocument myDocument;
@@ -1123,7 +1222,7 @@ void QgsMapLayer::exportSldStyle( QDomDocument &doc, QString &errorMsg )
   doc = myDocument;
 }
 
-QString QgsMapLayer::saveSldStyle( const QString theURI, bool & theResultFlag )
+QString QgsMapLayer::saveSldStyle( const QString &theURI, bool &theResultFlag )
 {
   QString errorMsg;
   QDomDocument myDocument;
@@ -1180,7 +1279,7 @@ QString QgsMapLayer::saveSldStyle( const QString theURI, bool & theResultFlag )
   return tr( "ERROR: Failed to created SLD style file as %1. Check file permissions and retry." ).arg( filename );
 }
 
-QString QgsMapLayer::loadSldStyle( const QString theURI, bool &theResultFlag )
+QString QgsMapLayer::loadSldStyle( const QString &theURI, bool &theResultFlag )
 {
   QgsDebugMsg( "Entered." );
 
@@ -1250,7 +1349,7 @@ QUndoStack* QgsMapLayer::undoStack()
 
 void QgsMapLayer::setCustomProperty( const QString& key, const QVariant& value )
 {
-  mCustomProperties[key] = value;
+  mCustomProperties.setValue( key, value );
 }
 
 QVariant QgsMapLayer::customProperty( const QString& value, const QVariant& defaultValue ) const
@@ -1263,90 +1362,7 @@ void QgsMapLayer::removeCustomProperty( const QString& key )
   mCustomProperties.remove( key );
 }
 
-void QgsMapLayer::readCustomProperties( const QDomNode& layerNode, const QString& keyStartsWith )
-{
-  QDomNode propsNode = layerNode.namedItem( "customproperties" );
-  if ( propsNode.isNull() ) // no properties stored...
-    return;
 
-  if ( !keyStartsWith.isEmpty() )
-  {
-    //remove old keys
-    QStringList keysToRemove;
-    QMap<QString, QVariant>::const_iterator pIt = mCustomProperties.constBegin();
-    for ( ; pIt != mCustomProperties.constEnd(); ++pIt )
-    {
-      if ( pIt.key().startsWith( keyStartsWith ) )
-      {
-        keysToRemove.push_back( pIt.key() );
-      }
-    }
-
-    QStringList::const_iterator sIt = keysToRemove.constBegin();
-    for ( ; sIt != keysToRemove.constEnd(); ++sIt )
-    {
-      mCustomProperties.remove( *sIt );
-    }
-  }
-  else
-  {
-    mCustomProperties.clear();
-  }
-
-  QDomNodeList nodes = propsNode.childNodes();
-
-  for ( int i = 0; i < nodes.size(); i++ )
-  {
-    QDomNode propNode = nodes.at( i );
-    if ( propNode.isNull() || propNode.nodeName() != "property" )
-      continue;
-    QDomElement propElement = propNode.toElement();
-
-    QString key = propElement.attribute( "key" );
-    if ( key.isEmpty() || key.startsWith( keyStartsWith ) )
-    {
-      QString value = propElement.attribute( "value" );
-      mCustomProperties[key] = QVariant( value );
-    }
-  }
-
-}
-
-void QgsMapLayer::writeCustomProperties( QDomNode & layerNode, QDomDocument & doc ) const
-{
-  //remove already existing <customproperties> tags
-  QDomNodeList propertyList = layerNode.toElement().elementsByTagName( "customproperties" );
-  for ( int i = 0; i < propertyList.size(); ++i )
-  {
-    layerNode.removeChild( propertyList.at( i ) );
-  }
-
-  QDomElement propsElement = doc.createElement( "customproperties" );
-
-  for ( QMap<QString, QVariant>::const_iterator it = mCustomProperties.constBegin(); it != mCustomProperties.constEnd(); ++it )
-  {
-    QDomElement propElement = doc.createElement( "property" );
-    propElement.setAttribute( "key", it.key() );
-    propElement.setAttribute( "value", it.value().toString() );
-    propsElement.appendChild( propElement );
-  }
-
-  layerNode.appendChild( propsElement );
-}
-
-void QgsMapLayer::setCacheImage( QImage * thepImage )
-{
-  QgsDebugMsg( "cache Image set!" );
-  if ( mpCacheImage == thepImage )
-    return;
-
-  if ( mpCacheImage )
-  {
-    onCacheImageDelete();
-    delete mpCacheImage;
-  }
-  mpCacheImage = thepImage;
-}
 
 bool QgsMapLayer::isEditable() const
 {
@@ -1358,9 +1374,33 @@ void QgsMapLayer::setValid( bool valid )
   mValid = valid;
 }
 
+void QgsMapLayer::setCacheImage( QImage * )
+{
+  emit repaintRequested();
+}
+
+void QgsMapLayer::setLegend( QgsMapLayerLegend* legend )
+{
+  if ( legend == mLegend )
+    return;
+
+  delete mLegend;
+  mLegend = legend;
+
+  if ( mLegend )
+    connect( mLegend, SIGNAL( itemsChanged() ), this, SIGNAL( legendChanged() ) );
+
+  emit legendChanged();
+}
+
+QgsMapLayerLegend*QgsMapLayer::legend() const
+{
+  return mLegend;
+}
+
 void QgsMapLayer::clearCacheImage()
 {
-  setCacheImage( 0 );
+  emit repaintRequested();
 }
 
 QString QgsMapLayer::metadata()

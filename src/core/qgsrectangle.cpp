@@ -122,6 +122,11 @@ void QgsRectangle::scale( double scaleFactor, double centerX, double centerY )
   ymax = centerY + newHeight / 2.0;
 }
 
+QgsRectangle QgsRectangle::buffer( double width )
+{
+  return QgsRectangle( xmin - width, ymin - width, xmax + width, ymax + width );
+}
+
 QgsRectangle QgsRectangle::intersect( const QgsRectangle * rect ) const
 {
   QgsRectangle intersection = QgsRectangle();
@@ -187,6 +192,14 @@ void QgsRectangle::combineExtentWith( double x, double y )
 bool QgsRectangle::isEmpty() const
 {
   return xmax <= xmin || ymax <= ymin;
+}
+
+bool QgsRectangle::isNull() const
+{
+  // rectangle created QgsRectangle() or with rect.setMinimal() ?
+  return ( xmin == 0 && xmax == 0 && ymin == 0 && ymax == 0 ) ||
+         ( xmin == std::numeric_limits<double>::max() && ymin == std::numeric_limits<double>::max() &&
+           xmax == -std::numeric_limits<double>::max() && ymax == -std::numeric_limits<double>::max() );
 }
 
 QString QgsRectangle::asWktCoordinates() const

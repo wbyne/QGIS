@@ -17,6 +17,7 @@
 ***************************************************************************
 """
 
+
 __author__ = 'Victor Olaya'
 __date__ = 'August 2012'
 __copyright__ = '(C) 2012, Victor Olaya'
@@ -30,33 +31,31 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 import processing
-from processing import interface
+from qgis.utils import iface
+from processing.modeler.ModelerUtils import ModelerUtils
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
 from processing.gui.AlgorithmClassification import AlgorithmDecorator
 from processing.gui.MessageBarProgress import MessageBarProgress
 from processing.gui.RenderingStyles import RenderingStyles
-from processing.gui.Postprocessing import Postprocessing
-from processing.gui.UnthreadedAlgorithmExecutor import \
-        UnthreadedAlgorithmExecutor
-from processing.modeler.Providers import Providers
+from processing.gui.Postprocessing import handleAlgorithmResults
+from processing.gui.AlgorithmExecutor import runalg
 from processing.modeler.ModelerAlgorithmProvider import \
         ModelerAlgorithmProvider
 from processing.modeler.ModelerOnlyAlgorithmProvider import \
         ModelerOnlyAlgorithmProvider
-from processing.algs.QGISAlgorithmProvider import QGISAlgorithmProvider
-from processing.grass.GrassAlgorithmProvider import GrassAlgorithmProvider
-from processing.lidar.LidarToolsAlgorithmProvider import \
+from processing.algs.qgis.QGISAlgorithmProvider import QGISAlgorithmProvider
+from processing.algs.grass.GrassAlgorithmProvider import GrassAlgorithmProvider
+from processing.algs.grass7.Grass7AlgorithmProvider import Grass7AlgorithmProvider
+from processing.algs.lidar.LidarToolsAlgorithmProvider import \
         LidarToolsAlgorithmProvider
-from processing.gdal.GdalOgrAlgorithmProvider import GdalOgrAlgorithmProvider
-from processing.otb.OTBAlgorithmProvider import OTBAlgorithmProvider
-from processing.r.RAlgorithmProvider import RAlgorithmProvider
-from processing.saga.SagaAlgorithmProvider import SagaAlgorithmProvider
+from processing.algs.gdal.GdalOgrAlgorithmProvider import GdalOgrAlgorithmProvider
+from processing.algs.otb.OTBAlgorithmProvider import OTBAlgorithmProvider
+from processing.algs.r.RAlgorithmProvider import RAlgorithmProvider
+from processing.algs.saga.SagaAlgorithmProvider import SagaAlgorithmProvider
 from processing.script.ScriptAlgorithmProvider import ScriptAlgorithmProvider
-from processing.taudem.TauDEMAlgorithmProvider import TauDEMAlgorithmProvider
-from processing.admintools.AdminToolsAlgorithmProvider import \
-        AdminToolsAlgorithmProvider
+from processing.algs.taudem.TauDEMAlgorithmProvider import TauDEMAlgorithmProvider
 from processing.tools import dataobjects
 
 
@@ -88,7 +87,7 @@ class Processing:
         try:
             provider.initializeSettings()
             Processing.providers.append(provider)
-            ProcessingConfig.loadSettings()
+            ProcessingConfig.readSettings()
             if updateList:
                 Processing.updateAlgsList()
         except:
@@ -108,7 +107,7 @@ class Processing:
         try:
             provider.unload()
             Processing.providers.remove(provider)
-            ProcessingConfig.loadSettings()
+            ProcessingConfig.readSettings()
             Processing.updateAlgsList()
         except:
             # This try catch block is here to avoid problems if the
@@ -119,20 +118,12 @@ class Processing:
 
     @staticmethod
     def getProviderFromName(name):
-        """Returns the provider with the given name.
-        """
+        """Returns the provider with the given name."""
         for provider in Processing.providers:
             if provider.getName() == name:
                 return provider
         return Processing.modeler
 
-    @staticmethod
-    def getInterface():
-        return interface.iface
-
-    @staticmethod
-    def setInterface(iface):
-        pass
 
     @staticmethod
     def initialize():
@@ -145,16 +136,17 @@ class Processing:
         Processing.addProvider(RAlgorithmProvider())
         Processing.addProvider(SagaAlgorithmProvider())
         Processing.addProvider(GrassAlgorithmProvider())
+        Processing.addProvider(Grass7AlgorithmProvider())
         Processing.addProvider(ScriptAlgorithmProvider())
         Processing.addProvider(TauDEMAlgorithmProvider())
-        Processing.addProvider(AdminToolsAlgorithmProvider())
+        Processing.addProvider(Processing.modeler)
         Processing.modeler.initializeSettings()
 
         # And initialize
         AlgorithmDecorator.loadClassification()
         ProcessingLog.startLogging()
         ProcessingConfig.initialize()
-        ProcessingConfig.loadSettings()
+        ProcessingConfig.readSettings()
         RenderingStyles.loadStyles()
         Processing.loadFromProviders()
 
@@ -175,12 +167,14 @@ class Processing:
 
     @staticmethod
     def updateProviders():
-        for provider in Processing.providers:
+        providers = [p for p in Processing.providers if p.getName() != "model"]
+        for provider in providers:
             provider.loadAlgorithms()
 
     @staticmethod
     def addAlgListListener(listener):
-        """Listener should implement a algsListHasChanged() method.
+        """
+        Listener should implement a algsListHasChanged() method.
 
         Whenever the list of algorithms changes, that method will be
         called for all registered listeners.
@@ -196,40 +190,28 @@ class Processing:
     def loadAlgorithms():
         Processing.algs = {}
         Processing.updateProviders()
-        for provider in Processing.providers:
+        providers = [p for p in Processing.providers if p.getName() != "model"]
+        for provider in providers:
             providerAlgs = provider.algs
             algs = {}
             for alg in providerAlgs:
                 algs[alg.commandLineName()] = alg
             Processing.algs[provider.getName()] = algs
 
-        # This is a special provider, since it depends on others.
-        # TODO: Fix circular imports, so this provider can be
-        # incorporated as a normal one.
-        provider = Processing.modeler
-        provider.setAlgsList(Processing.algs)
-        provider.loadAlgorithms()
-        providerAlgs = provider.algs
-        algs = {}
-        for alg in providerAlgs:
-            algs[alg.commandLineName()] = alg
-        Processing.algs[provider.getName()] = algs
-
-        # And we do it again, in case there are models containing
-        # models.
-        # TODO: Improve this
-        provider.setAlgsList(Processing.algs)
-        provider.loadAlgorithms()
-        providerAlgs = provider.algs
-        algs = {}
-        for alg in providerAlgs:
-            algs[alg.commandLineName()] = alg
-        Processing.algs[provider.getName()] = algs
         provs = {}
         for provider in Processing.providers:
             provs[provider.getName()] = provider
-        provs[Processing.modeler.getName()] = Processing.modeler
-        Providers.providers = provs
+
+        ModelerUtils.allAlgs = Processing.algs
+        ModelerUtils.providers = provs
+
+        Processing.modeler.loadAlgorithms()
+
+        algs = {}
+        for alg in Processing.modeler.algs:
+            algs[alg.commandLineName()] = alg
+        Processing.algs[Processing.modeler.getName()] = algs
+
 
     @staticmethod
     def loadActions():
@@ -240,10 +222,6 @@ class Processing:
                 actions.append(action)
             Processing.actions[provider.getName()] = actions
 
-        provider = Processing.modeler
-        actions = list()
-        for action in provider.actions:
-            actions.append(action)
         Processing.actions[provider.getName()] = actions
 
     @staticmethod
@@ -253,11 +231,6 @@ class Processing:
             providerActions = provider.contextMenuActions
             for action in providerActions:
                 Processing.contextMenuActions.append(action)
-
-        provider = Processing.modeler
-        providerActions = provider.contextMenuActions
-        for action in providerActions:
-            Processing.contextMenuActions.append(action)
 
     @staticmethod
     def getAlgorithm(name):
@@ -276,14 +249,12 @@ class Processing:
 
     @staticmethod
     def getObject(uri):
-        """Returns the QGIS object identified by the given URI.
-        """
+        """Returns the QGIS object identified by the given URI."""
         return dataobjects.getObjectFromUri(uri)
 
     @staticmethod
     def runandload(name, *args):
-        Processing.runAlgorithm(name, Postprocessing.handleAlgorithmResults,
-                                *args)
+        Processing.runAlgorithm(name, handleAlgorithmResults, *args)
 
     @staticmethod
     def runAlgorithm(algOrName, onFinish, *args):
@@ -294,24 +265,39 @@ class Processing:
         if alg is None:
             print 'Error: Algorithm not found\n'
             return
-        if len(args) != alg.getVisibleParametersCount() \
-                    + alg.getVisibleOutputsCount():
-            print 'Error: Wrong number of parameters'
-            processing.alghelp(algOrName)
-            return
-
         alg = alg.getCopy()
-        if isinstance(args, dict):
-            # Set params by name
-            for (name, value) in args.items():
-                if alg.getParameterFromName(name).setValue(value):
+
+        if len(args) == 1 and isinstance(args[0], dict):
+            # Set params by name and try to run the alg even if not all parameter values are provided,
+            # by using the default values instead.
+            setParams = []
+            for (name, value) in args[0].items():
+                param = alg.getParameterFromName(name)
+                if param and param.setValue(value):
+                    setParams.append(name)
                     continue
-                if alg.getOutputFromName(name).setValue(value):
+                output = alg.getOutputFromName(name)
+                if output and output.setValue(value):
                     continue
                 print 'Error: Wrong parameter value %s for parameter %s.' \
                     % (value, name)
+                ProcessingLog.addToLog(ProcessingLog.LOG_ERROR, "Error in %s. Wrong parameter value %s for parameter %s." \
+                    % (alg.name, value, name))
                 return
+            # fill any missing parameters with default values if allowed
+            for param in alg.parameters:
+                if param.name not in setParams:
+                    if not param.setValue(None):
+                        print ("Error: Missing parameter value for parameter %s." % (param.name))
+                        ProcessingLog.addToLog(ProcessingLog.LOG_ERROR, "Error in %s. Missing parameter value for parameter %s." \
+                            % (alg.name, param.name))
+                        return
         else:
+            if len(args) != alg.getVisibleParametersCount() \
+                    + alg.getVisibleOutputsCount():
+                print 'Error: Wrong number of parameters'
+                processing.alghelp(algOrName)
+                return
             i = 0
             for param in alg.parameters:
                 if not param.hidden:
@@ -347,8 +333,10 @@ class Processing:
         elif cursor.shape() != Qt.WaitCursor:
             QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        progress = MessageBarProgress()
-        ret = UnthreadedAlgorithmExecutor.runalg(alg, progress)
+        progress = None
+        if iface is not None :
+            progress = MessageBarProgress()
+        ret = runalg(alg, progress)
         if onFinish is not None and ret:
             onFinish(alg, progress)
         QApplication.restoreOverrideCursor()

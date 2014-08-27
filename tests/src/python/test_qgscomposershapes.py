@@ -20,7 +20,8 @@ from PyQt4.QtGui import (QPainter, QColor)
 
 from qgis.core import (QgsComposerShape,
                        QgsRectangle,
-                       QgsComposition
+                       QgsComposition,
+                       QgsMapSettings
                      )
 from utilities import (unitTestDataPath,
                        getQgisTestApp,
@@ -40,8 +41,10 @@ class TestQgsComposerShapes(TestCase):
         """Run once on class initialisation."""
         unittest.TestCase.__init__(self, methodName)
 
+        self.mapSettings = QgsMapSettings()
+
         # create composition
-        self.mComposition = QgsComposition(None)
+        self.mComposition = QgsComposition(self.mapSettings)
         self.mComposition.setPaperSize(297, 210)
 
         self.mComposerShape = QgsComposerShape(20, 20, 150, 100, self.mComposition)
@@ -53,13 +56,8 @@ class TestQgsComposerShapes(TestCase):
 
         self.mComposerShape.setShapeType(QgsComposerShape.Rectangle)
 
-        checker = QgsCompositionChecker()
-        myPath = os.path.join(TEST_DATA_DIR,
-                              'control_images',
-                              'expected_composershapes',
-                              'composershape_rectangle.png')
-        myTestResult, myMessage = checker.testComposition('Composer shapes rectangle',
-                                             self.mComposition, myPath)
+        checker = QgsCompositionChecker('composershapes_rectangle', self.mComposition)
+        myTestResult, myMessage = checker.testComposition()
 
         assert myTestResult == True, myMessage
 
@@ -68,13 +66,8 @@ class TestQgsComposerShapes(TestCase):
 
         self.mComposerShape.setShapeType(QgsComposerShape.Ellipse)
 
-        checker = QgsCompositionChecker()
-        myPath = os.path.join(TEST_DATA_DIR,
-                              'control_images',
-                              'expected_composershapes',
-                              'composershape_ellipse.png')
-        myTestResult, myMessage = checker.testComposition('Composer shapes ellipse',
-                                             self.mComposition, myPath)
+        checker = QgsCompositionChecker('composershapes_ellipse', self.mComposition)
+        myTestResult, myMessage = checker.testComposition()
 
         assert myTestResult == True, myMessage
 
@@ -83,13 +76,8 @@ class TestQgsComposerShapes(TestCase):
 
         self.mComposerShape.setShapeType(QgsComposerShape.Triangle)
 
-        checker = QgsCompositionChecker()
-        myPath = os.path.join(TEST_DATA_DIR,
-                              'control_images',
-                              'expected_composershapes',
-                              'composershape_triangle.png')
-        myTestResult, myMessage = checker.testComposition('Composer shapes triangle',
-                                             self.mComposition, myPath)
+        checker = QgsCompositionChecker('composershapes_triangle', self.mComposition)
+        myTestResult, myMessage = checker.testComposition()
 
         assert myTestResult == True, myMessage
 
@@ -99,13 +87,8 @@ class TestQgsComposerShapes(TestCase):
         self.mComposerShape.setShapeType(QgsComposerShape.Rectangle)
         self.mComposerShape.setCornerRadius(30)
 
-        checker = QgsCompositionChecker()
-        myPath = os.path.join(TEST_DATA_DIR,
-                              'control_images',
-                              'expected_composershapes',
-                              'composershape_roundedrectangle.png')
-        myTestResult, myMessage = checker.testComposition('Composer shapes rounded rectangle',
-                                             self.mComposition, myPath)
+        checker = QgsCompositionChecker('composershapes_roundedrect', self.mComposition)
+        myTestResult, myMessage = checker.testComposition()
 
         self.mComposerShape.setCornerRadius(0)
         assert myTestResult == True, myMessage

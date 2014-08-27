@@ -45,13 +45,18 @@ using namespace osgEarth::Util::Controls;
 #include <osgEarthUtil/ElevationManager>
 #include <osgEarthUtil/ObjectPlacer>
 #endif
+#include <osgEarth/Version>
+
+#if 0
+#include <iostream>
+#endif
 
 class QAction;
 class QToolBar;
 class QgisInterface;
 
 namespace osgEarth { namespace QtGui { class ViewerWidget; } }
-namespace osgEarth { namespace Util { class SkyNode; } }
+namespace osgEarth { namespace Util { class SkyNode; class VerticalScale; } }
 
 class GlobePlugin : public QObject, public QgisPlugin
 {
@@ -87,6 +92,10 @@ class GlobePlugin : public QObject, public QgisPlugin
     void extentsChanged();
     //! Sync globe extent to mapCanavas
     void syncExtent();
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 5, 0 )
+    //! Set vertical scale
+    void setVerticalScale( double scale );
+#endif
 
     //! called when a project has been read successfully
     void projectReady();
@@ -148,6 +157,9 @@ class GlobePlugin : public QObject, public QgisPlugin
     osg::ref_ptr<osgEarth::ImageLayer> mBaseLayer;
     //! Sky node
     osg::ref_ptr<osgEarth::Util::SkyNode> mSkyNode;
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 5, 0 )
+    osg::ref_ptr<osgEarth::Util::VerticalScale> mVerticalScale;
+#endif
     //! QGIS maplayer
     osgEarth::ImageLayer* mQgisMapLayer;
     //! Tile source
@@ -169,6 +181,10 @@ class GlobePlugin : public QObject, public QgisPlugin
     bool mIsGlobeRunning;
     //! coordinates of the right-clicked point on the globe
     double mSelectedLat, mSelectedLon, mSelectedElevation;
+
+#if 0
+    std::streambuf *mCoutRdBuf, *mCerrRdBuf;
+#endif
 
   signals:
     //! emits current mouse position

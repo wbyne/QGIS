@@ -33,7 +33,7 @@ class APP_EXPORT QgsMeasureDialog : public QDialog, private Ui::QgsMeasureBase
   public:
 
     //! Constructor
-    QgsMeasureDialog( QgsMeasureTool* tool, Qt::WFlags f = 0 );
+    QgsMeasureDialog( QgsMeasureTool* tool, Qt::WindowFlags f = 0 );
 
     //! Save position
     void saveWindowLocation( void );
@@ -46,9 +46,6 @@ class APP_EXPORT QgsMeasureDialog : public QDialog, private Ui::QgsMeasureBase
 
     //! Mose move
     void mouseMove( QgsPoint &point );
-
-    //! Mouse press
-    void mousePress( QgsPoint &point );
 
   public slots:
     //! Reject

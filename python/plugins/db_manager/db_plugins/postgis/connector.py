@@ -28,6 +28,7 @@ from PyQt4.QtGui import *
 from ..connector import DBConnector
 from ..plugin import ConnectionError, DbError, Table
 
+import os
 import psycopg2
 import psycopg2.extensions
 # use unicode!
@@ -42,17 +43,15 @@ class PostGisDBConnector(DBConnector):
 	def __init__(self, uri):
 		DBConnector.__init__(self, uri)
 
-		self.host = uri.host()
-		self.port = uri.port()
-		self.dbname = uri.database()
-		self.user = uri.username()
-		self.passwd = uri.password()
-
-		if self.dbname == '' or self.dbname is None:
-			self.dbname = self.user
+		self.host = uri.host() or os.environ.get('PGHOST')
+		self.port = uri.port() or os.environ.get('PGPORT')
+		self.user = uri.username() or os.environ.get('PGUSER') or os.environ.get('USER')
+		self.dbname = uri.database() or os.environ.get('PGDATABASE') or self.user
+		self.passwd = uri.password() or os.environ.get('PGPASSWORD')
 
 		try:
 			self.connection = psycopg2.connect( self._connectionInfo().encode('utf-8') )
+			self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 		except self.connection_error_types(), e:
 			raise ConnectionError(e)
 
@@ -79,7 +78,7 @@ class PostGisDBConnector(DBConnector):
 		return self.has_raster
 
 	def _checkGeometryColumnsTable(self):
-		c = self._execute(None, u"SELECT relkind = 'v' FROM pg_class WHERE relname = 'geometry_columns' AND relkind IN ('v', 'r')")
+		c = self._execute(None, u"SELECT relkind = 'v' OR relkind = 'm' FROM pg_class WHERE relname = 'geometry_columns' AND relkind IN ('v', 'r', 'm')")
 		res = self._fetchone(c)
 		self._close_cursor(c)
 		self.has_geometry_columns = (res != None and len(res) != 0)
@@ -94,7 +93,7 @@ class PostGisDBConnector(DBConnector):
 		return self.has_geometry_columns
 
 	def _checkRasterColumnsTable(self):
-		c = self._execute(None, u"SELECT relkind = 'v' FROM pg_class WHERE relname = 'raster_columns' AND relkind IN ('v', 'r')")
+		c = self._execute(None, u"SELECT relkind = 'v' OR relkind = 'm' FROM pg_class WHERE relname = 'raster_columns' AND relkind IN ('v', 'r', 'm')")
 		res = self._fetchone(c)
 		self._close_cursor(c)
 		self.has_raster_columns = (res != None and len(res) != 0)
@@ -238,12 +237,12 @@ class PostGisDBConnector(DBConnector):
 
 		# get all tables and views
 		sql = u"""SELECT
-						cla.relname, nsp.nspname, cla.relkind = 'v',
+						cla.relname, nsp.nspname, cla.relkind = 'v' OR cla.relkind = 'm',
 						pg_get_userbyid(relowner), reltuples, relpages,
 						pg_catalog.obj_description(cla.oid)
 					FROM pg_class AS cla
 					JOIN pg_namespace AS nsp ON nsp.oid = cla.relnamespace
-					WHERE cla.relkind IN ('v', 'r') """ + schema_where + """
+					WHERE cla.relkind IN ('v', 'r', 'm') """ + schema_where + """
 					ORDER BY nsp.nspname, cla.relname"""
 
 		c = self._execute(None, sql)
@@ -296,7 +295,7 @@ class PostGisDBConnector(DBConnector):
 
 		# discovery of all tables and whether they contain a geometry column
 		sql = u"""SELECT
-						cla.relname, nsp.nspname, cla.relkind = 'v',
+						cla.relname, nsp.nspname, cla.relkind = 'v' OR cla.relkind = 'm',
 						pg_get_userbyid(relowner), cla.reltuples, cla.relpages,
 						pg_catalog.obj_description(cla.oid),
 						""" + geometry_fields_select + """
@@ -312,7 +311,7 @@ class PostGisDBConnector(DBConnector):
 
 					""" + geometry_column_from + """
 
-					WHERE cla.relkind IN ('v', 'r') """ + schema_where + """
+					WHERE cla.relkind IN ('v', 'r', 'm') """ + schema_where + """
 					ORDER BY nsp.nspname, cla.relname, att.attname"""
 
 		items = []
@@ -369,7 +368,7 @@ class PostGisDBConnector(DBConnector):
 
 		# discovery of all tables and whether they contain a raster column
 		sql = u"""SELECT
-						cla.relname, nsp.nspname, cla.relkind = 'v',
+						cla.relname, nsp.nspname, cla.relkind = 'v' OR cla.relkind = 'm',
 						pg_get_userbyid(relowner), cla.reltuples, cla.relpages,
 						pg_catalog.obj_description(cla.oid),
 						""" + raster_fields_select + """
@@ -385,7 +384,7 @@ class PostGisDBConnector(DBConnector):
 
 					""" + raster_column_from + """
 
-					WHERE cla.relkind IN ('v', 'r') """ + schema_where + """
+					WHERE cla.relkind IN ('v', 'r', 'm') """ + schema_where + """
 					ORDER BY nsp.nspname, cla.relname, att.attname"""
 
 		items = []
@@ -559,7 +558,7 @@ class PostGisDBConnector(DBConnector):
 
 		sql = u"""SELECT pg_get_viewdef(c.oid) FROM pg_class c
 						JOIN pg_namespace nsp ON c.relnamespace = nsp.oid
-		        WHERE relname=%s %s AND relkind='v' """ % (self.quoteString(tablename), schema_where)
+		        WHERE relname=%s %s AND (relkind='v' OR relkind='m') """ % (self.quoteString(tablename), schema_where)
 
 		c = self._execute(None, sql)
 		res = self._fetchone(c)
@@ -751,13 +750,9 @@ class PostGisDBConnector(DBConnector):
 
 	def runVacuumAnalyze(self, table):
 		""" run vacuum analyze on a table """
-		# vacuum analyze must be run outside transaction block - we have to change isolation level
-		self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 		sql = u"VACUUM ANALYZE %s" % self.quoteId(table)
 		c = self._execute(None, sql)
 		self._commit()
-		self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
-
 
 	def addTableColumn(self, table, field_def):
 		""" add a column to table """
@@ -937,7 +932,7 @@ class PostGisDBConnector(DBConnector):
 		# get schemas, tables and field names
 		items = []
 		sql = u"""SELECT nspname FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname != 'information_schema'
-UNION SELECT relname FROM pg_class WHERE relkind IN ('v', 'r')
+UNION SELECT relname FROM pg_class WHERE relkind IN ('v', 'r', 'm')
 UNION SELECT attname FROM pg_attribute WHERE attnum > 0"""
 		c = self._execute(None, sql)
 		for row in self._fetchall(c):

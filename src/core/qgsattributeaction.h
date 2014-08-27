@@ -97,7 +97,7 @@ class  CORE_EXPORT QgsAttributeAction
 {
   public:
     //! Constructor
-    QgsAttributeAction( QgsVectorLayer *layer ) : mLayer( layer ) {}
+    QgsAttributeAction( QgsVectorLayer *layer ) : mLayer( layer ), mDefaultAction( -1 ) {}
 
     //! Destructor
     virtual ~QgsAttributeAction() {}
@@ -118,7 +118,7 @@ class  CORE_EXPORT QgsAttributeAction
      *  @note available in python bindings as doActionFeature
      */
     void doAction( int index,
-                   QgsFeature &feat,
+                   const QgsFeature &feat,
                    int defaultValueIndex = 0 );
 
     /*! Does the action using the expression builder to expand it
@@ -129,8 +129,8 @@ class  CORE_EXPORT QgsAttributeAction
      *  @note available in python bindings as doActionFeatureWithSubstitution
      */
     void doAction( int index,
-                   QgsFeature &feat,
-                   const QMap<QString, QVariant> *substitutionMap = 0 );
+                   const QgsFeature& feat,
+                   const QMap<QString, QVariant> *substitutionMap );
 
     //! Removes all actions
     void clearActions() { mActions.clear(); }
@@ -175,7 +175,7 @@ class  CORE_EXPORT QgsAttributeAction
     static void setPythonExecute( void ( * )( const QString & ) );
 
     //! Whether the action is the default action
-    int defaultAction() const { return mDefaultAction < 0 || mDefaultAction >= size() ? 0 : mDefaultAction; }
+    int defaultAction() const { return mDefaultAction < 0 || mDefaultAction >= size() ? -1 : mDefaultAction; }
     void setDefaultAction( int actionNumber ) { mDefaultAction = actionNumber ; }
 
   private:

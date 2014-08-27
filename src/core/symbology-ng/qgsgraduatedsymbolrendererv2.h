@@ -18,17 +18,17 @@
 #include "qgssymbolv2.h"
 #include "qgsrendererv2.h"
 #include "qgsexpression.h"
+#include <QScopedPointer>
 
 class CORE_EXPORT QgsRendererRangeV2
 {
   public:
     QgsRendererRangeV2();
-    QgsRendererRangeV2( double lowerValue, double upperValue, QgsSymbolV2* symbol, QString label );
+    QgsRendererRangeV2( double lowerValue, double upperValue, QgsSymbolV2* symbol, QString label, bool render = true );
     QgsRendererRangeV2( const QgsRendererRangeV2& range );
 
-    ~QgsRendererRangeV2();
-
-    QgsRendererRangeV2& operator=( const QgsRendererRangeV2& range );
+    // default dtor is ok
+    QgsRendererRangeV2& operator=( QgsRendererRangeV2 range );
 
     double lowerValue() const;
     double upperValue() const;
@@ -41,6 +41,10 @@ class CORE_EXPORT QgsRendererRangeV2
     void setLowerValue( double lowerValue );
     void setUpperValue( double upperValue );
 
+    // @note added in 2.5
+    bool renderState() const;
+    void setRenderState( bool render );
+
     // debugging
     QString dump() const;
 
@@ -48,8 +52,12 @@ class CORE_EXPORT QgsRendererRangeV2
 
   protected:
     double mLowerValue, mUpperValue;
-    QgsSymbolV2* mSymbol;
+    QScopedPointer<QgsSymbolV2> mSymbol;
     QString mLabel;
+    bool mRender;
+
+    // for cpy+swap idiom
+    void swap( QgsRendererRangeV2 & other );
 };
 
 typedef QList<QgsRendererRangeV2> QgsRangeList;
@@ -61,12 +69,13 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
 {
   public:
     QgsGraduatedSymbolRendererV2( QString attrName = QString(), QgsRangeList ranges = QgsRangeList() );
+    QgsGraduatedSymbolRendererV2( const QgsGraduatedSymbolRendererV2 & other );
 
     virtual ~QgsGraduatedSymbolRendererV2();
 
     virtual QgsSymbolV2* symbolForFeature( QgsFeature& feature );
 
-    virtual void startRender( QgsRenderContext& context, const QgsVectorLayer *vlayer );
+    virtual void startRender( QgsRenderContext& context, const QgsFields& fields );
 
     virtual void stopRender( QgsRenderContext& context );
 
@@ -93,8 +102,13 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     bool updateRangeLabel( int rangeIndex, QString label );
     bool updateRangeUpperValue( int rangeIndex, double value );
     bool updateRangeLowerValue( int rangeIndex, double value );
+    //! @note added in 2.5
+    bool updateRangeRenderState( int rangeIndex, bool render );
+
 
     void addClass( QgsSymbolV2* symbol );
+    //! @note available in python bindings as addClassRange
+    void addClass( QgsRendererRangeV2 range );
     void deleteClass( int idx );
     void deleteAllClasses();
 
@@ -123,7 +137,8 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
       int classes,
       Mode mode,
       QgsSymbolV2* symbol,
-      QgsVectorColorRampV2* ramp );
+      QgsVectorColorRampV2* ramp,
+      bool inverted = false );
 
     //! create renderer from XML element
     static QgsFeatureRendererV2* create( QDomElement& element );
@@ -137,60 +152,72 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     //! return a list of item text / symbol
     //! @note: this method was added in version 1.5
     //! @note not available in python bindings
-    virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = "" );
+    virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = QString() );
 
     QgsSymbolV2* sourceSymbol();
     void setSourceSymbol( QgsSymbolV2* sym );
 
     QgsVectorColorRampV2* sourceColorRamp();
     void setSourceColorRamp( QgsVectorColorRampV2* ramp );
+    //! @note added in 2.1
+    bool invertedColorRamp() { return mInvertedColorRamp; }
+    void setInvertedColorRamp( bool inverted ) { mInvertedColorRamp = inverted; }
 
     /** Update the color ramp used. Also updates all symbols colors.
       * Doesn't alter current breaks.
       */
-    void updateColorRamp( QgsVectorColorRampV2* ramp );
+    void updateColorRamp( QgsVectorColorRampV2* ramp, bool inverted = false );
 
     /** Update the all symbols but leave breaks and colors. */
     void updateSymbols( QgsSymbolV2* sym );
 
     //! @note added in 1.6
-    void setRotationField( QString fieldName ) { mRotationField = fieldName; }
+    void setRotationField( QString fieldOrExpression );
     //! @note added in 1.6
-    QString rotationField() const { return mRotationField; }
+    QString rotationField() const;
 
     //! @note added in 1.6
-    void setSizeScaleField( QString fieldName ) { mSizeScaleField = fieldName; }
+    void setSizeScaleField( QString fieldOrExpression );
     //! @note added in 1.6
-    QString sizeScaleField() const { return mSizeScaleField; }
+    QString sizeScaleField() const;
 
     //! @note added in 2.0
     void setScaleMethod( QgsSymbolV2::ScaleMethod scaleMethod );
     //! @note added in 2.0
     QgsSymbolV2::ScaleMethod scaleMethod() const { return mScaleMethod; }
 
+    //! items of symbology items in legend should be checkable
+    // @note added in 2.5
+    virtual bool legendSymbolItemsCheckable() const;
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual bool legendSymbolItemChecked( int index );
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual void checkLegendSymbolItem( int index, bool state = true );
 
   protected:
     QString mAttrName;
     QgsRangeList mRanges;
     Mode mMode;
-    QgsSymbolV2* mSourceSymbol;
-    QgsVectorColorRampV2* mSourceColorRamp;
-    QString mRotationField;
-    QString mSizeScaleField;
+    QScopedPointer<QgsSymbolV2> mSourceSymbol;
+    QScopedPointer<QgsVectorColorRampV2> mSourceColorRamp;
+    bool mInvertedColorRamp;
+    QScopedPointer<QgsExpression> mRotation;
+    QScopedPointer<QgsExpression> mSizeScale;
     QgsSymbolV2::ScaleMethod mScaleMethod;
-    QgsExpression* mExpression;
+    QScopedPointer<QgsExpression> mExpression;
     //! attribute index (derived from attribute name in startRender)
     int mAttrNum;
-    int mRotationFieldIdx, mSizeScaleFieldIdx;
+    bool mCounting;
 
     //! temporary symbols, used for data-defined rotation and scaling
-#if QT_VERSION < 0x40600
-    QMap<QgsSymbolV2*, QgsSymbolV2*> mTempSymbols;
-#else
     QHash<QgsSymbolV2*, QgsSymbolV2*> mTempSymbols;
-#endif
 
     QgsSymbolV2* symbolForValue( double value );
+
 };
 
 #endif // QGSGRADUATEDSYMBOLRENDERERV2_H

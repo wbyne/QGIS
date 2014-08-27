@@ -89,6 +89,16 @@ class QgsRelation
     void addFieldPair( QString referencingField, QString referencedField );
 
     /**
+     * Add a field pairs which is part of this relation
+     * The first element of each pair are the field names fo the foreign key.
+     * The second element of each pair are the field names of the matching primary key.
+     *
+     * @param fieldPair A pair of two strings
+     * @note not available in python bindings
+     */
+    // void addFieldPair( FieldPair fieldPair );
+
+    /**
      * Creates an iterator which returns all the features on the referencing (child) layer
      * which have a foreign key pointing to the provided feature.
      *
@@ -155,7 +165,8 @@ class QgsRelation
      */
     QMap< QString, QString > fieldPairs() const;
 %MethodCode
-    QList< QgsRelation::FieldPair > pairs = sipCpp->fieldPairs();
+    const QList< QgsRelation::FieldPair >& pairs = sipCpp->fieldPairs();
+    sipRes = new QMap< QString, QString >();
     Q_FOREACH( const QgsRelation::FieldPair& pair, pairs )
     {
         sipRes->insert( pair.first, pair.second );
@@ -168,4 +179,8 @@ class QgsRelation
      * @return true if the relation is valid
      */
     bool isValid() const;
+
+  protected:
+    void updateRelationStatus();
+    void runChecks();
 };

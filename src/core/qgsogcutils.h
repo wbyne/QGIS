@@ -1,6 +1,7 @@
 #ifndef QGSOGCUTILS_H
 #define QGSOGCUTILS_H
 
+class QColor;
 class QDomNode;
 class QDomElement;
 class QDomDocument;
@@ -48,25 +49,28 @@ class CORE_EXPORT QgsOgcUtils
     static QgsRectangle rectangleFromGMLEnvelope( const QDomNode& envelopeNode );
 
     /** Exports the geometry to GML2 or GML3
-        @return QDomELement
+        @return QDomElement
      */
-    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, QString format );
+    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, QString format, const int &precision = 17 );
 
     /** Exports the geometry to GML2
         @return QDomElement
      */
-    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc );
+    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, const int &precision = 17 );
 
     /** Exports the rectangle to GML2 Box
         @return QDomElement
      */
-    static QDomElement rectangleToGMLBox( QgsRectangle* box, QDomDocument& doc );
+    static QDomElement rectangleToGMLBox( QgsRectangle* box, QDomDocument& doc, const int &precision = 17 );
 
     /** Exports the rectangle to GML2 Envelope
         @return QDomElement
      */
-    static QDomElement rectangleToGMLEnvelope( QgsRectangle* env, QDomDocument& doc );
+    static QDomElement rectangleToGMLEnvelope( QgsRectangle* env, QDomDocument& doc, const int &precision = 17 );
 
+
+    /** Parse XML with OGC fill into QColor */
+    static QColor colorFromOgcFill( const QDomElement& fillElement );
 
     /** Parse XML with OGC filter into QGIS expression */
     static QgsExpression* expressionFromOgcFilter( const QDomElement& element );
@@ -95,14 +99,14 @@ class CORE_EXPORT QgsOgcUtils
        @param coords list where the found coordinates are appended
        @param elem the \verbatim <gml:coordinates> \endverbatim element
        @return boolean for success*/
-    static bool readGMLCoordinates( QgsPolyline &coords, const QDomElement elem );
+    static bool readGMLCoordinates( QgsPolyline &coords, const QDomElement &elem );
     /** Reads the \verbatim <gml:pos> \endverbatim or \verbatim <gml:posList> \endverbatim
        and extracts the coordinates as points
        @param coords list where the found coordinates are appended
        @param elem the \verbatim <gml:pos> \endverbatim or
                     \verbatim <gml:posList> \endverbatim element
        @return boolean for success*/
-    static bool readGMLPositions( QgsPolyline &coords, const QDomElement elem );
+    static bool readGMLPositions( QgsPolyline &coords, const QDomElement &elem );
 
 
     /**Create a GML coordinates element from a point list.

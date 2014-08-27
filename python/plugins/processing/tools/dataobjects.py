@@ -29,14 +29,18 @@ from os import path
 from qgis.core import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from processing import interface
+from qgis.utils import iface
 from processing.core.ProcessingConfig import ProcessingConfig
-from processing.gdal.GdalUtils import GdalUtils
+from processing.algs.gdal.GdalUtils import GdalUtils
 from processing.tools.system import *
 
 ALL_TYPES = [-1]
-interface.iface = None
 
+_loadedLayers = {}
+
+def resetLoadedLayers():
+    global _loadedLayers
+    _loadedLayers = {}
 
 def getSupportedOutputVectorLayerExtensions():
     formats = QgsVectorFileWriter.supportedFiltersAndFormats()
@@ -65,43 +69,42 @@ def getSupportedOutputTableExtensions():
 
 
 def getRasterLayers():
-    layers = interface.iface.legendInterface().layers()
-    raster = list()
+    layers = QgsMapLayerRegistry.instance().mapLayers().values()
+    raster = []
 
     for layer in layers:
         if layer.type() == layer.RasterLayer:
             if layer.providerType() == 'gdal':  # only gdal file-based layers
                 raster.append(layer)
-    return raster
+    return sorted(raster,  key=lambda layer: layer.name().lower())
 
 
 def getVectorLayers(shapetype=[-1]):
-    layers = interface.iface.legendInterface().layers()
+    layers = QgsMapLayerRegistry.instance().mapLayers().values()
     vector = []
     for layer in layers:
         if layer.type() == layer.VectorLayer:
             if shapetype == ALL_TYPES or layer.geometryType() in shapetype:
                 uri = unicode(layer.source())
-                if not uri.lower().endswith('csv') \
-                        and not uri.lower().endswith('dbf'):
+                if not uri.lower().endswith('csv') and not uri.lower().endswith('dbf'):
                     vector.append(layer)
-    return vector
+    return sorted(vector,  key=lambda layer: layer.name().lower())
 
 
 def getAllLayers():
     layers = []
     layers += getRasterLayers()
     layers += getVectorLayers()
-    return layers
+    return sorted(layers,  key=lambda layer: layer.name().lower())
 
 
 def getTables():
-    layers = interface.iface.legendInterface().layers()
+    layers = QgsMapLayerRegistry.instance().mapLayers().values()
     tables = list()
     for layer in layers:
         if layer.type() == layer.VectorLayer:
             tables.append(layer)
-    return tables
+    return sorted(tables,  key=lambda table: table.name().lower())
 
 
 def extent(layers):
@@ -165,14 +168,14 @@ def load(fileName, name=None, crs=None, style=None):
     else:
         qgslayer = QgsRasterLayer(fileName, name)
         if qgslayer.isValid():
-            if crs is not None:
+            if crs is not None and qgslayer.crs() is None:
                 qgslayer.setCrs(crs, False)
             if style is None:
                 style = ProcessingConfig.getSetting(
                         ProcessingConfig.RASTER_STYLE)
             qgslayer.loadNamedStyle(style)
             QgsMapLayerRegistry.instance().addMapLayers([qgslayer])
-            interface.iface.legendInterface().refreshLayerSymbology(qgslayer)
+            iface.legendInterface().refreshLayerSymbology(qgslayer)
         else:
             if prjSetting:
                 settings.setValue('/Projections/defaultBehaviour', prjSetting)
@@ -208,6 +211,8 @@ def getObjectFromUri(uri, forceLoad=True):
 
     if uri is None:
         return None
+    if uri in _loadedLayers:
+        return _loadedLayers[uri]
     layers = getRasterLayers()
     for layer in layers:
         if layer.source() == uri:
@@ -230,11 +235,13 @@ def getObjectFromUri(uri, forceLoad=True):
         if layer.isValid():
             if prjSetting:
                 settings.setValue('/Projections/defaultBehaviour', prjSetting)
+            _loadedLayers[layer.source()] = layer
             return layer
         layer = QgsRasterLayer(uri, uri)
         if layer.isValid():
             if prjSetting:
                 settings.setValue('/Projections/defaultBehaviour', prjSetting)
+            _loadedLayers[layer.source()] = layer
             return layer
         if prjSetting:
             settings.setValue('/Projections/defaultBehaviour', prjSetting)

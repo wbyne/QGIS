@@ -46,7 +46,7 @@ class CORE_EXPORT QgsComposerLabel: public QgsComposerItem
     void setText( const QString& text );
 
     int htmlState() { return mHtmlState; }
-    void setHtmlState( int state ) {mHtmlState = state;}
+    void setHtmlState( int state );
 
     /**Returns the text as it appears on screen (with replaced data field)
       @note this function was added in version 1.2*/
@@ -74,20 +74,18 @@ class CORE_EXPORT QgsComposerLabel: public QgsComposerItem
      * @param a alignment
      * @returns void
      */
-    void setVAlign( Qt::AlignmentFlag a ) {mVAlignment = a;}
+    void setVAlign( Qt::AlignmentFlag a ) { mVAlignment = a; }
     //!brief Accessor for the margin of the label
-    double margin() {return mMargin;}
+    double margin() { return mMargin; }
     //!brief Mutator for the margin of the label
-    void setMargin( double m ) {mMargin = m;}
+    void setMargin( double m ) { mMargin = m; }
 
     /**Sets text color
         @note: this function was added in version 1.4*/
-    void setFontColor( const QColor& c ) {mFontColor = c;}
+    void setFontColor( const QColor& c ) { mFontColor = c; }
     /**Get font color
         @note: this function was added in version 1.4*/
-    QColor fontColor() const {return mFontColor;}
-
-    void setSceneRect( const QRectF& rectangle );
+    QColor fontColor() const { return mFontColor; }
 
     /** stores state in Dom element
        * @param elem is Dom element corresponding to 'Composer' tag
@@ -101,8 +99,12 @@ class CORE_EXPORT QgsComposerLabel: public QgsComposerItem
        */
     bool readXML( const QDomElement& itemElem, const QDomDocument& doc );
 
+    //Overriden to contain part of label's text
+    virtual QString displayName() const;
+
   public slots:
-    virtual void setRotation( double r );
+    void refreshExpressionContext();
+
 
   private slots:
     void loadingHtmlFinished( bool );
@@ -137,11 +139,6 @@ class CORE_EXPORT QgsComposerLabel: public QgsComposerItem
 
     /**Replaces replace '$CURRENT_DATE<(FORMAT)>' with the current date (e.g. $CURRENT_DATE(d 'June' yyyy)*/
     void replaceDateText( QString& text ) const;
-
-    /**Width of the text box. This is different to rectangle().width() in case there is rotation*/
-    double mTextBoxWidth;
-    /**Height of the text box. This is different to rectangle().height() in case there is rotation*/
-    double mTextBoxHeight;
 
     QgsFeature* mExpressionFeature;
     QgsVectorLayer* mExpressionLayer;

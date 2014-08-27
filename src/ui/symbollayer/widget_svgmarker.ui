@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>406</width>
-    <height>479</height>
+    <width>453</width>
+    <height>471</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,10 +40,13 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="maximum">
           <double>100000.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
          </property>
          <property name="value">
           <double>1.000000000000000</double>
@@ -51,18 +54,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mSizeUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mSizeUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -82,7 +74,7 @@
         <double>360.000000000000000</double>
        </property>
        <property name="singleStep">
-        <double>5.000000000000000</double>
+        <double>0.500000000000000</double>
        </property>
       </widget>
      </item>
@@ -109,16 +101,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="mChangeColorButton">
+        <widget class="QgsColorButtonV2" name="mChangeColorButton">
          <property name="minimumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>0</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>16777215</height>
           </size>
          </property>
@@ -141,16 +133,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="mChangeBorderColorButton">
+        <widget class="QgsColorButtonV2" name="mChangeBorderColorButton">
          <property name="minimumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>0</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>100</width>
+           <width>120</width>
            <height>16777215</height>
           </size>
          </property>
@@ -192,23 +184,15 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
+         </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mBorderWidthUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mBorderWidthUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -230,13 +214,16 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="minimum">
           <double>-100000.000000000000000</double>
          </property>
          <property name="maximum">
           <double>100000.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
          </property>
         </widget>
        </item>
@@ -249,7 +236,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="minimum">
           <double>-100000.000000000000000</double>
@@ -257,21 +244,13 @@
          <property name="maximum">
           <double>100000.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mOffsetUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mOffsetUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -325,19 +304,6 @@
       </layout>
      </item>
     </layout>
-   </item>
-   <item row="1" column="0">
-    <widget class="QPushButton" name="mDataDefinedPropertiesButton">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Data defined properties...</string>
-     </property>
-    </widget>
    </item>
    <item row="2" column="0">
     <widget class="QLabel" name="label_5">
@@ -409,7 +375,20 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="0">
+   <item row="1" column="0" colspan="2">
+    <widget class="QPushButton" name="mDataDefinedPropertiesButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Data defined properties...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QLineEdit" name="mFileLineEdit"/>
@@ -427,14 +406,35 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QgsColorButton</class>
-   <extends>QPushButton</extends>
-   <header>qgscolorbutton.h</header>
+   <class>QgsColorButtonV2</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbuttonv2.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsUnitSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsunitselectionwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>
+  <tabstop>spinSize</tabstop>
+  <tabstop>mSizeUnitWidget</tabstop>
+  <tabstop>spinAngle</tabstop>
+  <tabstop>mChangeColorButton</tabstop>
+  <tabstop>mChangeBorderColorButton</tabstop>
+  <tabstop>mBorderWidthSpinBox</tabstop>
+  <tabstop>mBorderWidthUnitWidget</tabstop>
   <tabstop>spinOffsetX</tabstop>
   <tabstop>spinOffsetY</tabstop>
+  <tabstop>mOffsetUnitWidget</tabstop>
+  <tabstop>mHorizontalAnchorComboBox</tabstop>
+  <tabstop>mVerticalAnchorComboBox</tabstop>
+  <tabstop>mDataDefinedPropertiesButton</tabstop>
+  <tabstop>viewGroups</tabstop>
+  <tabstop>viewImages</tabstop>
+  <tabstop>mFileLineEdit</tabstop>
+  <tabstop>mFileToolButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>

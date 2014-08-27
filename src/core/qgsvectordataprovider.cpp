@@ -194,6 +194,18 @@ QString QgsVectorDataProvider::capabilitiesString() const
     QgsDebugMsg( "Capability: Change Geometries" );
   }
 
+  if ( abilities & QgsVectorDataProvider::SimplifyGeometries )
+  {
+    abilitiesList += tr( "Simplify Geometries" );
+    QgsDebugMsg( "Capability: Simplify Geometries before fetch the feature" );
+  }
+
+  if ( abilities & QgsVectorDataProvider::SimplifyGeometriesWithTopologicalValidation )
+  {
+    abilitiesList += tr( "Simplify Geometries with topological validation" );
+    QgsDebugMsg( "Capability: Simplify Geometries before fetch the feature ensuring that the result is a valid geometry" );
+  }
+
   return abilitiesList.join( ", " );
 
 }
@@ -228,13 +240,7 @@ QMap<QString, int> QgsVectorDataProvider::fieldNameMap() const
 
 QgsAttributeList QgsVectorDataProvider::attributeIndexes()
 {
-  int count = fields().count();
-  QgsAttributeList list;
-
-  for ( int i = 0; i < count; i++ )
-    list.append( i );
-
-  return list;
+  return fields().allAttributesList();
 }
 
 const QList< QgsVectorDataProvider::NativeType > &QgsVectorDataProvider::nativeTypes() const
@@ -245,17 +251,65 @@ const QList< QgsVectorDataProvider::NativeType > &QgsVectorDataProvider::nativeT
 bool QgsVectorDataProvider::supportedType( const QgsField &field ) const
 {
   int i;
-  QgsDebugMsgLevel( QString( "field name = %1 type = %2 length = %3 precision = %4" ).arg( field.name() ).arg( QVariant::typeToName( field.type() ) ).arg( field.length() ).arg( field.precision() ), 2 );
+  QgsDebugMsgLevel( QString( "field name = %1 type = %2 length = %3 precision = %4" )
+                    .arg( field.name() )
+                    .arg( QVariant::typeToName( field.type() ) )
+                    .arg( field.length() )
+                    .arg( field.precision() ), 2 );
   for ( i = 0; i < mNativeTypes.size(); i++ )
   {
-    QgsDebugMsgLevel( QString( "native field type = %1 min length = %2 max length = %3 min precision = %4 max precision = %5" ).arg( QVariant::typeToName( mNativeTypes[i].mType ) ).arg( mNativeTypes[i].mMinLen ).arg( mNativeTypes[i].mMaxLen ).arg( mNativeTypes[i].mMinPrec ).arg( mNativeTypes[i].mMaxPrec ), 2 );
-    if ( field.type() == mNativeTypes[i].mType &&
-         field.length() >= mNativeTypes[i].mMinLen && field.length() <= mNativeTypes[i].mMaxLen &&
-         field.precision() >= mNativeTypes[i].mMinPrec && field.precision() <= mNativeTypes[i].mMaxPrec )
+    QgsDebugMsgLevel( QString( "native field type = %1 min length = %2 max length = %3 min precision = %4 max precision = %5" )
+                      .arg( QVariant::typeToName( mNativeTypes[i].mType ) )
+                      .arg( mNativeTypes[i].mMinLen )
+                      .arg( mNativeTypes[i].mMaxLen )
+                      .arg( mNativeTypes[i].mMinPrec )
+                      .arg( mNativeTypes[i].mMaxPrec ), 2 );
+
+    if ( field.type() != mNativeTypes[i].mType )
+      continue;
+
+    if ( field.length() == -1 )
     {
-      QgsDebugMsg( "native type matches" );
-      return true;
+      // source length unlimited
+      if ( mNativeTypes[i].mMinLen > -1 || mNativeTypes[i].mMaxLen > -1 )
+      {
+        // destination limited
+        continue;
+      }
     }
+    else
+    {
+      // source length limited
+      if ( mNativeTypes[i].mMinLen > -1 && mNativeTypes[i].mMaxLen > -1 &&
+           ( field.length() < mNativeTypes[i].mMinLen || field.length() > mNativeTypes[i].mMaxLen ) )
+      {
+        // source length exceeds destination limits
+        continue;
+      }
+    }
+
+    if ( field.precision() == -1 )
+    {
+      // source precision unlimited / n/a
+      if ( mNativeTypes[i].mMinPrec > -1 || mNativeTypes[i].mMaxPrec > -1 )
+      {
+        // destination limited
+        continue;
+      }
+    }
+    else
+    {
+      // source precision unlimited / n/a
+      if ( mNativeTypes[i].mMinPrec > -1 && mNativeTypes[i].mMaxPrec > -1 &&
+           ( field.precision() < mNativeTypes[i].mMinPrec || field.precision() > mNativeTypes[i].mMaxPrec ) )
+      {
+        // source precision exceeds destination limits
+        continue;
+      }
+    }
+
+    QgsDebugMsg( "native type matches" );
+    return true;
   }
 
   QgsDebugMsg( "no sufficient native type found" );

@@ -93,6 +93,11 @@ QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVecto
     }
   }
 
+  mCircleColorButton->setColorDialogTitle( tr( "Select color" ) );
+  mCircleColorButton->setContext( "symbology" );
+  mLabelColorButton->setContext( "symbology" );
+  mLabelColorButton->setColorDialogTitle( tr( "Select color" ) );
+
   mCircleWidthSpinBox->setValue( mRenderer->circleWidth() );
   mCircleColorButton->setColor( mRenderer->circleColor() );
   mLabelColorButton->setColor( mRenderer->labelColor() );
@@ -207,7 +212,7 @@ void QgsPointDisplacementRendererWidget::on_mLabelFontButton_clicked()
   }
 
   bool ok;
-#if defined(Q_WS_MAC) && QT_VERSION >= 0x040500 && defined(QT_MAC_USE_COCOA)
+#if defined(Q_WS_MAC) && defined(QT_MAC_USE_COCOA)
   // Native Mac dialog works only for QT Carbon
   QFont newFont = QFontDialog::getFont( &ok, mRenderer->labelFont(), 0, tr( "Label Font" ), QFontDialog::DontUseNativeDialog );
 #else

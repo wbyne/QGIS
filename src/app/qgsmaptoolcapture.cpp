@@ -16,14 +16,15 @@
 #include "qgsmaptoolcapture.h"
 
 #include "qgisapp.h"
-#include "qgsvertexmarker.h"
 #include "qgscursors.h"
-#include "qgsrubberband.h"
+#include "qgsgeometryvalidator.h"
+#include "qgslayertreeview.h"
+#include "qgslogger.h"
 #include "qgsmapcanvas.h"
 #include "qgsmaprenderer.h"
+#include "qgsrubberband.h"
 #include "qgsvectorlayer.h"
-#include "qgslogger.h"
-#include "qgsgeometryvalidator.h"
+#include "qgsvertexmarker.h"
 
 #include <QCursor>
 #include <QPixmap>
@@ -38,6 +39,7 @@ QgsMapToolCapture::QgsMapToolCapture( QgsMapCanvas* canvas, enum CaptureMode too
     , mRubberBand( 0 )
     , mTempRubberBand( 0 )
     , mValidator( 0 )
+    , mSnappingMarker( 0 )
 {
   mCaptureModeFromLayer = tool == CaptureNone;
   mCapturing = false;
@@ -45,14 +47,13 @@ QgsMapToolCapture::QgsMapToolCapture( QgsMapCanvas* canvas, enum CaptureMode too
   QPixmap mySelectQPixmap = QPixmap(( const char ** ) capture_point_cursor );
   mCursor = QCursor( mySelectQPixmap, 8, 8 );
 
-  connect( QgisApp::instance()->legend(), SIGNAL( currentLayerChanged( QgsMapLayer * ) ),
+  connect( QgisApp::instance()->layerTreeView(), SIGNAL( currentLayerChanged( QgsMapLayer * ) ),
            this, SLOT( currentLayerChanged( QgsMapLayer * ) ) );
 }
 
 QgsMapToolCapture::~QgsMapToolCapture()
 {
-  while ( !mSnappingMarkers.isEmpty() )
-    delete mSnappingMarkers.takeFirst();
+  delete mSnappingMarker;
 
   stopCapturing();
 
@@ -65,8 +66,8 @@ QgsMapToolCapture::~QgsMapToolCapture()
 
 void QgsMapToolCapture::deactivate()
 {
-  while ( !mSnappingMarkers.isEmpty() )
-    delete mSnappingMarkers.takeFirst();
+  delete mSnappingMarker;
+  mSnappingMarker = 0;
 
   QgsMapToolEdit::deactivate();
 }
@@ -107,17 +108,21 @@ void QgsMapToolCapture::canvasMoveEvent( QMouseEvent * e )
   QList<QgsSnappingResult> snapResults;
   if ( mSnapper.snapToBackgroundLayers( e->pos(), snapResults ) == 0 )
   {
-    while ( !mSnappingMarkers.isEmpty() )
-      delete mSnappingMarkers.takeFirst();
-
-    foreach ( const QgsSnappingResult &r, snapResults )
+    if ( snapResults.isEmpty() )
     {
-      QgsVertexMarker *m = new QgsVertexMarker( mCanvas );
-      m->setIconType( QgsVertexMarker::ICON_CROSS );
-      m->setColor( Qt::magenta );
-      m->setPenWidth( 3 );
-      m->setCenter( r.snappedVertex );
-      mSnappingMarkers << m;
+      delete mSnappingMarker;
+      mSnappingMarker = 0;
+    }
+    else
+    {
+      if ( !mSnappingMarker )
+      {
+        mSnappingMarker = new QgsVertexMarker( mCanvas );
+        mSnappingMarker->setIconType( QgsVertexMarker::ICON_CROSS );
+        mSnappingMarker->setColor( Qt::magenta );
+        mSnappingMarker->setPenWidth( 3 );
+      }
+      mSnappingMarker->setCenter( snapResults.constBegin()->snappedVertex );
     }
 
     if ( mCaptureMode != CapturePoint && mTempRubberBand && mCapturing )
@@ -135,10 +140,6 @@ void QgsMapToolCapture::canvasPressEvent( QMouseEvent *e )
   // nothing to be done
 }
 
-
-void QgsMapToolCapture::renderComplete()
-{
-}
 
 int QgsMapToolCapture::nextPoint( const QPoint &p, QgsPoint &layerPoint, QgsPoint &mapPoint )
 {
@@ -269,6 +270,9 @@ void QgsMapToolCapture::keyPressEvent( QKeyEvent* e )
   if ( e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete )
   {
     undo();
+
+    // Override default shortcut management in MapCanvas
+    e->ignore();
   }
 }
 
@@ -387,7 +391,7 @@ void QgsMapToolCapture::addError( QgsGeometry::Error e )
   if ( e.hasWhere() )
   {
     QgsVertexMarker *vm =  new QgsVertexMarker( mCanvas );
-    vm->setCenter( mCanvas->mapRenderer()->layerToMapCoordinates( vlayer, e.where() ) );
+    vm->setCenter( mCanvas->mapSettings().layerToMapCoordinates( vlayer, e.where() ) );
     vm->setIconType( QgsVertexMarker::ICON_X );
     vm->setPenWidth( 2 );
     vm->setToolTip( e.what() );

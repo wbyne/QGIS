@@ -42,7 +42,6 @@
 // TODO ${MAJOR} ${MINOR} etc instead of 0.2
 
 /**
- * \mainpage Pal Libray
  *
  * \section intro_sec Introduction
  *
@@ -89,7 +88,7 @@ namespace pal
 
   /** The way to arrange labels against spatial entities
    *
-   * \image html arrangement.png "Arrangement modes" width=7cm
+   * image html arrangement.png "Arrangement modes" width=7cm
    * */
   enum _arrangement
   {
@@ -116,10 +115,10 @@ namespace pal
   /**
    *  \brief Pal main class.
    *
-   *  A pal object will contains layers and global informations such as which search method
+   *  A pal object will contains layers and global information such as which search method
    *  will be used, the map resolution (dpi) ....
    *
-   *  \author Maxence Laurent <maxence _dot_ laurent _at_ heig-vd _dot_ ch>
+   *  \author Maxence Laurent (maxence _dot_ laurent _at_ heig-vd _dot_ ch)
    */
   class CORE_EXPORT Pal
   {
@@ -172,6 +171,13 @@ namespace pal
        */
       bool showPartial;
 
+
+      typedef bool ( *FnIsCancelled )( void* ctx );
+      /** Callback that may be called from PAL to check whether the job has not been cancelled in meanwhile */
+      FnIsCancelled fnIsCancelled;
+      /** Application-specific context for the cancellation check function */
+      void* fnIsCancelledContext;
+
       /**
        * \brief Problem factory
        * Extract features to label and generates candidates for them,
@@ -185,7 +191,7 @@ namespace pal
        * @param lambda_max xMax bounding-box
        * @param phi_max yMax bounding-box
        * @param scale the scale (1:scale)
-       * @param svgmap stream to wrtie the svg map (need _EXPORT_MAP_ #defined to work)
+       * @param svgmap stream to wrtie the svg map (need _EXPORT_MAP_ defined to work)
        */
       Problem* extract( int nbLayers, char **layersName, double *layersFactor,
                         double lambda_min, double phi_min,
@@ -339,6 +345,11 @@ namespace pal
                                            PalStat **stat,
                                            bool displayAll );
 
+      /** Register a function that returns whether this job has been cancelled - PAL calls it during the computation */
+      void registerCancellationCallback( FnIsCancelled fnCancelled, void* context );
+
+      /** Check whether the job has been cancelled */
+      inline bool isCancelled() { return fnIsCancelled ? fnIsCancelled( fnIsCancelledContext ) : false; }
 
       Problem* extractProblem( double scale, double bbox[4] );
 

@@ -20,6 +20,7 @@
 #include "qgsexpression.h"
 
 #include <QHash>
+#include <QScopedPointer>
 
 class QgsVectorColorRampV2;
 class QgsVectorLayer;
@@ -31,14 +32,12 @@ class CORE_EXPORT QgsRendererCategoryV2
     QgsRendererCategoryV2( );
 
     //! takes ownership of symbol
-    QgsRendererCategoryV2( QVariant value, QgsSymbolV2* symbol, QString label );
+    QgsRendererCategoryV2( QVariant value, QgsSymbolV2* symbol, QString label, bool render = true );
 
     //! copy constructor
     QgsRendererCategoryV2( const QgsRendererCategoryV2& cat );
 
-    ~QgsRendererCategoryV2();
-
-    QgsRendererCategoryV2& operator=( const QgsRendererCategoryV2& cat );
+    QgsRendererCategoryV2& operator=( QgsRendererCategoryV2 cat );
 
     QVariant value() const;
     QgsSymbolV2* symbol() const;
@@ -48,6 +47,10 @@ class CORE_EXPORT QgsRendererCategoryV2
     void setSymbol( QgsSymbolV2* s );
     void setLabel( const QString &label );
 
+    // @note added in 2.5
+    bool renderState() const;
+    void setRenderState( bool render );
+
     // debugging
     QString dump() const;
 
@@ -55,8 +58,11 @@ class CORE_EXPORT QgsRendererCategoryV2
 
   protected:
     QVariant mValue;
-    QgsSymbolV2* mSymbol;
+    QScopedPointer<QgsSymbolV2> mSymbol;
     QString mLabel;
+    bool mRender;
+
+    void swap( QgsRendererCategoryV2 & other );
 };
 
 typedef QList<QgsRendererCategoryV2> QgsCategoryList;
@@ -71,7 +77,7 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
 
     virtual QgsSymbolV2* symbolForFeature( QgsFeature& feature );
 
-    virtual void startRender( QgsRenderContext& context, const QgsVectorLayer *vlayer );
+    virtual void startRender( QgsRenderContext& context, const QgsFields& fields );
 
     virtual void stopRender( QgsRenderContext& context );
 
@@ -91,14 +97,21 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     //! @note added in 2.0
     void updateSymbols( QgsSymbolV2 * sym );
 
-    const QgsCategoryList& categories() { return mCategories; }
+    const QgsCategoryList& categories() const { return mCategories; }
 
     //! return index of category with specified value (-1 if not found)
     int categoryIndexForValue( QVariant val );
 
+    //! return index of category with specified label (-1 if not found or not unique)
+    //! @note added in 2.5
+    int categoryIndexForLabel( QString val );
+
     bool updateCategoryValue( int catIndex, const QVariant &value );
     bool updateCategorySymbol( int catIndex, QgsSymbolV2* symbol );
     bool updateCategoryLabel( int catIndex, QString label );
+
+    //! @note added in 2.5
+    bool updateCategoryRenderState( int catIndex, bool render );
 
     void addCategory( const QgsRendererCategoryV2 &category );
     bool deleteCategory( int catIndex );
@@ -123,9 +136,9 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     virtual QgsLegendSymbologyList legendSymbologyItems( QSize iconSize );
 
     //! return a list of item text / symbol
-    //! @note: this method was added in version 1.5
+    //! @note this method was added in version 1.5
     //! @note not available in python bindings
-    virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = "" );
+    virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = QString() );
 
     QgsSymbolV2* sourceSymbol();
     void setSourceSymbol( QgsSymbolV2* sym );
@@ -133,37 +146,54 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     QgsVectorColorRampV2* sourceColorRamp();
     void setSourceColorRamp( QgsVectorColorRampV2* ramp );
 
-    //! @note added in 1.6
-    void setRotationField( QString fieldName ) { mRotationField = fieldName; }
-    //! @note added in 1.6
-    QString rotationField() const { return mRotationField; }
+    //! @note added in 2.1
+    bool invertedColorRamp() { return mInvertedColorRamp; }
+    void setInvertedColorRamp( bool inverted ) { mInvertedColorRamp = inverted; }
 
     //! @note added in 1.6
-    void setSizeScaleField( QString fieldName ) { mSizeScaleField = fieldName; }
+    void setRotationField( QString fieldOrExpression );
     //! @note added in 1.6
-    QString sizeScaleField() const { return mSizeScaleField; }
+    QString rotationField() const;
+
+    //! @note added in 1.6
+    void setSizeScaleField( QString fieldOrExpression );
+    //! @note added in 1.6
+    QString sizeScaleField() const;
 
     //! @note added in 2.0
     void setScaleMethod( QgsSymbolV2::ScaleMethod scaleMethod );
     //! @note added in 2.0
     QgsSymbolV2::ScaleMethod scaleMethod() const { return mScaleMethod; }
 
+    //! items of symbology items in legend should be checkable
+    // @note added in 2.5
+    virtual bool legendSymbolItemsCheckable() const;
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual bool legendSymbolItemChecked( int index );
+
+    //! item in symbology was checked
+    // @note added in 2.5
+    virtual void checkLegendSymbolItem( int index, bool state = true );
+
   protected:
     QString mAttrName;
     QgsCategoryList mCategories;
-    QgsSymbolV2* mSourceSymbol;
-    QgsVectorColorRampV2* mSourceColorRamp;
-    QString mRotationField;
-    QString mSizeScaleField;
+    QScopedPointer<QgsSymbolV2> mSourceSymbol;
+    QScopedPointer<QgsVectorColorRampV2> mSourceColorRamp;
+    bool mInvertedColorRamp;
+    QScopedPointer<QgsExpression> mRotation;
+    QScopedPointer<QgsExpression> mSizeScale;
     QgsSymbolV2::ScaleMethod mScaleMethod;
-    QgsExpression* mExpression;
+    QScopedPointer<QgsExpression> mExpression;
 
     //! attribute index (derived from attribute name in startRender)
     int mAttrNum;
-    int mRotationFieldIdx, mSizeScaleFieldIdx;
 
     //! hashtable for faster access to symbols
     QHash<QString, QgsSymbolV2*> mSymbolHash;
+    bool mCounting;
 
     //! temporary symbols, used for data-defined rotation and scaling
     QHash<QString, QgsSymbolV2*> mTempSymbols;
@@ -171,6 +201,8 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     void rebuildHash();
 
     QgsSymbolV2* symbolForValue( QVariant value );
+
+    static QgsMarkerSymbolV2 sSkipRender;
 };
 
 

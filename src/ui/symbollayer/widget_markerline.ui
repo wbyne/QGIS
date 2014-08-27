@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>368</width>
-    <height>324</height>
+    <height>332</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -34,9 +34,9 @@
      <property name="title">
       <string>Marker placement</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
          <widget class="QRadioButton" name="radInterval">
           <property name="text">
@@ -56,10 +56,13 @@
            </sizepolicy>
           </property>
           <property name="decimals">
-           <number>2</number>
+           <number>6</number>
           </property>
           <property name="maximum">
-           <double>100000.000000000000000</double>
+           <double>10000000.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.200000000000000</double>
           </property>
           <property name="value">
            <double>1.000000000000000</double>
@@ -67,48 +70,73 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="mIntervalUnitComboBox">
-          <item>
-           <property name="text">
-            <string>Millimeter</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Map unit</string>
-           </property>
-          </item>
-         </widget>
+         <widget class="QgsUnitSelectionWidget" name="mIntervalUnitWidget" native="true"/>
         </item>
        </layout>
       </item>
-      <item>
+      <item row="1" column="0">
        <widget class="QRadioButton" name="radVertex">
         <property name="text">
          <string>on every vertex</string>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="2" column="0">
        <widget class="QRadioButton" name="radVertexLast">
         <property name="text">
          <string>on last vertex only</string>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="3" column="0">
        <widget class="QRadioButton" name="radVertexFirst">
         <property name="text">
          <string>on first vertex only</string>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="4" column="0">
        <widget class="QRadioButton" name="radCentralPoint">
         <property name="text">
          <string>on central point</string>
         </property>
        </widget>
+      </item>
+      <item row="5" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Offset along line</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="mSpinOffsetAlongLine">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="decimals">
+           <number>6</number>
+          </property>
+          <property name="maximum">
+           <double>10000000.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.200000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QgsUnitSelectionWidget" name="mOffsetAlongLineUnitWidget" native="true"/>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
@@ -127,23 +155,6 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="0" colspan="2">
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
-     <item>
-      <widget class="QPushButton" name="mDataDefinedPropertiesButton">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Data defined properties</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
    <item row="3" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
@@ -155,7 +166,7 @@
         </sizepolicy>
        </property>
        <property name="decimals">
-        <number>5</number>
+        <number>6</number>
        </property>
        <property name="minimum">
         <double>-100000.000000000000000</double>
@@ -163,28 +174,66 @@
        <property name="maximum">
         <double>100000.000000000000000</double>
        </property>
+       <property name="singleStep">
+        <double>0.200000000000000</double>
+       </property>
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="mOffsetUnitComboBox">
-       <item>
-        <property name="text">
-         <string>Millimeter</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Map unit</string>
-        </property>
-       </item>
-      </widget>
+      <widget class="QgsUnitSelectionWidget" name="mOffsetUnitWidget" native="true"/>
      </item>
     </layout>
    </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QPushButton" name="mDataDefinedPropertiesButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Data defined properties</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsUnitSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsunitselectionwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <tabstops>
+  <tabstop>radInterval</tabstop>
+  <tabstop>spinInterval</tabstop>
+  <tabstop>mIntervalUnitWidget</tabstop>
+  <tabstop>radVertex</tabstop>
+  <tabstop>radVertexLast</tabstop>
+  <tabstop>radVertexFirst</tabstop>
+  <tabstop>radCentralPoint</tabstop>
+  <tabstop>mSpinOffsetAlongLine</tabstop>
+  <tabstop>mOffsetAlongLineUnitWidget</tabstop>
   <tabstop>chkRotateMarker</tabstop>
+  <tabstop>spinOffset</tabstop>
+  <tabstop>mOffsetUnitWidget</tabstop>
+  <tabstop>mDataDefinedPropertiesButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>

@@ -15,10 +15,12 @@
 
 #include "qgseditorwidgetregistry.h"
 
+#include "qgsattributeeditorcontext.h"
 #include "qgseditorwidgetfactory.h"
+#include "qgslegacyhelpers.h"
+#include "qgsmessagelog.h"
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
-#include "qgsmessagelog.h"
 
 QgsEditorWidgetRegistry* QgsEditorWidgetRegistry::instance()
 {
@@ -37,14 +39,19 @@ QgsEditorWidgetRegistry::~QgsEditorWidgetRegistry()
   qDeleteAll( mWidgetFactories.values() );
 }
 
-QgsEditorWidgetWrapper* QgsEditorWidgetRegistry::create( const QString& widgetId, QgsVectorLayer* vl, int fieldIdx, const QgsEditorWidgetConfig& config, QWidget* editor, QWidget* parent )
+QgsEditorWidgetWrapper* QgsEditorWidgetRegistry::create( const QString& widgetId, QgsVectorLayer* vl, int fieldIdx, const QgsEditorWidgetConfig& config, QWidget* editor, QWidget* parent, const QgsAttributeEditorContext context )
 {
   if ( mWidgetFactories.contains( widgetId ) )
   {
     QgsEditorWidgetWrapper* ww = mWidgetFactories[widgetId]->create( vl, fieldIdx, editor, parent );
+
     if ( ww )
     {
       ww->setConfig( config );
+      ww->setContext( context );
+      // Make sure that there is a widget created at this point
+      // so setValue() et al won't crash
+      ww->widget();
       return ww;
     }
   }
@@ -70,9 +77,14 @@ QString QgsEditorWidgetRegistry::name( const QString& widgetId )
   return QString();
 }
 
-const QMap<QString, QgsEditorWidgetFactory*> QgsEditorWidgetRegistry::factories()
+const QMap<QString, QgsEditorWidgetFactory*>& QgsEditorWidgetRegistry::factories()
 {
   return mWidgetFactories;
+}
+
+QgsEditorWidgetFactory* QgsEditorWidgetRegistry::factory( const QString& widgetId )
+{
+  return mWidgetFactories.value( widgetId );
 }
 
 bool QgsEditorWidgetRegistry::registerWidget( const QString& widgetId, QgsEditorWidgetFactory* widgetFactory )
@@ -102,55 +114,67 @@ void QgsEditorWidgetRegistry::readMapLayer( QgsMapLayer* mapLayer, const QDomEle
   }
 
   QgsVectorLayer* vectorLayer = qobject_cast<QgsVectorLayer*>( mapLayer );
-  if ( !vectorLayer )
-  {
-    return;
-  }
+  Q_ASSERT( vectorLayer );
 
-  for ( int idx = 0; idx < vectorLayer->pendingFields().count(); ++idx )
+  QDomNodeList editTypeNodes = layerElem.namedItem( "edittypes" ).childNodes();
+
+  for ( int i = 0; i < editTypeNodes.size(); i++ )
   {
-    if ( vectorLayer->editType( idx ) != QgsVectorLayer::EditorWidgetV2 )
-    {
+    QDomNode editTypeNode = editTypeNodes.at( i );
+    QDomElement editTypeElement = editTypeNode.toElement();
+
+    QString name = editTypeElement.attribute( "name" );
+
+    int idx = vectorLayer->fieldNameIndex( name );
+    if ( idx == -1 )
       continue;
-    }
 
-    QDomNodeList editTypeNodes = layerElem.namedItem( "edittypes" ).childNodes();
+    bool hasLegacyType;
+    QgsVectorLayer::EditType editType =
+      ( QgsVectorLayer::EditType ) editTypeElement.attribute( "type" ).toInt( &hasLegacyType );
 
-    for ( int i = 0; i < editTypeNodes.size(); i++ )
+    QString ewv2Type;
+    QgsEditorWidgetConfig cfg;
+
+    if ( hasLegacyType && editType != QgsVectorLayer::EditorWidgetV2 )
     {
-      QDomNode editTypeNode = editTypeNodes.at( i );
-      QDomElement editTypeElement = editTypeNode.toElement();
+      Q_NOWARN_DEPRECATED_PUSH
+      ewv2Type = readLegacyConfig( vectorLayer, editTypeElement, cfg );
+      Q_NOWARN_DEPRECATED_POP
+    }
+    else
+      ewv2Type = editTypeElement.attribute( "widgetv2type" );
 
-      QString name = editTypeElement.attribute( "name" );
+    if ( mWidgetFactories.contains( ewv2Type ) )
+    {
+      vectorLayer->setEditorWidgetV2( idx, ewv2Type );
+      QDomElement ewv2CfgElem = editTypeElement.namedItem( "widgetv2config" ).toElement();
 
-      if ( vectorLayer->fieldNameIndex( name ) != idx )
-        continue;
-
-      QgsVectorLayer::EditType editType =
-        ( QgsVectorLayer::EditType ) editTypeElement.attribute( "type" ).toInt();
-
-      if ( editType != QgsVectorLayer::EditorWidgetV2 )
-        continue;
-
-      QString ewv2Type = editTypeElement.attribute( "widgetv2type" );
-
-      if ( mWidgetFactories.contains( ewv2Type ) )
+      if ( !ewv2CfgElem.isNull() )
       {
-        vectorLayer->setEditorWidgetV2( idx, ewv2Type );
-        QDomElement ewv2CfgElem = editTypeElement.namedItem( "widgetv2config" ).toElement();
+        cfg = mWidgetFactories[ewv2Type]->readEditorConfig( ewv2CfgElem, vectorLayer, idx );
+      }
 
-        if ( !ewv2CfgElem.isNull() )
-        {
-          QMap<QString, QVariant> cfg = mWidgetFactories[ewv2Type]->readConfig( ewv2CfgElem, vectorLayer, idx );
-          vectorLayer->setEditorWidgetV2Config( idx, cfg );
-        }
-      }
-      else
-      {
-        QgsMessageLog::logMessage( tr( "Unknown attribute editor widget '%1'" ).arg( ewv2Type ) );
-      }
+      vectorLayer->setFieldEditable( idx, ewv2CfgElem.attribute( "fieldEditable", "1" ) == "1" );
+      vectorLayer->setLabelOnTop( idx, ewv2CfgElem.attribute( "labelOnTop", "0" ) == "1" );
+      vectorLayer->setEditorWidgetV2Config( idx, cfg );
+    }
+    else
+    {
+      QgsMessageLog::logMessage( tr( "Unknown attribute editor widget '%1'" ).arg( ewv2Type ) );
     }
   }
+}
+
+const QString QgsEditorWidgetRegistry::readLegacyConfig( QgsVectorLayer* vl, const QDomElement& editTypeElement, QgsEditorWidgetConfig& cfg )
+{
+  QString name = editTypeElement.attribute( "name" );
+
+  QgsVectorLayer::EditType editType = ( QgsVectorLayer::EditType ) editTypeElement.attribute( "type" ).toInt();
+
+  Q_NOWARN_DEPRECATED_PUSH
+  return QgsLegacyHelpers::convertEditType( editType, cfg, vl, name, editTypeElement );
+  Q_NOWARN_DEPRECATED_POP
 }
 
 void QgsEditorWidgetRegistry::writeMapLayer( QgsMapLayer* mapLayer, QDomElement& layerElem, QDomDocument& doc )
@@ -166,13 +190,11 @@ void QgsEditorWidgetRegistry::writeMapLayer( QgsMapLayer* mapLayer, QDomElement&
     return;
   }
 
+  QDomNode editTypesNode = doc.createElement( "edittypes" );
+
   for ( int idx = 0; idx < vectorLayer->pendingFields().count(); ++idx )
   {
-    if ( vectorLayer->editType( idx ) != QgsVectorLayer::EditorWidgetV2 )
-    {
-      continue;
-    }
-
+    const QgsField &field = vectorLayer->pendingFields()[ idx ];
     const QString& widgetType = vectorLayer->editorWidgetV2( idx );
     if ( !mWidgetFactories.contains( widgetType ) )
     {
@@ -180,37 +202,24 @@ void QgsEditorWidgetRegistry::writeMapLayer( QgsMapLayer* mapLayer, QDomElement&
       continue;
     }
 
-    QDomNodeList editTypeNodes = layerElem.namedItem( "edittypes" ).childNodes();
 
-    for ( int i = 0; i < editTypeNodes.size(); i++ )
+    QDomElement editTypeElement = doc.createElement( "edittype" );
+    editTypeElement.setAttribute( "name", field.name() );
+    editTypeElement.setAttribute( "widgetv2type", widgetType );
+
+    if ( mWidgetFactories.contains( widgetType ) )
     {
-      QDomElement editTypeElement = editTypeNodes.at( i ).toElement();
+      QDomElement ewv2CfgElem = doc.createElement( "widgetv2config" );
+      ewv2CfgElem.setAttribute( "fieldEditable", vectorLayer->fieldEditable( idx ) );
+      ewv2CfgElem.setAttribute( "labelOnTop", vectorLayer->labelOnTop( idx ) );
 
-      QString name = editTypeElement.attribute( "name" );
+      mWidgetFactories[widgetType]->writeConfig( vectorLayer->editorWidgetV2Config( idx ), ewv2CfgElem, doc, vectorLayer, idx );
 
-      if ( vectorLayer->fieldNameIndex( name ) != idx )
-        continue;
-
-      QgsVectorLayer::EditType editType =
-        ( QgsVectorLayer::EditType ) editTypeElement.attribute( "type" ).toInt();
-
-      if ( editType != QgsVectorLayer::EditorWidgetV2 )
-        continue;
-
-      editTypeElement.setAttribute( "widgetv2type", widgetType );
-
-      if ( mWidgetFactories.contains( widgetType ) )
-      {
-        QDomElement ewv2CfgElem = doc.createElement( "widgetv2config" );
-
-        mWidgetFactories[widgetType]->writeConfig( vectorLayer->editorWidgetV2Config( idx ), ewv2CfgElem, doc, vectorLayer, idx );
-
-        editTypeElement.appendChild( ewv2CfgElem );
-      }
-      else
-      {
-        QgsMessageLog::logMessage( tr( "Unknown attribute editor widget '%1'" ).arg( widgetType ) );
-      }
+      editTypeElement.appendChild( ewv2CfgElem );
     }
+
+    editTypesNode.appendChild( editTypeElement );
   }
+
+  layerElem.appendChild( editTypesNode );
 }

@@ -38,7 +38,7 @@
 #include <osg/DisplaySettings>
 
 //constructor
-QgsGlobePluginDialog::QgsGlobePluginDialog(QWidget* parent, GlobePlugin* globe, Qt::WFlags fl )
+QgsGlobePluginDialog::QgsGlobePluginDialog( QWidget* parent, GlobePlugin* globe, Qt::WindowFlags fl )
     : QDialog( parent, fl )
     , mGlobe( globe )
 {
@@ -310,6 +310,12 @@ void QgsGlobePluginDialog::readElevationDatasources()
     elevationDatasourcesWidget->setItem( i, 1, chkBoxItem );
     elevationDatasourcesWidget->setItem( i, 2, uri );
   }
+
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 5, 0 )
+  double scale = QgsProject::instance()->readDoubleEntry( "Globe-Plugin", "/verticalScale", 1 );
+  mTxtVerticalScale->setValue( scale );
+  mGlobe->setVerticalScale( scale );
+#endif
 }
 
 void QgsGlobePluginDialog::saveElevationDatasources()
@@ -362,6 +368,12 @@ void QgsGlobePluginDialog::saveElevationDatasources()
     QgsDebugMsg( "emitting elevationDatasourcesChanged" );
     emit elevationDatasourcesChanged();
   }
+
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 5, 0 )
+  double scale = mTxtVerticalScale->value();
+  mGlobe->setVerticalScale( scale );
+  QgsProject::instance()->writeEntry( "Globe-Plugin", "/verticalScale", scale );
+#endif
 }
 //END ELEVATION
 
@@ -550,7 +562,7 @@ void QgsGlobePluginDialog::setStereoMode()
 
 void QgsGlobePluginDialog::loadVideoSettings()
 {
-  mAntiAliasingGroupBox->setChecked( settings.value( "/Plugin-Globe/anti-aliasing", true ).toBool() );
+  mAntiAliasingGroupBox->setChecked( settings.value( "/Plugin-Globe/anti-aliasing", false ).toBool() );
   mAANumSamples->setValidator( new QIntValidator( mAANumSamples ) );
   mAANumSamples->setText( settings.value( "/Plugin-Globe/anti-aliasing-level", "" ).toString() );
 }

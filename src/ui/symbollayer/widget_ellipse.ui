@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>404</width>
+    <width>416</width>
     <height>436</height>
    </rect>
   </property>
@@ -23,7 +23,7 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
+     <item row="4" column="1">
       <widget class="QDoubleSpinBox" name="mRotationSpinBox">
        <property name="minimum">
         <double>-360.000000000000000</double>
@@ -31,19 +31,28 @@
        <property name="maximum">
         <double>360.000000000000000</double>
        </property>
+       <property name="singleStep">
+        <double>0.500000000000000</double>
+       </property>
       </widget>
      </item>
-     <item row="4" column="0">
+     <item row="5" column="0">
       <widget class="QLabel" name="mSymbolHeightLabel">
        <property name="text">
         <string>Symbol height</string>
        </property>
+       <property name="buddy">
+        <cstring>mHeightSpinBox</cstring>
+       </property>
       </widget>
      </item>
-     <item row="3" column="0">
+     <item row="4" column="0">
       <widget class="QLabel" name="mRotationLabel">
        <property name="text">
         <string>Rotation</string>
+       </property>
+       <property name="buddy">
+        <cstring>mRotationSpinBox</cstring>
        </property>
       </widget>
      </item>
@@ -60,10 +69,13 @@
          <property name="text">
           <string>Fill</string>
          </property>
+         <property name="buddy">
+          <cstring>btnChangeColorFill</cstring>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="btnChangeColorFill">
+        <widget class="QgsColorButtonV2" name="btnChangeColorFill">
          <property name="minimumSize">
           <size>
            <width>100</width>
@@ -92,10 +104,13 @@
          <property name="text">
           <string>Border</string>
          </property>
+         <property name="buddy">
+          <cstring>btnChangeColorBorder</cstring>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="btnChangeColorBorder">
+        <widget class="QgsColorButtonV2" name="btnChangeColorBorder">
          <property name="minimumSize">
           <size>
            <width>100</width>
@@ -128,7 +143,7 @@
        </item>
       </layout>
      </item>
-     <item row="4" column="1">
+     <item row="5" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
         <widget class="QDoubleSpinBox" name="mHeightSpinBox">
@@ -144,27 +159,13 @@
          <property name="maximum">
           <double>999999999.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mSymbolHeightUnitComboBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mSymbolHeightUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -184,21 +185,13 @@
          <property name="maximum">
           <double>999999999.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mSymbolWidthUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mSymbolWidthUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
@@ -207,9 +200,12 @@
        <property name="text">
         <string>Symbol width</string>
        </property>
+       <property name="buddy">
+        <cstring>mWidthSpinBox</cstring>
+       </property>
       </widget>
      </item>
-     <item row="6" column="1">
+     <item row="7" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_6">
        <item>
         <widget class="QComboBox" name="mHorizontalAnchorComboBox">
@@ -251,7 +247,20 @@
        </item>
       </layout>
      </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="mOutlineStyleLabel">
+       <property name="text">
+        <string>Outline style</string>
+       </property>
+       <property name="buddy">
+        <cstring>mOutlineStyleComboBox</cstring>
+       </property>
+      </widget>
+     </item>
      <item row="2" column="1">
+      <widget class="QgsPenStyleComboBox" name="mOutlineStyleComboBox"/>
+     </item>
+     <item row="3" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
         <widget class="QDoubleSpinBox" name="mOutlineWidthSpinBox">
@@ -267,46 +276,47 @@
          <property name="maximum">
           <double>999999999.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mOutlineWidthUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mOutlineWidthUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
-     <item row="2" column="0">
+     <item row="3" column="0">
       <widget class="QLabel" name="mOutlineWidthLabel">
        <property name="text">
         <string>Outline width</string>
        </property>
+       <property name="buddy">
+        <cstring>mOutlineWidthSpinBox</cstring>
+       </property>
       </widget>
      </item>
-     <item row="6" column="0">
+     <item row="7" column="0">
       <widget class="QLabel" name="mAnchorPointLabel">
        <property name="text">
         <string>Anchor point</string>
        </property>
+       <property name="buddy">
+        <cstring>mHorizontalAnchorComboBox</cstring>
+       </property>
       </widget>
      </item>
-     <item row="5" column="0">
+     <item row="6" column="0">
       <widget class="QLabel" name="label_5">
        <property name="text">
         <string>Offset X,Y</string>
        </property>
+       <property name="buddy">
+        <cstring>spinOffsetX</cstring>
+       </property>
       </widget>
      </item>
-     <item row="5" column="1">
+     <item row="6" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_5">
        <item>
         <widget class="QDoubleSpinBox" name="spinOffsetX">
@@ -317,10 +327,13 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="minimum">
           <double>-100.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
          </property>
         </widget>
        </item>
@@ -333,30 +346,22 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>5</number>
+          <number>6</number>
          </property>
          <property name="minimum">
           <double>-100.000000000000000</double>
          </property>
+         <property name="singleStep">
+          <double>0.200000000000000</double>
+         </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="mOffsetUnitComboBox">
-         <item>
-          <property name="text">
-           <string>Millimeter</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Map unit</string>
-          </property>
-         </item>
-        </widget>
+        <widget class="QgsUnitSelectionWidget" name="mOffsetUnitWidget" native="true"/>
        </item>
       </layout>
      </item>
-     <item row="7" column="0" colspan="2">
+     <item row="8" column="0" colspan="2">
       <widget class="QPushButton" name="mDataDefinedPropertiesButton">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -421,11 +426,41 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QgsColorButton</class>
-   <extends>QPushButton</extends>
-   <header>qgscolorbutton.h</header>
+   <class>QgsColorButtonV2</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbuttonv2.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsUnitSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsunitselectionwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsPenStyleComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgspenstylecombobox.h</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>btnChangeColorFill</tabstop>
+  <tabstop>btnChangeColorBorder</tabstop>
+  <tabstop>mWidthSpinBox</tabstop>
+  <tabstop>mSymbolWidthUnitWidget</tabstop>
+  <tabstop>mOutlineStyleComboBox</tabstop>
+  <tabstop>mOutlineWidthSpinBox</tabstop>
+  <tabstop>mOutlineWidthUnitWidget</tabstop>
+  <tabstop>mRotationSpinBox</tabstop>
+  <tabstop>mHeightSpinBox</tabstop>
+  <tabstop>mSymbolHeightUnitWidget</tabstop>
+  <tabstop>spinOffsetX</tabstop>
+  <tabstop>spinOffsetY</tabstop>
+  <tabstop>mOffsetUnitWidget</tabstop>
+  <tabstop>mHorizontalAnchorComboBox</tabstop>
+  <tabstop>mVerticalAnchorComboBox</tabstop>
+  <tabstop>mDataDefinedPropertiesButton</tabstop>
+  <tabstop>mShapeListWidget</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

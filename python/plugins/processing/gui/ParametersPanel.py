@@ -6,7 +6,11 @@
     ---------------------
     Date                 : August 2012
     Copyright            : (C) 2012 by Victor Olaya
+                           (C) 2013 by CS Systemes d'information (CS SI)
     Email                : volayaf at gmail dot com
+                           otb at c-s dot fr (CS SI)
+    Contributors         : Victor Olaya
+                           Alexia Mondot (CS SI) - managing the new parameter ParameterMultipleExternalInput
 ***************************************************************************
 *                                                                         *
 *   This program is free software; you can redistribute it and/or modify  *
@@ -42,25 +46,24 @@ from processing.gui.NumberInputPanel import NumberInputPanel
 from processing.gui.ExtentSelectionPanel import ExtentSelectionPanel
 from processing.gui.FileSelectionPanel import FileSelectionPanel
 from processing.gui.CrsSelectionPanel import CrsSelectionPanel
-
-from processing.parameters.ParameterRaster import ParameterRaster
-from processing.parameters.ParameterVector import ParameterVector
-from processing.parameters.ParameterTable import ParameterTable
-from processing.parameters.ParameterBoolean import ParameterBoolean
-from processing.parameters.ParameterTableField import ParameterTableField
-from processing.parameters.ParameterSelection import ParameterSelection
-from processing.parameters.ParameterFixedTable import ParameterFixedTable
-from processing.parameters.ParameterRange import ParameterRange
-from processing.parameters.ParameterMultipleInput import ParameterMultipleInput
-from processing.parameters.ParameterNumber import ParameterNumber
-from processing.parameters.ParameterExtent import ParameterExtent
-from processing.parameters.ParameterFile import ParameterFile
-from processing.parameters.ParameterCrs import ParameterCrs
-from processing.parameters.ParameterString import ParameterString
-
-from processing.outputs.OutputRaster import OutputRaster
-from processing.outputs.OutputTable import OutputTable
-from processing.outputs.OutputVector import OutputVector
+from processing.gui.MultipleFileInputPanel import MultipleFileInputPanel
+from processing.core.parameters import ParameterRaster
+from processing.core.parameters import ParameterVector
+from processing.core.parameters import ParameterTable
+from processing.core.parameters import ParameterBoolean
+from processing.core.parameters import ParameterTableField
+from processing.core.parameters import ParameterSelection
+from processing.core.parameters import ParameterFixedTable
+from processing.core.parameters import ParameterRange
+from processing.core.parameters import ParameterMultipleInput
+from processing.core.parameters import ParameterNumber
+from processing.core.parameters import ParameterExtent
+from processing.core.parameters import ParameterFile
+from processing.core.parameters import ParameterCrs
+from processing.core.parameters import ParameterString
+from processing.core.outputs import OutputRaster
+from processing.core.outputs import OutputTable
+from processing.core.outputs import OutputVector
 
 
 class ParametersPanel(QtGui.QWidget):
@@ -102,7 +105,12 @@ class ParametersPanel(QtGui.QWidget):
                 continue
             desc = param.description
             if isinstance(param, ParameterExtent):
-                desc += '(xmin, xmax, ymin, ymax)'
+                desc += ' (xmin, xmax, ymin, ymax)'
+            try:
+                if param.optional:
+                    desc += ' [optional]'
+            except:
+                pass
             label = QtGui.QLabel(desc)
             self.labels[param.name] = label
             widget = self.getWidgetFromParameter(param)
@@ -185,6 +193,8 @@ class ParametersPanel(QtGui.QWidget):
             return layer.name()
 
     def getWidgetFromParameter(self, param):
+        # TODO Create Parameter widget class that holds the logic
+        # for creating a widget that belongs to the parameter.
         if isinstance(param, ParameterRaster):
             layers = dataobjects.getRasterLayers()
             items = []
@@ -192,10 +202,9 @@ class ParametersPanel(QtGui.QWidget):
                 items.append((self.NOT_SELECTED, None))
             for layer in layers:
                 items.append((self.getExtendedLayerName(layer), layer))
-            item = InputLayerSelectorPanel(items)
+            item = InputLayerSelectorPanel(items, param)
         elif isinstance(param, ParameterVector):
-            if self.somethingDependsOnThisParameter(param) \
-                or self.alg.allowOnlyOpenedLayers:
+            if self.somethingDependsOnThisParameter(param) or self.alg.allowOnlyOpenedLayers:
                 item = QtGui.QComboBox()
                 layers = dataobjects.getVectorLayers(param.shapetype)
                 if param.optional:
@@ -211,7 +220,11 @@ class ParametersPanel(QtGui.QWidget):
                     items.append((self.NOT_SELECTED, None))
                 for layer in layers:
                     items.append((self.getExtendedLayerName(layer), layer))
-                item = InputLayerSelectorPanel(items)
+                # if already set, put first in list
+                for i,(name,layer) in enumerate(items):
+                    if layer and layer.source() == param.value:
+                        items.insert(0, items.pop(i))
+                item = InputLayerSelectorPanel(items, param)
         elif isinstance(param, ParameterTable):
             if self.somethingDependsOnThisParameter(param):
                 item = QtGui.QComboBox()
@@ -229,7 +242,11 @@ class ParametersPanel(QtGui.QWidget):
                     items.append((self.NOT_SELECTED, None))
                 for layer in layers:
                     items.append((layer.name(), layer))
-                item = InputLayerSelectorPanel(items)
+                # if already set, put first in list
+                for i,(name,layer) in enumerate(items):
+                    if layer and layer.source() == param.value:
+                        items.insert(0, items.pop(i))
+                item = InputLayerSelectorPanel(items, param)
         elif isinstance(param, ParameterBoolean):
             item = QtGui.QComboBox()
             item.addItem('Yes')
@@ -252,6 +269,8 @@ class ParametersPanel(QtGui.QWidget):
             else:
                 layers = dataobjects.getTables()
             if len(layers) > 0:
+                if param.optional:
+                    item.addItem("[not set]")
                 item.addItems(self.getFields(layers[0], param.datatype))
         elif isinstance(param, ParameterSelection):
             item = QtGui.QComboBox()
@@ -262,18 +281,21 @@ class ParametersPanel(QtGui.QWidget):
         elif isinstance(param, ParameterRange):
             item = RangePanel(param)
         elif isinstance(param, ParameterFile):
-            item = FileSelectionPanel(param.isFolder)
+            item = FileSelectionPanel(param.isFolder, param.ext)
         elif isinstance(param, ParameterMultipleInput):
-            if param.datatype == ParameterMultipleInput.TYPE_RASTER:
-                options = dataobjects.getRasterLayers()
-            elif param.datatype == ParameterMultipleInput.TYPE_VECTOR_ANY:
-                options = dataobjects.getVectorLayers()
+            if param.datatype == ParameterMultipleInput.TYPE_FILE:
+                item = MultipleFileInputPanel()
             else:
-                options = dataobjects.getVectorLayers([param.datatype])
-            opts = []
-            for opt in options:
-                opts.append(self.getExtendedLayerName(opt))
-            item = MultipleInputPanel(opts)
+                if param.datatype == ParameterMultipleInput.TYPE_RASTER:
+                    options = dataobjects.getRasterLayers()
+                elif param.datatype == ParameterMultipleInput.TYPE_VECTOR_ANY:
+                    options = dataobjects.getVectorLayers()
+                else:
+                    options = dataobjects.getVectorLayers([param.datatype])
+                opts = []
+                for opt in options:
+                    opts.append(self.getExtendedLayerName(opt))
+                item = MultipleInputPanel(opts)
         elif isinstance(param, ParameterNumber):
             item = NumberInputPanel(param.default, param.min, param.max,
                                     param.isInteger)
@@ -310,6 +332,8 @@ class ParametersPanel(QtGui.QWidget):
         for child in children:
             widget = self.valueItems[child]
             widget.clear()
+            if self.alg.getParameterFromName(child).optional:
+                widget.addItem("[not set]")
             widget.addItems(self.getFields(layer,
                             self.alg.getParameterFromName(child).datatype))
 
@@ -320,18 +344,11 @@ class ParametersPanel(QtGui.QWidget):
         elif datatype == ParameterTableField.DATA_TYPE_NUMBER:
             fieldTypes = [QtCore.QVariant.Int, QtCore.QVariant.Double]
 
-        fieldNames = []
-        fields = layer.pendingFields()
-        if len(fieldTypes) == 0:
-            for field in fields:
-                if not field.name() in fieldNames:
-                    fieldNames.append(unicode(field.name()))
-        else:
-            for field in fields:
-                if field.type() in fieldTypes and not field.name() \
-                    in fieldNames:
-                    fieldNames.append(unicode(field.name()))
-        return sorted(fieldNames, cmp=locale.strcoll)
+        fieldNames = set()
+        for field in layer.pendingFields():
+            if not fieldTypes or field.type() in fieldTypes:
+                fieldNames.add(unicode(field.name()))
+        return sorted(list(fieldNames), cmp=locale.strcoll)
 
     def somethingDependsOnThisParameter(self, parent):
         for param in self.alg.parameters:
@@ -341,22 +358,13 @@ class ParametersPanel(QtGui.QWidget):
         return False
 
     def setTableContent(self):
-        params = self.alg.parameters
-        outputs = self.alg.outputs
-        numParams = 0
-        for param in params:
-            if not param.hidden:
-                numParams += 1
-        numOutputs = 0
-        for output in outputs:
-            if not output.hidden:
-                numOutputs += 1
+        params = [parm for parm in self.alg.parameters if not parm.hidden]
+        outputs = [output for output in self.alg.outputs if not output.hidden]
+        numParams = len(params)
+        numOutputs = len(outputs)
         self.tableWidget.setRowCount(numParams + numOutputs)
 
-        i = 0
-        for param in params:
-            if param.hidden:
-                continue
+        for i, param in enumerate(params):
             item = QtGui.QTableWidgetItem(param.description)
             item.setFlags(QtCore.Qt.ItemIsEnabled)
             self.tableWidget.setItem(i, 0, item)
@@ -364,11 +372,8 @@ class ParametersPanel(QtGui.QWidget):
             self.valueItems[param.name] = item
             self.tableWidget.setCellWidget(i, 1, item)
             self.tableWidget.setRowHeight(i, 22)
-            i += 1
 
-        for output in outputs:
-            if output.hidden:
-                continue
+        for i, output in enumerate(outputs):
             item = QtGui.QTableWidgetItem(output.description + '<'
                     + output.__module__.split('.')[-1] + '>')
             item.setFlags(QtCore.Qt.ItemIsEnabled)
@@ -377,4 +382,3 @@ class ParametersPanel(QtGui.QWidget):
             self.valueItems[output.name] = item
             self.tableWidget.setCellWidget(i, 1, item)
             self.tableWidget.setRowHeight(i, 22)
-            i += 1

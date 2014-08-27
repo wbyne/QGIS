@@ -54,9 +54,9 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>-309</y>
-        <width>373</width>
-        <height>1387</height>
+        <y>0</y>
+        <width>375</width>
+        <height>1319</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="mainLayout">
@@ -94,7 +94,7 @@
           <item row="0" column="1">
            <widget class="QLineEdit" name="mTitleLineEdit"/>
           </item>
-          <item row="1" column="0">
+          <item row="2" column="0">
            <widget class="QLabel" name="mMapLabel">
             <property name="text">
              <string>Map</string>
@@ -104,10 +104,10 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
+          <item row="2" column="1">
            <widget class="QComboBox" name="mMapComboBox"/>
           </item>
-          <item row="2" column="0">
+          <item row="3" column="0">
            <widget class="QLabel" name="label">
             <property name="text">
              <string>Wrap text on</string>
@@ -117,11 +117,37 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="3" column="1">
            <widget class="QLineEdit" name="mWrapCharLineEdit">
             <property name="frame">
              <bool>true</bool>
             </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_15">
+            <property name="text">
+             <string>Title alignment:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="mTitleAlignCombo">
+            <item>
+             <property name="text">
+              <string>Left</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Center</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Right</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>
@@ -352,7 +378,7 @@
           <item>
            <widget class="QCheckBox" name="mCheckBoxAutoUpdate">
             <property name="text">
-             <string>Auto Update</string>
+             <string>Auto update</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -373,7 +399,7 @@
          <property name="collapsed" stdset="0">
           <bool>true</bool>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
            <widget class="QPushButton" name="mTitleFontButton">
             <property name="sizePolicy">
@@ -383,37 +409,73 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>Title Font...</string>
+             <string>Title font...</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="mLayerFontButton">
             <property name="text">
-             <string>Subgroup Font...</string>
+             <string>Subgroup font...</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="mGroupFontButton">
             <property name="text">
-             <string>Group Font...</string>
+             <string>Group font...</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="mItemFontButton">
             <property name="text">
-             <string>Item Font...</string>
+             <string>Item font...</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="mFontColorPushButton">
-            <property name="text">
-             <string>Font color...</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="QLabel" name="label_16">
+              <property name="text">
+               <string>Font color</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QgsColorButtonV2" name="mFontColorButton">
+              <property name="minimumSize">
+               <size>
+                <width>120</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>120</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -767,7 +829,7 @@
              <string>Space below title.</string>
             </property>
             <property name="suffix">
-             <string>mm</string>
+             <string> mm</string>
             </property>
            </widget>
           </item>
@@ -787,6 +849,11 @@
    <extends>QGroupBox</extends>
    <header location="global">qgscollapsiblegroupbox.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsColorButtonV2</class>
+   <extends>QToolButton</extends>
+   <header>qgscolorbuttonv2.h</header>
   </customwidget>
  </customwidgets>
  <resources>

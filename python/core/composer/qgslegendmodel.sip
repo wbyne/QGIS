@@ -1,9 +1,7 @@
 /** \ingroup MapComposer
- * A model that provides layers as root items. The classification items are
- * children of the layer items.
+ * A model that provides group, layer and classification items.
  */
-
-class QgsLegendModel: QStandardItemModel
+class QgsLegendModel : QStandardItemModel
 {
 %TypeHeaderCode
 #include <qgslegendmodel.h>
@@ -13,7 +11,7 @@ class QgsLegendModel: QStandardItemModel
 
     enum ItemType
     {
-      GroupItem = 0,
+      GroupItem,
       LayerItem,
       ClassificationItem
     };
@@ -21,15 +19,21 @@ class QgsLegendModel: QStandardItemModel
     QgsLegendModel();
     ~QgsLegendModel();
 
-    /**Sets layer set and groups*/
-    void setLayerSetAndGroups( const QStringList& layerIds, const QList<  QPair< QString, QList<QString> > >& groupInfo );
-    void setLayerSet( const QStringList& layerIds );
+    /** Set layers and groups from a layer tree
+     *  @note added in 2.6
+     */
+    void setLayerSetAndGroups( QgsLayerTreeGroup* rootGroup );
+    /** Sets layer set and groups
+     * @deprecated in 2.6
+     */
+    void setLayerSetAndGroups( const QStringList& layerIds, const QList<  QPair< QString, QList<QString> > >& groupInfo ) /Deprecated/;
+    void setLayerSet( const QStringList& layerIds, double scaleDenominator = -1, QString rule = "" );
     /**Adds a group
       @param text name of group (defaults to translation of "Group")
       @param position insertion position (toplevel position (or -1 if it should be placed at the end of the legend).
       @returns a pointer to the added group
       */
-    QStandardItem *addGroup( QString text = QString::null, int position = -1 );
+    QStandardItem *addGroup( QString text = QString::null, int position = -1, QStandardItem* parentItem = 0 );
 
     /**Tries to automatically update a model entry (e.g. a whole layer or only a single item)*/
     void updateItem( QStandardItem* item );
@@ -37,7 +41,12 @@ class QgsLegendModel: QStandardItemModel
     void updateLayer( QStandardItem* layerItem );
     /**Tries to update a single classification item*/
     void updateVectorV2ClassificationItem( QStandardItem* classificationItem, QgsSymbolV2* symbol, QString itemText );
+
     void updateRasterClassificationItem( QStandardItem* classificationItem );
+
+    /** Update single item text using item userText and other properties like showFeatureCount */
+    void updateItemText( QStandardItem* item );
+
 
     bool writeXML( QDomElement& composerLegendElem, QDomDocument& doc ) const;
     bool readXML( const QDomElement& legendModelElem, const QDomDocument& doc );
@@ -60,7 +69,7 @@ class QgsLegendModel: QStandardItemModel
 
   public slots:
     void removeLayer( const QString& layerId );
-    void addLayer( QgsMapLayer* theMapLayer );
+    void addLayer( QgsMapLayer* theMapLayer, double scaleDenominator = -1, QString rule = "", QStandardItem* parentItem = 0 );
 
   signals:
     void layersChanged();

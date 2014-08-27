@@ -15,10 +15,11 @@
  ***************************************************************************/
 
 #include "ui_qgscompositionwidgetbase.h"
+#include "qgscomposeritem.h"
 
 class QgsComposition;
 class QgsComposerMap;
-class QgsComposerItem;
+class QgsDataDefinedButton;
 
 /** \ingroup MapComposer
  * Struct to hold map composer paper properties.
@@ -48,6 +49,7 @@ class QgsCompositionWidget: public QWidget, private Ui::QgsCompositionWidgetBase
     void on_mPaperWidthDoubleSpinBox_editingFinished();
     void on_mPaperHeightDoubleSpinBox_editingFinished();
     void on_mNumPagesSpinBox_valueChanged( int value );
+    void on_mPageStyleButton_clicked();
     void on_mResolutionSpinBox_valueChanged( const int value );
     void on_mPrintAsRasterCheckBox_toggled( bool state );
     void on_mGenerateWorldFileCheckBox_toggled( bool state );
@@ -56,19 +58,30 @@ class QgsCompositionWidget: public QWidget, private Ui::QgsCompositionWidgetBase
     void on_mGridResolutionSpinBox_valueChanged( double d );
     void on_mOffsetXSpinBox_valueChanged( double d );
     void on_mOffsetYSpinBox_valueChanged( double d );
-    void on_mGridToleranceSpinBox_valueChanged( double d );
-    void on_mAlignmentToleranceSpinBox_valueChanged( double d );
+    void on_mSnapToleranceSpinBox_valueChanged( int tolerance );
 
     /**Sets GUI elements to width/height from composition*/
     void displayCompositionWidthHeight();
     /**Sets Print as raster checkbox value*/
     void setPrintAsRasterCheckBox( bool state );
+    /**Sets number of pages spin box value*/
+    void setNumberPages();
+
+  signals:
+    /**Is emitted when page orientation changes*/
+    void pageOrientationChanged( QString orientation );
 
   private slots:
     /* when a new map is added */
     void onComposerMapAdded( QgsComposerMap* );
     /* when a map is deleted */
     void onItemRemoved( QgsComposerItem* );
+
+    /**Must be called when a data defined button changes*/
+    void updateDataDefinedProperty();
+
+    /**Initializes data defined buttons to current atlas coverage layer*/
+    void populateDataDefinedButtons();
 
   private:
     QgsComposition* mComposition;
@@ -84,6 +97,8 @@ class QgsCompositionWidget: public QWidget, private Ui::QgsCompositionWidgetBase
     /**Sets GUI elements to snaping distances of composition*/
     void displaySnapingSettings();
 
+    void updatePageStyle();
+
     void createPaperEntries();
     void insertPaperEntries();
 
@@ -91,4 +106,11 @@ class QgsCompositionWidget: public QWidget, private Ui::QgsCompositionWidgetBase
     void setSize( QDoubleSpinBox *spin, double v );
     /**Blocks / unblocks the signals of all items*/
     void blockSignals( bool block );
+
+    /**Sets a data defined property for the item from its current data defined button settings*/
+    void setDataDefinedProperty( const QgsDataDefinedButton *ddBtn, QgsComposerObject::DataDefinedProperty property );
+
+    /**Returns the data defined property corresponding to a data defined button widget*/
+    virtual QgsComposerObject::DataDefinedProperty ddPropertyForWidget( QgsDataDefinedButton* widget );
+
 };

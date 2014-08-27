@@ -1,5 +1,5 @@
 SET(CPACK_PACKAGE_VERSION_MAJOR "2")
-SET(CPACK_PACKAGE_VERSION_MINOR "1")
+SET(CPACK_PACKAGE_VERSION_MINOR "5")
 SET(CPACK_PACKAGE_VERSION_PATCH "0")
 SET(COMPLETE_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
 SET(RELEASE_NAME "Master")
@@ -46,6 +46,9 @@ IF(WITH_MAPSERVER)
   SET (MAPSERVER_SKIP_ECW FALSE CACHE BOOL "Determines whether QGIS mapserver should disable ECW (ECW in server apps requires a special license)")
 ENDIF(WITH_MAPSERVER)
 
+# Custom widgets
+SET (WITH_CUSTOM_WIDGETS FALSE CACHE BOOL "Determines whether QGIS custom widgets for Qt Designer should be built")
+
 # build our version of astyle
 SET (WITH_ASTYLE FALSE CACHE BOOL "If you plan to contribute you should reindent with scripts/prepare-commit.sh (using 'our' astyle)")
 
@@ -60,11 +63,9 @@ SET (WITH_INTERNAL_QWTPOLAR TRUE CACHE BOOL "Use internal build of QwtPolar")
 SET (WITH_INTERNAL_QEXTSERIALPORT TRUE CACHE BOOL "Use internal build of Qextserialport")
 
 SET (WITH_INTERNAL_SPATIALITE FALSE CACHE BOOL "Determines whether SPATIALITE support should be built internally")
-SET (WITH_PYSPATIALITE FALSE CACHE BOOL "Determines whether PYSPATIALITE should be built")
 SET (WITH_QSPATIALITE FALSE CACHE BOOL "Determines whether QSPATIALITE sql driver should be built")
 IF(WITH_INTERNAL_SPATIALITE)
   SET(SPATIALITE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/src/core/spatialite/headers)
-  SET(HAVE_SPATIALITE TRUE)
   IF(WIN32 OR APPLE OR CYGWIN)
     FIND_PACKAGE(Iconv REQUIRED)
   ENDIF(WIN32 OR APPLE OR CYGWIN)
@@ -197,7 +198,7 @@ IF (WITH_POSTGRESQL)
 ENDIF (WITH_POSTGRESQL)
 
 IF (NOT WITH_INTERNAL_SPATIALITE)
-  FIND_PACKAGE(SPATIALITE)
+  FIND_PACKAGE(SPATIALITE REQUIRED)
 ENDIF (NOT WITH_INTERNAL_SPATIALITE)
 
 IF (NOT PROJ_FOUND OR NOT GEOS_FOUND OR NOT GDAL_FOUND)
@@ -209,17 +210,15 @@ IF (POSTGRES_FOUND)
   SET (HAVE_POSTGRESQL TRUE)
 ENDIF (POSTGRES_FOUND)
 
-IF (SPATIALITE_FOUND)
-  # following variable is used in qgsconfig.h
-  SET (HAVE_SPATIALITE TRUE)
-ENDIF (SPATIALITE_FOUND)
+# following variable is used in qgsconfig.h
+SET (HAVE_SPATIALITE TRUE)
 
 # following variable is used in qgsconfig.h
 SET (HAVE_MSSQL TRUE)
 
 #############################################################
 # search for Qt4
-SET(QT_MIN_VERSION 4.5.0)
+SET(QT_MIN_VERSION 4.7.0)
 FIND_PACKAGE(Qt4 ${QT_MIN_VERSION} REQUIRED)
 MESSAGE(STATUS "Found Qt version: ${QTVERSION}")
 SET(QT_USE_QTXML 1)
@@ -227,10 +226,13 @@ SET(QT_USE_QTNETWORK 1)
 SET(QT_USE_QTSVG 1)
 SET(QT_USE_QTSQL 1)
 SET(QT_USE_QTWEBKIT 1)
+IF (WITH_CUSTOM_WIDGETS)
+  SET(QT_USE_QTDESIGNER 1)
+ENDIF (WITH_CUSTOM_WIDGETS)
 
-IF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND)
+IF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
   MESSAGE(SEND_ERROR "Some Qt4 modules haven't been found!")
-ENDIF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND)
+ENDIF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
 
 IF (WITH_QTMOBILITY)
     FIND_PACKAGE(QtMobility 1.1.0)
@@ -242,12 +244,8 @@ ELSE (ANDROID)
   SET (DEFAULT_WITH_TOUCH FALSE)
 ENDIF (ANDROID)
 
-#Add a touch mode if Qt has Qt Gestures (starting from 4.6)
-IF ( (QT_VERSION_MAJOR EQUAL 4 AND QT_VERSION_MINOR GREATER 5) OR QT_VERSION_MAJOR GREATER 4 )
-  SET (WITH_TOUCH ${DEFAULT_WITH_TOUCH} CACHE BOOL "Determines if touch interface related code should be build")
-ELSE ( (QT_VERSION_MAJOR EQUAL 4 AND QT_VERSION_MINOR GREATER 5) OR QT_VERSION_MAJOR GREATER 4 )
-  SET (WITH_TOUCH FALSE)
-ENDIF ( (QT_VERSION_MAJOR EQUAL 4 AND QT_VERSION_MINOR GREATER 5) OR QT_VERSION_MAJOR GREATER 4 )
+#Add a touch mode if Qt has Qt Gestures
+SET (WITH_TOUCH ${DEFAULT_WITH_TOUCH} CACHE BOOL "Determines if touch interface related code should be build")
 
 IF (WITH_TOUCH)
   # following variable is used in qgsconfig.h
@@ -258,14 +256,7 @@ ELSE (WITH_TOUCH)
 ENDIF (WITH_TOUCH)
 
 # search for QScintilla2 (C++ lib)
-IF (WITH_BINDINGS)
-  # TODO: make required after testing find paths on Windows platforms
-  #FIND_PACKAGE(QScintilla REQUIRED)
-  FIND_PACKAGE(QScintilla)
-ELSE (WITH_BINDINGS)
-  # for when library is used in .h/cpp
-  FIND_PACKAGE(QScintilla)
-ENDIF (WITH_BINDINGS)
+FIND_PACKAGE(QScintilla REQUIRED)
 
 IF (ENABLE_TESTS)
   SET( QT_USE_QTTEST  TRUE )
@@ -283,7 +274,6 @@ IF (ENABLE_TESTS)
   # sudo apt-get install xfvb
   add_custom_target(check-no-x COMMAND xvfb-run --server-args="-screen 10,1024x768x24" ctest --output-on-failure)
 ENDIF (ENABLE_TESTS)
-
 
 INCLUDE( ${QT_USE_FILE} )
 
@@ -310,11 +300,16 @@ IF (PEDANTIC)
     # disable warnings
     ADD_DEFINITIONS( /wd4100 )  # unused formal parameters
     ADD_DEFINITIONS( /wd4127 )  # constant conditional expressions (used in Qt template classes)
+    ADD_DEFINITIONS( /wd4231 )  # nonstandard extension used : 'identifier' before template explicit instantiation (used in Qt template classes)
+    ADD_DEFINITIONS( /wd4244 )  # conversion from '...' to '...' possible loss of data
+    ADD_DEFINITIONS( /wd4251 )  # needs to have dll-interface to be used by clients of class (occurs in Qt template classes)
+    ADD_DEFINITIONS( /wd4275 )  # non dll-interface class '...' used as base for dll-interface class '...'
     ADD_DEFINITIONS( /wd4505 )  # unreferenced local function has been removed (QgsRasterDataProvider::extent)
     ADD_DEFINITIONS( /wd4510 )  # default constructor could not be generated (sqlite3_index_info, QMap)
     ADD_DEFINITIONS( /wd4512 )  # assignment operator could not be generated (sqlite3_index_info)
     ADD_DEFINITIONS( /wd4610 )  # user defined constructor required (sqlite3_index_info)
     ADD_DEFINITIONS( /wd4706 )  # assignment within conditional expression (pal)
+    ADD_DEFINITIONS( /wd4800 )  # 'int' : forcing value to bool 'true' or 'false' (performance warning)
   ELSE (MSVC)
     # add warnings via flags (not as definitions as on Mac -Wall can not be overridden per language )
     SET(_warnings "-Wall -Wextra -Wno-long-long -Wformat-security -Wno-strict-aliasing")
@@ -454,10 +449,6 @@ ELSE (WIN32)
     SET (CMAKE_INSTALL_NAME_DIR ${CMAKE_BINARY_DIR}/output/lib)
     IF (WITH_GLOBE)
       SET (OSG_PLUGINS_PATH "" CACHE PATH "Path to OSG plugins for bundling")
-      IF (QGIS_MACAPP_BUNDLE GREATER 0)
-        # ensure OSG plugins bundled path will be used by globe plugin
-        SET (HAVE_MACAPP_BUNDLED_OSG 1)
-      ENDIF (QGIS_MACAPP_BUNDLE GREATER 0)
     ENDIF (WITH_GLOBE)
     # recent cmakes force SDKs, recent SDKs don't have user symlinks
     # need to find non-system frameworks
@@ -513,6 +504,7 @@ ADD_DEFINITIONS("-DGUI_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DPYTHON_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DANALYSIS_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DAPP_EXPORT=${DLLIMPORT}")
+ADD_DEFINITIONS("-DCUSTOMWIDGETS_EXPORT=${DLLIMPORT}")
 
 #############################################################
 # user-changeable settings which can be used to customize
@@ -558,6 +550,7 @@ IF (UNIX AND NOT APPLE)
   SET (QGIS_MANUAL_DIR  ${CMAKE_INSTALL_PREFIX}/${QGIS_MANUAL_SUBDIR})
 ENDIF (UNIX AND NOT APPLE)
 
+
 #############################################################
 # Python bindings
 
@@ -583,12 +576,11 @@ IF (WITH_BINDINGS)
     SET(PYTHON_SITE_PACKAGES_DIR ${QGIS_DATA_DIR}/python)
   ENDIF (NOT BINDINGS_GLOBAL_INSTALL)
 
-ENDIF (WITH_BINDINGS)
+  IF (WITH_CUSTOM_WIDGETS)
+    SET(PYUIC_WIDGET_PLUGIN_DIRECTORY ${PYQT4_MOD_DIR}/uic/widget-plugins/)
+  ENDIF (WITH_CUSTOM_WIDGETS)
 
-# Set QSCINTILLA_VERSION_STR to that of module, if no headers found
-IF (NOT EXISTS QSCINTILLA_VERSION_STR AND EXISTS QSCI_MOD_VERSION_STR)
-  SET(QSCINTILLA_VERSION_STR ${QSCI_MOD_VERSION_STR})
-ENDIF (NOT EXISTS QSCINTILLA_VERSION_STR AND EXISTS QSCI_MOD_VERSION_STR)
+ENDIF (WITH_BINDINGS)
 
 #############################################################
 # create qgsconfig.h
@@ -689,10 +681,6 @@ IF (APPLE)
   EXECUTE_PROCESS(COMMAND /bin/mkdir -p "${QGIS_OUTPUT_DIRECTORY}/lib")
   EXECUTE_PROCESS(
     COMMAND /bin/ln -fs ../../Plugins/qgis/qgisgrass.framework lib/
-    WORKING_DIRECTORY "${QGIS_OUTPUT_DIRECTORY}"
-  )
-  EXECUTE_PROCESS(
-    COMMAND /bin/ln -fs ../../Plugins/qgis/qgissqlanyconnection.framework lib/
     WORKING_DIRECTORY "${QGIS_OUTPUT_DIRECTORY}"
   )
 ENDIF (APPLE)

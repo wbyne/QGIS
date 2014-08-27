@@ -29,10 +29,11 @@ class GUI_EXPORT QgsNewVectorLayerDialog: public QDialog, private Ui::QgsNewVect
 
   public:
 
-    // run the dialog, create the layer. Return file name if the creation was successful
+    // run the dialog, create the layer.
+    // @return fileName on success, empty string use aborted, QString::null if creation failed
     static QString runAndCreateLayer( QWidget* parent = 0, QString* enc = 0 );
 
-    QgsNewVectorLayerDialog( QWidget *parent = 0, Qt::WFlags fl = QgisGui::ModalDialogFlags );
+    QgsNewVectorLayerDialog( QWidget *parent = 0, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
     ~QgsNewVectorLayerDialog();
     /**Returns the selected geometry type*/
     QGis::WkbType selectedType() const;
@@ -40,12 +41,15 @@ class GUI_EXPORT QgsNewVectorLayerDialog: public QDialog, private Ui::QgsNewVect
     void attributes( QList< QPair<QString, QString> >& at ) const;
     /**Returns the file format for storage*/
     QString selectedFileFormat() const;
+    /**Returns the file format for storage*/
+    QString selectedFileEncoding() const;
     /**Returns the selected crs id*/
     int selectedCrsId() const;
 
   protected slots:
     void on_mAddAttributeButton_clicked();
     void on_mRemoveAttributeButton_clicked();
+    void on_mFileFormatComboBox_currentIndexChanged( int index );
     void on_mTypeBox_currentIndexChanged( int index );
     void on_pbnChangeSpatialRefSys_clicked();
     void on_buttonBox_helpRequested() { QgsContextHelp::run( metaObject()->className() ); }

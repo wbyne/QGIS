@@ -85,6 +85,9 @@ namespace pal
     // do not init and exit GEOS - we do it inside QGIS
     //initGEOS( geosNotice, geosError );
 
+    fnIsCancelled = 0;
+    fnIsCancelledContext = 0;
+
     layers = new QList<Layer*>();
 
     lyrsMutex = new SimpleMutex();
@@ -125,7 +128,7 @@ namespace pal
   Layer *Pal::getLayer( const char *lyrName )
   {
     lyrsMutex->lock();
-    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); it++ )
+    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
       if ( strcmp(( *it )->name, lyrName ) == 0 )
       {
         lyrsMutex->unlock();
@@ -178,7 +181,7 @@ namespace pal
     std::cout << "nbLayers:" << layers->size() << std::endl;
 #endif
 
-    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); it++ )
+    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
       if ( strcmp(( *it )->name, lyrName ) == 0 )   // if layer already known
       {
@@ -227,7 +230,7 @@ namespace pal
     FeatCallBackCtx *context = ( FeatCallBackCtx* ) ctx;
 
 #ifdef _EXPORT_MAP_
-    bool svged = false; // is the feature has been written into the svg map ?
+    bool svged = false; // is the feature has been written into the svg map?
     int dpi = context->layer->pal->getDpi();
 #endif
 
@@ -245,7 +248,7 @@ namespace pal
 
     // first do some checks whether to extract candidates or not
 
-    // feature has to be labeled ?
+    // feature has to be labeled?
     if ( !context->layer->toLabel )
       return true;
 
@@ -253,7 +256,7 @@ namespace pal
     if ( !context->layer->isScaleValid( context->scale ) )
       return true;
 
-    // is the feature well defined ? // TODO Check epsilon
+    // is the feature well defined?  TODO Check epsilon
     if ( ft_ptr->getLabelWidth() < 0.0000001 || ft_ptr->getLabelHeight() < 0.0000001 )
       return true;
 
@@ -316,6 +319,9 @@ namespace pal
     double scale = (( FilterContext* ) ctx )->scale;
     Pal* pal = (( FilterContext* )ctx )->pal;
 
+    if ( pal->isCancelled() )
+      return false; // do not continue searching
+
     double amin[2], amax[2];
     pset->getBoundingBox( amin, amax );
 
@@ -331,17 +337,17 @@ namespace pal
 
 
   /**
-  * \Brief Problem Factory
+  * \brief Problem Factory
   * Select features from user's choice layers within
   * a specific bounding box
-  * param nbLayers # wanted layers
-  * param layersFactor layers importance
-  * param layersName layers in problem
-  * param lambda_min west bbox
-  * param phi_min south bbox
-  * param lambda_max east bbox
-  * param phi_max north bbox
-  * param scale the scale
+  * @param nbLayers # wanted layers
+  * @param layersFactor layers importance
+  * @param layersName layers in problem
+  * @param lambda_min west bbox
+  * @param phi_min south bbox
+  * @param lambda_max east bbox
+  * @param phi_max north bbox
+  * @param scale the scale
   */
   Problem* Pal::extract( int nbLayers, char **layersName, double *layersFactor, double lambda_min, double phi_min, double lambda_max, double phi_max, double scale, std::ofstream *svgmap )
   {
@@ -408,7 +414,7 @@ namespace pal
     lyrsMutex->lock();
     for ( i = 0; i < nbLayers; i++ )
     {
-      for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); it++ ) // iterate on pal->layers
+      for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it ) // iterate on pal->layers
       {
         layer = *it;
         // Only select those who are active and labellable (with scale constraint) or those who are active and which must be treated as obstaclewhich must be treated as obstacle
@@ -422,6 +428,9 @@ namespace pal
             // check for connected features with the same label text and join them
             if ( layer->getMergeConnectedLines() )
               layer->joinConnectedFeatures();
+
+            layer->chopFeaturesAtRepeatDistance();
+
 
             context->layer = layer;
             context->priority = layersFactor[i];
@@ -509,6 +518,13 @@ namespace pal
     filterCtx.pal = this;
     obstacles->Search( amin, amax, filteringCallback, ( void* ) &filterCtx );
 
+    if ( isCancelled() )
+    {
+      delete fFeats;
+      delete prob;
+      delete obstacles;
+      return 0;
+    }
 
     int idlp = 0;
     for ( i = 0; i < prob->nbft; i++ ) /* foreach feature into prob */
@@ -580,6 +596,14 @@ namespace pal
     j = 0;
     while ( fFeats->size() > 0 ) // foreach feature
     {
+      if ( isCancelled() )
+      {
+        delete fFeats;
+        delete prob;
+        delete obstacles;
+        return 0;
+      }
+
       feat = fFeats->pop_front();
       for ( i = 0; i < feat->nblp; i++, idlp++ )  // foreach label candidate
       {
@@ -643,7 +667,7 @@ namespace pal
     double *priorities = new double[nbLayers];
     Layer *layer;
     i = 0;
-    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); it++ )
+    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
       layer = *it;
       layersName[i] = layer->name;
@@ -705,7 +729,7 @@ namespace pal
     t.start();
 
     // First, extract the problem
-    // TODO which is the minimum scale ? (> 0, >= 0, >= 1, >1 )
+    // TODO which is the minimum scale? (> 0, >= 0, >= 1, >1 )
     if ( scale < 1 || ( prob = extract( nbLayers, layersName, layersFactor, bbox[0], bbox[1], bbox[2], bbox[3], scale,
 #ifdef _EXPORT_MAP_
                                         & svgmap
@@ -798,6 +822,12 @@ namespace pal
     return solution;
   }
 
+  void Pal::registerCancellationCallback( Pal::FnIsCancelled fnCancelled, void *context )
+  {
+    fnIsCancelled = fnCancelled;
+    fnIsCancelledContext = context;
+  }
+
   Problem* Pal::extractProblem( double scale, double bbox[4] )
   {
     // find out: nbLayers, layersName, layersFactor
@@ -808,7 +838,7 @@ namespace pal
     double *priorities = new double[nbLayers];
     Layer *layer;
     int i = 0;
-    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); it++ )
+    for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
       layer = *it;
       layersName[i] = layer->name;

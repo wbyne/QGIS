@@ -14,7 +14,7 @@ class QgsGenericProjectionSelector : QDialog //, private Ui::QgsGenericProjectio
      * Constructor
      */
     QgsGenericProjectionSelector( QWidget *parent = 0,
-                                  Qt::WFlags fl = QgisGui::ModalDialogFlags );
+                                  Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
 
     //! Destructor
     ~QgsGenericProjectionSelector();
@@ -30,6 +30,8 @@ class QgsGenericProjectionSelector : QDialog //, private Ui::QgsGenericProjectio
     void setSelectedCrsName( QString theName );
     void setSelectedCrsId( long theID );
     void setSelectedAuthId( QString authId );
+
+    void on_buttonBox_helpRequested();
 
     /**
      * \brief filters this dialog by the given CRSs

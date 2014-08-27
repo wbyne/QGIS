@@ -73,10 +73,28 @@ QgsRubberBand::~QgsRubberBand()
   */
 void QgsRubberBand::setColor( const QColor & color )
 {
-  mPen.setColor( color );
+  setBorderColor( color );
+  setFillColor( color );
+}
+
+/*!
+  Set the fill color.
+  */
+void QgsRubberBand::setFillColor( const QColor & color )
+{
   QColor fillColor( color.red(), color.green(), color.blue(), color.alpha() );
   mBrush.setColor( fillColor );
 }
+
+/*!
+  Set the outline
+  */
+void QgsRubberBand::setBorderColor( const QColor & color )
+{
+  QColor penColor( color.red(), color.green(), color.blue(), color.alpha() );
+  mPen.setColor( penColor );
+}
+
 
 /*!
   Set the outline width.
@@ -236,6 +254,12 @@ void QgsRubberBand::movePoint( int index, const QgsPoint& p, int geometryIndex )
 
 void QgsRubberBand::setToGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
 {
+  if ( !geom )
+  {
+    reset( mGeometryType );
+    return;
+  }
+
   reset( geom->type() );
   addGeometry( geom, layer );
 }
@@ -248,11 +272,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
   }
 
   //maprender object of canvas
-  QgsMapRenderer* mr = mMapCanvas->mapRenderer();
-  if ( !mr )
-  {
-    return;
-  }
+  const QgsMapSettings& ms = mMapCanvas->mapSettings();
 
   int idx = mPoints.size();
 
@@ -265,7 +285,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
       QgsPoint pt;
       if ( layer )
       {
-        pt = mr->layerToMapCoordinates( layer, geom->asPoint() );
+        pt = ms.layerToMapCoordinates( layer, geom->asPoint() );
       }
       else
       {
@@ -285,7 +305,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
         QgsPoint pt = mpt[i];
         if ( layer )
         {
-          addPoint( mr->layerToMapCoordinates( layer, pt ), false, idx );
+          addPoint( ms.layerToMapCoordinates( layer, pt ), false, idx );
           removeLastPoint( idx , false );
         }
         else
@@ -305,7 +325,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
       {
         if ( layer )
         {
-          addPoint( mr->layerToMapCoordinates( layer, line[i] ), false, idx );
+          addPoint( ms.layerToMapCoordinates( layer, line[i] ), false, idx );
         }
         else
         {
@@ -333,7 +353,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
         {
           if ( layer )
           {
-            addPoint( mr->layerToMapCoordinates( layer, line[j] ), false, idx );
+            addPoint( ms.layerToMapCoordinates( layer, line[j] ), false, idx );
           }
           else
           {
@@ -353,7 +373,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
       {
         if ( layer )
         {
-          addPoint( mr->layerToMapCoordinates( layer, line[i] ), false, idx );
+          addPoint( ms.layerToMapCoordinates( layer, line[i] ), false, idx );
         }
         else
         {
@@ -376,7 +396,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
         {
           if ( layer )
           {
-            addPoint( mr->layerToMapCoordinates( layer, line[j] ), false, idx );
+            addPoint( ms.layerToMapCoordinates( layer, line[j] ), false, idx );
           }
           else
           {

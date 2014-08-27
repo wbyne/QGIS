@@ -11,7 +11,16 @@
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -24,37 +33,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="cboCategorizedColumn">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
+      <widget class="QgsFieldExpressionWidget" name="mExpressionWidget" native="true">
        <property name="maximumSize">
         <size>
-         <width>300</width>
+         <width>500</width>
          <height>16777215</height>
-        </size>
-       </property>
-       <property name="editable">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btnExpression">
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset resource="../../images/images.qrc">
-         <normaloff>:/images/themes/default/mIconExpressionEditorOpen.svg</normaloff>:/images/themes/default/mIconExpressionEditorOpen.svg</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>24</width>
-         <height>16</height>
         </size>
        </property>
       </widget>
@@ -113,6 +96,13 @@
          <horstretch>1</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cbxInvertedColorRamp">
+       <property name="text">
+        <string>Invert</string>
        </property>
       </widget>
      </item>
@@ -222,19 +212,23 @@
    <extends>QComboBox</extends>
    <header>qgscolorrampcombobox.h</header>
   </customwidget>
+  <customwidget>
+   <class>QgsFieldExpressionWidget</class>
+   <extends>QWidget</extends>
+   <header location="global">qgsfieldexpressionwidget.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>cboCategorizedColumn</tabstop>
   <tabstop>btnChangeCategorizedSymbol</tabstop>
   <tabstop>cboCategorizedColorRamp</tabstop>
+  <tabstop>cbxInvertedColorRamp</tabstop>
   <tabstop>viewCategories</tabstop>
   <tabstop>btnAddCategories</tabstop>
   <tabstop>btnDeleteCategories</tabstop>
   <tabstop>btnDeleteAllCategories</tabstop>
   <tabstop>btnJoinCategories</tabstop>
  </tabstops>
- <resources>
-  <include location="../../images/images.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

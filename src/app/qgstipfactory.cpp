@@ -41,7 +41,7 @@ QgsTipFactory::QgsTipFactory() : QObject()
   myTip.setTitle( tr( "QGIS Publications" ) );
   myTip.setContent( tr( "If you write a scientific paper or any other article"
                         " that refers to QGIS we would love to include your work"
-                        " in the <a href=\"http://www.qgis.org/en/community/qgis-case-studies.html\">case studies section</a> of"
+                        " in the <a href=\"http://qgis.org/en/site/about/case_studies/index.html\">case studies section</a> of"
                         " the QGIS home page."
                       ) );
   addGenericTip( myTip );
@@ -51,20 +51,20 @@ QgsTipFactory::QgsTipFactory() : QObject()
                         " and would appreciate your help! The translation process is"
                         " fairly straight forward - instructions are available in the"
                         " QGIS wiki"
-                        " <a href=\"http://www.qgis.org/wiki/GUI_Translation\">translator's page.</a>"
+                        " <a href=\"http://qgis.org/en/site/getinvolved/translate.html#howto-translate-gui\">translator's page.</a>"
                       ) );
   addGuiTip( myTip );
   myTip.setTitle( tr( "QGIS Mailing lists" ) );
   myTip.setContent( tr( "If you need help using QGIS"
-                        " we have a 'users'  mailing list where users help each other with issues"
+                        " we have a 'users' mailing list where users help each other with issues"
                         " related to using our sofware. We also have a 'developers' mailing list."
                         " for those wanting help and to discuss things relating to the QGIS code base."
-                        " Details on how to subscribe are in the <a href=\"http://www.qgis.org/en/community/mailing-lists.html\">community section</a> of"
+                        " Details on how to subscribe are in the <a href=\"http://qgis.org/en/site/forusers/support.html#mailing-lists\">community section</a> of"
                         " the QGIS home page."
                       ) );
   addGuiTip( myTip );
   myTip.setTitle( tr( "Is it 'QGIS' or 'Quantum GIS'?" ) );
-  myTip.setContent( tr( "Both used to be correct, but we recently decided to just use 'QGIS'.  For articles we suggest you write 'QGIS is ....'"
+  myTip.setContent( tr( "Both used to be correct, but we recently decided to just use 'QGIS'. For articles we suggest you write 'QGIS is ....'"
                       ) );
   addGenericTip( myTip );
   myTip.setTitle( tr( "How do I refer to QGIS?" ) );
@@ -177,7 +177,7 @@ QgsTipFactory::QgsTipFactory() : QObject()
                         " development of QGIS. We use money from sponsors to pay for"
                         " travel and costs related to our regular hackfest meetings, and to generally"
                         " support the goals of our project. Please see the <a"
-                        " href=\"http://qgis.org/en/sponsorship.html\">QGIS Sponsorship Web"
+                        " href=\"http://qgis.org/en/site/getinvolved/governance/sponsorship/sponsorship.html\">QGIS Sponsorship Web"
                         " Page</a> for more details."
                       ) );
   addGenericTip( myTip );

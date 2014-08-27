@@ -46,7 +46,8 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
     {
       MapUnits = 0,
       Meters,
-      Feet
+      Feet,
+      NauticalMiles
     };
 
     QgsComposerScaleBar( QgsComposition* composition );
@@ -75,17 +76,67 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
     void setUnitLabeling( const QString& label ) {mUnitLabeling = label;}
 
     QFont font() const;
-
-    QColor fontColor() const {return mFontColor;}
-    void setFontColor( const QColor& c ) {mFontColor = c;}
-
     void setFont( const QFont& font );
 
+    /**Returns the color used for drawing text in the scalebar.
+     * @returns font color for scalebar.
+     * @see setFontColor
+     * @see font
+    */
+    QColor fontColor() const {return mFontColor;}
+
+    /**Sets the color used for drawing text in the scalebar.
+     * @param c font color for scalebar.
+     * @see fontColor
+     * @see setFont
+    */
+    void setFontColor( const QColor& c ) {mFontColor = c;}
+
+    /**Returns the pen used for drawing the scalebar.
+     * @returns QPen used for drawing the scalebar outlines.
+     * @see setPen
+     * @see brush
+    */
     QPen pen() const {return mPen;}
+
+    /**Sets the pen used for drawing the scalebar.
+     * @param pen QPen to use for drawing the scalebar outlines.
+     * @see pen
+     * @see setBrush
+    */
     void setPen( const QPen& pen ) {mPen = pen;}
 
+    /**Returns the primary brush for the scalebar.
+     * @returns QBrush used for filling the scalebar
+     * @see setBrush
+     * @see brush2
+     * @see pen
+    */
     QBrush brush() const {return mBrush;}
+
+    /**Sets primary brush for the scalebar.
+     * @param brush QBrush to use for filling the scalebar
+     * @see brush
+     * @see setBrush2
+     * @see setPen
+    */
     void setBrush( const QBrush& brush ) {mBrush = brush;}
+
+    /**Returns the secondary brush for the scalebar. This is used for alternating color style scalebars, such
+     * as single and double box styles.
+     * @returns QBrush used for secondary color areas
+     * @see setBrush2
+     * @see brush
+    */
+    QBrush brush2() const {return mBrush2;}
+
+    /**Sets secondary brush for the scalebar. This is used for alternating color style scalebars, such
+     * as single and double box styles.
+     * @param brush QBrush to use for secondary color areas
+     * @see brush2
+     * @see setBrush
+    */
+    void setBrush2( const QBrush& brush ) {mBrush2 = brush;}
 
     double height() const {return mHeight;}
     void setHeight( double h ) {mHeight = h;}
@@ -114,11 +165,39 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
     /**@note: this method was added in version 1.9*/
     void setUnits( ScaleBarUnits u );
 
+    /** Returns the join style used for drawing lines in the scalebar
+     * @returns Join style for lines
+     * @note introduced in 2.3
+     * @see setLineJoinStyle
+     */
+    Qt::PenJoinStyle lineJoinStyle() const { return mLineJoinStyle; }
+    /** Sets join style used when drawing the lines in the scalebar
+     * @param style Join style for lines
+     * @returns nothing
+     * @note introduced in 2.3
+     * @see lineJoinStyle
+     */
+    void setLineJoinStyle( Qt::PenJoinStyle style );
+
+    /** Returns the cap style used for drawing lines in the scalebar
+     * @returns Cap style for lines
+     * @note introduced in 2.3
+     * @see setLineCapStyle
+     */
+    Qt::PenCapStyle lineCapStyle() const { return mLineCapStyle; }
+    /** Sets cap style used when drawing the lines in the scalebar
+     * @param style Cap style for lines
+     * @returns nothing
+     * @note introduced in 2.3
+     * @see lineCapStyle
+     */
+    void setLineCapStyle( Qt::PenCapStyle style );
+
     /**Apply default settings*/
     void applyDefaultSettings();
     /**Apply default size (scale bar 1/5 of map item width)
       @note this method was added in version 1.7*/
-    void applyDefaultSize();
+    void applyDefaultSize( ScaleBarUnits u = Meters );
 
     /**Sets style by name
      @param styleName (untranslated) style name. Possibilities are: 'Single Box', 'Double Box', 'Line Ticks Middle', 'Line Ticks Down', 'Line Ticks Up', 'Numeric'*/
@@ -128,7 +207,9 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
     QString style() const;
 
     /**Returns the x - positions of the segment borders (in item coordinates) and the width
-     of the segment*/
+     of the segment
+     @note python bindings not available on android
+     */
     void segmentPositions( QList<QPair<double, double> >& posWidthList ) const;
 
     /**Sets box size suitable to content*/
@@ -182,6 +263,8 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
     QPen mPen;
     /**Fill*/
     QBrush mBrush;
+    /**Secondary fill*/
+    QBrush mBrush2;
     /**Height of bars/lines*/
     double mHeight;
     /**Scalebar style*/
@@ -200,11 +283,15 @@ class CORE_EXPORT QgsComposerScaleBar: public QgsComposerItem
 
     ScaleBarUnits mUnits;
 
+    Qt::PenJoinStyle mLineJoinStyle;
+    Qt::PenCapStyle mLineCapStyle;
+
     /**Calculates with of a segment in mm and stores it in mSegmentMillimeters*/
     void refreshSegmentMillimeters();
 
-    /**Returns diagonal of composer map in selected units (map units / meters / feet)*/
+    /**Returns diagonal of composer map in selected units (map units / meters / feet / nautical miles)*/
     double mapWidth() const;
+
 };
 
 #endif //QGSCOMPOSERSCALEBAR_H

@@ -38,7 +38,7 @@ class APP_EXPORT QgsProjectProperties : public QgsOptionsDialogBase, private Ui:
 
   public:
     //! Constructor
-    QgsProjectProperties( QgsMapCanvas* mapCanvas, QWidget *parent = 0, Qt::WFlags fl = QgisGui::ModalDialogFlags );
+    QgsProjectProperties( QgsMapCanvas* mapCanvas, QWidget *parent = 0, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
 
     //! Destructor
     ~QgsProjectProperties();
@@ -116,6 +116,12 @@ class APP_EXPORT QgsProjectProperties : public QgsOptionsDialogBase, private Ui:
     void on_pbnWFSLayersUnselectAll_clicked();
 
     /*!
+     * Slots to select/unselect all the WCS layers
+     */
+    void on_pbnWCSLayersSelectAll_clicked();
+    void on_pbnWCSLayersUnselectAll_clicked();
+
+    /*!
      * Slots for Styles
      */
     void on_pbtnStyleManager_clicked();
@@ -142,6 +148,11 @@ class APP_EXPORT QgsProjectProperties : public QgsOptionsDialogBase, private Ui:
     void cbxWFSDeleteStateChanged( int aIdx );
 
     /*!
+     * Slot to link WCS checkboxes
+     */
+    void cbxWCSPubliedStateChanged( int aIdx );
+
+    /*!
       * If user changes the CRS, set the corresponding map units
       */
     void setMapUnitsToCurrentProjection();
@@ -151,6 +162,13 @@ class APP_EXPORT QgsProjectProperties : public QgsOptionsDialogBase, private Ui:
      * @note added in 2.0
      */
     void updateEllipsoidUI( int newIndex );
+
+    //! sets the right ellipsoid for measuring (from settings)
+    void projectionSelectorInitialized();
+
+    void on_mButtonAddColor_clicked();
+    void on_mButtonImportColors_clicked();
+    void on_mButtonExportColors_clicked();
 
   signals:
     //! Signal used to inform listeners that the mouse display precision may have changed

@@ -16,11 +16,12 @@
 #ifndef QGSFIELDSPROPERTIES_H
 #define QGSFIELDSPROPERTIES_H
 
-#include <QWidget>
-#include <QPushButton>
-#include <QTreeWidget>
-#include <QTableWidget>
 #include <QMimeData>
+#include <QPushButton>
+#include <QTableWidget>
+#include <QTreeWidget>
+#include <QWidget>
+
 
 #include "qgsvectorlayer.h"
 #include "ui_qgsfieldspropertiesbase.h"
@@ -125,14 +126,7 @@ class APP_EXPORT QgsFieldsProperties : public QWidget, private Ui_QgsFieldsPrope
         bool mEditable;
         bool mEditableEnabled;
         bool mLabelOnTop;
-        QgsVectorLayer::ValueRelationData mValueRelationData;
-        QMap<QString, QVariant> mValueMap;
-        QgsVectorLayer::RangeData mRange;
-        QPair<QString, QString> mCheckedState;
-        QgsVectorLayer::EditType mEditType;
         QPushButton* mButton;
-        QString mDateFormat;
-        QSize mWidgetSize;
         QString mEditorWidgetV2Type;
         QMap<QString, QVariant> mEditorWidgetV2Config;
     };
@@ -176,7 +170,6 @@ class APP_EXPORT QgsFieldsProperties : public QWidget, private Ui_QgsFieldsPrope
     void on_pbnSelectEditForm_clicked();
     void on_mEditorLayoutComboBox_currentIndexChanged( int index );
 
-    void addAttribute();
     void attributeAdded( int idx );
     void attributeDeleted( int idx );
     void attributeTypeDialog();
@@ -235,8 +228,6 @@ class APP_EXPORT QgsFieldsProperties : public QWidget, private Ui_QgsFieldsPrope
     static QMap< QgsVectorLayer::EditType, QString > editTypeMap;
     static void setupEditTypes();
     static QString editTypeButtonText( QgsVectorLayer::EditType type );
-    static QgsVectorLayer::EditType editTypeFromButton( QPushButton* btn );
-
 };
 
 QDataStream& operator<< ( QDataStream& stream, const QgsFieldsProperties::DesignerTreeItemData& data );

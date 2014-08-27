@@ -18,6 +18,7 @@
 #include "qgsfeaturerequest.h"
 #include "qgslogger.h"
 
+class QgsAbstractGeometrySimplifier;
 
 /** \ingroup core
  * Internal feature iterator to be implemented within data providers
@@ -39,7 +40,7 @@ class CORE_EXPORT QgsAbstractFeatureIterator
     //! end of iterating: free the resources / lock
     virtual bool close() = 0;
 
-  protected:    
+  protected:
     /**
      * If you write a feature iterator for your provider, this is the method you
      * need to implement!!
@@ -85,7 +86,50 @@ class CORE_EXPORT QgsAbstractFeatureIterator
     void ref(); //!< add reference
     void deref(); //!< remove reference, delete if refs == 0
     friend class QgsFeatureIterator;
+
+    //! Setup the simplification of geometries to fetch using the specified simplify method
+    virtual bool prepareSimplification( const QgsSimplifyMethod& simplifyMethod );
+
+  private:
+    //! optional object to locally simplify geometries fetched by this feature iterator
+    QgsAbstractGeometrySimplifier* mGeometrySimplifier;
+    //! this iterator runs local simplification
+    bool mLocalSimplification;
+
+    //! returns whether the iterator supports simplify geometries on provider side
+    virtual bool providerCanSimplify( QgsSimplifyMethod::MethodType methodType ) const;
+
+    //! simplify the specified geometry if it was configured
+    virtual bool simplify( QgsFeature& feature );
 };
+
+
+
+/** helper template that cares of two things: 1. automatic deletion of source if owned by iterator, 2. notification of open/closed iterator */
+template<typename T>
+class QgsAbstractFeatureIteratorFromSource : public QgsAbstractFeatureIterator
+{
+  public:
+    QgsAbstractFeatureIteratorFromSource( T* source, bool ownSource, const QgsFeatureRequest& request )
+        : QgsAbstractFeatureIterator( request ), mSource( source ), mOwnSource( ownSource )
+    {
+      mSource->iteratorOpened( this );
+    }
+
+    ~QgsAbstractFeatureIteratorFromSource()
+    {
+      if ( mOwnSource )
+        delete mSource;
+    }
+
+  protected:
+    //! to be called by from subclass in close()
+    void iteratorClosed() { mSource->iteratorClosed( this ); }
+
+    T* mSource;
+    bool mOwnSource;
+};
+
 
 
 /**

@@ -20,6 +20,7 @@
 //header for class being tested
 #include <qgsexpression.h>
 #include <qgsfeature.h>
+#include <qgsfeaturerequest.h>
 #include <qgsgeometry.h>
 #include <qgsrenderchecker.h>
 
@@ -222,6 +223,7 @@ class TestQgsExpression: public QObject
       QTest::newRow( "regexp 3" ) << "'hello' ~ 'llo$'" << false << QVariant( 1 );
 
       // concatenation
+      QTest::newRow( "concat with plus" ) << "'a' + 'b'" << false << QVariant( "ab" );
       QTest::newRow( "concat" ) << "'a' || 'b'" << false << QVariant( "ab" );
       QTest::newRow( "concat with int" ) << "'a' || 1" << false << QVariant( "a1" );
       QTest::newRow( "concat with int" ) << "2 || 'b'" << false << QVariant( "2b" );
@@ -308,13 +310,18 @@ class TestQgsExpression: public QObject
       QTest::newRow( "strpos outside" ) << "strpos('Hello World','blah')" << false << QVariant( -1 );
       QTest::newRow( "left" ) << "left('Hello World',5)" << false << QVariant( "Hello" );
       QTest::newRow( "right" ) << "right('Hello World', 5)" << false << QVariant( "World" );
-      QTest::newRow( "rpad" ) << "rpad('Hello', 10, 'x')" << false << QVariant( "xxxxxHello" );
+      QTest::newRow( "rpad" ) << "rpad('Hello', 10, 'x')" << false << QVariant( "Helloxxxxx" );
       QTest::newRow( "rpad truncate" ) << "rpad('Hello', 4, 'x')" << false << QVariant( "Hell" );
-      QTest::newRow( "lpad" ) << "lpad('Hello', 10, 'x')" << false << QVariant( "Helloxxxxx" );
+      QTest::newRow( "lpad" ) << "lpad('Hello', 10, 'x')" << false << QVariant( "xxxxxHello" );
       QTest::newRow( "lpad truncate" ) << "rpad('Hello', 4, 'x')" << false << QVariant( "Hell" );
       QTest::newRow( "title" ) << "title(' HeLlO   WORLD ')" << false << QVariant( " Hello   World " );
       QTest::newRow( "trim" ) << "trim('   Test String ')" << false << QVariant( "Test String" );
       QTest::newRow( "trim empty string" ) << "trim('')" << false << QVariant( "" );
+      QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',13)" << false << QVariant( "university of\nqgis" );
+      QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',13,' ')" << false << QVariant( "university of\nqgis" );
+      QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',-3)" << false << QVariant( "university\nof qgis" );
+      QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',-3,' ')" << false << QVariant( "university\nof qgis" );
+      QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis\nsupports many multiline',-5,' ')" << false << QVariant( "university\nof qgis\nsupports\nmany multiline" );
       QTest::newRow( "format" ) << "format('%1 %2 %3 %1', 'One', 'Two', 'Three')" << false << QVariant( "One Two Three One" );
 
       // implicit conversions
@@ -427,6 +434,18 @@ class TestQgsExpression: public QObject
       }
     }
 
+    void eval_precedence()
+    {
+      QgsExpression e0( "1+2*3" );
+      QCOMPARE( e0.evaluate().toInt(), 7 );
+
+      QgsExpression e1( "(1+2)*(3+4)" );
+      QCOMPARE( e1.evaluate().toInt(), 21 );
+
+      QgsExpression e2( e1.dump() );
+      QCOMPARE( e2.evaluate().toInt(), 21 );
+    }
+
     void eval_columns()
     {
       QgsFields fields;
@@ -486,6 +505,32 @@ class TestQgsExpression: public QObject
       QCOMPARE( v.toInt(), 200 );
     }
 
+    void eval_current_feature()
+    {
+      QgsFeature f( 100 );
+      QgsExpression exp( "$currentfeature" );
+      QVariant v = exp.evaluate( &f );
+      QgsFeature evalFeature = v.value<QgsFeature>();
+      QCOMPARE( evalFeature.id(), f.id() );
+    }
+
+    void eval_feature_attribute()
+    {
+      QgsFeature f( 100 );
+      QgsFields fields;
+      fields.append( QgsField( "col1" ) );
+      fields.append( QgsField( "second_column", QVariant::Int ) );
+      f.setFields( &fields, true );
+      f.setAttribute( QString( "col1" ), QString( "test value" ) );
+      f.setAttribute( QString( "second_column" ), 5 );
+      QgsExpression exp( "attribute($currentfeature,'col1')" );
+      QVariant v = exp.evaluate( &f );
+      QCOMPARE( v.toString(), QString( "test value" ) );
+      QgsExpression exp2( "attribute($currentfeature,'second'||'_column')" );
+      v = exp2.evaluate( &f );
+      QCOMPARE( v.toInt(), 5 );
+    }
+
     void eval_rand()
     {
       QgsExpression exp1( "rand(1,10)" );
@@ -533,6 +578,16 @@ class TestQgsExpression: public QObject
         refColsSet.insert( col.toLower() );
 
       QCOMPARE( refColsSet, expectedCols );
+    }
+
+    void referenced_columns_all_attributes()
+    {
+      QgsExpression exp( "attribute($currentfeature,'test')" );
+      QCOMPARE( exp.hasParserError(), false );
+      QStringList refCols = exp.referencedColumns();
+      // make sure we get the all attributes flag
+      bool allAttributesFlag = refCols.contains( QgsFeatureRequest::AllAttributes );
+      QCOMPARE( allAttributesFlag, true );
     }
 
     void needs_geometry_data()
@@ -610,7 +665,7 @@ class TestQgsExpression: public QObject
     {
       QgsPolyline polyline, polygon_ring;
       polyline << QgsPoint( 0, 0 ) << QgsPoint( 10, 0 );
-      polygon_ring << QgsPoint( 1, 1 ) << QgsPoint( 6, 1 ) << QgsPoint( 6, 6 ) << QgsPoint( 1, 6 ) << QgsPoint( 1, 1 );
+      polygon_ring << QgsPoint( 2, 1 ) << QgsPoint( 10, 1 ) << QgsPoint( 10, 6 ) << QgsPoint( 2, 6 ) << QgsPoint( 2, 1 );
       QgsPolygon polygon;
       polygon << polygon_ring;
       QgsFeature fPolygon, fPolyline;
@@ -619,7 +674,7 @@ class TestQgsExpression: public QObject
 
       QgsExpression exp1( "$area" );
       QVariant vArea = exp1.evaluate( &fPolygon );
-      QCOMPARE( vArea.toDouble(), 25. );
+      QCOMPARE( vArea.toDouble(), 40. );
 
       QgsExpression exp2( "$length" );
       QVariant vLength = exp2.evaluate( &fPolyline );
@@ -627,7 +682,31 @@ class TestQgsExpression: public QObject
 
       QgsExpression exp3( "$perimeter" );
       QVariant vPerimeter = exp3.evaluate( &fPolygon );
-      QCOMPARE( vPerimeter.toDouble(), 20. );
+      QCOMPARE( vPerimeter.toDouble(), 26. );
+
+      QgsExpression exp4( "bounds_width($geometry)" );
+      QVariant vBoundsWidth = exp4.evaluate( &fPolygon );
+      QCOMPARE( vBoundsWidth.toDouble(), 8.0 );
+
+      QgsExpression exp5( "bounds_height($geometry)" );
+      QVariant vBoundsHeight = exp5.evaluate( &fPolygon );
+      QCOMPARE( vBoundsHeight.toDouble(), 5.0 );
+
+      QgsExpression exp6( "xmin($geometry)" );
+      QVariant vXMin = exp6.evaluate( &fPolygon );
+      QCOMPARE( vXMin.toDouble(), 2.0 );
+
+      QgsExpression exp7( "xmax($geometry)" );
+      QVariant vXMax = exp7.evaluate( &fPolygon );
+      QCOMPARE( vXMax.toDouble(), 10.0 );
+
+      QgsExpression exp8( "ymin($geometry)" );
+      QVariant vYMin = exp8.evaluate( &fPolygon );
+      QCOMPARE( vYMin.toDouble(), 1.0 );
+
+      QgsExpression exp9( "ymax($geometry)" );
+      QVariant vYMax = exp9.evaluate( &fPolygon );
+      QCOMPARE( vYMax.toDouble(), 6.0 );
     }
 
     void eval_geometry_constructor_data()
@@ -786,6 +865,8 @@ class TestQgsExpression: public QObject
       QTest::newRow( "convexHull simple" ) << "convexHull( $geometry )" << ( void* ) geom << false << true << ( void* ) geom->convexHull();
       geom = QgsGeometry::fromPolygon( polygon );
       QTest::newRow( "convexHull multi" ) << "convexHull( geomFromWKT('GEOMETRYCOLLECTION(POINT(0 1), POINT(0 0), POINT(1 0), POINT(1 1))') )" << ( void* ) geom << false << false << ( void* ) QgsGeometry::fromWkt( "POLYGON ((0 0,0 1,1 1,1 0,0 0))" );
+      geom = QgsGeometry::fromPolygon( polygon );
+      QTest::newRow( "bounds" ) << "bounds( $geometry )" << ( void* ) geom << false << true << ( void* ) QgsGeometry::fromRect( geom->boundingBox() );
     }
 
     void eval_geometry_method()
@@ -837,6 +918,32 @@ class TestQgsExpression: public QObject
       QCOMPARE( v4, QVariant() );
 
       QgsExpression::unsetSpecialColumn( "$var1" );
+    }
+
+    void expression_from_expression_data()
+    {
+      QTest::addColumn<QString>( "string" );
+      QTest::newRow( "column ref" ) << "my_column";
+      QTest::newRow( "column ref with space" ) << "\"my column\"";
+      QTest::newRow( "string literal" ) << "'hello'";
+      QTest::newRow( "string with quote" ) << "'hel''lo'";
+    }
+
+    void expression_from_expression()
+    {
+      QFETCH( QString, string );
+
+      QgsExpression e( string );
+      QVERIFY( !e.hasParserError() );
+      qDebug() << e.expression();
+      QCOMPARE( e.expression() , QgsExpression( e.expression() ).expression() );
+    }
+
+    void quote_string()
+    {
+      QCOMPARE( QgsExpression::quotedString( "hello\nworld" ), QString( "'hello\\nworld'" ) );
+      QCOMPARE( QgsExpression::quotedString( "hello\tworld" ), QString( "'hello\\tworld'" ) );
+      QCOMPARE( QgsExpression::quotedString( "hello\\world" ), QString( "'hello\\\\world'" ) );
     }
 
 };

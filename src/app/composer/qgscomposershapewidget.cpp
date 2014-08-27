@@ -18,14 +18,23 @@
 #include "qgscomposershapewidget.h"
 #include "qgscomposershape.h"
 #include "qgscomposeritemwidget.h"
+#include "qgscomposition.h"
+#include "qgsstylev2.h"
+#include "qgssymbolv2selectordialog.h"
+#include "qgssymbollayerv2utils.h"
 #include <QColorDialog>
 
-QgsComposerShapeWidget::QgsComposerShapeWidget( QgsComposerShape* composerShape ): QWidget( 0 ), mComposerShape( composerShape )
+QgsComposerShapeWidget::QgsComposerShapeWidget( QgsComposerShape* composerShape ): QgsComposerItemBaseWidget( 0, composerShape ), mComposerShape( composerShape )
 {
   setupUi( this );
 
   //add widget for general composer item properties
   QgsComposerItemWidget* itemPropertiesWidget = new QgsComposerItemWidget( this, composerShape );
+
+  //shapes don't use background or frame, since the symbol style is set through a QgsSymbolV2SelectorDialog
+  itemPropertiesWidget->showBackgroundGroup( false );
+  itemPropertiesWidget->showFrameGroup( false );
+
   mainLayout->addWidget( itemPropertiesWidget );
 
   blockAllSignals( true );
@@ -53,8 +62,8 @@ QgsComposerShapeWidget::~QgsComposerShapeWidget()
 void QgsComposerShapeWidget::blockAllSignals( bool block )
 {
   mShapeComboBox->blockSignals( block );
-  mRotationSpinBox->blockSignals( block );
   mCornerRadiusSpinBox->blockSignals( block );
+  mShapeStyleButton->blockSignals( block );
 }
 
 void QgsComposerShapeWidget::setGuiElementValues()
@@ -66,7 +75,8 @@ void QgsComposerShapeWidget::setGuiElementValues()
 
   blockAllSignals( true );
 
-  mRotationSpinBox->setValue( mComposerShape->rotation() );
+  updateShapeStyle();
+
   mCornerRadiusSpinBox->setValue( mComposerShape->cornerRadius() );
   if ( mComposerShape->shapeType() == QgsComposerShape::Ellipse )
   {
@@ -87,14 +97,39 @@ void QgsComposerShapeWidget::setGuiElementValues()
   blockAllSignals( false );
 }
 
-void QgsComposerShapeWidget::on_mRotationSpinBox_valueChanged( int val )
+void QgsComposerShapeWidget::on_mShapeStyleButton_clicked()
+{
+  if ( !mComposerShape )
+  {
+    return;
+  }
+
+  // use the atlas coverage layer, if any
+  QgsVectorLayer* coverageLayer = atlasCoverageLayer();
+
+  QgsFillSymbolV2* newSymbol = dynamic_cast<QgsFillSymbolV2*>( mComposerShape->shapeStyleSymbol()->clone() );
+  QgsSymbolV2SelectorDialog d( newSymbol, QgsStyleV2::defaultStyle(), coverageLayer );
+
+  if ( d.exec() == QDialog::Accepted )
+  {
+    mComposerShape->beginCommand( tr( "Shape style changed" ) );
+    mComposerShape->setShapeStyleSymbol( newSymbol );
+    updateShapeStyle();
+    mComposerShape->endCommand();
+  }
+  else
+  {
+    delete newSymbol;
+  }
+}
+
+void QgsComposerShapeWidget::updateShapeStyle()
 {
   if ( mComposerShape )
   {
-    mComposerShape->beginCommand( tr( "Shape rotation changed" ), QgsComposerMergeCommand::ShapeRotation );
-    mComposerShape->setRotation( val );
-    mComposerShape->update();
-    mComposerShape->endCommand();
+    mComposerShape->refreshSymbol();
+    QIcon icon = QgsSymbolLayerV2Utils::symbolPreviewIcon( mComposerShape->shapeStyleSymbol(), mShapeStyleButton->iconSize() );
+    mShapeStyleButton->setIcon( icon );
   }
 }
 
@@ -102,7 +137,7 @@ void QgsComposerShapeWidget::on_mCornerRadiusSpinBox_valueChanged( double val )
 {
   if ( mComposerShape )
   {
-    mComposerShape->beginCommand( tr( "Shape radius changed" ), QgsComposerMergeCommand::ShapeRotation );
+    mComposerShape->beginCommand( tr( "Shape radius changed" ), QgsComposerMergeCommand::ShapeCornerRadius );
     mComposerShape->setCornerRadius( val );
     mComposerShape->update();
     mComposerShape->endCommand();

@@ -23,6 +23,9 @@
 #include "qgslogger.h"
 #include "qgsrasterblock.h"
 
+// See #9101 before any change of NODATA_COLOR!
+const QRgb QgsRasterBlock::mNoDataColor = qRgba( 0, 0, 0, 0 );
+
 QgsRasterBlock::QgsRasterBlock()
     : mValid( true )
     , mDataType( QGis::UnknownDataType )
@@ -299,7 +302,7 @@ QRgb QgsRasterBlock::color( qgssize index ) const
 
 QRgb QgsRasterBlock::color( int row, int column ) const
 {
-  if ( !mImage ) return qRgba( 255, 255, 255, 0 );
+  if ( !mImage ) return mNoDataColor;
 
   return mImage->pixel( column, row );
 }
@@ -464,7 +467,7 @@ bool QgsRasterBlock::setIsNoData()
       return false;
     }
     QgsDebugMsg( "Fill image" );
-    mImage->fill( qRgba( 0, 0, 0, 0 ) );
+    mImage->fill( mNoDataColor );
     return true;
   }
 }
@@ -595,7 +598,7 @@ bool QgsRasterBlock::setIsNoDataExcept( const QRect & theExceptRect )
       return false;
     }
 
-    QRgb nodataRgba = qRgba( 0, 0, 0, 0 );
+    QRgb nodataRgba = mNoDataColor;
     QRgb *nodataRow = new QRgb[mWidth]; // full row of no data
     int rgbSize = sizeof( QRgb );
     for ( int c = 0; c < mWidth; c ++ )
@@ -701,6 +704,20 @@ bool QgsRasterBlock::convert( QGis::DataType destDataType )
   }
 
   return true;
+}
+
+void QgsRasterBlock::applyScaleOffset( double scale, double offset )
+{
+  if ( isEmpty() ) return;
+  if ( !typeIsNumeric( mDataType ) ) return;
+  if ( scale == 1.0 && offset == 0.0 ) return;
+
+  qgssize size = ( qgssize ) mWidth * mHeight;
+  for ( qgssize i = 0; i < size; ++i )
+  {
+    if ( !isNoData( i ) ) setValue( i, value( i ) * scale + offset );
+  }
+  return;
 }
 
 void QgsRasterBlock::applyNoDataValues( const QgsRasterRangeList & rangeList )

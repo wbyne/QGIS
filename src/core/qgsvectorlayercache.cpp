@@ -22,6 +22,7 @@
 QgsVectorLayerCache::QgsVectorLayerCache( QgsVectorLayer* layer, int cacheSize, QObject* parent )
     : QObject( parent )
     , mLayer( layer )
+    , mFullCache( false )
 {
   mCache.setMaxCost( cacheSize );
 
@@ -36,6 +37,12 @@ QgsVectorLayerCache::QgsVectorLayerCache( QgsVectorLayer* layer, int cacheSize, 
   connect( mLayer, SIGNAL( attributeDeleted( int ) ), SLOT( attributeDeleted( int ) ) );
   connect( mLayer, SIGNAL( updatedFields() ), SLOT( updatedFields() ) );
   connect( mLayer, SIGNAL( attributeValueChanged( QgsFeatureId, int, const QVariant& ) ), SLOT( onAttributeValueChanged( QgsFeatureId, int, const QVariant& ) ) );
+}
+
+QgsVectorLayerCache::~QgsVectorLayerCache()
+{
+  qDeleteAll( mCacheIndices );
+  mCacheIndices.clear();
 }
 
 void QgsVectorLayerCache::setCacheSize( int cacheSize )
@@ -76,9 +83,9 @@ void QgsVectorLayerCache::setFullCache( bool fullCache )
     setCacheSize( mLayer->featureCount() + 100 );
 
     // Initialize the cache...
-    QgsFeatureIterator it ( new QgsCachedFeatureWriterIterator( this, QgsFeatureRequest()
-                                                            .setSubsetOfAttributes( mCachedAttributes )
-                                                            .setFlags( !mCacheGeometry ? QgsFeatureRequest::NoGeometry : QgsFeatureRequest::Flags( 0 ) ) ) );
+    QgsFeatureIterator it( new QgsCachedFeatureWriterIterator( this, QgsFeatureRequest()
+                           .setSubsetOfAttributes( mCachedAttributes )
+                           .setFlags( !mCacheGeometry ? QgsFeatureRequest::NoGeometry : QgsFeatureRequest::Flags( 0 ) ) ) );
 
     int i = 0;
 
@@ -177,7 +184,7 @@ void QgsVectorLayerCache::requestCompleted( QgsFeatureRequest featureRequest, Qg
 
 void QgsVectorLayerCache::featureRemoved( QgsFeatureId fid )
 {
-  foreach ( QgsAbstractCacheIndex* idx, mCacheIndices )
+  Q_FOREACH( QgsAbstractCacheIndex* idx, mCacheIndices )
   {
     idx->flushFeature( fid );
   }

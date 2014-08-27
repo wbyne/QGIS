@@ -24,8 +24,6 @@
 #include <QNetworkProxy>
 #include <QNetworkRequest>
 
-class QTimer;
-
 /*
  * \class QgsNetworkAccessManager
  * \brief network access manager for QGIS
@@ -52,10 +50,11 @@ class CORE_EXPORT QgsNetworkAccessManager : public QNetworkAccessManager
     // and creates that instance on the first call.
     static QgsNetworkAccessManager *instance();
 
+    QgsNetworkAccessManager( QObject *parent = 0 );
+
     //! destructor
     ~QgsNetworkAccessManager();
 
-#if QT_VERSION >= 0x40500
     //! insert a factory into the proxy factories list
     void insertProxyFactory( QNetworkProxyFactory *factory );
 
@@ -64,7 +63,6 @@ class CORE_EXPORT QgsNetworkAccessManager : public QNetworkAccessManager
 
     //! retrieve proxy factory list
     const QList<QNetworkProxyFactory *> proxyFactories() const;
-#endif
 
     //! retrieve fall back proxy (for urls that no factory returned proxies for)
     const QNetworkProxy &fallbackProxy() const;
@@ -81,27 +79,28 @@ class CORE_EXPORT QgsNetworkAccessManager : public QNetworkAccessManager
     //! Get QNetworkRequest::CacheLoadControl from name
     static QNetworkRequest::CacheLoadControl cacheLoadControlFromName( const QString &theName );
 
+    //! Setup the NAM according to the user's settings
+    void setupDefaultProxyAndCache();
+
+    bool useSystemProxy() { return mUseSystemProxy; }
+
   signals:
     void requestAboutToBeCreated( QNetworkAccessManager::Operation, const QNetworkRequest &, QIODevice * );
     void requestCreated( QNetworkReply * );
+    void requestTimedOut( QNetworkReply * );
 
   private slots:
-    void connectionProgress();
-    void connectionDestroyed( QObject* );
     void abortRequest();
 
   protected:
     virtual QNetworkReply *createRequest( QNetworkAccessManager::Operation op, const QNetworkRequest &req, QIODevice *outgoingData = 0 );
 
   private:
-    QgsNetworkAccessManager( QObject *parent = 0 );
-#if QT_VERSION >= 0x40500
     QList<QNetworkProxyFactory*> mProxyFactories;
-#endif
     QNetworkProxy mFallbackProxy;
     QStringList mExcludedURLs;
-
-    QMap<QNetworkReply*, QTimer*> mActiveRequests;
+    bool mUseSystemProxy;
 };
 
 #endif // QGSNETWORKACCESSMANAGER_H
+

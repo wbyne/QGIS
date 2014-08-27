@@ -1,4 +1,4 @@
-%Module(name=qgis.core,
+%Module(name=qgis._core,
         version=0,
         keyword_arguments="Optional")
 
@@ -16,6 +16,8 @@
 %Include qgsattributeaction.sip
 %Include qgsbrowsermodel.sip
 %Include qgsclipper.sip
+%Include qgscolorscheme.sip
+%Include qgscolorschemeregistry.sip
 %Include qgscontexthelp.sip
 %Include qgscoordinatereferencesystem.sip
 %Include qgscoordinatetransform.sip
@@ -25,6 +27,7 @@
 %Include qgsdataitem.sip
 %Include qgsdataprovider.sip
 %Include qgsdatasourceuri.sip
+%Include qgsdatumtransformstore.sip
 %Include qgsdbfilterproxymodel.sip
 %Include qgsdistancearea.sip
 %Include qgseditorwidgetconfig.sip
@@ -36,6 +39,8 @@
 %Include qgsfield.sip
 %Include qgsgeometry.sip
 %Include qgsgeometryvalidator.sip
+%Include qgsgeometrysimplifier.sip
+%Include qgsmaptopixelgeometrysimplifier.sip
 %Include qgsgml.sip
 %Include qgsgmlschema.sip
 %Include qgshttptransaction.sip
@@ -44,13 +49,23 @@
 %Include qgslabelsearchtree.sip
 %Include qgslogger.sip
 %Include qgsmaplayer.sip
+%Include qgsmaplayerlegend.sip
 %Include qgsmaplayerregistry.sip
+%Include qgsmaplayerrenderer.sip
 %Include qgsmaprenderer.sip
+%Include qgsmaprenderercache.sip
+%Include qgsmaprenderercustompainterjob.sip
+%Include qgsmaprendererjob.sip
+%Include qgsmaprendererparalleljob.sip
+%Include qgsmaprenderersequentialjob.sip
+%Include qgsmapsettings.sip
 %Include qgsmaptopixel.sip
+%Include qgsmapunitscale.sip
 %Include qgsmessagelog.sip
 %Include qgsmessageoutput.sip
 %Include qgsmimedatautils.sip
 %Include qgsnetworkaccessmanager.sip
+%Include qgsnetworkcontentfetcher.sip
 %Include qgsofflineediting.sip
 %Include qgsogcutils.sip
 %Include qgsowsconnection.sip
@@ -69,11 +84,13 @@
 %Include qgspythonrunner.sip
 %Include qgsrectangle.sip
 %Include qgsrelation.sip
+%Include qgsrelationmanager.sip
 %Include qgsrenderchecker.sip
 %Include qgsrendercontext.sip
 %Include qgsrunprocess.sip
 %Include qgsscalecalculator.sip
 %Include qgsscaleutils.sip
+%Include qgssimplifymethod.sip
 %Include qgssnapper.sip
 %Include qgsspatialindex.sip
 %Include qgstolerance.sip
@@ -85,6 +102,7 @@
 %Include qgsvectorlayerimport.sip
 %Include qgsvectorlayerjoinbuffer.sip
 %Include qgsvectorlayerundocommand.sip
+%Include qgsvectorsimplifymethod.sip
 %Include qgsfontutils.sip
 
 %Include qgscachedfeatureiterator.sip
@@ -100,8 +118,10 @@
 %Include composer/qgsaddremovemultiframecommand.sip
 %Include composer/qgscomposerarrow.sip
 %Include composer/qgscomposerattributetable.sip
+%Include composer/qgscomposerattributetablemodel.sip
 %Include composer/qgscomposerframe.sip
 %Include composer/qgscomposerhtml.sip
+%Include composer/qgscomposerobject.sip
 %Include composer/qgscomposeritem.sip
 %Include composer/qgscomposeritemcommand.sip
 %Include composer/qgscomposeritemgroup.sip
@@ -115,7 +135,10 @@
 %Include composer/qgscomposerscalebar.sip
 %Include composer/qgscomposershape.sip
 %Include composer/qgscomposertable.sip
+%Include composer/qgscomposertablecolumn.sip
+%Include composer/qgscomposerutils.sip
 %Include composer/qgscomposition.sip
+%Include composer/qgscomposermodel.sip
 %Include composer/qgsatlascomposition.sip
 %Include composer/qgsdoubleboxscalebarstyle.sip
 %Include composer/qgslegendmodel.sip
@@ -140,6 +163,13 @@
 %Include gps/qgsgpsdetector.sip
 %Include gps/qgsnmeaconnection.sip
 %Include gps/qgsqtlocationconnection.sip
+
+%Include layertree/qgslayertree.sip
+%Include layertree/qgslayertreegroup.sip
+%Include layertree/qgslayertreelayer.sip
+%Include layertree/qgslayertreenode.sip
+%Include layertree/qgslayertreeregistrybridge.sip
+%Include layertree/qgslayertreeutils.sip
 
 %Include raster/qgsraster.sip
 %Include raster/qgscliptominmaxenhancement.sip
@@ -194,6 +224,7 @@
 %Include symbology-ng/qgssinglesymbolrendererv2.sip
 %Include symbology-ng/qgspointdisplacementrenderer.sip
 %Include symbology-ng/qgsrulebasedrendererv2.sip
+%Include symbology-ng/qgsinvertedpolygonrenderer.sip
 %Include symbology-ng/qgsrendererv2.sip
 %Include symbology-ng/qgsrendererv2registry.sip
 
@@ -207,3 +238,5 @@
 %Include symbology-ng/qgssymbollayerv2registry.sip
 
 %Include symbology-ng/qgssymbologyv2conversion.sip
+
+%Include dxf/qgsdxfexport.sip

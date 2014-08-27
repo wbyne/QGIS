@@ -54,14 +54,8 @@ QgsStyleV2ManagerDialog::QgsStyleV2ManagerDialog( QgsStyleV2* style, QWidget* pa
   mSplitter->setSizes( QList<int>() << 170 << 540 );
   mSplitter->restoreState( settings.value( "/Windows/StyleV2Manager/splitter" ).toByteArray() );
 
-#if QT_VERSION >= 0x40500
   tabItemType->setDocumentMode( true );
-#endif
-#if QT_VERSION >= 0x40700
   searchBox->setPlaceholderText( tr( "Type here to filter symbols..." ) );
-#else
-  searchBox->setToolTip( tr( "Type here to filter symbols..." ) );
-#endif
 
   // setup icons
   btnAddItem->setIcon( QIcon( QgsApplication::iconPath( "symbologyAdd.png" ) ) );
@@ -761,7 +755,7 @@ void QgsStyleV2ManagerDialog::populateGroups()
   QStandardItemModel *model = qobject_cast<QStandardItemModel*>( groupTree->model() );
   model->clear();
 
-  QStandardItem *allSymbols = new QStandardItem( "All Symbols" );
+  QStandardItem *allSymbols = new QStandardItem( tr( "All Symbols" ) );
   allSymbols->setData( "all" );
   allSymbols->setEditable( false );
   setBold( allSymbols );
@@ -771,15 +765,15 @@ void QgsStyleV2ManagerDialog::populateGroups()
   group->setData( "groups" );
   group->setEditable( false );
   buildGroupTree( group );
-  group->setText( "Groups" );//set title later
-  QStandardItem *ungrouped = new QStandardItem( "Ungrouped" );
+  group->setText( tr( "Groups" ) );//set title later
+  QStandardItem *ungrouped = new QStandardItem( tr( "Ungrouped" ) );
   ungrouped->setData( 0 );
   setBold( ungrouped );
   setBold( group );
   group->appendRow( ungrouped );
   model->appendRow( group );
 
-  QStandardItem *tag = new QStandardItem( "Smart Groups" );
+  QStandardItem *tag = new QStandardItem( tr( "Smart Groups" ) );
   tag->setData( "smartgroups" );
   tag->setEditable( false );
   setBold( tag );

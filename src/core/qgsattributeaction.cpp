@@ -53,7 +53,7 @@ void QgsAttributeAction::removeAction( int index )
   }
 }
 
-void QgsAttributeAction::doAction( int index, QgsFeature &feat, int defaultValueIndex )
+void QgsAttributeAction::doAction( int index, const QgsFeature& feat, int defaultValueIndex )
 {
   QMap<QString, QVariant> substitutionMap;
   if ( defaultValueIndex >= 0 )
@@ -66,8 +66,7 @@ void QgsAttributeAction::doAction( int index, QgsFeature &feat, int defaultValue
   doAction( index, feat, &substitutionMap );
 }
 
-void QgsAttributeAction::doAction( int index, QgsFeature &feat,
-                                   const QMap<QString, QVariant> *substitutionMap )
+void QgsAttributeAction::doAction( int index, const QgsFeature &feat, const QMap<QString, QVariant> *substitutionMap )
 {
   if ( index < 0 || index >= size() )
     return;
@@ -149,7 +148,7 @@ QString QgsAttributeAction::expandAction( QString action, const QgsAttributeMap 
 
   for ( int i = 0; i < 4; i++ )
   {
-    for ( QgsAttributeMap::const_iterator it = attributes.begin(); it != attributes.end(); it++ )
+    for ( QgsAttributeMap::const_iterator it = attributes.begin(); it != attributes.end(); ++it )
     {
       int attrIdx = it.key();
       if ( attrIdx < 0 || attrIdx >= fields.count() )

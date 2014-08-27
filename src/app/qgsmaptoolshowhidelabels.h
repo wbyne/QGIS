@@ -53,9 +53,6 @@ class APP_EXPORT QgsMapToolShowHideLabels : public QgsMapToolLabel
 
   private:
 
-    //! Pointer to map renderer
-    QgsMapRenderer* mRender;
-
     //! Select valid labels to pin or unpin
     void showHideLabels( QMouseEvent * e );
 
@@ -69,7 +66,7 @@ class APP_EXPORT QgsMapToolShowHideLabels : public QgsMapToolLabel
 
     //! Show or hide chosen label by setting data defined Show Label to 0
     bool showHideLabel( QgsVectorLayer* vlayer,
-                        int fid,
+                        const QgsFeatureId &fid,
                         bool hide );
 };
 

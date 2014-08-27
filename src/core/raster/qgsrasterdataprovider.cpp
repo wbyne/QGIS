@@ -208,6 +208,8 @@ QgsRasterBlock * QgsRasterDataProvider::block( int theBandNo, QgsRectangle  cons
     readBlock( theBandNo, theExtent, theWidth, theHeight, block->bits() );
   }
 
+  // apply scale and offset
+  block->applyScaleOffset( bandScale( theBandNo ), bandOffset( theBandNo ) );
   // apply user no data values
   block->applyNoDataValues( userNoDataValues( theBandNo ) );
   return block;
@@ -509,6 +511,16 @@ bool QgsRasterDataProvider::userNoDataValuesContains( int bandNo, double value )
 {
   QgsRasterRangeList rangeList = mUserNoDataValue.value( bandNo - 1 );
   return QgsRasterRange::contains( value, rangeList );
+}
+
+void QgsRasterDataProvider::copyBaseSettings( const QgsRasterDataProvider& other )
+{
+  mDpi = other.mDpi;
+  mSrcNoDataValue = other.mSrcNoDataValue;
+  mSrcHasNoDataValue = other.mSrcHasNoDataValue;
+  mUseSrcNoDataValue = other.mUseSrcNoDataValue;
+  mUserNoDataValue = other.mUserNoDataValue;
+  mExtent = other.mExtent;
 }
 
 // ENDS

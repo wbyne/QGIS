@@ -23,6 +23,7 @@
 #include <QMenu>
 #include <QFile>
 #include <QTextStream>
+#include <QSettings>
 
 QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
     : QWidget( parent )
@@ -30,9 +31,8 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
   setupUi( this );
 
   mValueGroupBox->hide();
-  btnLoadAll->hide();
-  btnLoadSample->hide();
-  highlighter = new QgsExpressionHighlighter( txtExpressionString->document() );
+  mLoadGroupBox->hide();
+//  highlighter = new QgsExpressionHighlighter( txtExpressionString->document() );
 
   mModel = new QStandardItemModel( );
   mProxyModel = new QgsExpressionItemSearchProxy();
@@ -104,15 +104,19 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
     registerItem( specials[i]->group(), name, " " + name + " " );
   }
 
-#if QT_VERSION >= 0x040700
   txtSearchEdit->setPlaceholderText( tr( "Search" ) );
-#endif
+
+  QSettings settings;
+  splitter->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter" ).toByteArray() );
+  splitter_2->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter2" ).toByteArray() );
 }
 
 
 QgsExpressionBuilderWidget::~QgsExpressionBuilderWidget()
 {
-
+  QSettings settings;
+  settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter", splitter->saveState() );
+  settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter2", splitter_2->saveState() );
 }
 
 void QgsExpressionBuilderWidget::setLayer( QgsVectorLayer *layer )
@@ -133,8 +137,7 @@ void QgsExpressionBuilderWidget::currentChanged( const QModelIndex &index, const
     mValueListWidget->clear();
   }
 
-  btnLoadAll->setVisible( item->getItemType() == QgsExpressionItem::Field && mLayer );
-  btnLoadSample->setVisible( item->getItemType() == QgsExpressionItem::Field && mLayer );
+  mLoadGroupBox->setVisible( item->getItemType() == QgsExpressionItem::Field && mLayer );
   mValueGroupBox->setVisible( item->getItemType() == QgsExpressionItem::Field && mLayer );
 
   // Show the help for the current item.
@@ -155,7 +158,7 @@ void QgsExpressionBuilderWidget::on_expressionTree_doubleClicked( const QModelIn
     return;
 
   // Insert the expression text.
-  txtExpressionString->insertPlainText( item->getExpressionText() );
+  txtExpressionString->insert( item->getExpressionText() );
   txtExpressionString->setFocus();
 }
 
@@ -182,7 +185,7 @@ void QgsExpressionBuilderWidget::loadFieldNames( const QgsFields& fields )
     fieldNames << fieldName;
     registerItem( "Fields and Values", fieldName, " \"" + fieldName + "\" ", "", QgsExpressionItem::Field );
   }
-  highlighter->addFields( fieldNames );
+//  highlighter->addFields( fieldNames );
 }
 
 void QgsExpressionBuilderWidget::fillFieldValues( int fieldIndex, int countLimit )
@@ -243,6 +246,42 @@ bool QgsExpressionBuilderWidget::isExpressionValid()
   return mExpressionValid;
 }
 
+void QgsExpressionBuilderWidget::saveToRecent( QString key )
+{
+  QSettings settings;
+  QString location = QString( "/expressions/recent/%1" ).arg( key );
+  QStringList expressions = settings.value( location ).toStringList();
+  expressions.removeAll( this->expressionText() );
+
+  expressions.prepend( this->expressionText() );
+
+  while ( expressions.count() > 20 )
+  {
+    expressions.pop_back();
+  }
+
+  settings.setValue( location, expressions );
+  this->loadRecent( key );
+}
+
+void QgsExpressionBuilderWidget::loadRecent( QString key )
+{
+  QString name = tr( "Recent (%1)" ).arg( key );
+  if ( mExpressionGroups.contains( name ) )
+  {
+    QgsExpressionItem* node = mExpressionGroups.value( name );
+    node->removeRows( 0, node->rowCount() );
+  }
+
+  QSettings settings;
+  QString location = QString( "/expressions/recent/%1" ).arg( key );
+  QStringList expressions = settings.value( location ).toStringList();
+  foreach ( QString expression, expressions )
+  {
+    this->registerItem( name, expression, expression, expression );
+  }
+}
+
 void QgsExpressionBuilderWidget::setGeomCalculator( const QgsDistanceArea & da )
 {
   mDa = da;
@@ -250,17 +289,17 @@ void QgsExpressionBuilderWidget::setGeomCalculator( const QgsDistanceArea & da )
 
 QString QgsExpressionBuilderWidget::expressionText()
 {
-  return txtExpressionString->toPlainText();
+  return txtExpressionString->text();
 }
 
 void QgsExpressionBuilderWidget::setExpressionText( const QString& expression )
 {
-  txtExpressionString->setPlainText( expression );
+  txtExpressionString->setText( expression );
 }
 
 void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
 {
-  QString text = txtExpressionString->toPlainText();
+  QString text = txtExpressionString->text();
 
   // If the string is empty the expression will still "fail" although
   // we don't show the user an error as it will be confusing.
@@ -285,7 +324,7 @@ void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
 
     if ( !mFeature.isValid() )
     {
-      mLayer->getFeatures( QgsFeatureRequest().setFlags(( mLayer->geometryType() != QGis::NoGeometry && exp.needsGeometry() ) ? QgsFeatureRequest::NoFlags : QgsFeatureRequest::NoGeometry ) ).nextFeature( mFeature );
+      mLayer->getFeatures().nextFeature( mFeature );
     }
 
     if ( mFeature.isValid() )
@@ -353,14 +392,14 @@ void QgsExpressionBuilderWidget::on_lblPreview_linkActivated( QString link )
 
 void QgsExpressionBuilderWidget::on_mValueListWidget_itemDoubleClicked( QListWidgetItem *item )
 {
-  txtExpressionString->insertPlainText( " " + item->text() + " " );
+  txtExpressionString->insert( " " + item->text() + " " );
   txtExpressionString->setFocus();
 }
 
 void QgsExpressionBuilderWidget::operatorButtonClicked()
 {
   QPushButton* button = dynamic_cast<QPushButton*>( sender() );
-  txtExpressionString->insertPlainText( " " + button->text() + " " );
+  txtExpressionString->insert( " " + button->text() + " " );
   txtExpressionString->setFocus();
 }
 

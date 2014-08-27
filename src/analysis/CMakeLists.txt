@@ -34,7 +34,10 @@ SET(QGIS_ANALYSIS_SRCS
   raster/qgsrastercalcnode.cpp
   raster/qgsrastercalculator.cpp
   raster/qgsrastermatrix.cpp
+  vector/mersenne-twister.cpp
   vector/qgsgeometryanalyzer.cpp
+  vector/qgspointsample.cpp
+  vector/qgstransectsample.cpp
   vector/qgszonalstatistics.cpp
   vector/qgsoverlayanalyzer.cpp
 
@@ -130,7 +133,7 @@ SET(QGIS_ANALYSIS_HDRS
 )
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR} 
+  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/raster
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/symbology-ng

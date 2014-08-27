@@ -24,10 +24,6 @@
 
 class QgisApp;
 
-#ifdef _MSC_VER
-#  pragma warning( push )
-#  pragma warning( disable: 4996 )  // declared deprecated
-#endif
 
 /** \class QgisAppInterface
  * \brief Interface class to provide access to private methods in QgisApp
@@ -36,6 +32,7 @@ class QgisApp;
  * Only those functions "exposed" by QgisInterface can be called from within a
  * plugin.
  */
+Q_NOWARN_DEPRECATED_PUSH
 class APP_EXPORT QgisAppInterface : public QgisInterface
 {
     Q_OBJECT
@@ -51,6 +48,8 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
     QgsLegendInterface* legendInterface();
 
     QgsPluginManagerInterface* pluginManagerInterface();
+
+    QgsLayerTreeView* layerTreeView();
 
     /* Exposed functions */
 
@@ -150,6 +149,10 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
     //! Add toolbar with specified name
     QToolBar* addToolBar( QString name );
 
+    //! Add a toolbar
+    //! @note added in 2.3
+    void addToolBar( QToolBar* toolbar, Qt::ToolBarArea area = Qt::TopToolBarArea );
+
     /** Open a url in the users browser. By default the QGIS doc directory is used
      * as the base for the URL. To open a URL that is not relative to the installed
      * QGIS documentation, set useQgisDocDirectory to false.
@@ -157,6 +160,9 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
      * @param useQgisDocDirectory If true, the URL will be formed by concatenating
      * url to the QGIS documentation directory path (<prefix>/share/doc)
      */
+#ifndef Q_MOC_RUN
+    Q_DECL_DEPRECATED
+#endif
     void openURL( QString url, bool useQgisDocDirectory = true );
 
     /** Return a pointer to the map canvas used by qgisapp */
@@ -171,8 +177,10 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
 
     QgsMessageBar * messageBar();
 
+    // ### QGIS 3: return QgsComposer*, not QgsComposerView*
     QList<QgsComposerView*> activeComposers();
 
+    // ### QGIS 3: return QgsComposer*, not QgsComposerView*
     /** Create a new composer
      * @param title window title for new composer (one will be generated if empty)
      * @return pointer to composer's view
@@ -180,6 +188,7 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
      */
     QgsComposerView* createNewComposer( QString title = QString( "" ) );
 
+    // ### QGIS 3: return QgsComposer*, not QgsComposerView*
     /** Duplicate an existing parent composer from composer view
      * @param composerView pointer to existing composer view
      * @param title window title for duplicated composer (one will be generated if empty)
@@ -425,13 +434,14 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
 
     /**
      * Open feature form
-     * returns true when dialog was accepted
+     * returns true when dialog was accepted (if shown modal, true otherwise)
      * @param l vector layer
      * @param f feature to show/modify
-     * @param updateFeatureOnly only update the feature update (don't change any attributes of the layer)
+     * @param updateFeatureOnly only update the feature update (don't change any attributes of the layer) [UNUSED]
+     * @param showModal if true, will wait for the dialog to be executed (only shown otherwise)
      * @note added in 1.6
      */
-    virtual bool openFeatureForm( QgsVectorLayer *l, QgsFeature &f, bool updateFeatureOnly = false );
+    virtual bool openFeatureForm( QgsVectorLayer *l, QgsFeature &f, bool updateFeatureOnly = false , bool showModal = true );
 
     /**
      * Returns a feature form for a given feature
@@ -441,7 +451,7 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
      *
      * @return A feature form
      */
-    virtual QDialog* getFeatureForm( QgsVectorLayer *layer, QgsFeature &feature );
+    virtual QgsAttributeDialog* getFeatureForm( QgsVectorLayer *layer, QgsFeature &feature );
 
     /**
      * Access the vector layer tools instance.
@@ -503,9 +513,6 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
     //! Pointer to the PluginManagerInterface object
     QgsAppPluginManagerInterface pluginManagerIface;
 };
-
-#ifdef _MSC_VER
-#  pragma warning( pop )
-#endif
+Q_NOWARN_DEPRECATED_POP
 
 #endif //#define QGISAPPINTERFACE_H

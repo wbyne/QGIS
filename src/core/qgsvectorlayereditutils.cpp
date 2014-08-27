@@ -34,7 +34,14 @@ bool QgsVectorLayerEditUtils::insertVertex( double x, double y, QgsFeatureId atF
 
   QgsGeometry geometry;
   if ( !cache()->geometry( atFeatureId, geometry ) )
-    return false;   // TODO: support also uncached geometries
+  {
+    // it's not in cache: let's fetch it from layer
+    QgsFeature f;
+    if ( !L->getFeatures( QgsFeatureRequest().setFilterFid( atFeatureId ).setSubsetOfAttributes( QgsAttributeList() ) ).nextFeature( f ) || !f.geometry() )
+      return false; // geometry not found
+
+    geometry = *f.geometry();
+  }
 
   geometry.insertVertex( x, y, beforeVertex );
 
@@ -50,7 +57,14 @@ bool QgsVectorLayerEditUtils::moveVertex( double x, double y, QgsFeatureId atFea
 
   QgsGeometry geometry;
   if ( !cache()->geometry( atFeatureId, geometry ) )
-    return false;   // TODO: support also uncached geometries
+  {
+    // it's not in cache: let's fetch it from layer
+    QgsFeature f;
+    if ( !L->getFeatures( QgsFeatureRequest().setFilterFid( atFeatureId ).setSubsetOfAttributes( QgsAttributeList() ) ).nextFeature( f ) || !f.geometry() )
+      return false; // geometry not found
+
+    geometry = *f.geometry();
+  }
 
   geometry.moveVertex( x, y, atVertex );
 
@@ -66,7 +80,14 @@ bool QgsVectorLayerEditUtils::deleteVertex( QgsFeatureId atFeatureId, int atVert
 
   QgsGeometry geometry;
   if ( !cache()->geometry( atFeatureId, geometry ) )
-    return false;   // TODO: support also uncached geometries
+  {
+    // it's not in cache: let's fetch it from layer
+    QgsFeature f;
+    if ( !L->getFeatures( QgsFeatureRequest().setFilterFid( atFeatureId ).setSubsetOfAttributes( QgsAttributeList() ) ).nextFeature( f ) || !f.geometry() )
+      return false; // geometry not found
+
+    geometry = *f.geometry();
+  }
 
   if ( !geometry.deleteVertex( atVertex ) )
     return false;
@@ -211,7 +232,14 @@ int QgsVectorLayerEditUtils::splitFeatures( const QList<QgsPoint>& splitLine, bo
       }
       else
       {
-        return 2;
+        //If we have a single point, we still create a non-null box
+        double bufferDistance = 0.000001;
+        if ( L->crs().geographicFlag() )
+          bufferDistance = 0.00000001;
+        bBox.setXMinimum( bBox.xMinimum() - bufferDistance );
+        bBox.setXMaximum( bBox.xMaximum() + bufferDistance );
+        bBox.setYMinimum( bBox.yMinimum() - bufferDistance );
+        bBox.setYMaximum( bBox.yMaximum() + bufferDistance );
       }
     }
 
@@ -341,7 +369,14 @@ int QgsVectorLayerEditUtils::splitParts( const QList<QgsPoint>& splitLine, bool 
       }
       else
       {
-        return 2;
+        //If we have a single point, we still create a non-null box
+        double bufferDistance = 0.000001;
+        if ( L->crs().geographicFlag() )
+          bufferDistance = 0.00000001;
+        bBox.setXMinimum( bBox.xMinimum() - bufferDistance );
+        bBox.setXMaximum( bBox.xMaximum() + bufferDistance );
+        bBox.setYMinimum( bBox.yMinimum() - bufferDistance );
+        bBox.setYMaximum( bBox.yMaximum() + bufferDistance );
       }
     }
 

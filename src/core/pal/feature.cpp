@@ -65,6 +65,8 @@ namespace pal
       : layer( l ), userGeom( userG ), label_x( lx ), label_y( ly ), distlabel( 0 ), labelInfo( NULL ), fixedPos( false ),
       quadOffset( false ), offsetPos( false ), fixedRotation( false ), alwaysShow( false )
   {
+    assert( finite( lx ) && finite( ly ) );
+
     uid = new char[strlen( geom_id ) +1];
     strcpy( uid, geom_id );
   }
@@ -380,10 +382,12 @@ namespace pal
     //if (nbp==2)
     //   beta = M_PI/2;
 
-    /*double distlabel =  unit_convert( this->distlabel,
-                                     pal::PIXEL,
-                                     layer->pal->map_unit,
-                                     dpi, scale, delta_width );*/
+#if 0
+    double distlabel =  unit_convert( this->distlabel,
+                                      pal::PIXEL,
+                                      layer->pal->map_unit,
+                                      dpi, scale, delta_width );
+#endif
 
     double lx, ly; /* label pos */
 
@@ -483,7 +487,7 @@ namespace pal
       if ( nbp == 1 )
         cost = 0.0001;
       else
-        cost =  0.0001 + 0.0020 * double( icost ) / double( nbp - 1 );
+        cost = 0.0001 + 0.0020 * double( icost ) / double( nbp - 1 );
 
       ( *lPos )[i] = new LabelPosition( i, lx, ly, xrm, yrm, angle, cost,  this );
 
@@ -527,10 +531,12 @@ namespace pal
                         dpi, scale, delta_width );
 
 
-    /*double distlabel = unit_convert( this->distlabel,
+#if 0
+    double distlabel = unit_convert( this->distlabel,
                                      pal::PIXEL,
                                      layer->pal->map_unit,
-                                     dpi, scale, delta_width );*/
+                                     dpi, scale, delta_width );
+#endif
 
 
     double *d; // segments lengths distance bw pt[i] && pt[i+1]
@@ -892,7 +898,6 @@ namespace pal
       {
         orientation = -orientation;
         delete slp;
-        slp = NULL;
         slp = curvedPlacementAtOffset( path_positions, path_distances, orientation, initial_index, initial_distance );
       }
       else
@@ -1343,7 +1348,7 @@ namespace pal
             case P_POINT:
             case P_POINT_OVER:
               double cx, cy;
-              mapShape->getCentroid( cx, cy );
+              mapShape->getCentroid( cx, cy, f->layer->getCentroidInside() );
               if ( f->layer->getArrangement() == P_POINT_OVER )
                 nbp = setPositionOverPoint( cx, cy, scale, lPos, delta, angle );
               else

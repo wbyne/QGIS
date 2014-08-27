@@ -20,6 +20,7 @@
 #include "qgsfeature.h"
 #include "qgsrectangle.h"
 #include "qgsexpression.h"
+#include "qgssimplifymethod.h"
 
 #include <QList>
 typedef QList<int> QgsAttributeList;
@@ -36,6 +37,7 @@ typedef QList<int> QgsAttributeList;
  * For efficiency, it is also possible to tell provider that some data is not required:
  * - NoGeometry flag
  * - SubsetOfAttributes flag
+ * - SimplifyMethod for geometries to fetch
  *
  * The options may be chained, e.g.:
  *   QgsFeatureRequest().setFilterRect(QgsRectangle(0,0,1,1)).setFlags(QgsFeatureRequest::ExactIntersect)
@@ -71,8 +73,10 @@ class CORE_EXPORT QgsFeatureRequest
       FilterRect,       //!< Filter using a rectangle, no need to set NoGeometry
       FilterFid,        //!< Filter using feature ID
       FilterExpression, //!< Filter using expression
-      FilterFids        //!< Filter using feature ID's
+      FilterFids        //!< Filter using feature IDs
     };
+
+    static const QString AllAttributes;
 
     //! construct a default request: for all features get attributes and geometries
     QgsFeatureRequest();
@@ -120,6 +124,13 @@ class CORE_EXPORT QgsFeatureRequest
     //! Set a subset of attributes by names that will be fetched
     QgsFeatureRequest& setSubsetOfAttributes( const QStringList& attrNames, const QgsFields& fields );
 
+    //! Set a simplification method for geometries that will be fetched
+    //! @note added in 2.2
+    QgsFeatureRequest& setSimplifyMethod( const QgsSimplifyMethod& simplifyMethod );
+    //! Get simplification method for geometries that will be fetched
+    //! @note added in 2.2
+    const QgsSimplifyMethod& simplifyMethod() const { return mSimplifyMethod; }
+
     /**
      * Check if a feature is accepted by this requests filter
      *
@@ -143,9 +154,32 @@ class CORE_EXPORT QgsFeatureRequest
     QgsExpression* mFilterExpression;
     Flags mFlags;
     QgsAttributeList mAttrs;
+    QgsSimplifyMethod mSimplifyMethod;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS( QgsFeatureRequest::Flags )
 
+
+class QgsFeatureIterator;
+class QgsAbstractFeatureIterator;
+
+/** base class that can be used for any class that is capable of returning features
+ * @note added in 2.4
+ */
+class CORE_EXPORT QgsAbstractFeatureSource
+{
+  public:
+    virtual ~QgsAbstractFeatureSource();
+
+    virtual QgsFeatureIterator getFeatures( const QgsFeatureRequest& request ) = 0;
+
+  protected:
+    void iteratorOpened( QgsAbstractFeatureIterator* it );
+    void iteratorClosed( QgsAbstractFeatureIterator* it );
+
+    QSet< QgsAbstractFeatureIterator* > mActiveIterators;
+
+    template<typename> friend class QgsAbstractFeatureIteratorFromSource;
+};
 
 #endif // QGSFEATUREREQUEST_H

@@ -31,7 +31,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from processing.core.ProcessingConfig import ProcessingConfig
-
+from processing.core.Processing import Processing
 from processing.ui.ui_DlgConfig import Ui_DlgConfig
 
 import processing.resources_rc
@@ -123,6 +123,8 @@ class ConfigDialog(QDialog, Ui_DlgConfig):
                     self.items[setting] = SettingItem(setting)
                     groupItem.insertRow(0, [labelItem, self.items[setting]])
 
+            emptyItem = QStandardItem()
+            emptyItem.setEditable(False)
             providersItem.appendRow([groupItem, emptyItem])
 
         self.tree.sortByColumn(0, Qt.AscendingOrder)
@@ -133,7 +135,7 @@ class ConfigDialog(QDialog, Ui_DlgConfig):
             if isinstance(setting.value, bool):
                 setting.value = self.items[setting].checkState() == Qt.Checked
             elif isinstance(setting.value, (float, int, long)):
-                value = str(self.items[setting].text())
+                value = unicode(self.items[setting].text())
                 try:
                     value = float(value)
                     setting.value = value
@@ -142,10 +144,9 @@ class ConfigDialog(QDialog, Ui_DlgConfig):
                             self.tr('Wrong parameter value:\n%1').arg(value))
                     return
             else:
-                setting.value = str(self.items[setting].text())
-            ProcessingConfig.addSetting(setting)
-        ProcessingConfig.saveSettings()
-        self.toolbox.updateTree()
+                setting.value = unicode(self.items[setting].text())
+            setting.save()
+        Processing.updateAlgsList()
 
         QDialog.accept(self)
 
@@ -275,6 +276,7 @@ class FileDirectorySelector(QWidget):
             return
 
         self.lineEdit.setText(selectedPath)
+        self.canFocusOut = True
 
     def text(self):
         return self.lineEdit.text()

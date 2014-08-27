@@ -127,6 +127,15 @@ QgsCoordinateTransform::~QgsCoordinateTransform()
   }
 }
 
+QgsCoordinateTransform* QgsCoordinateTransform::clone() const
+{
+  QgsCoordinateTransform* tr = new QgsCoordinateTransform( sourceCrs(), destCRS() );
+  tr->setSourceDatumTransform( sourceDatumTransform() );
+  tr->setDestinationDatumTransform( destinationDatumTransform() );
+  tr->initialise();
+  return tr;
+}
+
 void QgsCoordinateTransform::setSourceCrs( const QgsCoordinateReferenceSystem& theCRS )
 {
   mSourceCRS = theCRS;
@@ -181,7 +190,6 @@ void QgsCoordinateTransform::initialise()
   {
     sourceProjString += ( " " + datumTransformString( mSourceDatumTransform ) );
   }
-  mSourceProjection = pj_init_plus( sourceProjString.toUtf8() );
 
   pj_free( mDestinationProjection );
   QString destProjString = mDestCRS.toProj4();
@@ -199,6 +207,7 @@ void QgsCoordinateTransform::initialise()
     addNullGridShifts( sourceProjString, destProjString );
   }
 
+  mSourceProjection = pj_init_plus( sourceProjString.toUtf8() );
   mDestinationProjection = pj_init_plus( destProjString.toUtf8() );
 
 #ifdef COORDINATE_TRANSFORM_VERBOSE
@@ -276,11 +285,11 @@ QgsPoint QgsCoordinateTransform::transform( const QgsPoint thePoint, TransformDi
   {
     transformCoords( 1, &x, &y, &z, direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 
   return QgsPoint( x, y );
@@ -293,11 +302,11 @@ QgsPoint QgsCoordinateTransform::transform( const double theX, const double theY
   {
     return transform( QgsPoint( theX, theY ), direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 }
 
@@ -320,23 +329,19 @@ QgsRectangle QgsCoordinateTransform::transform( const QgsRectangle theRect, Tran
     transformCoords( 1, &x1, &y1, &z, direction );
     transformCoords( 1, &x2, &y2, &z, direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 
 #ifdef COORDINATE_TRANSFORM_VERBOSE
   QgsDebugMsg( "Rect projection..." );
-  QgsLogger::debug( "Xmin : ", theRect.xMinimum(), 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "-->", x1, 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "Ymin : ", theRect.yMinimum(), 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "-->", y1, 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "Xmax : ", theRect.xMaximum(), 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "-->", x2, 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "Ymax : ", theRect.yMaximum(), 1, __FILE__, __FUNCTION__, __LINE__ );
-  QgsLogger::debug( "-->", y2, 1, __FILE__, __FUNCTION__, __LINE__ );
+  QgsDebugMsg( QString( "Xmin : %1 --> %2" ).arg( theRect.xMinimum() ).arg( x1 ) );
+  QgsDebugMsg( QString( "Ymin : %1 --> %2" ).arg( theRect.yMinimum() ).arg( y1 ) );
+  QgsDebugMsg( QString( "Xmax : %1 --> %2" ).arg( theRect.xMaximum() ).arg( x2 ) );
+  QgsDebugMsg( QString( "Ymax : %1 --> %2" ).arg( theRect.yMaximum() ).arg( y2 ) );
 #endif
   return QgsRectangle( x1, y1, x2, y2 );
 }
@@ -354,11 +359,11 @@ void QgsCoordinateTransform::transformInPlace( double& x, double& y, double& z,
   {
     transformCoords( 1, &x, &y, &z, direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 }
 
@@ -388,11 +393,11 @@ void QgsCoordinateTransform::transformPolygon( QPolygonF& poly, TransformDirecti
   {
     transformCoords( nVertices, x.data(), y.data(), z.data(), direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 
   for ( int i = 0; i < nVertices; ++i )
@@ -421,13 +426,24 @@ void QgsCoordinateTransform::transformInPlace(
   {
     transformCoords( x.size(), &x[0], &y[0], &z[0], direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 }
+
+#ifdef QT_ARCH_ARM
+void QgsCoordinateTransform::transformInPlace( qreal& x, qreal& y, double& z,
+    TransformDirection direction ) const
+{
+  double xd = ( double ) x, yd = ( double ) y;
+  transformInPlace( xd, yd, z, direction );
+  x = xd;
+  y = yd;
+}
+#endif
 
 #ifdef ANDROID
 void QgsCoordinateTransform::transformInPlace( float& x, float& y, float& z,
@@ -449,11 +465,11 @@ void QgsCoordinateTransform::transformInPlace( float& x, float& y, float& z,
     y = yd;
     z = zd;
   }
-  catch ( QgsCsException &cse )
+  catch ( QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 }
 
@@ -494,11 +510,11 @@ void QgsCoordinateTransform::transformInPlace(
       z[i] = zd[i];
     }
   }
-  catch ( QgsCsException &cse )
+  catch ( QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 }
 #endif //ANDROID
@@ -565,11 +581,11 @@ QgsRectangle QgsCoordinateTransform::transformBoundingBox( const QgsRectangle re
   {
     transformCoords( numP * numP, x, y, z, direction );
   }
-  catch ( QgsCsException &cse )
+  catch ( const QgsCsException & )
   {
     // rethrow the exception
     QgsDebugMsg( "rethrowing exception" );
-    throw cse;
+    throw;
   }
 
   // Calculate the bounding box and use that for the extent
@@ -632,14 +648,12 @@ void QgsCoordinateTransform::transformCoords( const int& numPoints, double *x, d
   if ( direction == ReverseTransform )
   {
     projResult = pj_transform( mDestinationProjection, mSourceProjection, numPoints, 0, x, y, z );
-    dir = tr( "inverse transform" );
   }
   else
   {
     Q_ASSERT( mSourceProjection != 0 );
     Q_ASSERT( mDestinationProjection != 0 );
     projResult = pj_transform( mSourceProjection, mDestinationProjection, numPoints, 0, x, y, z );
-    dir = tr( "forward transform" );
   }
 
   if ( projResult != 0 )
@@ -658,6 +672,8 @@ void QgsCoordinateTransform::transformCoords( const int& numPoints, double *x, d
         points += QString( "(%1, %2)\n" ).arg( x[i] * RAD_TO_DEG, 0, 'f' ).arg( y[i] * RAD_TO_DEG, 0, 'f' );
       }
     }
+
+    dir = ( direction == ForwardTransform ) ? tr( "forward transform" ) : tr( "inverse transform" );
 
     QString msg = tr( "%1 of\n"
                       "%2"
@@ -792,16 +808,16 @@ QList< QList< int > > QgsCoordinateTransform::datumTransformations( const QgsCoo
   }
 
   QList<int> directTransforms;
-  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE source_crs_code = %1 AND target_crs_code = %2" ).arg( srcAuthCode ).arg( destAuthCode ),
+  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE source_crs_code=%1 AND target_crs_code=%2 ORDER BY deprecated ASC,preferred DESC" ).arg( srcAuthCode ).arg( destAuthCode ),
                         directTransforms );
   QList<int> reverseDirectTransforms;
-  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE source_crs_code = %1 AND target_crs_code = %2" ).arg( destAuthCode ).arg( srcAuthCode ),
+  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE source_crs_code = %1 AND target_crs_code=%2 ORDER BY deprecated ASC,preferred DESC" ).arg( destAuthCode ).arg( srcAuthCode ),
                         reverseDirectTransforms );
   QList<int> srcToWgs84;
-  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE ( source_crs_code = %1 AND target_crs_code = %2 ) OR ( source_crs_code = %2 AND target_crs_code = %1 )" ).arg( srcAuthCode ).arg( 4326 ),
+  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE (source_crs_code=%1 AND target_crs_code=%2) OR (source_crs_code=%2 AND target_crs_code=%1) ORDER BY deprecated ASC,preferred DESC" ).arg( srcAuthCode ).arg( 4326 ),
                         srcToWgs84 );
   QList<int> destToWgs84;
-  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE ( source_crs_code = %1 AND target_crs_code = %2 ) OR ( source_crs_code = %2 AND target_crs_code = %1 )" ).arg( destAuthCode ).arg( 4326 ),
+  searchDatumTransform( QString( "SELECT coord_op_code FROM tbl_datum_transform WHERE (source_crs_code=%1 AND target_crs_code=%2) OR (source_crs_code=%2 AND target_crs_code=%1) ORDER BY deprecated ASC,preferred DESC" ).arg( destAuthCode ).arg( 4326 ),
                         destToWgs84 );
 
   //add direct datum transformations
@@ -857,6 +873,7 @@ void QgsCoordinateTransform::searchDatumTransform( const QString& sql, QList< in
   int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
   if ( openResult != SQLITE_OK )
   {
+    sqlite3_close( db );
     return;
   }
 
@@ -864,6 +881,7 @@ void QgsCoordinateTransform::searchDatumTransform( const QString& sql, QList< in
   int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
   if ( prepareRes != SQLITE_OK )
   {
+    sqlite3_finalize( stmt ); sqlite3_close( db );
     return;
   }
 
@@ -873,8 +891,7 @@ void QgsCoordinateTransform::searchDatumTransform( const QString& sql, QList< in
     cOpCode = ( const char * ) sqlite3_column_text( stmt, 0 );
     transforms.push_back( cOpCode.toInt() );
   }
-  sqlite3_finalize( stmt );
-  sqlite3_close( db );
+  sqlite3_finalize( stmt ); sqlite3_close( db );
 }
 
 QString QgsCoordinateTransform::datumTransformString( int datumTransform )
@@ -885,14 +902,16 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
   int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
   if ( openResult != SQLITE_OK )
   {
+    sqlite3_close( db );
     return transformString;
   }
 
   sqlite3_stmt* stmt;
-  QString sql = QString( "SELECT coord_op_method_code, p1, p2, p3, p4, p5, p6, p7 FROM tbl_datum_transform WHERE coord_op_code = %1" ).arg( datumTransform );
+  QString sql = QString( "SELECT coord_op_method_code,p1,p2,p3,p4,p5,p6,p7 FROM tbl_datum_transform WHERE coord_op_code=%1" ).arg( datumTransform );
   int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
   if ( prepareRes != SQLITE_OK )
   {
+    sqlite3_finalize( stmt ); sqlite3_close( db );
     return transformString;
   }
 
@@ -925,7 +944,55 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
     }
   }
 
+  sqlite3_finalize( stmt ); sqlite3_close( db );
   return transformString;
+}
+
+bool QgsCoordinateTransform::datumTransformCrsInfo( int datumTransform, int& epsgNr, QString& srcProjection, QString& dstProjection, QString &remarks, QString &scope, bool &preferred, bool &deprecated )
+{
+  sqlite3* db;
+  int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
+  if ( openResult != SQLITE_OK )
+  {
+    sqlite3_close( db );
+    return false;
+  }
+
+  sqlite3_stmt* stmt;
+  QString sql = QString( "SELECT epsg_nr,source_crs_code,target_crs_code,remarks,scope,preferred,deprecated FROM tbl_datum_transform WHERE coord_op_code=%1" ).arg( datumTransform );
+  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
+  if ( prepareRes != SQLITE_OK )
+  {
+    sqlite3_finalize( stmt ); sqlite3_close( db );
+    return false;
+  }
+
+  int srcCrsId, destCrsId;
+  if ( sqlite3_step( stmt ) != SQLITE_ROW )
+  {
+    sqlite3_finalize( stmt );
+    sqlite3_close( db );
+    return false;
+  }
+
+  epsgNr = sqlite3_column_int( stmt, 0 );
+  srcCrsId = sqlite3_column_int( stmt, 1 );
+  destCrsId = sqlite3_column_int( stmt, 2 );
+  remarks = QString::fromUtf8(( const char * ) sqlite3_column_text( stmt, 3 ) );
+  scope = QString::fromUtf8(( const char * ) sqlite3_column_text( stmt, 4 ) );
+  preferred = sqlite3_column_int( stmt, 5 ) != 0;
+  deprecated = sqlite3_column_int( stmt, 6 ) != 0;
+
+  QgsCoordinateReferenceSystem srcCrs;
+  srcCrs.createFromOgcWmsCrs( QString( "EPSG:%1" ).arg( srcCrsId ) );
+  srcProjection = srcCrs.description();
+  QgsCoordinateReferenceSystem destCrs;
+  destCrs.createFromOgcWmsCrs( QString( "EPSG:%1" ).arg( destCrsId ) );
+  dstProjection = destCrs.description();
+
+  sqlite3_finalize( stmt );
+  sqlite3_close( db );
+  return true;
 }
 
 void QgsCoordinateTransform::addNullGridShifts( QString& srcProjString, QString& destProjString )

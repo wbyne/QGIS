@@ -25,26 +25,29 @@ class QgsOgcUtils
     /** read rectangle from GML3 Envelope */
     static QgsRectangle rectangleFromGMLEnvelope( const QDomNode& envelopeNode );
 
-    /** Exports the geometry to GML2
-        @return QDomElement
-     */
-    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc );
-
     /** Exports the geometry to GML2 or GML3
         @return QDomElement
      */
-    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, QString Format );
+    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, QString format, const int &precision = 17 );
+
+    /** Exports the geometry to GML2
+        @return QDomElement
+     */
+    static QDomElement geometryToGML( QgsGeometry* geometry, QDomDocument& doc, const int &precision = 17 );
 
     /** Exports the rectangle to GML2 Box
         @return QDomElement
      */
-    static QDomElement rectangleToGMLBox( QgsRectangle* box, QDomDocument& doc );
+    static QDomElement rectangleToGMLBox( QgsRectangle* box, QDomDocument& doc, const int &precision = 17 );
 
     /** Exports the rectangle to GML2 Envelope
         @return QDomElement
      */
-    static QDomElement rectangleToGMLEnvelope( QgsRectangle* env, QDomDocument& doc );
+    static QDomElement rectangleToGMLEnvelope( QgsRectangle* env, QDomDocument& doc, const int &precision = 17 );
 
+
+    /** Parse XML with OGC fill into QColor */
+    static QColor colorFromOgcFill( const QDomElement& fillElement );
 
     /** Parse XML with OGC filter into QGIS expression */
     static QgsExpression* expressionFromOgcFilter( const QDomElement& element ) /Factory/;
