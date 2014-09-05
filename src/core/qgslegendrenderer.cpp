@@ -1,17 +1,35 @@
+/***************************************************************************
+  qgslegendrenderer.cpp
+  --------------------------------------
+  Date                 : July 2014
+  Copyright            : (C) 2014 by Martin Dobias
+  Email                : wonder dot sk at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+
 #include "qgslegendrenderer.h"
 
 #include "qgscomposerlegenditem.h"
+#include "qgslayertree.h"
+#include "qgslayertreemodel.h"
+#include "qgslayertreemodellegendnode.h"
 #include "qgslegendmodel.h"
+#include "qgsmaplayerlegend.h"
 #include "qgsmaplayerregistry.h"
 #include "qgssymbolv2.h"
 #include "qgsvectorlayer.h"
 
 #include <QPainter>
 
-#define FONT_WORKAROUND_SCALE 10 //scale factor for upscaling fontsize and downscaling painter
 
 
-QgsLegendRenderer::QgsLegendRenderer( QgsLegendModel* legendModel, const QgsLegendSettings& settings )
+QgsLegendRenderer::QgsLegendRenderer( QgsLayerTreeModel* legendModel, const QgsLegendSettings& settings )
     : mLegendModel( legendModel )
     , mSettings( settings )
 {
@@ -31,10 +49,10 @@ void QgsLegendRenderer::drawLegend( QPainter* painter )
 QSizeF QgsLegendRenderer::paintAndDetermineSize( QPainter* painter )
 {
   QSizeF size( 0, 0 );
-  QStandardItem* rootItem = mLegendModel->invisibleRootItem();
-  if ( !rootItem ) return size;
+  QgsLayerTreeGroup* rootGroup = mLegendModel->rootGroup();
+  if ( !rootGroup ) return size;
 
-  QList<Atom> atomList = createAtomList( rootItem, mSettings.splitLayer() );
+  QList<Atom> atomList = createAtomList( rootGroup, mSettings.splitLayer() );
 
   setColumns( atomList );
 
@@ -132,29 +150,24 @@ QSizeF QgsLegendRenderer::paintAndDetermineSize( QPainter* painter )
 
 
 
-QList<QgsLegendRenderer::Atom> QgsLegendRenderer::createAtomList( QStandardItem* rootItem, bool splitLayer )
+QList<QgsLegendRenderer::Atom> QgsLegendRenderer::createAtomList( QgsLayerTreeGroup* parentGroup, bool splitLayer )
 {
   QList<Atom> atoms;
 
-  if ( !rootItem ) return atoms;
+  if ( !parentGroup ) return atoms;
 
-  Atom atom;
-
-  for ( int i = 0; i < rootItem->rowCount(); i++ )
+  foreach ( QgsLayerTreeNode* node, parentGroup->children() )
   {
-    QStandardItem* currentLayerItem = rootItem->child( i );
-    QgsComposerLegendItem* currentLegendItem = dynamic_cast<QgsComposerLegendItem*>( currentLayerItem );
-    if ( !currentLegendItem ) continue;
-
-    QgsComposerLegendItem::ItemType type = currentLegendItem->itemType();
-    if ( type == QgsComposerLegendItem::GroupItem )
+    if ( QgsLayerTree::isGroup( node ) )
     {
+      QgsLayerTreeGroup* nodeGroup = QgsLayerTree::toGroup( node );
+
       // Group subitems
-      QList<Atom> groupAtoms = createAtomList( currentLayerItem, splitLayer );
+      QList<Atom> groupAtoms = createAtomList( nodeGroup, splitLayer );
 
       Nucleon nucleon;
-      nucleon.item = currentLegendItem;
-      nucleon.size = drawGroupItemTitle( dynamic_cast<QgsComposerGroupItem*>( currentLegendItem ) );
+      nucleon.item = node;
+      nucleon.size = drawGroupTitle( nodeGroup );
 
       if ( groupAtoms.size() > 0 )
       {
@@ -177,28 +190,31 @@ QList<QgsLegendRenderer::Atom> QgsLegendRenderer::createAtomList( QStandardItem*
       }
       atoms.append( groupAtoms );
     }
-    else if ( type == QgsComposerLegendItem::LayerItem )
+    else if ( QgsLayerTree::isLayer( node ) )
     {
+      QgsLayerTreeLayer* nodeLayer = QgsLayerTree::toLayer( node );
+
       Atom atom;
 
-      if ( currentLegendItem->style() != QgsComposerLegendStyle::Hidden )
+      if ( nodeLegendStyle( nodeLayer ) != QgsComposerLegendStyle::Hidden )
       {
         Nucleon nucleon;
-        nucleon.item = currentLegendItem;
-        nucleon.size = drawLayerItemTitle( dynamic_cast<QgsComposerLayerItem*>( currentLegendItem ) );
+        nucleon.item = node;
+        nucleon.size = drawLayerTitle( nodeLayer );
         atom.nucleons.append( nucleon );
         atom.size.rwidth() = nucleon.size.width();
         atom.size.rheight() = nucleon.size.height();
       }
 
+      QList<QgsLayerTreeModelLegendNode*> legendNodes = mLegendModel->layerLegendNodes( nodeLayer );
+
       QList<Atom> layerAtoms;
 
-      for ( int j = 0; j < currentLegendItem->rowCount(); j++ )
+      for ( int j = 0; j < legendNodes.count(); j++ )
       {
-        QgsComposerLegendItem * symbolItem = dynamic_cast<QgsComposerLegendItem*>( currentLegendItem->child( j, 0 ) );
-        if ( !symbolItem ) continue;
+        QgsLayerTreeModelLegendNode* legendNode = legendNodes.at( j );
 
-        Nucleon symbolNucleon = drawSymbolItem( symbolItem );
+        Nucleon symbolNucleon = drawSymbolItem( legendNode );
 
         if ( !mSettings.splitLayer() || j == 0 )
         {
@@ -304,34 +320,28 @@ void QgsLegendRenderer::setColumns( QList<Atom>& atomList )
   QMap<QString, qreal> maxSymbolWidth;
   for ( int i = 0; i < atomList.size(); i++ )
   {
-    for ( int j = 0; j < atomList[i].nucleons.size(); j++ )
+    Atom& atom = atomList[i];
+    for ( int j = 0; j < atom.nucleons.size(); j++ )
     {
-      QgsComposerLegendItem* item = atomList[i].nucleons[j].item;
-      if ( !item ) continue;
-      QgsComposerLegendItem::ItemType type = item->itemType();
-      if ( type == QgsComposerLegendItem::SymbologyV2Item ||
-           type == QgsComposerLegendItem::RasterSymbolItem )
+      if ( QgsLayerTreeModelLegendNode* legendNode = qobject_cast<QgsLayerTreeModelLegendNode*>( atom.nucleons[j].item ) )
       {
-        QString key = QString( "%1-%2" ).arg(( qulonglong )item->parent() ).arg( atomList[i].column );
-        maxSymbolWidth[key] = qMax( atomList[i].nucleons[j].symbolSize.width(), maxSymbolWidth[key] );
+        QString key = QString( "%1-%2" ).arg(( qulonglong )legendNode->parent() ).arg( atom.column );
+        maxSymbolWidth[key] = qMax( atom.nucleons[j].symbolSize.width(), maxSymbolWidth[key] );
       }
     }
   }
   for ( int i = 0; i < atomList.size(); i++ )
   {
-    for ( int j = 0; j < atomList[i].nucleons.size(); j++ )
+    Atom& atom = atomList[i];
+    for ( int j = 0; j < atom.nucleons.size(); j++ )
     {
-      QgsComposerLegendItem* item = atomList[i].nucleons[j].item;
-      if ( !item ) continue;
-      QgsComposerLegendItem::ItemType type = item->itemType();
-      if ( type == QgsComposerLegendItem::SymbologyV2Item ||
-           type == QgsComposerLegendItem::RasterSymbolItem )
+      if ( QgsLayerTreeModelLegendNode* legendNode = qobject_cast<QgsLayerTreeModelLegendNode*>( atom.nucleons[j].item ) )
       {
-        QString key = QString( "%1-%2" ).arg(( qulonglong )item->parent() ).arg( atomList[i].column );
+        QString key = QString( "%1-%2" ).arg(( qulonglong )legendNode->parent() ).arg( atom.column );
         double space = mSettings.style( QgsComposerLegendStyle::Symbol ).margin( QgsComposerLegendStyle::Right ) +
                        mSettings.style( QgsComposerLegendStyle::SymbolLabel ).margin( QgsComposerLegendStyle::Left );
-        atomList[i].nucleons[j].labelXOffset =  maxSymbolWidth[key] + space;
-        atomList[i].nucleons[j].size.rwidth() =  maxSymbolWidth[key] + space + atomList[i].nucleons[j].labelSize.width();
+        atom.nucleons[j].labelXOffset =  maxSymbolWidth[key] + space;
+        atom.nucleons[j].size.rwidth() =  maxSymbolWidth[key] + space + atom.nucleons[j].labelSize.width();
       }
     }
   }
@@ -347,7 +357,7 @@ QSizeF QgsLegendRenderer::drawTitle( QPainter* painter, QPointF point, Qt::Align
     return size;
   }
 
-  QStringList lines = splitStringForWrapping( mSettings.title() );
+  QStringList lines = mSettings.splitStringForWrapping( mSettings.title() );
   double y = point.y();
 
   if ( painter )
@@ -381,14 +391,14 @@ QSizeF QgsLegendRenderer::drawTitle( QPainter* painter, QPointF point, Qt::Align
   {
     //last word is not drawn if rectangle width is exactly text width, so add 1
     //TODO - correctly calculate size of italicized text, since QFontMetrics does not
-    qreal width = textWidthMillimeters( titleFont, *titlePart ) + 1;
-    qreal height = fontAscentMillimeters( titleFont ) + fontDescentMillimeters( titleFont );
+    qreal width = mSettings.textWidthMillimeters( titleFont, *titlePart ) + 1;
+    qreal height = mSettings.fontAscentMillimeters( titleFont ) + mSettings.fontDescentMillimeters( titleFont );
 
     QRectF r( textBoxLeft, y, textBoxWidth, height );
 
     if ( painter )
     {
-      drawText( painter, r, *titlePart, titleFont, halignment, Qt::AlignVCenter, Qt::TextDontClip );
+      mSettings.drawText( painter, r, *titlePart, titleFont, halignment, Qt::AlignVCenter, Qt::TextDontClip );
     }
 
     //update max width of title
@@ -412,26 +422,20 @@ double QgsLegendRenderer::spaceAboveAtom( Atom atom )
 
   Nucleon nucleon = atom.nucleons.first();
 
-  QgsComposerLegendItem* item = nucleon.item;
-  if ( !item ) return 0;
-
-  QgsComposerLegendItem::ItemType type = item->itemType();
-  switch ( type )
+  if ( QgsLayerTreeGroup* nodeGroup = qobject_cast<QgsLayerTreeGroup*>( nucleon.item ) )
   {
-    case QgsComposerLegendItem::GroupItem:
-      return mSettings.style( item->style() ).margin( QgsComposerLegendStyle::Top );
-      break;
-    case QgsComposerLegendItem::LayerItem:
-      return mSettings.style( item->style() ).margin( QgsComposerLegendStyle::Top );
-      break;
-    case QgsComposerLegendItem::SymbologyV2Item:
-    case QgsComposerLegendItem::RasterSymbolItem:
-      // TODO: use Symbol or SymbolLabel Top margin
-      return mSettings.style( QgsComposerLegendStyle::Symbol ).margin( QgsComposerLegendStyle::Top );
-      break;
-    default:
-      break;
+    return mSettings.style( nodeLegendStyle( nodeGroup ) ).margin( QgsComposerLegendStyle::Top );
   }
+  else if ( QgsLayerTreeLayer* nodeLayer = qobject_cast<QgsLayerTreeLayer*>( nucleon.item ) )
+  {
+    return mSettings.style( nodeLegendStyle( nodeLayer ) ).margin( QgsComposerLegendStyle::Top );
+  }
+  else if ( qobject_cast<QgsLayerTreeModelLegendNode*>( nucleon.item ) )
+  {
+    // TODO: use Symbol or SymbolLabel Top margin
+    return mSettings.style( QgsComposerLegendStyle::Symbol ).margin( QgsComposerLegendStyle::Top );
+  }
+
   return 0;
 }
 
@@ -443,45 +447,38 @@ QSizeF QgsLegendRenderer::drawAtom( Atom atom, QPainter* painter, QPointF point 
   QSizeF size = QSizeF( atom.size );
   foreach ( Nucleon nucleon, atom.nucleons )
   {
-    QgsComposerLegendItem* item = nucleon.item;
-    //QgsDebugMsg( "text: " + item->text() );
-    if ( !item ) continue;
-    QgsComposerLegendItem::ItemType type = item->itemType();
-    if ( type == QgsComposerLegendItem::GroupItem )
+    if ( QgsLayerTreeGroup* groupItem = qobject_cast<QgsLayerTreeGroup*>( nucleon.item ) )
     {
-      QgsComposerGroupItem* groupItem = dynamic_cast<QgsComposerGroupItem*>( item );
-      if ( !groupItem ) continue;
-      if ( groupItem->style() != QgsComposerLegendStyle::Hidden )
+      QgsComposerLegendStyle::Style s = nodeLegendStyle( groupItem );
+      if ( s != QgsComposerLegendStyle::Hidden )
       {
         if ( !first )
         {
-          point.ry() += mSettings.style( groupItem->style() ).margin( QgsComposerLegendStyle::Top );
+          point.ry() += mSettings.style( s ).margin( QgsComposerLegendStyle::Top );
         }
-        drawGroupItemTitle( groupItem, painter, point );
+        drawGroupTitle( groupItem, painter, point );
       }
     }
-    else if ( type == QgsComposerLegendItem::LayerItem )
+    else if ( QgsLayerTreeLayer* layerItem = qobject_cast<QgsLayerTreeLayer*>( nucleon.item ) )
     {
-      QgsComposerLayerItem* layerItem = dynamic_cast<QgsComposerLayerItem*>( item );
-      if ( !layerItem ) continue;
-      if ( layerItem->style() != QgsComposerLegendStyle::Hidden )
+      QgsComposerLegendStyle::Style s = nodeLegendStyle( layerItem );
+      if ( s != QgsComposerLegendStyle::Hidden )
       {
         if ( !first )
         {
-          point.ry() += mSettings.style( layerItem->style() ).margin( QgsComposerLegendStyle::Top );
+          point.ry() += mSettings.style( s ).margin( QgsComposerLegendStyle::Top );
         }
-        drawLayerItemTitle( layerItem, painter, point );
+        drawLayerTitle( layerItem, painter, point );
       }
     }
-    else if ( type == QgsComposerLegendItem::SymbologyV2Item ||
-              type == QgsComposerLegendItem::RasterSymbolItem )
+    else if ( QgsLayerTreeModelLegendNode* legendNode = qobject_cast<QgsLayerTreeModelLegendNode*>( nucleon.item ) )
     {
       if ( !first )
       {
         point.ry() += mSettings.style( QgsComposerLegendStyle::Symbol ).margin( QgsComposerLegendStyle::Top );
       }
-      double labelXOffset = nucleon.labelXOffset;
-      Nucleon symbolNucleon = drawSymbolItem( item, painter, point, labelXOffset );
+
+      Nucleon symbolNucleon = drawSymbolItem( legendNode, painter, point, nucleon.labelXOffset );
       // expand width, it may be wider because of labelXOffset
       size.rwidth() = qMax( symbolNucleon.size.width(), size.width() );
     }
@@ -492,140 +489,47 @@ QSizeF QgsLegendRenderer::drawAtom( Atom atom, QPainter* painter, QPointF point 
 }
 
 
-QStringList QgsLegendRenderer::splitStringForWrapping( QString stringToSplt )
+QgsLegendRenderer::Nucleon QgsLegendRenderer::drawSymbolItem( QgsLayerTreeModelLegendNode* symbolItem, QPainter* painter, QPointF point, double labelXOffset )
 {
-  QStringList list;
-  // If the string contains nothing then just return the string without spliting.
-  if ( mSettings.wrapChar().count() == 0 )
-    list << stringToSplt;
-  else
-    list = stringToSplt.split( mSettings.wrapChar() );
-  return list;
+  QgsLayerTreeModelLegendNode::ItemContext ctx;
+  ctx.painter = painter;
+  ctx.point = point;
+  ctx.labelXOffset = labelXOffset;
+
+  QgsLayerTreeModelLegendNode::ItemMetrics im = symbolItem->draw( mSettings, painter ? &ctx : 0 );
+
+  Nucleon nucleon;
+  nucleon.item = symbolItem;
+  nucleon.symbolSize = im.symbolSize;
+  nucleon.labelSize = im.labelSize;
+  //QgsDebugMsg( QString( "symbol height = %1 label height = %2").arg( symbolSize.height()).arg( labelSize.height() ));
+  double width = qMax(( double ) im.symbolSize.width(), labelXOffset ) + im.labelSize.width();
+  double height = qMax( im.symbolSize.height(), im.labelSize.height() );
+  nucleon.size = QSizeF( width, height );
+  return nucleon;
 }
 
 
-
-void QgsLegendRenderer::drawText( QPainter* p, double x, double y, const QString& text, const QFont& font ) const
-{
-  QFont textFont = scaledFontPixelSize( font );
-
-  p->save();
-  p->setFont( textFont );
-  double scaleFactor = 1.0 / FONT_WORKAROUND_SCALE;
-  p->scale( scaleFactor, scaleFactor );
-  p->drawText( QPointF( x * FONT_WORKAROUND_SCALE, y * FONT_WORKAROUND_SCALE ), text );
-  p->restore();
-}
-
-
-void QgsLegendRenderer::drawText( QPainter* p, const QRectF& rect, const QString& text, const QFont& font, Qt::AlignmentFlag halignment, Qt::AlignmentFlag valignment, int flags ) const
-{
-  QFont textFont = scaledFontPixelSize( font );
-
-  QRectF scaledRect( rect.x() * FONT_WORKAROUND_SCALE, rect.y() * FONT_WORKAROUND_SCALE,
-                     rect.width() * FONT_WORKAROUND_SCALE, rect.height() * FONT_WORKAROUND_SCALE );
-
-  p->save();
-  p->setFont( textFont );
-  double scaleFactor = 1.0 / FONT_WORKAROUND_SCALE;
-  p->scale( scaleFactor, scaleFactor );
-  p->drawText( scaledRect, halignment | valignment | flags, text );
-  p->restore();
-}
-
-
-QFont QgsLegendRenderer::scaledFontPixelSize( const QFont& font ) const
-{
-  QFont scaledFont = font;
-  double pixelSize = pixelFontSize( font.pointSizeF() ) * FONT_WORKAROUND_SCALE + 0.5;
-  scaledFont.setPixelSize( pixelSize );
-  return scaledFont;
-}
-
-double QgsLegendRenderer::pixelFontSize( double pointSize ) const
-{
-  return ( pointSize * 0.3527 );
-}
-
-double QgsLegendRenderer::textWidthMillimeters( const QFont& font, const QString& text ) const
-{
-  QFont metricsFont = scaledFontPixelSize( font );
-  QFontMetricsF fontMetrics( metricsFont );
-  return ( fontMetrics.width( text ) / FONT_WORKAROUND_SCALE );
-}
-
-double QgsLegendRenderer::fontHeightCharacterMM( const QFont& font, const QChar& c ) const
-{
-  QFont metricsFont = scaledFontPixelSize( font );
-  QFontMetricsF fontMetrics( metricsFont );
-  return ( fontMetrics.boundingRect( c ).height() / FONT_WORKAROUND_SCALE );
-}
-
-double QgsLegendRenderer::fontAscentMillimeters( const QFont& font ) const
-{
-  QFont metricsFont = scaledFontPixelSize( font );
-  QFontMetricsF fontMetrics( metricsFont );
-  return ( fontMetrics.ascent() / FONT_WORKAROUND_SCALE );
-}
-
-double QgsLegendRenderer::fontDescentMillimeters( const QFont& font ) const
-{
-  QFont metricsFont = scaledFontPixelSize( font );
-  QFontMetricsF fontMetrics( metricsFont );
-  return ( fontMetrics.descent() / FONT_WORKAROUND_SCALE );
-}
-
-
-QSizeF QgsLegendRenderer::drawGroupItemTitle( QgsComposerGroupItem* groupItem, QPainter* painter, QPointF point )
+QSizeF QgsLegendRenderer::drawLayerTitle( QgsLayerTreeLayer* nodeLayer, QPainter* painter, QPointF point )
 {
   QSizeF size( 0, 0 );
-  if ( !groupItem ) return size;
-
-  double y = point.y();
-
-  if ( painter ) painter->setPen( mSettings.fontColor() );
-
-  QFont groupFont = mSettings.style( groupItem->style() ).font();
-
-  QStringList lines = splitStringForWrapping( groupItem->text() );
-  for ( QStringList::Iterator groupPart = lines.begin(); groupPart != lines.end(); ++groupPart )
-  {
-    y += fontAscentMillimeters( groupFont );
-    if ( painter ) drawText( painter, point.x(), y, *groupPart, groupFont );
-    qreal width = textWidthMillimeters( groupFont, *groupPart );
-    size.rwidth() = qMax( width, size.width() );
-    if ( groupPart != lines.end() )
-    {
-      y += mSettings.lineSpacing();
-    }
-  }
-  size.rheight() = y - point.y();
-  return size;
-}
-
-
-
-
-QSizeF QgsLegendRenderer::drawLayerItemTitle( QgsComposerLayerItem* layerItem, QPainter* painter, QPointF point )
-{
-  QSizeF size( 0, 0 );
-  if ( !layerItem ) return size;
+  QModelIndex idx = mLegendModel->node2index( nodeLayer );
 
   //Let the user omit the layer title item by having an empty layer title string
-  if ( layerItem->text().isEmpty() ) return size;
+  if ( mLegendModel->data( idx, Qt::DisplayRole ).toString().isEmpty() ) return size;
 
   double y = point.y();
 
   if ( painter ) painter->setPen( mSettings.fontColor() );
 
-  QFont layerFont = mSettings.style( layerItem->style() ).font();
+  QFont layerFont = mSettings.style( nodeLegendStyle( nodeLayer ) ).font();
 
-  QStringList lines = splitStringForWrapping( layerItem->text() );
+  QStringList lines = mSettings.splitStringForWrapping( mLegendModel->data( idx, Qt::DisplayRole ).toString() );
   for ( QStringList::Iterator layerItemPart = lines.begin(); layerItemPart != lines.end(); ++layerItemPart )
   {
-    y += fontAscentMillimeters( layerFont );
-    if ( painter ) drawText( painter, point.x(), y, *layerItemPart , layerFont );
-    qreal width = textWidthMillimeters( layerFont, *layerItemPart );
+    y += mSettings.fontAscentMillimeters( layerFont );
+    if ( painter ) mSettings.drawText( painter, point.x(), y, *layerItemPart , layerFont );
+    qreal width = mSettings.textWidthMillimeters( layerFont, *layerItemPart );
     size.rwidth() = qMax( width, size.width() );
     if ( layerItemPart != lines.end() )
     {
@@ -638,248 +542,77 @@ QSizeF QgsLegendRenderer::drawLayerItemTitle( QgsComposerLayerItem* layerItem, Q
 }
 
 
-
-QgsLegendRenderer::Nucleon QgsLegendRenderer::drawSymbolItem( QgsComposerLegendItem* symbolItem, QPainter* painter, QPointF point, double labelXOffset )
+QSizeF QgsLegendRenderer::drawGroupTitle( QgsLayerTreeGroup* nodeGroup, QPainter* painter, QPointF point )
 {
-  QSizeF symbolSize( 0, 0 );
-  QSizeF labelSize( 0, 0 );
-  if ( !symbolItem ) return Nucleon();
+  QSizeF size( 0, 0 );
+  QModelIndex idx = mLegendModel->node2index( nodeGroup );
 
-  QFont symbolLabelFont = mSettings.style( QgsComposerLegendStyle::SymbolLabel ).font();
-
-  double textHeight = fontHeightCharacterMM( symbolLabelFont, QChar( '0' ) );
-  // itemHeight here is not realy item height, it is only for symbol
-  // vertical alignment purpose, i.e. ok take single line height
-  // if there are more lines, thos run under the symbol
-  double itemHeight = qMax( mSettings.symbolSize().height(), textHeight );
-
-  //real symbol height. Can be different from standard height in case of point symbols
-  double realSymbolHeight;
-
-  QgsComposerLayerItem* layerItem = dynamic_cast<QgsComposerLayerItem*>( symbolItem->parent() );
-
-  int opacity = 255;
-  if ( layerItem )
-  {
-    QgsMapLayer* currentLayer = QgsMapLayerRegistry::instance()->mapLayer( layerItem->layerID() );
-    if ( currentLayer )
-    {
-      //vector layer
-      QgsVectorLayer* vectorLayer = dynamic_cast<QgsVectorLayer*>( currentLayer );
-      if ( vectorLayer )
-      {
-        opacity = 255 - ( 255 * vectorLayer->layerTransparency() / 100 );
-      }
-    }
-  }
-
-  QString text = symbolItem->text();
-
-  QStringList lines = splitStringForWrapping( text );
-
-  QgsSymbolV2* symbolNg = 0;
-  QgsComposerSymbolV2Item* symbolV2Item = dynamic_cast<QgsComposerSymbolV2Item*>( symbolItem );
-  if ( symbolV2Item )
-  {
-    symbolNg = symbolV2Item->symbolV2();
-  }
-  QgsComposerRasterSymbolItem* rasterItem = dynamic_cast<QgsComposerRasterSymbolItem*>( symbolItem );
-
-  double x = point.x();
-  if ( symbolNg ) //item with symbol NG?
-  {
-    // must be called also with painter=0 to get real size
-    drawSymbolV2( painter, symbolNg, point.y() + ( itemHeight - mSettings.symbolSize().height() ) / 2, x, realSymbolHeight, opacity );
-    symbolSize.rwidth() = qMax( x - point.x(), mSettings.symbolSize().width() );
-    symbolSize.rheight() = qMax( realSymbolHeight, mSettings.symbolSize().height() );
-  }
-  else if ( rasterItem )
-  {
-    // manage WMS lengendGraphic
-    // actual code recognise if it's a legend because it has an icon and it's text is empty => this is not good MV pattern implementation :(
-    QIcon symbolIcon = symbolItem->icon();
-    if ( !symbolIcon.isNull() && symbolItem->text().isEmpty() )
-    {
-      // find max size
-      QList<QSize> sizes = symbolIcon.availableSizes();
-      double maxWidth = 0;
-      double maxHeight = 0;
-      foreach ( QSize size, sizes )
-      {
-        if ( maxWidth < size.width() ) maxWidth = size.width();
-        if ( maxHeight < size.height() ) maxHeight = size.height();
-      }
-      QSize maxSize( maxWidth, maxHeight );
-
-      // get and print legend
-      QImage legend = symbolIcon.pixmap( maxWidth, maxHeight ).toImage();
-      if ( painter )
-      {
-        painter->drawImage( QRectF( point.x(), point.y(), mSettings.wmsLegendSize().width(), mSettings.wmsLegendSize().height() ), legend, QRectF( 0, 0, maxWidth, maxHeight ) );
-      }
-      symbolSize.rwidth() = mSettings.wmsLegendSize().width();
-      symbolSize.rheight() = mSettings.wmsLegendSize().height();
-    }
-    else
-    {
-      if ( painter )
-      {
-        painter->setBrush( rasterItem->color() );
-        painter->drawRect( QRectF( point.x(), point.y() + ( itemHeight - mSettings.symbolSize().height() ) / 2, mSettings.symbolSize().width(), mSettings.symbolSize().height() ) );
-      }
-      symbolSize.rwidth() = mSettings.symbolSize().width();
-      symbolSize.rheight() = mSettings.symbolSize().height();
-    }
-  }
-  else //item with icon?
-  {
-    QIcon symbolIcon = symbolItem->icon();
-    if ( !symbolIcon.isNull() )
-    {
-      if ( painter ) symbolIcon.paint( painter, point.x(), point.y() + ( itemHeight - mSettings.symbolSize().height() ) / 2, mSettings.symbolSize().width(), mSettings.symbolSize().height() );
-      symbolSize.rwidth() = mSettings.symbolSize().width();
-      symbolSize.rheight() = mSettings.symbolSize().height();
-    }
-  }
+  double y = point.y();
 
   if ( painter ) painter->setPen( mSettings.fontColor() );
 
-  //double labelX = point.x() + labelXOffset; // + mIconLabelSpace;
-  double labelX = point.x() + qMax(( double ) symbolSize.width(), labelXOffset );
+  QFont groupFont = mSettings.style( nodeLegendStyle( nodeGroup ) ).font();
 
-  // Vertical alignment of label with symbol:
-  // a) label height < symbol height: label centerd with symbol
-  // b) label height > symbol height: label starts at top and runs under symbol
-
-  labelSize.rheight() = lines.count() * textHeight + ( lines.count() - 1 ) * mSettings.lineSpacing();
-
-  double labelY;
-  if ( labelSize.height() < symbolSize.height() )
+  QStringList lines = mSettings.splitStringForWrapping( mLegendModel->data( idx, Qt::DisplayRole ).toString() );
+  for ( QStringList::Iterator groupPart = lines.begin(); groupPart != lines.end(); ++groupPart )
   {
-    labelY = point.y() +  symbolSize.height() / 2 + textHeight / 2;
-  }
-  else
-  {
-    labelY = point.y() + textHeight;
-  }
-
-  for ( QStringList::Iterator itemPart = lines.begin(); itemPart != lines.end(); ++itemPart )
-  {
-    if ( painter ) drawText( painter, labelX, labelY, *itemPart , symbolLabelFont );
-    labelSize.rwidth() = qMax( textWidthMillimeters( symbolLabelFont,  *itemPart ), double( labelSize.width() ) );
-    if ( itemPart != lines.end() )
+    y += mSettings.fontAscentMillimeters( groupFont );
+    if ( painter ) mSettings.drawText( painter, point.x(), y, *groupPart, groupFont );
+    qreal width = mSettings.textWidthMillimeters( groupFont, *groupPart );
+    size.rwidth() = qMax( width, size.width() );
+    if ( groupPart != lines.end() )
     {
-      labelY += mSettings.lineSpacing() + textHeight;
+      y += mSettings.lineSpacing();
     }
   }
-
-  Nucleon nucleon;
-  nucleon.item = symbolItem;
-  nucleon.symbolSize = symbolSize;
-  nucleon.labelSize = labelSize;
-  //QgsDebugMsg( QString( "symbol height = %1 label height = %2").arg( symbolSize.height()).arg( labelSize.height() ));
-  double width = qMax(( double ) symbolSize.width(), labelXOffset ) + labelSize.width();
-  double height = qMax( symbolSize.height(), labelSize.height() );
-  nucleon.size = QSizeF( width, height );
-  return nucleon;
+  size.rheight() = y - point.y();
+  return size;
 }
 
 
 
-void QgsLegendRenderer::drawSymbolV2( QPainter* p, QgsSymbolV2* s, double currentYCoord, double& currentXPosition, double& symbolHeight, int opacity ) const
+QgsComposerLegendStyle::Style QgsLegendRenderer::nodeLegendStyle( QgsLayerTreeNode* node, QgsLayerTreeModel* model )
 {
-  if ( !s )
+  QString style = node->customProperty( "legend/title-style" ).toString();
+  if ( style == "hidden" )
+    return QgsComposerLegendStyle::Hidden;
+  else if ( style == "group" )
+    return QgsComposerLegendStyle::Group;
+  else if ( style == "subgroup" )
+    return QgsComposerLegendStyle::Subgroup;
+
+  // use a default otherwise
+  if ( QgsLayerTree::isGroup( node ) )
+    return QgsComposerLegendStyle::Group;
+  else if ( QgsLayerTree::isLayer( node ) )
   {
-    return;
+    QList<QgsLayerTreeModelLegendNode*> legendNodes = model->layerLegendNodes( QgsLayerTree::toLayer( node ) );
+    if ( legendNodes.count() == 1 && legendNodes[0]->isEmbeddedInParent() )
+      return QgsComposerLegendStyle::Hidden;
+    return QgsComposerLegendStyle::Subgroup;
   }
 
-  //setup painter scaling to dots so that raster symbology is drawn to scale
-  double dotsPerMM = 1.0;
-  if ( p )
-  {
-    QPaintDevice* paintDevice = p->device();
-    if ( !paintDevice )
-    {
-      return;
-    }
-    dotsPerMM = paintDevice->logicalDpiX() / 25.4;
-  }
-
-  //consider relation to composer map for symbol sizes in mm
-  bool sizeInMapUnits = s->outputUnit() == QgsSymbolV2::MapUnit;
-  QgsMarkerSymbolV2* markerSymbol = dynamic_cast<QgsMarkerSymbolV2*>( s );
-
-  //Consider symbol size for point markers
-  double height = mSettings.symbolSize().height();
-  double width = mSettings.symbolSize().width();
-  double size = 0;
-  //Center small marker symbols
-  double widthOffset = 0;
-  double heightOffset = 0;
-
-  if ( markerSymbol )
-  {
-    size = markerSymbol->size();
-    height = size;
-    width = size;
-    if ( sizeInMapUnits )
-    {
-      height *= mSettings.mmPerMapUnit();
-      width *= mSettings.mmPerMapUnit();
-      markerSymbol->setSize( width );
-    }
-    if ( width < mSettings.symbolSize().width() )
-    {
-      widthOffset = ( mSettings.symbolSize().width() - width ) / 2.0;
-    }
-    if ( height < mSettings.symbolSize().height() )
-    {
-      heightOffset = ( mSettings.symbolSize().height() - height ) / 2.0;
-    }
-  }
-
-  if ( p )
-  {
-    if ( markerSymbol && sizeInMapUnits )
-    {
-      s->setOutputUnit( QgsSymbolV2::MM );
-    }
-
-    p->save();
-    p->setRenderHint( QPainter::Antialiasing );
-    if ( opacity != 255 && mSettings.useAdvancedEffects() )
-    {
-      //semi transparent layer, so need to draw symbol to an image (to flatten it first)
-      //create image which is same size as legend rect, in case symbol bleeds outside its alloted space
-      QImage tempImage = QImage( QSize( width * dotsPerMM, height * dotsPerMM ), QImage::Format_ARGB32 );
-      QPainter imagePainter( &tempImage );
-      tempImage.fill( Qt::transparent );
-      imagePainter.translate( dotsPerMM * ( currentXPosition + widthOffset ),
-                              dotsPerMM * ( currentYCoord + heightOffset ) );
-      s->drawPreviewIcon( &imagePainter, QSize( width * dotsPerMM, height * dotsPerMM ) );
-      //reduce opacity of image
-      imagePainter.setCompositionMode( QPainter::CompositionMode_DestinationIn );
-      imagePainter.fillRect( tempImage.rect(), QColor( 0, 0, 0, opacity ) );
-      //draw rendered symbol image
-      p->scale( 1.0 / dotsPerMM, 1.0 / dotsPerMM );
-      p->drawImage( 0, 0, tempImage );
-    }
-    else
-    {
-      p->translate( currentXPosition + widthOffset, currentYCoord + heightOffset );
-      p->scale( 1.0 / dotsPerMM, 1.0 / dotsPerMM );
-      s->drawPreviewIcon( p, QSize( width * dotsPerMM, height * dotsPerMM ) );
-    }
-    p->restore();
-
-    if ( markerSymbol && sizeInMapUnits )
-    {
-      s->setOutputUnit( QgsSymbolV2::MapUnit );
-      markerSymbol->setSize( size );
-    }
-  }
-  currentXPosition += width;
-  currentXPosition += 2 * widthOffset;
-  symbolHeight = height + 2 * heightOffset;
+  return QgsComposerLegendStyle::Undefined; // should not happen, only if corrupted project file
 }
 
+QgsComposerLegendStyle::Style QgsLegendRenderer::nodeLegendStyle( QgsLayerTreeNode* node )
+{
+  return nodeLegendStyle( node, mLegendModel );
+}
+
+void QgsLegendRenderer::setNodeLegendStyle( QgsLayerTreeNode* node, QgsComposerLegendStyle::Style style )
+{
+  QString str;
+  switch ( style )
+  {
+    case QgsComposerLegendStyle::Hidden:   str = "hidden"; break;
+    case QgsComposerLegendStyle::Group:    str = "group"; break;
+    case QgsComposerLegendStyle::Subgroup: str = "subgroup"; break;
+    default: break; // nothing
+  }
+
+  if ( !str.isEmpty() )
+    node->setCustomProperty( "legend/title-style", str );
+  else
+    node->removeCustomProperty( "legend/title-style" );
+}

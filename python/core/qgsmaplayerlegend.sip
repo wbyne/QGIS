@@ -1,77 +1,5 @@
 
 /**
- * The QgsLegendRendererItem class is abstract interface for legend items
- * returned from QgsMapLayerLegend implementation.
- *
- * The objects are used in QgsLayerTreeModel. Custom implementations may offer additional interactivity
- * and customized look.
- *
- * @note added in 2.6
- */
-class QgsLayerTreeModelLegendNode : QObject
-{
-%TypeHeaderCode
-#include <qgsmaplayerlegend.h>
-%End
-
-  public:
-
-    /** Return pointer to the parent layer node */
-    QgsLayerTreeLayer* parent() const;
-
-    /** Return item flags associated with the item. Default implementation returns Qt::ItemIsEnabled. */
-    virtual Qt::ItemFlags flags() const;
-
-    /** Return data associated with the item. Must be implemented in derived class. */
-    virtual QVariant data( int role ) const = 0;
-
-    /** Set some data associated with the item. Default implementation does nothing and returns false. */
-    virtual bool setData( const QVariant& value, int role );
-
-  protected:
-    /** Construct the node with pointer to its parent layer node */
-    explicit QgsLayerTreeModelLegendNode( QgsLayerTreeLayer* nodeL );
-};
-
-
-/**
- * Implementation of legend node interface for displaying preview of vector symbols and their labels
- * and allowing interaction with the symbol / renderer.
- *
- * @note added in 2.6
- */
-class QgsSymbolV2LegendNode : QgsLayerTreeModelLegendNode
-{
-%TypeHeaderCode
-#include <qgsmaplayerlegend.h>
-%End
-  public:
-    QgsSymbolV2LegendNode( QgsLayerTreeLayer* nodeLayer, QgsSymbolV2* symbol, const QString& label, int rendererRef = -1 );
-
-    virtual Qt::ItemFlags flags() const;
-    virtual QVariant data( int role ) const;
-    virtual bool setData( const QVariant& value, int role );
-};
-
-
-/**
- * Implementation of legend node interface for displaying arbitrary label with icon.
- *
- * @note added in 2.6
- */
-class QgsSimpleLegendNode : QgsLayerTreeModelLegendNode
-{
-%TypeHeaderCode
-#include <qgsmaplayerlegend.h>
-%End
-  public:
-    QgsSimpleLegendNode( QgsLayerTreeLayer* nodeLayer, const QString& label, const QIcon& icon = QIcon() );
-
-    virtual QVariant data( int role ) const;
-};
-
-
-/**
  * The QgsMapLayerLegend class is abstract interface for implementations
  * of legends for one map layer.
  *
@@ -96,9 +24,6 @@ class QgsMapLayerLegend : QObject
 
     // TODO: support for layer tree view delegates
 
-    // TODO: support for legend renderer
-
-
     //! Create new legend implementation for vector layer
     static QgsMapLayerLegend* defaultVectorLegend( QgsVectorLayer* vl ) /Factory/;
 
@@ -112,6 +37,31 @@ class QgsMapLayerLegend : QObject
     //! Emitted when existing items/nodes got invalid and should be replaced by new ones
     void itemsChanged();
 };
+
+
+/**
+ * Miscellaneous utility functions for handling of map layer legend
+ *
+ * @note added in 2.6
+ */
+class QgsMapLayerLegendUtils
+{
+%TypeHeaderCode
+#include <qgsmaplayerlegend.h>
+%End
+  public:
+    static void setLegendNodeOrder( QgsLayerTreeLayer* nodeLayer, const QList<int>& order );
+    static QList<int> legendNodeOrder( QgsLayerTreeLayer* nodeLayer );
+    static bool hasLegendNodeOrder( QgsLayerTreeLayer* nodeLayer );
+
+    static void setLegendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex, const QString& newLabel );
+    static QString legendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex );
+    static bool hasLegendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex );
+
+    //! update according to layer node's custom properties (order of items, user labels for items)
+    static void applyLayerNodeProperties( QgsLayerTreeLayer* nodeLayer, QList<QgsLayerTreeModelLegendNode*>& nodes );
+};
+
 
 
 /** Default legend implementation for vector layers

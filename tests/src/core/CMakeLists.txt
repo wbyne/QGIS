@@ -9,6 +9,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/src/core
   ${CMAKE_SOURCE_DIR}/src/core/composer
+  ${CMAKE_SOURCE_DIR}/src/core/layertree
   ${CMAKE_SOURCE_DIR}/src/core/raster
   ${CMAKE_SOURCE_DIR}/src/core/symbology-ng
   ${QT_INCLUDE_DIR}
@@ -95,6 +96,7 @@ ADD_QGIS_TEST(rendererstest testqgsrenderers.cpp)
 ADD_QGIS_TEST(maprenderertest testqgsmaprenderer.cpp)
 ADD_QGIS_TEST(blendmodestest testqgsblendmodes.cpp)
 ADD_QGIS_TEST(geometrytest testqgsgeometry.cpp)
+ADD_QGIS_TEST(geometryimporttest testqgsgeometryimport.cpp)
 ADD_QGIS_TEST(coordinatereferencesystemtest testqgscoordinatereferencesystem.cpp)
 ADD_DEPENDENCIES(qgis_coordinatereferencesystemtest synccrsdb)
 ADD_QGIS_TEST(pointtest testqgspoint.cpp)
@@ -107,6 +109,7 @@ ADD_QGIS_TEST(composerobject testqgscomposerobject.cpp)
 ADD_QGIS_TEST(composerutils testqgscomposerutils.cpp)
 ADD_QGIS_TEST(composerpapertest testqgscomposerpaper.cpp)
 ADD_QGIS_TEST(composermaptest testqgscomposermap.cpp)
+ADD_QGIS_TEST(composermapgridtest testqgscomposermapgrid.cpp)
 ADD_QGIS_TEST(composereffectstest testqgscomposereffects.cpp)
 ADD_QGIS_TEST(composershapestest testqgscomposershapes.cpp)
 ADD_QGIS_TEST(composerrotationtest testqgscomposerrotation.cpp)
@@ -129,3 +132,4 @@ ADD_QGIS_TEST(invertedpolygontest testqgsinvertedpolygonrenderer.cpp )
 ADD_QGIS_TEST(colorschemeregistry testqgscolorschemeregistry.cpp)
 ADD_QGIS_TEST(colorscheme testqgscolorscheme.cpp)
 ADD_QGIS_TEST(networkcontentfetcher testqgsnetworkcontentfetcher.cpp )
+ADD_QGIS_TEST(legendrenderertest testqgslegendrenderer.cpp )

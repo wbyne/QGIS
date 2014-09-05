@@ -17,6 +17,7 @@
 
 #include "qgslayertree.h"
 #include "qgslayertreemodel.h"
+#include "qgslayertreemodellegendnode.h"
 #include "qgslayertreeviewdefaultactions.h"
 #include "qgsmaplayer.h"
 
@@ -60,6 +61,8 @@ void QgsLayerTreeView::setModel( QAbstractItemModel* model )
   connect( layerTreeModel()->rootGroup(), SIGNAL( expandedChanged( QgsLayerTreeNode*, bool ) ), this, SLOT( onExpandedChanged( QgsLayerTreeNode*, bool ) ) );
 
   connect( selectionModel(), SIGNAL( currentChanged( QModelIndex, QModelIndex ) ), this, SLOT( onCurrentChanged() ) );
+
+  connect( layerTreeModel(), SIGNAL( modelReset() ), this, SLOT( onModelReset() ) );
 
   updateExpandedStateFromNode( layerTreeModel()->rootGroup() );
 }
@@ -172,6 +175,11 @@ void QgsLayerTreeView::onExpandedChanged( QgsLayerTreeNode* node, bool expanded 
     setExpanded( idx, expanded );
 }
 
+void QgsLayerTreeView::onModelReset()
+{
+  updateExpandedStateFromNode( layerTreeModel()->rootGroup() );
+}
+
 void QgsLayerTreeView::updateExpandedStateFromNode( QgsLayerTreeNode* node )
 {
   QModelIndex idx = layerTreeModel()->node2index( node );
@@ -191,9 +199,10 @@ QgsMapLayer* QgsLayerTreeView::layerForIndex( const QModelIndex& index ) const
   }
   else
   {
-    // possibly a symbology node
-    if ( layerTreeModel()->isIndexSymbologyNode( index ) )
-      return layerTreeModel()->layerNodeForSymbologyNode( index )->layer();
+    // possibly a legend node
+    QgsLayerTreeModelLegendNode* legendNode = layerTreeModel()->index2legendNode( index );
+    if ( legendNode )
+      return legendNode->parent()->layer();
   }
 
   return 0;
@@ -215,7 +224,13 @@ QgsLayerTreeGroup* QgsLayerTreeView::currentGroupNode() const
     if ( QgsLayerTree::isGroup( parent ) )
       return QgsLayerTree::toGroup( node );
   }
-  // TODO: also handle if symbology is selected?
+
+  if ( QgsLayerTreeModelLegendNode* legendNode = layerTreeModel()->index2legendNode( selectionModel()->currentIndex() ) )
+  {
+    QgsLayerTreeLayer* parent = legendNode->parent();
+    if ( QgsLayerTree::isGroup( parent->parent() ) )
+      return QgsLayerTree::toGroup( parent->parent() );
+  }
 
   return 0;
 }
@@ -252,5 +267,5 @@ void QgsLayerTreeView::refreshLayerSymbology( const QString& layerId )
 {
   QgsLayerTreeLayer* nodeLayer = layerTreeModel()->rootGroup()->findLayer( layerId );
   if ( nodeLayer )
-    layerTreeModel()->refreshLayerSymbology( nodeLayer );
+    layerTreeModel()->refreshLayerLegend( nodeLayer );
 }

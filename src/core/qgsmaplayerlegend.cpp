@@ -15,11 +15,13 @@
 
 #include "qgsmaplayerlegend.h"
 
+#include <QSettings>
+
 #include "qgslayertree.h"
+#include "qgslayertreemodellegendnode.h"
 #include "qgspluginlayer.h"
 #include "qgsrasterlayer.h"
 #include "qgsrendererv2.h"
-#include "qgssymbollayerv2utils.h"
 #include "qgsvectorlayer.h"
 
 
@@ -43,124 +45,131 @@ QgsMapLayerLegend* QgsMapLayerLegend::defaultPluginLegend( QgsPluginLayer* pl )
   return new QgsDefaultPluginLayerLegend( pl );
 }
 
-
 // -------------------------------------------------------------------------
 
 
-QgsLayerTreeModelLegendNode::QgsLayerTreeModelLegendNode( QgsLayerTreeLayer* nodeL )
-    : mParent( nodeL )
+void QgsMapLayerLegendUtils::setLegendNodeOrder( QgsLayerTreeLayer* nodeLayer, const QList<int>& order )
 {
+  QStringList orderStr;
+  foreach ( int id, order )
+    orderStr << QString::number( id );
+  QString str = orderStr.isEmpty() ? "empty" : orderStr.join( "," );
+
+  nodeLayer->setCustomProperty( "legend/node-order", str );
 }
 
-Qt::ItemFlags QgsLayerTreeModelLegendNode::flags() const
+static int _originalLegendNodeCount( QgsLayerTreeLayer* nodeLayer )
 {
-  return Qt::ItemIsEnabled;
+  // this is not particularly efficient way of finding out number of legend nodes
+  QList<QgsLayerTreeModelLegendNode*> lst = nodeLayer->layer()->legend()->createLayerTreeModelLegendNodes( nodeLayer );
+  int numNodes = lst.count();
+  qDeleteAll( lst );
+  return numNodes;
 }
 
-bool QgsLayerTreeModelLegendNode::setData( const QVariant& value, int role )
+static QList<int> _makeNodeOrder( QgsLayerTreeLayer* nodeLayer )
 {
-  Q_UNUSED( value );
-  Q_UNUSED( role );
-  return false;
-}
-
-
-// -------------------------------------------------------------------------
-
-
-QgsSymbolV2LegendNode::QgsSymbolV2LegendNode( QgsLayerTreeLayer* nodeLayer, QgsSymbolV2* symbol, const QString& label, int rendererRef )
-    : QgsLayerTreeModelLegendNode( nodeLayer )
-    , mSymbol( symbol )
-    , mLabel( label )
-    , mRendererRef( rendererRef )
-{
-  if ( nodeLayer->customProperty( "showFeatureCount", 0 ).toBool() && symbol )
+  if ( !nodeLayer->layer() || !nodeLayer->layer()->legend() )
   {
-    QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( nodeLayer->layer() );
-    if ( vl )
-      mLabel += QString( " [%1]" ).arg( vl->featureCount( symbol ) );
-  }
-}
-
-Qt::ItemFlags QgsSymbolV2LegendNode::flags() const
-{
-  if ( mParent && mParent->childrenCheckable() )
-    return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
-  else
-    return Qt::ItemIsEnabled;
-}
-
-
-QVariant QgsSymbolV2LegendNode::data( int role ) const
-{
-  if ( role == Qt::DisplayRole )
-  {
-    return mLabel;
-  }
-  else if ( role == Qt::DecorationRole )
-  {
-    QSize iconSize( 16, 16 ); // TODO: configurable
-    if ( mIcon.isNull() && mSymbol )
-      mIcon = QgsSymbolLayerV2Utils::symbolPreviewPixmap( mSymbol, iconSize );
-    return mIcon;
-  }
-  else if ( role == Qt::CheckStateRole )
-  {
-    if ( !mParent || !mParent->childrenCheckable() )
-      return QVariant();
-
-    if ( !mParent->isVisible() )
-      return Qt::PartiallyChecked;
-
-    QgsVectorLayer* vlayer = qobject_cast<QgsVectorLayer*>( mParent->layer() );
-    if ( !vlayer || !vlayer->rendererV2() )
-      return QVariant();
-
-    return vlayer->rendererV2()->legendSymbolItemChecked( mRendererRef ) ? Qt::Checked : Qt::Unchecked;
+    QgsDebugMsg( "Legend node order manipulation is invalid without existing legend" );
+    return QList<int>();
   }
 
-  return QVariant();
+  int numNodes = _originalLegendNodeCount( nodeLayer );
+
+  QList<int> order;
+  for ( int i = 0; i < numNodes; ++i )
+    order << i;
+  return order;
 }
 
-bool QgsSymbolV2LegendNode::setData( const QVariant& value, int role )
+QList<int> QgsMapLayerLegendUtils::legendNodeOrder( QgsLayerTreeLayer* nodeLayer )
 {
-  if ( role != Qt::CheckStateRole )
-    return false;
+  QString orderStr = nodeLayer->customProperty( "legend/node-order" ).toString();
 
-  if ( !mParent || !mParent->childrenCheckable() )
-    return false;
+  if ( orderStr.isEmpty() )
+    return _makeNodeOrder( nodeLayer );
 
-  QgsVectorLayer* vlayer = qobject_cast<QgsVectorLayer*>( mParent->layer() );
-  if ( !vlayer || !vlayer->rendererV2() )
-    return false;
+  if ( orderStr == "empty" )
+    return QList<int>();
 
-  vlayer->rendererV2()->checkLegendSymbolItem( mRendererRef, value == Qt::Checked );
+  int numNodes = _originalLegendNodeCount( nodeLayer );
 
-  if ( mParent->isVisible() )
-    vlayer->clearCacheImage();
+  QList<int> lst;
+  foreach ( QString item, orderStr.split( "," ) )
+  {
+    bool ok;
+    int id = item.toInt( &ok );
+    if ( !ok || id < 0 || id >= numNodes )
+      return _makeNodeOrder( nodeLayer );
 
-  return true;
+    lst << id;
+  }
+
+  return lst;
+}
+
+bool QgsMapLayerLegendUtils::hasLegendNodeOrder( QgsLayerTreeLayer* nodeLayer )
+{
+  return nodeLayer->customProperties().contains( "legend/node-order" );
+}
+
+void QgsMapLayerLegendUtils::setLegendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex, const QString& newLabel )
+{
+  nodeLayer->setCustomProperty( "legend/label-" + QString::number( originalIndex ), newLabel );
+}
+
+QString QgsMapLayerLegendUtils::legendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex )
+{
+  return nodeLayer->customProperty( "legend/label-" + QString::number( originalIndex ) ).toString();
+}
+
+bool QgsMapLayerLegendUtils::hasLegendNodeUserLabel( QgsLayerTreeLayer* nodeLayer, int originalIndex )
+{
+  return nodeLayer->customProperties().contains( "legend/label-" + QString::number( originalIndex ) );
 }
 
 
-// -------------------------------------------------------------------------
-
-
-QgsSimpleLegendNode::QgsSimpleLegendNode( QgsLayerTreeLayer* nodeLayer, const QString& label, const QIcon& icon )
-    : QgsLayerTreeModelLegendNode( nodeLayer )
-    , mLabel( label )
-    , mIcon( icon )
+void QgsMapLayerLegendUtils::applyLayerNodeProperties( QgsLayerTreeLayer* nodeLayer, QList<QgsLayerTreeModelLegendNode*>& nodes )
 {
-}
+  // handle user labels
+  int i = 0;
+  foreach ( QgsLayerTreeModelLegendNode* legendNode, nodes )
+  {
+    QString userLabel = QgsMapLayerLegendUtils::legendNodeUserLabel( nodeLayer, i++ );
+    if ( !userLabel.isNull() )
+      legendNode->setUserLabel( userLabel );
+  }
 
-QVariant QgsSimpleLegendNode::data( int role ) const
-{
-  if ( role == Qt::DisplayRole )
-    return mLabel;
-  else if ( role == Qt::DecorationRole )
-    return mIcon;
-  else
-    return QVariant();
+  // handle user order of nodes
+  if ( QgsMapLayerLegendUtils::hasLegendNodeOrder( nodeLayer ) )
+  {
+    QList<int> order = QgsMapLayerLegendUtils::legendNodeOrder( nodeLayer );
+
+    QList<QgsLayerTreeModelLegendNode*> newOrder;
+    QSet<int> usedIndices;
+    foreach ( int idx, order )
+    {
+      if ( usedIndices.contains( idx ) )
+      {
+        QgsDebugMsg( "invalid node order. ignoring." );
+        return;
+      }
+
+      newOrder << nodes[idx];
+      usedIndices << idx;
+    }
+
+    // delete unused nodes
+    for ( int i = 0; i < nodes.count(); ++i )
+    {
+      if ( !usedIndices.contains( i ) )
+        delete nodes[i];
+    }
+
+    nodes = newOrder;
+  }
+
 }
 
 // -------------------------------------------------------------------------
@@ -183,16 +192,23 @@ QList<QgsLayerTreeModelLegendNode*> QgsDefaultVectorLayerLegend::createLayerTree
   if ( nodeLayer->customProperty( "showFeatureCount", 0 ).toBool() )
     mLayer->countSymbolFeatures();
 
-  nodeLayer->setChildrenCheckable( r->legendSymbolItemsCheckable() );
-
-  typedef QPair<QString, QgsSymbolV2*> QgsLegendSymbolItem;
-  int k = 0;
-  foreach ( const QgsLegendSymbolItem& i, r->legendSymbolItems() )
+  QSettings settings;
+  if ( settings.value( "/qgis/showLegendClassifiers", false ).toBool() && !r->legendClassificationAttribute().isEmpty() )
   {
-    nodes.append( new QgsSymbolV2LegendNode( nodeLayer, i.second, i.first, k++ ) );
+    nodes.append( new QgsSimpleLegendNode( nodeLayer, r->legendClassificationAttribute() ) );
   }
+
+  foreach ( const QgsLegendSymbolItemV2& i, r->legendSymbolItemsV2() )
+  {
+    nodes.append( new QgsSymbolV2LegendNode( nodeLayer, i ) );
+  }
+
+  if ( nodes.count() == 1 && nodes[0]->data( Qt::EditRole ).toString().isEmpty() )
+    nodes[0]->setEmbeddedInParent( true );
+
   return nodes;
 }
+
 
 
 // -------------------------------------------------------------------------
@@ -211,9 +227,12 @@ QList<QgsLayerTreeModelLegendNode*> QgsDefaultRasterLayerLegend::createLayerTree
   // temporary solution for WMS. Ideally should be done with a delegate.
   if ( mLayer->providerType() == "wms" )
   {
-    QImage img = mLayer->dataProvider()->getLegendGraphic( 1000 ); // dummy scale - should not be required!
-    if ( !img.isNull() )
-      nodes << new QgsSimpleLegendNode( nodeLayer, tr( "Double-click to view legend" ) );
+    QImage legendGraphic = mLayer->dataProvider()->getLegendGraphic();
+    if ( !legendGraphic.isNull() )
+    {
+      QgsDebugMsg( QString( "downloaded legend with dimension width:" ) + QString::number( legendGraphic.width() ) + QString( " and Height:" ) + QString::number( legendGraphic.height() ) );
+      nodes << new QgsImageLegendNode( nodeLayer, legendGraphic );
+    }
   }
 
   QgsLegendColorList rasterItemList = mLayer->legendSymbologyItems();
@@ -222,22 +241,18 @@ QList<QgsLayerTreeModelLegendNode*> QgsDefaultRasterLayerLegend::createLayerTree
 
   // Paletted raster may have many colors, for example UInt16 may have 65536 colors
   // and it is very slow, so we limit max count
-  QSize iconSize( 16, 16 );
   int count = 0;
   int max_count = 1000;
 
   for ( QgsLegendColorList::const_iterator itemIt = rasterItemList.constBegin();
         itemIt != rasterItemList.constEnd(); ++itemIt, ++count )
   {
-    QPixmap pix( iconSize );
-    pix.fill( itemIt->second );
-    nodes << new QgsSimpleLegendNode( nodeLayer, itemIt->first, QIcon( pix ) );
+    nodes << new QgsRasterSymbolLegendNode( nodeLayer, itemIt->second, itemIt->first );
 
     if ( count == max_count )
     {
-      pix.fill( Qt::transparent );
       QString label = tr( "following %1 items\nnot displayed" ).arg( rasterItemList.size() - max_count );
-      nodes << new QgsSimpleLegendNode( nodeLayer, label, QIcon( pix ) );
+      nodes << new QgsSimpleLegendNode( nodeLayer, label );
       break;
     }
   }
@@ -272,3 +287,4 @@ QList<QgsLayerTreeModelLegendNode*> QgsDefaultPluginLayerLegend::createLayerTree
 
   return nodes;
 }
+

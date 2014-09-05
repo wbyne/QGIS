@@ -25,7 +25,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( QgsMapLayer *layer )
     , mLayerId( layer->id() )
     , mLayer( layer )
     , mVisible( Qt::Checked )
-    , mChildrenCheckable( false )
 {
   Q_ASSERT( QgsMapLayerRegistry::instance()->mapLayer( mLayerId ) == layer );
 }
@@ -36,7 +35,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( QString layerId, QString name )
     , mLayerName( name )
     , mLayer( 0 )
     , mVisible( Qt::Checked )
-    , mChildrenCheckable( false )
 {
   attachToLayer();
 }
@@ -47,7 +45,6 @@ QgsLayerTreeLayer::QgsLayerTreeLayer( const QgsLayerTreeLayer& other )
     , mLayerName( other.mLayerName )
     , mLayer( 0 )
     , mVisible( other.mVisible )
-    , mChildrenCheckable( other.mChildrenCheckable )
 {
   attachToLayer();
 }
@@ -60,6 +57,8 @@ void QgsLayerTreeLayer::attachToLayer()
   {
     mLayer = l;
     mLayerName = l->name();
+    // make sure we are notified if the layer is removed
+    connect( QgsMapLayerRegistry::instance(), SIGNAL( layersWillBeRemoved( QStringList ) ), this, SLOT( registryLayersWillBeRemoved( QStringList ) ) );
   }
   else
   {
@@ -154,5 +153,19 @@ void QgsLayerTreeLayer::registryLayersAdded( QList<QgsMapLayer*> layers )
       emit layerLoaded();
       break;
     }
+  }
+}
+
+void QgsLayerTreeLayer::registryLayersWillBeRemoved( const QStringList& layerIds )
+{
+  if ( layerIds.contains( mLayerId ) )
+  {
+    emit layerWillBeUnloaded();
+
+    // stop listening to removal signals and start hoping that the layer may be added again
+    disconnect( QgsMapLayerRegistry::instance(), SIGNAL( layersWillBeRemoved( QStringList ) ), this, SLOT( registryLayersWillBeRemoved( QStringList ) ) );
+    connect( QgsMapLayerRegistry::instance(), SIGNAL( layersAdded( QList<QgsMapLayer*> ) ), this, SLOT( registryLayersAdded( QList<QgsMapLayer*> ) ) );
+
+    mLayer = 0;
   }
 }

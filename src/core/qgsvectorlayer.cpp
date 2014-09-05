@@ -2819,7 +2819,32 @@ void QgsVectorLayer::uniqueValues( int index, QList<QVariant> &uniqueValues, int
 
   if ( origin == QgsFields::OriginProvider ) //a provider field
   {
-    return mDataProvider->uniqueValues( index, uniqueValues, limit );
+    mDataProvider->uniqueValues( index, uniqueValues, limit );
+
+    if ( mEditBuffer )
+    {
+      QSet<QString> vals;
+      Q_FOREACH ( const QVariant& v, uniqueValues )
+        vals << v.toString();
+
+      QMapIterator< QgsFeatureId, QgsAttributeMap > it( mEditBuffer->changedAttributeValues() );
+      while ( it.hasNext() && ( limit < 0 || uniqueValues.count() < limit ) )
+      {
+        it.next();
+        QVariant v = it.value().value( index );
+        if ( v.isValid() )
+        {
+          QString vs = v.toString();
+          if ( !vals.contains( vs ) )
+          {
+            vals << vs;
+            uniqueValues << v;
+          }
+        }
+      }
+    }
+
+    return;
   }
   else if ( origin == QgsFields::OriginJoin )
   {
@@ -3523,13 +3548,13 @@ void QgsVectorLayer::invalidateSymbolCountedFlag()
 
 void QgsVectorLayer::onRelationsLoaded()
 {
-  Q_FOREACH( QgsAttributeEditorElement* elem, mAttributeEditorElements )
+  Q_FOREACH ( QgsAttributeEditorElement* elem, mAttributeEditorElements )
   {
     if ( elem->type() == QgsAttributeEditorElement::AeTypeContainer )
     {
       QgsAttributeEditorContainer* cont = dynamic_cast< QgsAttributeEditorContainer* >( elem );
       QList<QgsAttributeEditorElement*> relations = cont->findElements( QgsAttributeEditorElement::AeTypeRelation );
-      Q_FOREACH( QgsAttributeEditorElement* relElem, relations )
+      Q_FOREACH ( QgsAttributeEditorElement* relElem, relations )
       {
         QgsAttributeEditorRelation* rel = dynamic_cast< QgsAttributeEditorRelation* >( relElem );
         rel->init( QgsProject::instance()->relationManager() );
@@ -3579,7 +3604,7 @@ QDomElement QgsAttributeEditorContainer::toDomElement( QDomDocument& doc ) const
   QDomElement elem = doc.createElement( "attributeEditorContainer" );
   elem.setAttribute( "name", mName );
 
-  Q_FOREACH( QgsAttributeEditorElement* child, mChildren )
+  Q_FOREACH ( QgsAttributeEditorElement* child, mChildren )
   {
     elem.appendChild( child->toDomElement( doc ) );
   }
@@ -3595,7 +3620,7 @@ QList<QgsAttributeEditorElement*> QgsAttributeEditorContainer::findElements( Qgs
 {
   QList<QgsAttributeEditorElement*> results;
 
-  Q_FOREACH( QgsAttributeEditorElement* elem, mChildren )
+  Q_FOREACH ( QgsAttributeEditorElement* elem, mChildren )
   {
     if ( elem->type() == type )
     {

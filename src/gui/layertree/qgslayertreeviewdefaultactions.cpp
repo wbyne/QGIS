@@ -33,7 +33,7 @@ QgsLayerTreeViewDefaultActions::QgsLayerTreeViewDefaultActions( QgsLayerTreeView
 
 QAction* QgsLayerTreeViewDefaultActions::actionAddGroup( QObject* parent )
 {
-  QAction* a = new QAction( tr( "&Add Group" ), parent );
+  QAction* a = new QAction( QgsApplication::getThemeIcon( "/mActionFolder.png" ), tr( "&Add Group" ), parent );
   connect( a, SIGNAL( triggered() ), this, SLOT( addGroup() ) );
   return a;
 }
@@ -113,6 +113,8 @@ QAction* QgsLayerTreeViewDefaultActions::actionGroupSelected( QObject* parent )
 void QgsLayerTreeViewDefaultActions::addGroup()
 {
   QgsLayerTreeGroup* group = mView->currentGroupNode();
+  if ( !group )
+    group = mView->layerTreeModel()->rootGroup();
 
   QgsLayerTreeGroup* newGroup = group->addGroup( uniqueGroupName( group ) );
   mView->edit( mView->layerTreeModel()->node2index( newGroup ) );
@@ -149,8 +151,6 @@ void QgsLayerTreeViewDefaultActions::showFeatureCount()
 
 
   node->setCustomProperty( "showFeatureCount", node->customProperty( "showFeatureCount", 0 ).toInt() ? 0 : 1 );
-
-  mView->layerTreeModel()->refreshLayerSymbology( QgsLayerTree::toLayer( node ) );
 }
 
 
@@ -167,8 +167,12 @@ void QgsLayerTreeViewDefaultActions::zoomToLayer( QgsMapCanvas* canvas )
 
 void QgsLayerTreeViewDefaultActions::zoomToGroup( QgsMapCanvas* canvas )
 {
+  QgsLayerTreeGroup* groupNode = mView->currentGroupNode();
+  if ( !groupNode )
+    return;
+
   QList<QgsMapLayer*> layers;
-  foreach ( QString layerId, mView->currentGroupNode()->findLayerIds() )
+  foreach ( QString layerId, groupNode->findLayerIds() )
     layers << QgsMapLayerRegistry::instance()->mapLayer( layerId );
 
   zoomToLayers( canvas, layers );

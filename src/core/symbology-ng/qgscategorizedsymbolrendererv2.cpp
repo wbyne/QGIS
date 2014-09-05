@@ -647,15 +647,7 @@ QDomElement QgsCategorizedSymbolRendererV2::save( QDomDocument& doc )
 
 QgsLegendSymbologyList QgsCategorizedSymbolRendererV2::legendSymbologyItems( QSize iconSize )
 {
-  QSettings settings;
-  bool showClassifiers = settings.value( "/qgis/showLegendClassifiers", false ).toBool();
-
   QgsLegendSymbologyList lst;
-  if ( showClassifiers )
-  {
-    lst << qMakePair( classAttribute(), QPixmap() );
-  }
-
   int count = categories().count();
   for ( int i = 0; i < count; i++ )
   {
@@ -669,14 +661,7 @@ QgsLegendSymbologyList QgsCategorizedSymbolRendererV2::legendSymbologyItems( QSi
 QgsLegendSymbolList QgsCategorizedSymbolRendererV2::legendSymbolItems( double scaleDenominator, QString rule )
 {
   Q_UNUSED( scaleDenominator );
-  QSettings settings;
-  bool showClassifiers = settings.value( "/qgis/showLegendClassifiers", false ).toBool();
-
   QgsLegendSymbolList lst;
-  if ( showClassifiers )
-  {
-    lst << qMakePair( classAttribute(), ( QgsSymbolV2* )0 );
-  }
 
   foreach ( const QgsRendererCategoryV2& cat, mCategories )
   {
@@ -754,17 +739,22 @@ bool QgsCategorizedSymbolRendererV2::legendSymbolItemsCheckable() const
   return true;
 }
 
-bool QgsCategorizedSymbolRendererV2::legendSymbolItemChecked( int index )
+bool QgsCategorizedSymbolRendererV2::legendSymbolItemChecked( QString key )
 {
-  if ( index >= 0 && index < mCategories.size() )
+  bool ok;
+  int index = key.toInt( &ok );
+  if ( ok && index >= 0 && index < mCategories.size() )
     return mCategories[ index ].renderState();
   else
     return true;
 }
 
-void QgsCategorizedSymbolRendererV2::checkLegendSymbolItem( int index, bool state )
+void QgsCategorizedSymbolRendererV2::checkLegendSymbolItem( QString key, bool state )
 {
-  updateCategoryRenderState( index, state );
+  bool ok;
+  int index = key.toInt( &ok );
+  if ( ok )
+    updateCategoryRenderState( index, state );
 }
 
 QgsMarkerSymbolV2 QgsCategorizedSymbolRendererV2::sSkipRender;

@@ -195,6 +195,7 @@
 #include "qgsvectorfilewriter.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerproperties.h"
+#include "qgsvisibilitygroups.h"
 #include "qgsmessagelogviewer.h"
 #include "qgsdataitem.h"
 #include "qgsmaplayeractionregistry.h"
@@ -396,7 +397,7 @@ void QgisApp::emitCustomSrsValidation( QgsCoordinateReferenceSystem &srs )
 void QgisApp::layerTreeViewDoubleClicked( const QModelIndex& index )
 {
   // temporary solution for WMS legend
-  if ( mLayerTreeView->layerTreeModel()->isIndexSymbologyNode( index ) )
+  if ( mLayerTreeView->layerTreeModel()->index2legendNode( index ) )
   {
     QModelIndex parent = mLayerTreeView->layerTreeModel()->parent( index );
     QgsLayerTreeNode* node = mLayerTreeView->layerTreeModel()->index2node( parent );
@@ -2305,7 +2306,7 @@ void QgisApp::initLayerTreeView()
   model->setFlag( QgsLayerTreeModel::AllowNodeReorder );
   model->setFlag( QgsLayerTreeModel::AllowNodeRename );
   model->setFlag( QgsLayerTreeModel::AllowNodeChangeVisibility );
-  model->setAutoCollapseSymbologyNodes( 10 );
+  model->setAutoCollapseLegendNodes( 10 );
 
   mLayerTreeView->setModel( model );
   mLayerTreeView->setMenuProvider( new QgsAppLayerTreeViewMenuProvider( mLayerTreeView, mMapCanvas ) );
@@ -2316,7 +2317,48 @@ void QgisApp::initLayerTreeView()
   connect( mLayerTreeView, SIGNAL( currentLayerChanged( QgsMapLayer* ) ), this, SLOT( activeLayerChanged( QgsMapLayer* ) ) );
   connect( mLayerTreeView->selectionModel(), SIGNAL( currentChanged( QModelIndex, QModelIndex ) ), this, SLOT( updateNewLayerInsertionPoint() ) );
 
-  mLayerTreeDock->setWidget( mLayerTreeView );
+  // add group tool button
+  QToolButton* btnAddGroup = new QToolButton;
+  btnAddGroup->setAutoRaise( true );
+  btnAddGroup->setIcon( QgsApplication::getThemeIcon( "/mActionFolder.png" ) );
+  btnAddGroup->setToolTip( tr( "Add Group" ) );
+  connect( btnAddGroup, SIGNAL( clicked() ), mLayerTreeView->defaultActions(), SLOT( addGroup() ) );
+
+  // visibility groups tool button
+  QToolButton* btnVisibilityGroups = new QToolButton;
+  btnVisibilityGroups->setAutoRaise( true );
+  btnVisibilityGroups->setToolTip( tr( "Manage Layer Visibility") );
+  btnVisibilityGroups->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
+  btnVisibilityGroups->setPopupMode( QToolButton::InstantPopup );
+  btnVisibilityGroups->setMenu( QgsVisibilityGroups::instance()->menu() );
+
+  // expand / collapse tool buttons
+  QToolButton* btnExpandAll = new QToolButton;
+  btnExpandAll->setAutoRaise( true );
+  btnExpandAll->setIcon( QgsApplication::getThemeIcon( "/mActionExpandTree.png" ) );
+  btnExpandAll->setToolTip( tr( "Expand All" ) );
+  connect( btnExpandAll, SIGNAL( clicked() ), mLayerTreeView, SLOT( expandAll() ) );
+  QToolButton* btnCollapseAll = new QToolButton;
+  btnCollapseAll->setAutoRaise( true );
+  btnCollapseAll->setIcon( QgsApplication::getThemeIcon( "/mActionCollapseTree.png" ) );
+  btnCollapseAll->setToolTip( tr( "Collapse All" ) );
+  connect( btnCollapseAll, SIGNAL( clicked() ), mLayerTreeView, SLOT( collapseAll() ) );
+
+  QHBoxLayout* toolbarLayout = new QHBoxLayout;
+  toolbarLayout->addWidget( btnAddGroup );
+  toolbarLayout->addWidget( btnVisibilityGroups );
+  toolbarLayout->addWidget( btnExpandAll );
+  toolbarLayout->addWidget( btnCollapseAll );
+  toolbarLayout->addStretch();
+
+  QVBoxLayout* vboxLayout = new QVBoxLayout;
+  vboxLayout->setMargin( 0 );
+  vboxLayout->addLayout( toolbarLayout );
+  vboxLayout->addWidget( mLayerTreeView );
+
+  QWidget* w = new QWidget;
+  w->setLayout( vboxLayout );
+  mLayerTreeDock->setWidget( w );
   addDockWidget( Qt::LeftDockWidgetArea, mLayerTreeDock );
 
   mLayerTreeCanvasBridge = new QgsLayerTreeMapCanvasBridge( QgsProject::instance()->layerTreeRoot(), mMapCanvas, this );
@@ -3446,6 +3488,8 @@ void QgisApp::fileNew( bool thePromptToSaveFlag, bool forceBlank )
   {
     fileNewFromDefaultTemplate();
   }
+
+  QgsVisibilityGroups::instance()->clear();
 
   // set the initial map tool
 #ifndef HAVE_TOUCH
@@ -9648,6 +9692,7 @@ void QgisApp::writeProject( QDomDocument &doc )
 
   QgsLayerTreeNode* clonedRoot = QgsProject::instance()->layerTreeRoot()->clone();
   QgsLayerTreeUtils::removeChildrenOfEmbeddedGroups( QgsLayerTree::toGroup( clonedRoot ) );
+  QgsLayerTreeUtils::updateEmbeddedGroupsProjectPath( QgsLayerTree::toGroup( clonedRoot ) ); // convert absolute paths to relative paths if required
   QDomElement oldLegendElem = QgsLayerTreeUtils::writeOldLegend( doc, QgsLayerTree::toGroup( clonedRoot ),
                               mLayerTreeCanvasBridge->hasCustomLayerOrder(), mLayerTreeCanvasBridge->customLayerOrder() );
   delete clonedRoot;

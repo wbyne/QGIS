@@ -434,7 +434,12 @@ void QgsCollapsibleGroupBoxBasic::setCollapsed( bool collapse )
   {
     // process events so entire widget is shown
     QApplication::processEvents();
+    mParentScrollArea->setUpdatesEnabled( false );
     mParentScrollArea->ensureWidgetVisible( this );
+    //and then make sure the top of the widget is visible - otherwise tall group boxes
+    //scroll to their centres, which is disorienting for users
+    mParentScrollArea->ensureWidgetVisible( mCollapseButton, 0, 5 );
+    mParentScrollArea->setUpdatesEnabled( true );
   }
   // emit signal for connections using collapsed state
   emit collapsedStateChanged( isCollapsed() );
@@ -465,7 +470,7 @@ void QgsCollapsibleGroupBoxBasic::collapseExpandFixes()
       if ( w && w != mCollapseButton )
       {
         if ( w->property( hideKey ).toBool() )
-        w->show();
+          w->show();
       }
     }
   }

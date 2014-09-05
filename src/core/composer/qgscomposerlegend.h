@@ -21,14 +21,33 @@
 #include "qgscomposerlegendstyle.h"
 #include "qgscomposeritem.h"
 #include "qgscomposerlegenditem.h"
+#include "qgslayertreemodel.h"
 #include "qgslegendmodel.h"
 #include "qgslegendsettings.h"
 
+class QgsLayerTreeModel;
 class QgsSymbolV2;
 class QgsComposerGroupItem;
 class QgsComposerLayerItem;
 class QgsComposerMap;
 class QgsLegendRenderer;
+
+
+/** \ingroup MapComposer
+ * Item model implementation based on layer tree model for composer legend.
+ * Overrides some functionality of QgsLayerTreeModel to better fit the needs of composer legend.
+ *
+ * @note added in 2.6
+ */
+class CORE_EXPORT QgsLegendModelV2 : public QgsLayerTreeModel
+{
+  public:
+    QgsLegendModelV2( QgsLayerTreeGroup* rootNode, QObject *parent = 0 );
+
+    QVariant data( const QModelIndex& index,  int role ) const;
+
+    Qt::ItemFlags flags( const QModelIndex &index ) const;
+};
 
 
 /** \ingroup MapComposer
@@ -55,7 +74,16 @@ class CORE_EXPORT QgsComposerLegend : public QgsComposerItem
     void adjustBoxSize();
 
     /**Returns pointer to the legend model*/
-    QgsLegendModel* model() {return &mLegendModel;}
+    //! @note deprecated in 2.6 - use modelV2()
+    Q_DECL_DEPRECATED QgsLegendModel* model() {return &mLegendModel;}
+
+    //! @note added in 2.6
+    QgsLegendModelV2* modelV2() { return mLegendModel2; }
+
+    //! @note added in 2.6
+    void setAutoUpdateModel( bool autoUpdate );
+    //! @note added in 2.6
+    bool autoUpdateModel() const;
 
     //setters and getters
     void setTitle( const QString& t );
@@ -151,7 +179,13 @@ class CORE_EXPORT QgsComposerLegend : public QgsComposerItem
   private:
     QgsComposerLegend(); //forbidden
 
+    //! use new custom layer tree and update model. if new root is null pointer, will use project's tree
+    void setCustomLayerTree( QgsLayerTreeGroup* rootGroup );
+
     QgsLegendModel mLegendModel;
+
+    QgsLegendModelV2* mLegendModel2;
+    QgsLayerTreeGroup* mCustomLayerTree;
 
     QgsLegendSettings mSettings;
 

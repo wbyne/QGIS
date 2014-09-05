@@ -47,6 +47,8 @@
 %Include qgslabel.sip
 %Include qgslabelattributes.sip
 %Include qgslabelsearchtree.sip
+%Include qgslegendrenderer.sip
+%Include qgslegendsettings.sip
 %Include qgslogger.sip
 %Include qgsmaplayer.sip
 %Include qgsmaplayerlegend.sip
@@ -129,6 +131,7 @@
 %Include composer/qgscomposerlegend.sip
 %Include composer/qgscomposerlegenditem.sip
 %Include composer/qgscomposermap.sip
+%Include composer/qgscomposermapgrid.sip
 %Include composer/qgscomposermultiframe.sip
 %Include composer/qgscomposermultiframecommand.sip
 %Include composer/qgscomposerpicture.sip
@@ -167,6 +170,8 @@
 %Include layertree/qgslayertree.sip
 %Include layertree/qgslayertreegroup.sip
 %Include layertree/qgslayertreelayer.sip
+%Include layertree/qgslayertreemodel.sip
+%Include layertree/qgslayertreemodellegendnode.sip
 %Include layertree/qgslayertreenode.sip
 %Include layertree/qgslayertreeregistrybridge.sip
 %Include layertree/qgslayertreeutils.sip
@@ -221,6 +226,7 @@
 
 %Include symbology-ng/qgscategorizedsymbolrendererv2.sip
 %Include symbology-ng/qgsgraduatedsymbolrendererv2.sip
+%Include symbology-ng/qgslegendsymbolitemv2.sip
 %Include symbology-ng/qgssinglesymbolrendererv2.sip
 %Include symbology-ng/qgspointdisplacementrenderer.sip
 %Include symbology-ng/qgsrulebasedrendererv2.sip

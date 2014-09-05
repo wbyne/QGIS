@@ -57,11 +57,6 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
     Qt::CheckState isVisible() const { return mVisible; }
     void setVisible( Qt::CheckState visible );
 
-    //! @note added in 2.5
-    bool childrenCheckable() const { return mChildrenCheckable; }
-    //! @note added in 2.5
-    void setChildrenCheckable( bool checkable ) { mChildrenCheckable = checkable; }
-
     static QgsLayerTreeLayer* readXML( QDomElement& element );
     virtual void writeXML( QDomElement& parentElement );
 
@@ -71,10 +66,14 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
 
   protected slots:
     void registryLayersAdded( QList<QgsMapLayer*> layers );
+    void registryLayersWillBeRemoved( const QStringList& layerIds );
 
   signals:
     //! emitted when a previously unavailable layer got loaded
     void layerLoaded();
+    //! emitted when a previously available layer got unloaded (from layer registry)
+    //! @note added in 2.6
+    void layerWillBeUnloaded();
 
   protected:
     void attachToLayer();
@@ -83,7 +82,6 @@ class CORE_EXPORT QgsLayerTreeLayer : public QgsLayerTreeNode
     QString mLayerName; // only used if layer does not exist
     QgsMapLayer* mLayer; // not owned! may be null
     Qt::CheckState mVisible;
-    bool mChildrenCheckable;
 };
 
 

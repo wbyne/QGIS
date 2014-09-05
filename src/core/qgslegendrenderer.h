@@ -1,3 +1,18 @@
+/***************************************************************************
+  qgslegendrenderer.h
+  --------------------------------------
+  Date                 : July 2014
+  Copyright            : (C) 2014 by Martin Dobias
+  Email                : wonder dot sk at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+
 #ifndef QGSLEGENDRENDERER_H
 #define QGSLEGENDRENDERER_H
 
@@ -6,10 +21,11 @@
 class QRectF;
 class QStandardItem;
 
-class QgsLegendModel;
-class QgsComposerLegendItem;
-class QgsComposerGroupItem;
-class QgsComposerLayerItem;
+class QgsLayerTreeGroup;
+class QgsLayerTreeLayer;
+class QgsLayerTreeModel;
+class QgsLayerTreeModelLegendNode;
+class QgsLayerTreeNode;
 class QgsSymbolV2;
 
 #include "qgslegendsettings.h"
@@ -27,7 +43,7 @@ class CORE_EXPORT QgsLegendRenderer
 {
   public:
     /** Construct legend renderer. The ownership of legend model does not change */
-    QgsLegendRenderer( QgsLegendModel* legendModel, const QgsLegendSettings& settings );
+    QgsLegendRenderer( QgsLayerTreeModel* legendModel, const QgsLegendSettings& settings );
 
     /** Run the layout algorithm and determine the size required for legend */
     QSizeF minimumSize();
@@ -43,7 +59,12 @@ class CORE_EXPORT QgsLegendRenderer
      */
     void drawLegend( QPainter* painter );
 
+
+    static void setNodeLegendStyle( QgsLayerTreeNode* node, QgsComposerLegendStyle::Style style );
+    static QgsComposerLegendStyle::Style nodeLegendStyle( QgsLayerTreeNode* node, QgsLayerTreeModel* model );
+
   private:
+
     /** Nucleon is either group title, layer title or layer child item.
      *  Nucleon is similar to QgsComposerLegendItem but it does not have
      *  the same hierarchy. E.g. layer title nucleon is just title, it does not
@@ -52,7 +73,7 @@ class CORE_EXPORT QgsLegendRenderer
     class Nucleon
     {
       public:
-        QgsComposerLegendItem* item;
+        QObject* item;
         // Symbol size size without any space around for symbol item
         QSizeF symbolSize;
         // Label size without any space around for symbol item
@@ -85,7 +106,7 @@ class CORE_EXPORT QgsLegendRenderer
     QSizeF paintAndDetermineSize( QPainter* painter );
 
     /** Create list of atoms according to current layer splitting mode */
-    QList<Atom> createAtomList( QStandardItem* rootItem, bool splitLayer );
+    QList<Atom> createAtomList( QgsLayerTreeGroup* parentGroup, bool splitLayer );
 
     /** Divide atoms to columns and set columns on atoms */
     void setColumns( QList<Atom>& atomList );
@@ -102,61 +123,20 @@ class CORE_EXPORT QgsLegendRenderer
      * style top space */
     QSizeF drawAtom( Atom atom, QPainter* painter = 0, QPointF point = QPointF() );
 
-    /** Splits a string using the wrap char taking into account handling empty
-      wrap char which means no wrapping */
-    QStringList splitStringForWrapping( QString stringToSplt );
+    Nucleon drawSymbolItem( QgsLayerTreeModelLegendNode* symbolItem, QPainter* painter = 0, QPointF point = QPointF(), double labelXOffset = 0 );
 
-    /** Draws Text. Takes care about all the composer specific issues (calculation to pixel, scaling of font and painter
-     to work around the Qt font bug)*/
-    void drawText( QPainter* p, double x, double y, const QString& text, const QFont& font ) const;
+    /** Draws a layer item */
+    QSizeF drawLayerTitle( QgsLayerTreeLayer* nodeLayer, QPainter* painter = 0, QPointF point = QPointF() );
 
-    /** Like the above, but with a rectangle for multiline text
-     * @param p painter to use
-     * @param rect rectangle to draw into
-     * @param text text to draw
-     * @param font font to use
-     * @param halignment optional horizontal alignment
-     * @param valignment optional vertical alignment
-     * @param flags allows for passing Qt::TextFlags to control appearance of rendered text
-    */
-    void drawText( QPainter* p, const QRectF& rect, const QString& text, const QFont& font, Qt::AlignmentFlag halignment = Qt::AlignLeft, Qt::AlignmentFlag valignment = Qt::AlignTop, int flags = Qt::TextWordWrap ) const;
-
-    /** Returns a font where size is in pixel and font size is upscaled with FONT_WORKAROUND_SCALE */
-    QFont scaledFontPixelSize( const QFont& font ) const;
-
-    /** Calculates font to from point size to pixel size */
-    double pixelFontSize( double pointSize ) const;
-
-    /** Returns the font width in millimeters (considers upscaling and downscaling with FONT_WORKAROUND_SCALE */
-    double textWidthMillimeters( const QFont& font, const QString& text ) const;
-
-    /** Returns the font height of a character in millimeters */
-    double fontHeightCharacterMM( const QFont& font, const QChar& c ) const;
-
-    /** Returns the font ascent in Millimeters (considers upscaling and downscaling with FONT_WORKAROUND_SCALE */
-    double fontAscentMillimeters( const QFont& font ) const;
-
-    /** Returns the font descent in Millimeters (considers upscaling and downscaling with FONT_WORKAROUND_SCALE */
-    double fontDescentMillimeters( const QFont& font ) const;
-
-
-    /** Draws a group item and all subitems
+    /** Draws a group item.
      * Returns list of sizes of layers and groups including this group.
      */
-    QSizeF drawGroupItemTitle( QgsComposerGroupItem* groupItem, QPainter* painter = 0, QPointF point = QPointF() );
+    QSizeF drawGroupTitle( QgsLayerTreeGroup* nodeGroup, QPainter* painter = 0, QPointF point = QPointF() );
 
-    /** Draws a layer item and all subitems */
-    QSizeF drawLayerItemTitle( QgsComposerLayerItem* layerItem, QPainter* painter = 0, QPointF point = QPointF() );
-
-    Nucleon drawSymbolItem( QgsComposerLegendItem* symbolItem, QPainter* painter = 0, QPointF point = QPointF(), double labelXOffset = 0. );
-
-    /** Draws a symbol at the current y position and returns the new x position. Returns real symbol height, because for points,
-     it is possible that it differs from mSymbolHeight */
-    void drawSymbolV2( QPainter* p, QgsSymbolV2* s, double currentYCoord, double& currentXPosition, double& symbolHeight, int opacity = 255 ) const;
-
+    QgsComposerLegendStyle::Style nodeLegendStyle( QgsLayerTreeNode* node );
 
   private:
-    QgsLegendModel* mLegendModel;
+    QgsLayerTreeModel* mLegendModel;
 
     QgsLegendSettings mSettings;
 

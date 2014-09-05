@@ -513,15 +513,15 @@ bool QgsFeatureRendererV2::legendSymbolItemsCheckable() const
   return false;
 }
 
-bool QgsFeatureRendererV2::legendSymbolItemChecked( int index )
+bool QgsFeatureRendererV2::legendSymbolItemChecked( QString key )
 {
-  Q_UNUSED( index );
+  Q_UNUSED( key );
   return false;
 }
 
-void QgsFeatureRendererV2::checkLegendSymbolItem( int index, bool state )
+void QgsFeatureRendererV2::checkLegendSymbolItem( QString key, bool state )
 {
-  Q_UNUSED( index );
+  Q_UNUSED( key );
   Q_UNUSED( state );
 }
 
@@ -530,6 +530,18 @@ QgsLegendSymbolList QgsFeatureRendererV2::legendSymbolItems( double scaleDenomin
   Q_UNUSED( scaleDenominator );
   Q_UNUSED( rule );
   return QgsLegendSymbolList();
+}
+
+QgsLegendSymbolListV2 QgsFeatureRendererV2::legendSymbolItemsV2() const
+{
+  QgsLegendSymbolList lst = const_cast<QgsFeatureRendererV2*>( this )->legendSymbolItems();
+  QgsLegendSymbolListV2 lst2;
+  int i = 0;
+  for ( QgsLegendSymbolList::const_iterator it = lst.begin(); it != lst.end(); ++it, ++i )
+  {
+    lst2 << QgsLegendSymbolItemV2( it->second, it->first, QString::number( i ), legendSymbolItemsCheckable() );
+  }
+  return lst2;
 }
 
 void QgsFeatureRendererV2::setVertexMarkerAppearance( int type, int size )

@@ -40,6 +40,9 @@ typedef QMap<QString, QgsSymbolV2* > QgsSymbolV2Map;
 typedef QList< QPair<QString, QPixmap> > QgsLegendSymbologyList;
 typedef QList< QPair<QString, QgsSymbolV2*> > QgsLegendSymbolList;
 
+#include "qgslegendsymbolitemv2.h"
+
+
 #define RENDERER_TAG_NAME   "renderer-v2"
 
 ////////
@@ -156,16 +159,25 @@ class CORE_EXPORT QgsFeatureRendererV2
 
     //! items of symbology items in legend is checked
     //! @note added in 2.5
-    virtual bool legendSymbolItemChecked( int index );
+    virtual bool legendSymbolItemChecked( QString key );
 
     //! item in symbology was checked
     //! @note added in 2.5
-    virtual void checkLegendSymbolItem( int index, bool state = true );
+    virtual void checkLegendSymbolItem( QString key, bool state = true );
 
     //! return a list of item text / symbol
     //! @note: this method was added in version 1.5
     //! @note not available in python bindings
     virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = "" );
+
+    //! Return a list of symbology items for the legend. Better choice than legendSymbolItems().
+    //! Default fallback implementation just uses legendSymbolItems() implementation
+    //! @note added in 2.6
+    virtual QgsLegendSymbolListV2 legendSymbolItemsV2() const;
+
+    //! If supported by the renderer, return classification attribute for the use in legend
+    //! @note added in 2.6
+    virtual QString legendClassificationAttribute() const { return QString(); }
 
     //! set type and size of editing vertex markers for subsequent rendering
     void setVertexMarkerAppearance( int type, int size );

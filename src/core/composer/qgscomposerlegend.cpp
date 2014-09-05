@@ -22,29 +22,40 @@
 #include "qgscomposermap.h"
 #include "qgscomposition.h"
 #include "qgscomposermodel.h"
+#include "qgslayertree.h"
+#include "qgslayertreemodel.h"
 #include "qgslegendrenderer.h"
 #include "qgslogger.h"
+#include "qgsproject.h"
 #include <QDomDocument>
 #include <QDomElement>
 #include <QPainter>
 
 QgsComposerLegend::QgsComposerLegend( QgsComposition* composition )
     : QgsComposerItem( composition )
+    , mCustomLayerTree( 0 )
     , mComposerMap( 0 )
 {
+  mLegendModel2 = new QgsLegendModelV2( QgsProject::instance()->layerTreeRoot() );
 
   adjustBoxSize();
 
   connect( &mLegendModel, SIGNAL( layersChanged() ), this, SLOT( synchronizeWithModel() ) );
 }
 
-QgsComposerLegend::QgsComposerLegend(): QgsComposerItem( 0 ), mComposerMap( 0 )
+QgsComposerLegend::QgsComposerLegend()
+    : QgsComposerItem( 0 )
+    , mLegendModel2( 0 )
+    , mCustomLayerTree( 0 )
+    , mComposerMap( 0 )
 {
 
 }
 
 QgsComposerLegend::~QgsComposerLegend()
 {
+  delete mLegendModel2;
+  delete mCustomLayerTree;
 }
 
 void QgsComposerLegend::paint( QPainter* painter, const QStyleOptionGraphicsItem* itemStyle, QWidget* pWidget )
@@ -52,14 +63,28 @@ void QgsComposerLegend::paint( QPainter* painter, const QStyleOptionGraphicsItem
   Q_UNUSED( itemStyle );
   Q_UNUSED( pWidget );
 
-
-  if ( mComposition )
-    mSettings.setUseAdvancedEffects( mComposition->useAdvancedEffects() );
-  if ( mComposerMap )
-    mSettings.setMmPerMapUnit( mComposerMap->mapUnitsToMM() );
-
   if ( !painter )
     return;
+
+  int dpi = painter->device()->logicalDpiX();
+  double dotsPerMM = dpi / 25.4;
+
+  if ( mComposition )
+  {
+    mSettings.setUseAdvancedEffects( mComposition->useAdvancedEffects() );
+    mSettings.setDpi( dpi );
+  }
+  if ( mComposerMap )
+  {
+    mSettings.setMmPerMapUnit( mComposerMap->mapUnitsToMM() );
+
+    // use a temporary QgsMapSettings to find out real map scale
+    QgsMapSettings ms = mComposerMap->composition()->mapSettings();
+    ms.setOutputSize( QSizeF( mComposerMap->rect().width() * dotsPerMM, mComposerMap->rect().height() * dotsPerMM ).toSize() );
+    ms.setExtent( *mComposerMap->currentMapExtent() );
+    ms.setOutputDpi( dpi );
+    mSettings.setMapScale( ms.scale() );
+  }
 
   drawBackground( painter );
   painter->save();
@@ -67,7 +92,7 @@ void QgsComposerLegend::paint( QPainter* painter, const QStyleOptionGraphicsItem
   painter->setRenderHint( QPainter::Antialiasing, true );
   painter->setPen( QPen( QColor( 0, 0, 0 ) ) );
 
-  QgsLegendRenderer legendRenderer( &mLegendModel, mSettings );
+  QgsLegendRenderer legendRenderer( mLegendModel2, mSettings );
   legendRenderer.setLegendSize( rect().size() );
   legendRenderer.drawLegend( painter );
 
@@ -83,7 +108,7 @@ void QgsComposerLegend::paint( QPainter* painter, const QStyleOptionGraphicsItem
 
 QSizeF QgsComposerLegend::paintAndDetermineSize( QPainter* painter )
 {
-  QgsLegendRenderer legendRenderer( &mLegendModel, mSettings );
+  QgsLegendRenderer legendRenderer( mLegendModel2, mSettings );
   QSizeF size = legendRenderer.minimumSize();
   if ( !painter )
     legendRenderer.drawLegend( painter );
@@ -93,13 +118,36 @@ QSizeF QgsComposerLegend::paintAndDetermineSize( QPainter* painter )
 
 void QgsComposerLegend::adjustBoxSize()
 {
-  QgsLegendRenderer legendRenderer( &mLegendModel, mSettings );
+  QgsLegendRenderer legendRenderer( mLegendModel2, mSettings );
   QSizeF size = legendRenderer.minimumSize();
   QgsDebugMsg( QString( "width = %1 height = %2" ).arg( size.width() ).arg( size.height() ) );
   if ( size.isValid() )
   {
     setSceneRect( QRectF( pos().x(), pos().y(), size.width(), size.height() ) );
   }
+}
+
+
+void QgsComposerLegend::setCustomLayerTree( QgsLayerTreeGroup* rootGroup )
+{
+  mLegendModel2->setRootGroup( rootGroup ? rootGroup : QgsProject::instance()->layerTreeRoot() );
+
+  delete mCustomLayerTree;
+  mCustomLayerTree = rootGroup;
+}
+
+
+void QgsComposerLegend::setAutoUpdateModel( bool autoUpdate )
+{
+  if ( autoUpdate == autoUpdateModel() )
+    return;
+
+  setCustomLayerTree( autoUpdate ? 0 : QgsLayerTree::toGroup( QgsProject::instance()->layerTreeRoot()->clone() ) );
+}
+
+bool QgsComposerLegend::autoUpdateModel() const
+{
+  return !mCustomLayerTree;
 }
 
 void QgsComposerLegend::setTitle( const QString& t )
@@ -217,8 +265,11 @@ bool QgsComposerLegend::writeXML( QDomElement& elem, QDomDocument & doc ) const
   style( QgsComposerLegendStyle::Symbol ).writeXML( "symbol", composerLegendStyles, doc );
   style( QgsComposerLegendStyle::SymbolLabel ).writeXML( "symbolLabel", composerLegendStyles, doc );
 
-  //write model properties
-  mLegendModel.writeXML( composerLegendElem, doc );
+  if ( mCustomLayerTree )
+  {
+    // if not using auto-update - store the custom layer tree
+    mCustomLayerTree->writeXML( composerLegendElem );
+  }
 
   return _writeXML( composerLegendElem, doc );
 }
@@ -283,13 +334,8 @@ bool QgsComposerLegend::readXML( const QDomElement& itemElem, const QDomDocument
     mComposerMap = mComposition->getComposerMapById( itemElem.attribute( "map" ).toInt() );
   }
 
-  //read model properties
-  QDomNodeList modelNodeList = itemElem.elementsByTagName( "Model" );
-  if ( modelNodeList.size() > 0 )
-  {
-    QDomElement modelElem = modelNodeList.at( 0 ).toElement();
-    mLegendModel.readXML( modelElem, doc );
-  }
+  QDomElement layerTreeElem = itemElem.firstChildElement( "layer-tree-group" );
+  setCustomLayerTree( QgsLayerTreeGroup::readXML( layerTreeElem ) );
 
   //restore general composer item properties
   QDomNodeList composerItemList = itemElem.elementsByTagName( "ComposerItem" );
@@ -384,4 +430,46 @@ void QgsComposerLegend::invalidateCurrentMap()
     disconnect( mComposerMap, SIGNAL( destroyed( QObject* ) ), this, SLOT( invalidateCurrentMap() ) );
   }
   mComposerMap = 0;
+}
+
+// -------------------------------------------------------------------------
+#include "qgslayertreemodellegendnode.h"
+#include "qgsvectorlayer.h"
+
+QgsLegendModelV2::QgsLegendModelV2( QgsLayerTreeGroup* rootNode, QObject* parent )
+    : QgsLayerTreeModel( rootNode, parent )
+{
+  setFlag( QgsLayerTreeModel::AllowLegendChangeState, false );
+  setFlag( QgsLayerTreeModel::AllowNodeReorder, true );
+}
+
+QVariant QgsLegendModelV2::data( const QModelIndex& index, int role ) const
+{
+  // handle custom layer node labels
+  if ( QgsLayerTreeNode* node = index2node( index ) )
+  {
+    if ( QgsLayerTree::isLayer( node ) && ( role == Qt::DisplayRole || role == Qt::EditRole ) && !node->customProperty( "legend/title-label" ).isNull() )
+    {
+      QgsLayerTreeLayer* nodeLayer = QgsLayerTree::toLayer( node );
+      QString name = node->customProperty( "legend/title-label" ).toString();
+      if ( nodeLayer->customProperty( "showFeatureCount", 0 ).toInt() && role == Qt::DisplayRole )
+      {
+        QgsVectorLayer* vlayer = qobject_cast<QgsVectorLayer*>( nodeLayer->layer() );
+        if ( vlayer && vlayer->pendingFeatureCount() >= 0 )
+          name += QString( " [%1]" ).arg( vlayer->pendingFeatureCount() );
+      }
+      return name;
+    }
+  }
+
+  return QgsLayerTreeModel::data( index, role );
+}
+
+Qt::ItemFlags QgsLegendModelV2::flags( const QModelIndex& index ) const
+{
+  // make the legend nodes selectable even if they are not by default
+  if ( index2legendNode( index ) )
+    return QgsLayerTreeModel::flags( index ) | Qt::ItemIsSelectable;
+
+  return QgsLayerTreeModel::flags( index );
 }

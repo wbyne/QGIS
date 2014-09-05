@@ -20,6 +20,7 @@ SET(QGIS_CORE_SRCS
   symbology-ng/qgssymbollayerv2.cpp
   symbology-ng/qgssymbollayerv2registry.cpp
   symbology-ng/qgssymbollayerv2utils.cpp
+  symbology-ng/qgslegendsymbolitemv2.cpp
   symbology-ng/qgslinesymbollayerv2.cpp
   symbology-ng/qgsmarkersymbollayerv2.cpp
   symbology-ng/qgsfillsymbollayerv2.cpp
@@ -47,6 +48,8 @@ SET(QGIS_CORE_SRCS
 
   layertree/qgslayertreegroup.cpp
   layertree/qgslayertreelayer.cpp
+  layertree/qgslayertreemodel.cpp
+  layertree/qgslayertreemodellegendnode.cpp
   layertree/qgslayertreenode.cpp
   layertree/qgslayertreeregistrybridge.cpp
   layertree/qgslayertreeutils.cpp
@@ -406,6 +409,8 @@ SET(QGIS_CORE_MOC_HDRS
 
   layertree/qgslayertreegroup.h
   layertree/qgslayertreelayer.h
+  layertree/qgslayertreemodel.h
+  layertree/qgslayertreemodellegendnode.h
   layertree/qgslayertreenode.h
   layertree/qgslayertreeregistrybridge.h
 )
@@ -612,6 +617,7 @@ SET(QGIS_CORE_HDRS
   symbology-ng/qgsellipsesymbollayerv2.h
   symbology-ng/qgsfillsymbollayerv2.h
   symbology-ng/qgsgraduatedsymbolrendererv2.h
+  symbology-ng/qgslegendsymbolitemv2.h
   symbology-ng/qgslinesymbollayerv2.h
   symbology-ng/qgsmarkersymbollayerv2.h
   symbology-ng/qgspointdisplacementrenderer.h
@@ -634,6 +640,8 @@ SET(QGIS_CORE_HDRS
   layertree/qgslayertree.h
   layertree/qgslayertreegroup.h
   layertree/qgslayertreelayer.h
+  layertree/qgslayertreemodel.h
+  layertree/qgslayertreemodellegendnode.h
   layertree/qgslayertreenode.h
   layertree/qgslayertreeregistrybridge.h
   layertree/qgslayertreeutils.h

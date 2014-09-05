@@ -46,6 +46,7 @@ QgsMeasureTool::QgsMeasureTool( QgsMapCanvas* canvas, bool measureArea )
   mPoints.append( QgsPoint( 0, 0 ) );
 
   mDialog = new QgsMeasureDialog( this, Qt::WindowStaysOnTopHint );
+  mDialog->restorePosition();
   mSnapper.setMapCanvas( canvas );
 
   connect( canvas, SIGNAL( destinationCrsChanged() ),
@@ -68,7 +69,7 @@ const QList<QgsPoint>& QgsMeasureTool::points()
 
 void QgsMeasureTool::activate()
 {
-  mDialog->restorePosition();
+  mDialog->show();
   QgsMapTool::activate();
 
   // ensure that we have correct settings
@@ -95,12 +96,9 @@ void QgsMeasureTool::activate()
 
 void QgsMeasureTool::deactivate()
 {
-  mDialog->close();
-  mRubberBand->reset();
-  mRubberBandPoints->reset();
+  mDialog->hide();
   QgsMapTool::deactivate();
 }
-
 
 void QgsMeasureTool::restart()
 {
@@ -169,10 +167,52 @@ void QgsMeasureTool::canvasReleaseEvent( QMouseEvent * e )
     mDone = false;
   }
 
-  // we allways add the clicked point to the measuring feature
+  // we always add the clicked point to the measuring feature
   addPoint( point );
   mDialog->show();
 
+}
+
+void QgsMeasureTool::undo()
+{
+  if ( mRubberBand )
+  {
+    if ( mPoints.size() < 1 )
+    {
+      return;
+    }
+
+    if ( mPoints.size() == 1 )
+    {
+      //removing first point, so restart everything
+      restart();
+      mDialog->restart();
+    }
+    else
+    {
+      //remove second last point from line band, and last point from points band
+      mRubberBand->removePoint( -2, true );
+      mRubberBandPoints->removePoint( -1, true );
+      mPoints.removeLast();
+
+      mDialog->removeLastPoint();
+    }
+
+  }
+}
+
+void QgsMeasureTool::keyPressEvent( QKeyEvent* e )
+{
+  if (( e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete ) )
+  {
+    if ( !mDone )
+    {
+      undo();
+    }
+
+    // Override default shortcut management in MapCanvas
+    e->ignore();
+  }
 }
 
 
