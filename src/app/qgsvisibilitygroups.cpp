@@ -256,6 +256,30 @@ void QgsVisibilityGroups::applyState( const QString& groupName )
     return;
 
   applyStateToLayerTreeGroup( QgsProject::instance()->layerTreeRoot(), mGroups[groupName] );
+
+  // also make sure that the group is up-to-date (not containing any non-existant legend items)
+  if ( mGroups[groupName] == currentState() )
+    return; // no need for update
+
+  GroupRecord& rec = mGroups[groupName];
+  foreach ( QString layerID, rec.mPerLayerCheckedLegendSymbols.keys() )
+  {
+    QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( layerID ) );
+    if ( !vl || !vl->rendererV2() )
+      continue;
+
+    QSet<QString> validRuleKeys;
+    foreach ( const QgsLegendSymbolItemV2& item, vl->rendererV2()->legendSymbolItemsV2() )
+      validRuleKeys << item.ruleKey();
+
+    QSet<QString> invalidRuleKeys;
+    foreach ( QString ruleKey, rec.mPerLayerCheckedLegendSymbols[layerID] )
+      if ( !validRuleKeys.contains( ruleKey ) )
+        invalidRuleKeys << ruleKey;
+
+    foreach ( QString invalidRuleKey, invalidRuleKeys )
+      rec.mPerLayerCheckedLegendSymbols[layerID].remove( invalidRuleKey );
+  }
 }
 
 
@@ -314,7 +338,9 @@ void QgsVisibilityGroups::readProject( const QDomDocument& doc )
     QDomElement visGroupLayerElem = visGroupElem.firstChildElement( "layer" );
     while ( !visGroupLayerElem.isNull() )
     {
-      rec.mVisibleLayerIDs << visGroupLayerElem.attribute( "id" );
+      QString layerID = visGroupLayerElem.attribute( "id" );
+      if ( QgsMapLayerRegistry::instance()->mapLayer( layerID ) )
+        rec.mVisibleLayerIDs << layerID; // only use valid layer IDs
       visGroupLayerElem = visGroupLayerElem.nextSiblingElement( "layer" );
     }
 
@@ -330,7 +356,9 @@ void QgsVisibilityGroups::readProject( const QDomDocument& doc )
         checkedLegendNodeElem = checkedLegendNodeElem.nextSiblingElement( "checked-legend-node" );
       }
 
-      rec.mPerLayerCheckedLegendSymbols.insert( checkedLegendNodesElem.attribute( "id" ), checkedLegendNodes );
+      QString layerID = checkedLegendNodesElem.attribute( "id" );
+      if ( QgsMapLayerRegistry::instance()->mapLayer( layerID ) ) // only use valid IDs
+        rec.mPerLayerCheckedLegendSymbols.insert( layerID, checkedLegendNodes );
       checkedLegendNodesElem = checkedLegendNodesElem.nextSiblingElement( "checked-legend-nodes" );
     }
 

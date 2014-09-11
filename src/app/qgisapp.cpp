@@ -1651,7 +1651,7 @@ void QgisApp::createToolBars()
     case 1: defNewLayerAction = mActionNewVectorLayer; break;
   }
   bt->setDefaultAction( defNewLayerAction );
-  QAction* newLayerAction = mLayerToolBar->insertWidget( mActionRemoveLayer, bt );
+  QAction* newLayerAction = mLayerToolBar->insertWidget( mActionAddDelimitedText, bt );
   newLayerAction->setObjectName( "ActionNewLayer" );
   connect( bt, SIGNAL( triggered( QAction * ) ), this, SLOT( toolButtonActionTriggered( QAction * ) ) );
 
@@ -2327,7 +2327,7 @@ void QgisApp::initLayerTreeView()
   // visibility groups tool button
   QToolButton* btnVisibilityGroups = new QToolButton;
   btnVisibilityGroups->setAutoRaise( true );
-  btnVisibilityGroups->setToolTip( tr( "Manage Layer Visibility") );
+  btnVisibilityGroups->setToolTip( tr( "Manage Layer Visibility" ) );
   btnVisibilityGroups->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
   btnVisibilityGroups->setPopupMode( QToolButton::InstantPopup );
   btnVisibilityGroups->setMenu( QgsVisibilityGroups::instance()->menu() );
@@ -2344,11 +2344,17 @@ void QgisApp::initLayerTreeView()
   btnCollapseAll->setToolTip( tr( "Collapse All" ) );
   connect( btnCollapseAll, SIGNAL( clicked() ), mLayerTreeView, SLOT( collapseAll() ) );
 
+  QToolButton* btnRemoveItem = new QToolButton;
+  btnRemoveItem->setDefaultAction( this->mActionRemoveLayer );
+  btnRemoveItem->setAutoRaise( true );
+
   QHBoxLayout* toolbarLayout = new QHBoxLayout;
+  toolbarLayout->setContentsMargins( QMargins( 5, 0, 5, 0 ) );
   toolbarLayout->addWidget( btnAddGroup );
   toolbarLayout->addWidget( btnVisibilityGroups );
   toolbarLayout->addWidget( btnExpandAll );
   toolbarLayout->addWidget( btnCollapseAll );
+  toolbarLayout->addWidget( btnRemoveItem );
   toolbarLayout->addStretch();
 
   QVBoxLayout* vboxLayout = new QVBoxLayout;
@@ -7847,6 +7853,9 @@ void QgisApp::closeProject()
   removeAnnotationItems();
   // clear out any stuff from project
   mMapCanvas->freeze( true );
+  QList<QgsMapCanvasLayer> emptyList;
+  mMapCanvas->setLayerSet( emptyList );
+  mMapCanvas->clearCache();
   removeAllLayers();
 }
 
@@ -8144,12 +8153,12 @@ QMenu* QgisApp::getWebMenu( QString menuName )
 
 void QgisApp::insertAddLayerAction( QAction *action )
 {
-  mLayerMenu->insertAction( mActionAddLayerSeparator, action );
+  mAddLayerMenu->insertAction( mActionAddLayerSeparator, action );
 }
 
 void QgisApp::removeAddLayerAction( QAction *action )
 {
-  mLayerMenu->removeAction( action );
+  mAddLayerMenu->removeAction( action );
 }
 
 void QgisApp::addPluginToDatabaseMenu( QString name, QAction* action )
@@ -8764,7 +8773,6 @@ void QgisApp::legendLayerSelectionChanged( void )
 {
   QList<QgsLayerTreeLayer*> selectedLayers = mLayerTreeView ? mLayerTreeView->selectedLayerNodes() : QList<QgsLayerTreeLayer*>();
 
-  mActionRemoveLayer->setEnabled( selectedLayers.count() > 0 );
   mActionDuplicateLayer->setEnabled( selectedLayers.count() > 0 );
   mActionSetLayerScaleVisibility->setEnabled( selectedLayers.count() > 0 );
   mActionSetLayerCRS->setEnabled( selectedLayers.count() > 0 );
