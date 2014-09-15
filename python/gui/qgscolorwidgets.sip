@@ -56,6 +56,11 @@ class QgsColorWidget : QWidget
      * @see component
      */
     int componentValue() const;
+    
+    /**Create an icon for dragging colors
+     * @param color for icon
+     */
+    static QPixmap createDragIcon( const QColor color );
 
   public slots:
 
@@ -126,6 +131,12 @@ class QgsColorWidget : QWidget
      * @returns checkerboard pixmap
      */
     static const QPixmap& transparentBackground();
+
+    //Reimplemented to accept dragged colors
+    void dragEnterEvent( QDragEnterEvent * e ) ;
+
+    //Reimplemented to accept dropped colors
+    void dropEvent( QDropEvent *e );
 
 };
 
@@ -403,5 +414,13 @@ class QgsColorPreviewWidget : QgsColorWidget
      * @see color2
      */
     virtual void setColor2( const QColor& color );
+    
+  protected:
+
+    //reimplemented to allow dragging colors
+    void mousePressEvent( QMouseEvent* e );
+
+    //reimplemented to allow dragging colors
+    void mouseMoveEvent( QMouseEvent *e );
 	
 };

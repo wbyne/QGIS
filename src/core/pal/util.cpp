@@ -211,7 +211,8 @@ namespace pal
     while ( queue->size() > 0 )
     {
       geom = queue->pop_front();
-      switch ( GEOSGeomTypeId( geom ) )
+      GEOSContextHandle_t geosctxt = geosContext();
+      switch ( GEOSGeomTypeId_r( geosctxt, geom ) )
       {
           //case geos::geom::GEOS_MULTIPOINT:
           //case geos::geom::GEOS_MULTILINESTRING:
@@ -219,10 +220,10 @@ namespace pal
         case GEOS_MULTIPOINT:
         case GEOS_MULTILINESTRING:
         case GEOS_MULTIPOLYGON:
-          nGeom = GEOSGetNumGeometries( geom );
+          nGeom = GEOSGetNumGeometries_r( geosctxt, geom );
           for ( i = 0; i < nGeom; i++ )
           {
-            queue->push_back( GEOSGetGeometryN( geom, i ) );
+            queue->push_back( GEOSGetGeometryN_r( geosctxt, geom, i ) );
           }
           break;
         case GEOS_POINT:

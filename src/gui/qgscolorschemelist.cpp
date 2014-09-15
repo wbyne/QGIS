@@ -106,7 +106,7 @@ void QgsColorSchemeList::pasteColors()
   QgsNamedColorList::const_iterator colorIt = pastedColors.constBegin();
   for ( ; colorIt != pastedColors.constEnd(); ++colorIt )
   {
-    mModel->addColor(( *colorIt ).first, ( *colorIt ).second );
+    mModel->addColor(( *colorIt ).first, !( *colorIt ).second.isEmpty() ? ( *colorIt ).second : QgsSymbolLayerV2Utils::colorToName(( *colorIt ).first ) );
   }
 }
 
@@ -151,7 +151,7 @@ bool QgsColorSchemeList::importColorsFromGpl( QFile &file )
   QgsNamedColorList::const_iterator colorIt = importedColors.constBegin();
   for ( ; colorIt != importedColors.constEnd(); ++colorIt )
   {
-    mModel->addColor(( *colorIt ).first, ( *colorIt ).second );
+    mModel->addColor(( *colorIt ).first, !( *colorIt ).second.isEmpty() ? ( *colorIt ).second : QgsSymbolLayerV2Utils::colorToName(( *colorIt ).first ) );
   }
 
   return true;
@@ -269,7 +269,11 @@ Qt::ItemFlags QgsColorSchemeModel::flags( const QModelIndex &index ) const
   {
     case ColorSwatch:
     case ColorLabel:
-      return flags | Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled;
+      if ( mScheme->isEditable() )
+      {
+        flags = flags | Qt::ItemIsEditable;
+      }
+      return flags | Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled;
     default:
       return flags | Qt::ItemIsEnabled | Qt::ItemIsSelectable;
   }
@@ -278,6 +282,9 @@ Qt::ItemFlags QgsColorSchemeModel::flags( const QModelIndex &index ) const
 bool QgsColorSchemeModel::setData( const QModelIndex &index, const QVariant &value, int role )
 {
   Q_UNUSED( role );
+
+  if ( !mScheme->isEditable() )
+    return false;
 
   if ( !index.isValid() )
     return false;
@@ -337,11 +344,23 @@ QVariant QgsColorSchemeModel::headerData( int section, Qt::Orientation orientati
 
 Qt::DropActions QgsColorSchemeModel::supportedDropActions() const
 {
-  return Qt::MoveAction | Qt::CopyAction;
+  if ( mScheme->isEditable() )
+  {
+    return Qt::MoveAction | Qt::CopyAction;
+  }
+  else
+  {
+    return Qt::CopyAction;
+  }
 }
 
 QStringList QgsColorSchemeModel::mimeTypes() const
 {
+  if ( !mScheme->isEditable() )
+  {
+    return QStringList();
+  }
+
   QStringList types;
   types << "text/xml";
   types << "text/plain";
@@ -371,6 +390,11 @@ bool QgsColorSchemeModel::dropMimeData( const QMimeData *data, Qt::DropAction ac
 {
   Q_UNUSED( column );
 
+  if ( !mScheme->isEditable() )
+  {
+    return false;
+  }
+
   if ( action == Qt::IgnoreAction )
   {
     return true;
@@ -398,7 +422,7 @@ bool QgsColorSchemeModel::dropMimeData( const QMimeData *data, Qt::DropAction ac
     QModelIndex colorIdx = index( beginRow, 0, QModelIndex() );
     setData( colorIdx, QVariant(( *colorIt ).first ) );
     QModelIndex labelIdx = index( beginRow, 1, QModelIndex() );
-    setData( labelIdx, QVariant(( *colorIt ).second ) );
+    setData( labelIdx, !( *colorIt ).second.isEmpty() ? ( *colorIt ).second : QgsSymbolLayerV2Utils::colorToName(( *colorIt ).first ) );
     beginRow++;
   }
 
@@ -417,6 +441,11 @@ void QgsColorSchemeModel::setScheme( QgsColorScheme *scheme, const QString conte
 
 bool QgsColorSchemeModel::removeRows( int row, int count, const QModelIndex &parent )
 {
+  if ( !mScheme->isEditable() )
+  {
+    return false;
+  }
+
   if ( parent.isValid() )
   {
     return false;
@@ -440,6 +469,11 @@ bool QgsColorSchemeModel::insertRows( int row, int count, const QModelIndex& par
 {
   Q_UNUSED( parent );
 
+  if ( !mScheme->isEditable() )
+  {
+    return false;
+  }
+
   beginInsertRows( QModelIndex(), row, row + count - 1 );
   for ( int i = row; i < row + count; ++i )
   {
@@ -452,6 +486,11 @@ bool QgsColorSchemeModel::insertRows( int row, int count, const QModelIndex& par
 
 void QgsColorSchemeModel::addColor( const QColor color, const QString label )
 {
+  if ( !mScheme->isEditable() )
+  {
+    return;
+  }
+
   int row = rowCount();
   insertRow( row );
   QModelIndex colorIdx = index( row, 0, QModelIndex() );
@@ -539,6 +578,11 @@ bool QgsColorSwatchDelegate::editorEvent( QEvent *event, QAbstractItemModel *mod
   Q_UNUSED( option );
   if ( event->type() == QEvent::MouseButtonDblClick )
   {
+    if ( !index.model()->flags( index ).testFlag( Qt::ItemIsEditable ) )
+    {
+      //item not editable
+      return false;
+    }
     QColor color = index.model()->data( index, Qt::DisplayRole ).value<QColor>();
     QColor newColor = QColorDialog::getColor( color, mParent, tr( "Select color" ), QColorDialog::ShowAlphaChannel );
     if ( !newColor.isValid() )

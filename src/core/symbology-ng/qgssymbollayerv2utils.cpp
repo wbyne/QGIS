@@ -2732,6 +2732,18 @@ QDomElement QgsSymbolLayerV2Utils::saveColorRamp( QString name, QgsVectorColorRa
   return rampEl;
 }
 
+QString QgsSymbolLayerV2Utils::colorToName( const QColor &color )
+{
+  if ( !color.isValid() )
+  {
+    return QString();
+  }
+
+  //TODO - utilise a color names database (such as X11) to return nicer names
+  //for now, just return hex codes
+  return color.name();
+}
+
 QList<QColor> QgsSymbolLayerV2Utils::parseColorList( const QString colorStr )
 {
   QList<QColor> colors;
@@ -2797,6 +2809,38 @@ QList<QColor> QgsSymbolLayerV2Utils::parseColorList( const QString colorStr )
   }
 
   return colors;
+}
+
+QMimeData * QgsSymbolLayerV2Utils::colorToMimeData( const QColor color )
+{
+  //set both the mime color data (which includes alpha channel), and the text (which is the color's hex
+  //value, and can be used when pasting colors outside of QGIS).
+  QMimeData *mimeData = new QMimeData;
+  mimeData->setColorData( QVariant( color ) );
+  mimeData->setText( color.name() );
+  return mimeData;
+}
+
+QColor QgsSymbolLayerV2Utils::colorFromMimeData( const QMimeData * mimeData, bool& hasAlpha )
+{
+  //attempt to read color data directly from mime
+  QColor mimeColor = mimeData->colorData().value<QColor>();
+  if ( mimeColor.isValid() )
+  {
+    hasAlpha = true;
+    return mimeColor;
+  }
+
+  //attempt to intrepret a color from mime text data
+  hasAlpha = false;
+  QColor textColor = QgsSymbolLayerV2Utils::parseColorWithAlpha( mimeData->text(), hasAlpha );
+  if ( textColor.isValid() )
+  {
+    return textColor;
+  }
+
+  //could not get color from mime data
+  return QColor();
 }
 
 QgsNamedColorList QgsSymbolLayerV2Utils::colorListFromMimeData( const QMimeData *data )

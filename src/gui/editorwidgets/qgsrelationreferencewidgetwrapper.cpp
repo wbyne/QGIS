@@ -19,9 +19,8 @@
 #include "qgsrelationmanager.h"
 
 
-QgsRelationReferenceWidgetWrapper::QgsRelationReferenceWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* editor, QgsAttributeEditorContext context, QgsMapCanvas* canvas, QgsMessageBar* messageBar, QWidget* parent )
+QgsRelationReferenceWidgetWrapper::QgsRelationReferenceWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* editor, QgsMapCanvas* canvas, QgsMessageBar* messageBar, QWidget* parent )
     : QgsEditorWidgetWrapper( vl, fieldIdx, editor, parent )
-    , mEditorContext( context )
     , mCanvas( canvas )
     , mMessageBar( messageBar )
 {
@@ -29,7 +28,9 @@ QgsRelationReferenceWidgetWrapper::QgsRelationReferenceWidgetWrapper( QgsVectorL
 
 QWidget* QgsRelationReferenceWidgetWrapper::createWidget( QWidget* parent )
 {
-  return new QgsRelationReferenceWidget( parent );
+  QgsRelationReferenceWidget* w = new QgsRelationReferenceWidget( parent );
+  w->setSizePolicy( w->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding );
+  return w;
 }
 
 void QgsRelationReferenceWidgetWrapper::initWidget( QWidget* editor )
@@ -42,19 +43,35 @@ void QgsRelationReferenceWidgetWrapper::initWidget( QWidget* editor )
 
   mWidget = w;
 
-  mWidget->setEditorContext( mEditorContext, mCanvas, mMessageBar );
+  mWidget->setEditorContext( context(), mCanvas, mMessageBar );
 
   bool showForm = config( "ShowForm", true ).toBool();
   bool mapIdent = config( "MapIdentification", false ).toBool();
   bool readOnlyWidget = config( "ReadOnly", false ).toBool();
+
   mWidget->setEmbedForm( showForm );
-  mWidget->setAllowMapIdentification( mapIdent );
   mWidget->setReadOnlySelector( readOnlyWidget );
+  mWidget->setAllowMapIdentification( mapIdent );
 
   QgsRelation relation = QgsProject::instance()->relationManager()->relation( config( "Relation" ).toString() );
+
+  // If this widget is already embedded by the same relation, reduce functionality
+  const QgsAttributeEditorContext* ctx = &context();
+  do
+  {
+    if ( ctx->relation().name() == relation.name() )
+    {
+      mWidget->setEmbedForm( false );
+      mWidget->setReadOnlySelector( false );
+      mWidget->setAllowMapIdentification( false );
+    }
+    ctx = ctx->parentContext();
+  }
+  while ( ctx );
+
   mWidget->setRelation( relation, config( "AllowNULL" ).toBool() );
 
-  connect( mWidget, SIGNAL( relatedFeatureChanged( QVariant ) ), this, SIGNAL( valueChanged( QVariant ) ) );
+  connect( mWidget, SIGNAL( relatedFeatureChanged( QVariant ) ), this,  SLOT( relatedFeatureChanged( QVariant ) ) );
 }
 
 QVariant QgsRelationReferenceWidgetWrapper::value()
@@ -62,7 +79,7 @@ QVariant QgsRelationReferenceWidgetWrapper::value()
   if ( !mWidget )
     return QVariant( field().type() );
 
-  QVariant v = mWidget->relatedFeature();
+  QVariant v = mWidget->foreignKey();
 
   if ( v.isNull() )
   {
@@ -88,4 +105,13 @@ void QgsRelationReferenceWidgetWrapper::setEnabled( bool enabled )
     return;
 
   mWidget->setRelationEditable( enabled );
+}
+
+void QgsRelationReferenceWidgetWrapper::relatedFeatureChanged( QVariant value )
+{
+  if ( !value.isValid() || value.isNull() )
+  {
+    value = QVariant( field().type() );
+  }
+  emit valueChanged( value );
 }

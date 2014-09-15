@@ -103,6 +103,15 @@ struct QgsVectorJoinInfo
     @note not available in python bindings
     */
   // QHash< QString, QgsAttributeMap> cachedAttributes;
+
+  bool operator==( const QgsVectorJoinInfo& other ) const;
+
+  /** Set subset of fields to be used from joined layer. Takes ownership of the passed pointer. Null pointer tells to use all fields.
+    @note added in 2.6 */
+  void setJoinFieldNamesSubset( QStringList* fieldNamesSubset /Transfer/ );
+  /** Get subset of fields to be used from joined layer. All fields will be used if null is returned.
+    @note added in 2.6 */
+  QStringList* joinFieldNamesSubset() const;
 };
 
 
@@ -1156,8 +1165,6 @@ class QgsVectorLayer : QgsMapLayer
      * @see setSelectedFeatures(const QgsFeatureIds&)
      */
     void removeSelection();
-
-    void triggerRepaint();
 
     /** Update the extents for the layer. This is necessary if features are
      *  added/deleted or the layer has been subsetted.

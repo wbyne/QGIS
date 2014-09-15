@@ -26,6 +26,8 @@
 #include <QStatusBar>
 #include <QToolTip>
 #include <QDockWidget>
+#include <QPlainTextEdit>
+#include <QScrollBar>
 
 static QIcon icon( QString icon )
 {
@@ -61,7 +63,6 @@ QgsMessageLogViewer::QgsMessageLogViewer( QStatusBar *statusBar, QWidget *parent
     mButton->setToolTip( tr( "No messages." ) );
 #endif
     mButton->setCheckable( true );
-    mButton->hide();
     connect( mButton, SIGNAL( toggled( bool ) ), this, SLOT( buttonToggled( bool ) ) );
     connect( mButton, SIGNAL( destroyed() ), this, SLOT( buttonDestroyed() ) );
     statusBar->addPermanentWidget( mButton, 0 );
@@ -87,7 +88,6 @@ void QgsMessageLogViewer::showEvent( QShowEvent * )
   if ( mButton )
   {
     mButton->setChecked( true );
-    mButton->hide();
   }
 }
 
@@ -114,7 +114,7 @@ void QgsMessageLogViewer::logMessage( QString message, QString tag, QgsMessageLo
 #ifdef ANDROID
   mCount++;
 #else
-  mButton->setToolTip( tr( "%1 message(s) logged." ).arg( mCount++ ) );
+  mButton->setToolTip( tr( "Message(s) logged." ) );
 #endif
 
   if ( !isVisible() && level > QgsMessageLog::INFO )
@@ -131,52 +131,28 @@ void QgsMessageLogViewer::logMessage( QString message, QString tag, QgsMessageLo
   for ( i = 0; i < tabWidget->count() && tabWidget->tabText( i ) != tag; i++ )
     ;
 
-  QTableWidget *w;
+  QPlainTextEdit *w;
   if ( i < tabWidget->count() )
   {
-    w = qobject_cast<QTableWidget *>( tabWidget->widget( i ) );
+    w = qobject_cast<QPlainTextEdit *>( tabWidget->widget( i ) );
     tabWidget->setCurrentIndex( i );
   }
   else
   {
-    w = new QTableWidget( 0, 3, this );
-    w->verticalHeader()->setDefaultSectionSize( 16 );
-    w->verticalHeader()->setResizeMode( QHeaderView::ResizeToContents );
-    w->verticalHeader()->setVisible( false );
-    w->setGridStyle( Qt::DotLine );
-    w->setEditTriggers( QAbstractItemView::NoEditTriggers );
-    w->setHorizontalScrollMode( QAbstractItemView::ScrollPerPixel );
-    w->setVerticalScrollMode( QAbstractItemView::ScrollPerPixel );
-    w->setHorizontalHeaderLabels( QStringList() << tr( "Timestamp" ) << tr( "Message" ) << tr( "Level" ) );
+    w = new QPlainTextEdit( this );
+    w->setReadOnly( true );
     tabWidget->addTab( w, tag );
-
     tabWidget->setCurrentIndex( tabWidget->count() - 1 );
   }
 
-  int n = w->rowCount();
-
-  w->setRowCount( n + 1 );
-  QTableWidgetItem *item = new QTableWidgetItem( QDateTime::currentDateTime().toString( Qt::ISODate ) );
-  w->setItem( n, 0, item );
-  w->setItem( n, 1, new QTableWidgetItem( message ) );
-  w->setItem( n, 2, new QTableWidgetItem( QString::number( level ) ) );
-  w->scrollToBottom();
-
-  w->horizontalHeader()->resizeSections( QHeaderView::ResizeToContents );
+  QString prefix = QString( "%1\t%2\t")
+                       .arg( QDateTime::currentDateTime().toString( Qt::ISODate ) )
+                       .arg( level );
+  w->appendPlainText( message.prepend( prefix ).replace( "\n", "\n\t\t\t" ) );
+  w->verticalScrollBar()->setValue( w->verticalScrollBar()->maximum() );
 }
 
 void QgsMessageLogViewer::closeTab( int index )
 {
-  QTableWidget *w = qobject_cast<QTableWidget *>( tabWidget->widget( index ) );
-  if ( w )
-  {
-    mCount -= w->rowCount();
-    if ( mButton )
-#ifdef ANDROID
-      mCount++;
-#else
-      mButton->setToolTip( tr( "%1 message(s) logged." ).arg( mCount++ ) );
-#endif
-  }
   tabWidget->removeTab( index );
 }

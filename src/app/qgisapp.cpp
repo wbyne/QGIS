@@ -666,8 +666,6 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
 
   // Init the editor widget types
   QgsEditorWidgetRegistry* editorWidgetRegistry = QgsEditorWidgetRegistry::instance();
-  QgsAttributeEditorContext context;
-  context.setVectorLayerTools( vectorLayerTools() );
   editorWidgetRegistry->registerWidget( "Classification", new QgsClassificationWidgetWrapperFactory( tr( "Classification" ) ) );
   editorWidgetRegistry->registerWidget( "Range", new QgsRangeWidgetFactory( tr( "Range" ) ) );
   editorWidgetRegistry->registerWidget( "UniqueValues", new QgsUniqueValueWidgetFactory( tr( "Unique Values" ) ) );
@@ -682,7 +680,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   editorWidgetRegistry->registerWidget( "Photo", new QgsPhotoWidgetFactory( tr( "Photo" ) ) );
   editorWidgetRegistry->registerWidget( "WebView", new QgsWebViewWidgetFactory( tr( "Web View" ) ) );
   editorWidgetRegistry->registerWidget( "Color", new QgsColorWidgetFactory( tr( "Color" ) ) );
-  editorWidgetRegistry->registerWidget( "RelationReference", new QgsRelationReferenceFactory( tr( "Relation Reference" ), context, mMapCanvas, mInfoBar ) );
+  editorWidgetRegistry->registerWidget( "RelationReference", new QgsRelationReferenceFactory( tr( "Relation Reference" ), mMapCanvas, mInfoBar ) );
   editorWidgetRegistry->registerWidget( "DateTime", new QgsDateTimeEditFactory( tr( "Date/Time" ) ) );
 
   mInternalClipboard = new QgsClipboard; // create clipboard
@@ -934,6 +932,8 @@ QgisApp::~QgisApp()
   delete mOverviewMapCursor;
 
   delete mComposerManager;
+
+  delete mVectorLayerTools;
 
   deletePrintComposers();
   removeAnnotationItems();
@@ -1651,7 +1651,8 @@ void QgisApp::createToolBars()
     case 1: defNewLayerAction = mActionNewVectorLayer; break;
   }
   bt->setDefaultAction( defNewLayerAction );
-  QAction* newLayerAction = mLayerToolBar->insertWidget( mActionAddDelimitedText, bt );
+  QAction* newLayerAction = mLayerToolBar->addWidget( bt );
+
   newLayerAction->setObjectName( "ActionNewLayer" );
   connect( bt, SIGNAL( triggered( QAction * ) ), this, SLOT( toolButtonActionTriggered( QAction * ) ) );
 
@@ -6974,9 +6975,6 @@ void QgisApp::setLayerCRS()
 
   QgsCoordinateReferenceSystem crs( mySelector.selectedCrsId(), QgsCoordinateReferenceSystem::InternalCrsId );
 
-  // Turn off rendering to improve speed.
-  mMapCanvas->freeze();
-
   foreach ( QgsLayerTreeNode* node, mLayerTreeView->selectedNodes() )
   {
     if ( QgsLayerTree::isGroup( node ) )
@@ -6984,19 +6982,22 @@ void QgisApp::setLayerCRS()
       foreach ( QgsLayerTreeLayer* child, QgsLayerTree::toGroup( node )->findLayers() )
       {
         if ( child->layer() )
+        {
           child->layer()->setCrs( crs );
+          child->layer()->triggerRepaint();
+        }
       }
     }
     else if ( QgsLayerTree::isLayer( node ) )
     {
       QgsLayerTreeLayer* nodeLayer = QgsLayerTree::toLayer( node );
       if ( nodeLayer->layer() )
+      {
         nodeLayer->layer()->setCrs( crs );
+        nodeLayer->layer()->triggerRepaint();
+      }
     }
   }
-
-  // Turn on rendering (if it was on previously)
-  mMapCanvas->freeze( false );
 
   mMapCanvas->refresh();
 }
@@ -7108,7 +7109,10 @@ void QgisApp::legendGroupSetCRS()
   foreach ( QgsLayerTreeLayer* nodeLayer, currentGroup->findLayers() )
   {
     if ( nodeLayer->layer() )
+    {
       nodeLayer->layer()->setCrs( crs );
+      nodeLayer->layer()->triggerRepaint();
+    }
   }
 }
 
@@ -8583,7 +8587,7 @@ void QgisApp::layersWereAdded( QList<QgsMapLayer *> theLayers )
 
     if ( provider )
     {
-      connect( provider, SIGNAL( dataChanged() ), layer, SLOT( clearCacheImage() ) );
+      connect( provider, SIGNAL( dataChanged() ), layer, SLOT( triggerRepaint() ) );
       connect( provider, SIGNAL( dataChanged() ), mMapCanvas, SLOT( refresh() ) );
     }
   }

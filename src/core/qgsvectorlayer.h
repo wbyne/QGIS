@@ -183,6 +183,26 @@ struct CORE_EXPORT QgsVectorJoinInfo
   int targetFieldIndex;
   /**Join field index in the source layer. For backward compatibility with 1.x (x>=7)*/
   int joinFieldIndex;
+
+  bool operator==( const QgsVectorJoinInfo& other ) const
+  {
+    return targetFieldName == other.targetFieldName &&
+           joinLayerId == other.joinLayerId &&
+           joinFieldName == other.joinFieldName &&
+           joinFieldsSubset == other.joinFieldsSubset &&
+           memoryCache == other.memoryCache;
+  }
+
+  /** Set subset of fields to be used from joined layer. Takes ownership of the passed pointer. Null pointer tells to use all fields.
+    @note added in 2.6 */
+  void setJoinFieldNamesSubset( QStringList* fieldNamesSubset ) { joinFieldsSubset = QSharedPointer<QStringList>( fieldNamesSubset ); }
+  /** Get subset of fields to be used from joined layer. All fields will be used if null is returned.
+    @note added in 2.6 */
+  QStringList* joinFieldNamesSubset() const { return joinFieldsSubset.data(); }
+
+protected:
+  /**Subset of fields to use from joined layer. null = use all fields*/
+  QSharedPointer<QStringList> joinFieldsSubset;
 };
 
 /** \ingroup core
@@ -1513,12 +1533,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @see setSelectedFeatures(const QgsFeatureIds&)
      */
     void removeSelection();
-
-    /**
-     * Will advice the map canvas (and any other interested party) that this layer requires to be repainted.
-     * Will emit a repaintRequested() signal.
-     */
-    void triggerRepaint();
 
     /** Update the extents for the layer. This is necessary if features are
      *  added/deleted or the layer has been subsetted.

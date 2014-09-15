@@ -17,6 +17,8 @@
  ***************************************************************************/
 
 #include "qgsmapcanvas.h"
+#include "qgsmaplayer.h"
+#include "qgsmaplayerregistry.h"
 #include "qgsmapoverviewcanvas.h"
 #include "qgsmaprenderersequentialjob.h"
 #include "qgsmaptopixel.h"
@@ -74,8 +76,6 @@ QgsMapOverviewCanvas::QgsMapOverviewCanvas( QWidget * parent, QgsMapCanvas* mapC
 {
   setObjectName( "theOverviewCanvas" );
   mPanningWidget = new QgsPanningWidget( this );
-
-  setBackgroundColor( palette().window().color() );
 
   mSettings.setFlag( QgsMapSettings::DrawLabeling, false );
 
@@ -281,6 +281,8 @@ void QgsMapOverviewCanvas::refresh()
   connect( mJob, SIGNAL( finished() ), this, SLOT( mapRenderingFinished() ) );
   mJob->start();
 
+  setBackgroundColor( mMapCanvas->mapSettings().backgroundColor() );
+
   // schedule repaint
   update();
 
@@ -300,6 +302,11 @@ void QgsMapOverviewCanvas::mapRenderingFinished()
   update();
 }
 
+void QgsMapOverviewCanvas::layerRepaintRequested()
+{
+  refresh();
+}
+
 
 void QgsMapOverviewCanvas::setBackgroundColor( const QColor& color )
 {
@@ -314,7 +321,21 @@ void QgsMapOverviewCanvas::setBackgroundColor( const QColor& color )
 void QgsMapOverviewCanvas::setLayerSet( const QStringList& layerSet )
 {
   QgsDebugMsg( "layerSet: " + layerSet.join( ", " ) );
+
+  foreach ( const QString& layerID, mSettings.layers() )
+  {
+    if ( QgsMapLayer* ml = QgsMapLayerRegistry::instance()->mapLayer( layerID ) )
+      disconnect( ml, SIGNAL( repaintRequested() ), this, SLOT( layerRepaintRequested() ) );
+  }
+
   mSettings.setLayers( layerSet );
+
+  foreach ( const QString& layerID, mSettings.layers() )
+  {
+    if ( QgsMapLayer* ml = QgsMapLayerRegistry::instance()->mapLayer( layerID ) )
+      connect( ml, SIGNAL( repaintRequested() ), this, SLOT( layerRepaintRequested() ) );
+  }
+
   updateFullExtent();
 }
 

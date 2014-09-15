@@ -230,6 +230,14 @@ class CORE_EXPORT QgsSymbolLayerV2Utils
     static QDomElement saveColorRamp( QString name, QgsVectorColorRampV2* ramp, QDomDocument& doc );
 
     /**
+     * Returns a friendly display name for a color
+     * @param color source color
+     * @returns display name for color
+     * @note added in 2.5
+     */
+    static QString colorToName( const QColor& color );
+
+    /**
      * Attempts to parse a string as a list of colors using a variety of common formats, including hex
      * codes, rgb and rgba strings.
      * @param colorStr string representing the color list
@@ -237,6 +245,26 @@ class CORE_EXPORT QgsSymbolLayerV2Utils
      * @note added in 2.5
      */
     static QList< QColor > parseColorList( const QString colorStr );
+
+    /**
+     * Creates mime data from a color. Sets both the mime data's color data, and the
+     * mime data's text with the color's hex code.
+     * @param color color to encode as mime data
+     * @see colorFromMimeData
+     * @note added in 2.5
+     */
+    static QMimeData * colorToMimeData( const QColor color );
+
+    /**
+     * Attempts to parse mime data as a color
+     * @param data mime data to parse
+     * @param hasAlpha will be set to true if mime data was interpreted as a color containing
+     * an explicit alpha value
+     * @returns valid color if mimedata could be interpreted as a color, otherwise an
+     * invalid color
+     * @note added in 2.5
+     */
+    static QColor colorFromMimeData( const QMimeData *data, bool& hasAlpha );
 
     /**
      * Attempts to parse mime data as a list of named colors
