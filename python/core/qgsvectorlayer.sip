@@ -19,7 +19,7 @@ class QgsAttributeEditorElement : QObject
       AeTypeInvalid
     };
 
-    QgsAttributeEditorElement( AttributeEditorType type, QString name, QObject *parent = NULL );
+    QgsAttributeEditorElement( AttributeEditorType type, QString name, QObject *parent /TransferThis/ = NULL );
 
     virtual ~QgsAttributeEditorElement();
 
@@ -37,7 +37,7 @@ class QgsAttributeEditorContainer : QgsAttributeEditorElement
 %End
 
   public:
-    QgsAttributeEditorContainer( QString name, QObject *parent );
+    QgsAttributeEditorContainer( QString name, QObject *parent  /TransferThis/ );
 
     ~QgsAttributeEditorContainer();
 
@@ -54,7 +54,7 @@ class QgsAttributeEditorField : QgsAttributeEditorElement
 #include "qgsvectorlayer.h"
 %End
   public:
-    QgsAttributeEditorField( QString name , int idx, QObject *parent );
+    QgsAttributeEditorField( QString name , int idx, QObject *parent /TransferThis/ );
 
     ~QgsAttributeEditorField();
 
@@ -66,9 +66,9 @@ class QgsAttributeEditorField : QgsAttributeEditorElement
 class QgsAttributeEditorRelation : QgsAttributeEditorElement
 {
   public:
-    QgsAttributeEditorRelation( QString name, const QString &relationId, QObject *parent );
+    QgsAttributeEditorRelation( QString name, const QString &relationId, QObject *parent /TransferThis/ );
 
-    QgsAttributeEditorRelation( QString name, const QgsRelation& relation, QObject *parent );
+    QgsAttributeEditorRelation( QString name, const QgsRelation& relation, QObject *parent /TransferThis/);
 
     ~QgsAttributeEditorRelation();
 
@@ -274,13 +274,14 @@ class QgsVectorLayer : QgsMapLayer
     /** Sets the textencoding of the data provider */
     void setProviderEncoding( const QString& encoding );
 
-    /** Setup the coordinate system tranformation for the layer */
+    /** Setup the coordinate system transformation for the layer */
     void setCoordinateSystem();
 
     /** Joins another vector layer to this layer
       @param joinInfo join object containing join layer id, target and source field
-      @note added in 1.7 */
-    void addJoin( const QgsVectorJoinInfo& joinInfo );
+      @note added in 1.7
+      @note since 2.6 returns bool indicating whether the join can be added */
+    bool addJoin( const QgsVectorJoinInfo& joinInfo );
 
     /** Removes  a vector layer join
       @note added in 1.7 */
@@ -370,6 +371,18 @@ class QgsVectorLayer : QgsMapLayer
      * @see    selectedFeaturesIds()
      */
     QgsFeatureList selectedFeatures();
+
+    /**
+     * Get an iterator of the selected features
+     *
+     * @param request You may specify a request, e.g. to limit the set of requested attributes.
+     *                Any filter on the request will be discarded.
+     *
+     * @return Iterator over the selected features
+     *
+     * @see    selectedFeaturesIds()
+     */
+    QgsFeatureIterator selectedFeaturesIterator( QgsFeatureRequest request = QgsFeatureRequest() );
 
     /**
      * Return reference to identifiers of selected features

@@ -111,6 +111,10 @@ class QgsComposerMap : QgsComposerItem
     /** \brief Create cache image */
     void cache();
 
+    /** Return map settings that would be used for drawing of the map
+     *  @note added in 2.6 */
+    QgsMapSettings mapSettings( const QgsRectangle& extent, const QSizeF& size, int dpi ) const;
+
     /** \brief Get identification number*/
     int id() const;
 
@@ -126,10 +130,20 @@ class QgsComposerMap : QgsComposerItem
     void moveContent( double dx, double dy );
 
     /**Zoom content of map
-     @param delta value from wheel event that describes magnitude and direction (positive /negative number)
-    @param x x-coordinate of mouse position in item coordinates
-    @param y y-coordinate of mouse position in item coordinates*/
-    void zoomContent( int delta, double x, double y );
+     * @param delta value from wheel event that describes direction (positive /negative number)
+     * @param x x-position of mouse cursor (in item coordinates)
+     * @param y y-position of mouse cursor (in item coordinates)
+     * @deprecated use zoomContent( double, QPointF, ZoomMode ) instead
+    */
+    void zoomContent( int delta, double x, double y ) /Deprecated/;
+
+    /**Zoom content of item. Does nothing per default (but implemented in composer map)
+     * @param factor zoom factor, where > 1 results in a zoom in and < 1 results in a zoom out
+     * @param point item point for zoom center
+     * @param mode zoom mode
+     * @note added in QGIS 2.5
+    */
+    virtual void zoomContent( const double factor, const QPointF point, const ZoomMode mode = QgsComposerItem::Zoom );
 
     /**Sets new scene rectangle bounds and recalculates hight and extent*/
     void setSceneRect( const QRectF& rectangle );
@@ -511,6 +525,21 @@ class QgsComposerMap : QgsComposerItem
      * @note introduced in QGIS 2.5
      */
     QgsComposerMapGrid* grid();
+    
+    /**Returns the map item's overview stack, which is used to control how over
+     * are drawn over the map's contents.
+     * @returns pointer to overview stack
+     * @see overview()
+     * @note introduced in QGIS 2.5
+     */
+    QgsComposerMapOverviewStack* overviews();
+
+    /**Returns the map item's first overview. This is a convenience function.
+     * @returns pointer to first overview for map item
+     * @see overviews()
+     * @note introduced in QGIS 2.5
+     */
+    QgsComposerMapOverview* overview();
 
     /**In case of annotations, the bounding rectangle can be larger than the map item rectangle
     @note this function was added in version 1.4*/
@@ -559,29 +588,56 @@ class QgsComposerMap : QgsComposerItem
     double mapUnitsToMM() const;
 
     /**Sets overview frame map. -1 disables the overview frame
-    @note: this function was added in version 1.9*/
-    void setOverviewFrameMap( int mapId );
+     * @note: this function was added in version 1.9
+     * @deprecated use overview()->setFrameMap() or overviews() instead
+    */
+    void setOverviewFrameMap( int mapId ) /Deprecated/;
+
     /**Returns id of overview frame (or -1 if no overfiew frame)
-    @note: this function was added in version 1.9*/
-    int overviewFrameMapId() const;
+     * @note: this function was added in version 1.9
+     * @deprecated use overview()->frameMapId() or overviews() instead
+    */
+    int overviewFrameMapId() const /Deprecated/;
 
-    void setOverviewFrameMapSymbol( QgsFillSymbolV2* symbol /Transfer/ );
-    QgsFillSymbolV2* overviewFrameMapSymbol();
+    /**
+     * @deprecated use overview()->setFrameSymbol() or overviews() instead
+    */
+    void setOverviewFrameMapSymbol( QgsFillSymbolV2* symbol /Transfer/ ) /Deprecated/;
 
-    /** Returns the overview's blending mode */
-    QPainter::CompositionMode overviewBlendMode() const;
-    /** Sets the overview's blending mode*/
-    void setOverviewBlendMode( QPainter::CompositionMode blendMode );
+    /**
+     * @deprecated use overview()->frameSymbol() or overviews() instead
+    */
+    QgsFillSymbolV2* overviewFrameMapSymbol() /Deprecated/;
 
-    /** Returns true if the overview frame is inverted */
-    bool overviewInverted() const;
-    /** Sets the overview's inversion mode*/
-    void setOverviewInverted( bool inverted );
+    /** Returns the overview's blending mode
+     * @deprecated use overview()->blendMode() or overviews() instead
+    */
+    QPainter::CompositionMode overviewBlendMode() const /Deprecated/;
 
-    /** Returns true if the extent is forced to center on the overview */
+    /** Sets the overview's blending mode
+     * @deprecated use overview()->setBlendMode() or overviews() instead
+     */
+    void setOverviewBlendMode( QPainter::CompositionMode blendMode ) /Deprecated/;
+
+    /** Returns true if the overview frame is inverted
+     * @deprecated use overview()->inverted() or overviews() instead
+    */
+    bool overviewInverted() const /Deprecated/;
+
+    /** Sets the overview's inversion mode
+     * @deprecated use overview()->setInverted() or overviews() instead
+    */
+    void setOverviewInverted( bool inverted ) /Deprecated/;
+
+    /** Returns true if the extent is forced to center on the overview
+     * @deprecated use overview()->centered() or overviews() instead
+    */
     bool overviewCentered() const;
-    /** Set the overview's centering mode */
-    void setOverviewCentered( bool centered );
+
+    /** Set the overview's centering mode
+     * @deprecated use overview()->setCentered() or overviews() instead
+    */
+    void setOverviewCentered( bool centered ) /Deprecated/;
 
     /**Sets mId to a number not yet used in the composition. mId is kept if it is not in use.
         Usually, this function is called before adding the composer map to the composition*/
@@ -648,12 +704,15 @@ class QgsComposerMap : QgsComposerItem
     void setAtlasScalingMode( AtlasScalingMode mode );
 
     /**Returns the margin size (percentage) used when the map is in atlas mode.
+     * @param valueType controls whether the returned value is the user specified atlas margin,
+     * or the current evaluated atlas margin (which may be affected by data driven atlas margin
+     * settings).
      * @returns margin size in percentage to leave around the atlas feature's extent
      * @note this is only used if atlasScalingMode() is Auto.
      * @see atlasScalingMode
      * @see setAtlasMargin
     */
-    double atlasMargin() const;
+    double atlasMargin( const QgsComposerObject::PropertyValueType valueType = QgsComposerObject::EvaluatedValue );
 
     /**Sets the margin size (percentage) used when the map is in atlas mode.
      * @param margin size in percentage to leave around the atlas feature's extent
@@ -693,7 +752,11 @@ class QgsComposerMap : QgsComposerItem
     /**Transforms map coordinates to item coordinates (considering rotation and move offset)*/
     QPointF mapToItemCoords( const QPointF& mapCoords ) const;
 
-    void connectMapOverviewSignals();
+    void connectMapOverviewSignals() /Deprecated/;
+
+    /**Calculates the extent to request and the yShift of the top-left point in case of rotation.
+     * @note added in 2.6 */
+    void requestedExtent( QgsRectangle& extent ) const;
 
   signals:
     void extentChanged();
@@ -707,7 +770,7 @@ class QgsComposerMap : QgsComposerItem
   public slots:
 
     /**Called if map canvas has changed*/
-    void updateCachedImage( );
+    void updateCachedImage();
     /**Call updateCachedImage if item is in render mode*/
     void renderModeUpdateCachedImage();
 

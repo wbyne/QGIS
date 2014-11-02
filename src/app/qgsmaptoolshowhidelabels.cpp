@@ -26,10 +26,11 @@
 #include <qgslogger.h>
 
 #include <QMouseEvent>
-#include <QMessageBox>
 
-QgsMapToolShowHideLabels::QgsMapToolShowHideLabels( QgsMapCanvas* canvas ): QgsMapToolLabel( canvas )
+QgsMapToolShowHideLabels::QgsMapToolShowHideLabels( QgsMapCanvas* canvas )
+    : QgsMapToolLabel( canvas )
 {
+  mToolName = tr( "Show/hide labels" );
   mRubberBand = 0;
 }
 
@@ -195,8 +196,7 @@ bool QgsMapToolShowHideLabels::selectedFeatures( QgsVectorLayer* vlayer,
       Q_UNUSED( cse );
       // catch exception for 'invalid' point and leave existing selection unchanged
       QgsLogger::warning( "Caught CRS exception " + QString( __FILE__ ) + ": " + QString::number( __LINE__ ) );
-      QMessageBox::warning( mCanvas, QObject::tr( "CRS Exception" ),
-                            QObject::tr( "Selection extends beyond layer's coordinate system." ) );
+      emit messageEmitted( tr( "CRS Exception: selection extends beyond layer's coordinate system." ), QgsMessageBar::WARNING );
       return false;
     }
   }

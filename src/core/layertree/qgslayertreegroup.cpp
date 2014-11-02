@@ -119,12 +119,28 @@ void QgsLayerTreeGroup::removeChildren( int from, int count )
   updateVisibilityFromChildren();
 }
 
+void QgsLayerTreeGroup::removeChildrenGroupWithoutLayers()
+{
+  // clean the layer tree by removing empty group
+  foreach ( QgsLayerTreeNode* treeNode, children() )
+  {
+    if ( treeNode->nodeType() == QgsLayerTreeNode::NodeGroup )
+    {
+      QgsLayerTreeGroup* treeGroup = qobject_cast<QgsLayerTreeGroup*>( treeNode );
+      if ( treeGroup->findLayerIds().count() == 0 )
+        removeChildNode( treeNode );
+      else
+        treeGroup->removeChildrenGroupWithoutLayers();
+    }
+  }
+}
+
 void QgsLayerTreeGroup::removeAllChildren()
 {
   removeChildren( 0, mChildren.count() );
 }
 
-QgsLayerTreeLayer *QgsLayerTreeGroup::findLayer( const QString& layerId )
+QgsLayerTreeLayer *QgsLayerTreeGroup::findLayer( const QString& layerId ) const
 {
   foreach ( QgsLayerTreeNode* child, mChildren )
   {

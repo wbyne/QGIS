@@ -38,7 +38,7 @@ Class for parsing and evaluation of expressions (formerly called "search strings
 The expressions try to follow both syntax and semantics of SQL expressions.
 
 Usage:
-
+\code{.cpp}
   QgsExpression exp("gid*2 > 10 and type not in ('D','F'));
   if (exp.hasParserError())
   {
@@ -53,6 +53,7 @@ Usage:
   {
     // examine the result
   }
+\endcode
 
 Possible QVariant value types:
 - invalid (null)
@@ -82,10 +83,7 @@ or they can be converted to numeric types.
 
 Arithmetic operators do integer arithmetics if both operands are integer. That is
 2+2 yields integer 4, but 2.0+2 returns real number 4.0. There are also two versions of
-division and modulo operators: 1.0/2 returns 0.5 while 1/2 returns 0.
-
-@note added in 2.0
-*/
+division and modulo operators: 1.0/2 returns 0.5 while 1/2 returns 0. */
 class CORE_EXPORT QgsExpression
 {
   public:
@@ -183,10 +181,18 @@ class CORE_EXPORT QgsExpression
 
        Additional substitutions can be passed through the substitutionMap
        parameter
+       @param action
+       @param feat
+       @param layer
+       @param substitutionMap
+       @param distanceArea optional QgsDistanceArea. If specified, the QgsDistanceArea is used for distance
+       and area conversion
     */
     static QString replaceExpressionText( const QString &action, const QgsFeature *feat,
                                           QgsVectorLayer *layer,
-                                          const QMap<QString, QVariant> *substitutionMap = 0 );
+                                          const QMap<QString, QVariant> *substitutionMap = 0,
+                                          const QgsDistanceArea* distanceArea = 0
+                                        );
     enum UnaryOperator
     {
       uoNot,
@@ -638,6 +644,9 @@ class CORE_EXPORT QgsExpression
     static void initFunctionHelp();
     static QHash<QString, QString> gFunctionHelpTexts;
     static QHash<QString, QString> gGroups;
+
+  private:
+    Q_DISABLE_COPY( QgsExpression )  // for now - until we have proper copy constructor / implicit sharing
 };
 
 Q_DECLARE_METATYPE( QgsExpression::Interval );

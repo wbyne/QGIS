@@ -56,7 +56,7 @@ class APP_EXPORT QgsMapToolEdit: public QgsMapTool
     *   @param geometryType
     *   @param alternativeBand if true, rubber band will be set with more transparency and a dash pattern. defaut is false.
     */
-    QgsRubberBand* createRubberBand( QGis::GeometryType geometryType = QGis::Line , bool alternativeBand = false );
+    QgsRubberBand* createRubberBand( QGis::GeometryType geometryType = QGis::Line, bool alternativeBand = false );
 
     /**Returns the current vector layer of the map canvas or 0*/
     QgsVectorLayer* currentVectorLayer();
@@ -66,11 +66,9 @@ class APP_EXPORT QgsMapToolEdit: public QgsMapTool
        @return 0 in case of success*/
     int addTopologicalPoints( const QList<QgsPoint>& geom );
 
-    /**Display a timed message bar noting the active layer is not vector.
-       @note added in QGIS 1.9*/
+    /**Display a timed message bar noting the active layer is not vector. */
     void notifyNotVectorLayer();
-    /**Display a timed message bar noting the active vector layer is not editable.
-       @note added in QGIS 1.9*/
+    /**Display a timed message bar noting the active vector layer is not editable. */
     void notifyNotEditableLayer();
 };
 

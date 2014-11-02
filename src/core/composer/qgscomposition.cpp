@@ -31,6 +31,7 @@
 #include "qgscomposerlabel.h"
 #include "qgscomposermodel.h"
 #include "qgscomposerattributetable.h"
+#include "qgscomposerattributetablev2.h"
 #include "qgsaddremovemultiframecommand.h"
 #include "qgscomposermultiframecommand.h"
 #include "qgspaintenginehack.h"
@@ -95,6 +96,7 @@ void QgsComposition::init()
   mGuidesVisible = true;
   mSmartGuides = true;
   mSnapTolerance = 0;
+  mBoundingBoxesVisible = true;
   mSelectionHandles = 0;
   mActiveItemCommand = 0;
   mActiveMultiFrameCommand = 0;
@@ -186,15 +188,15 @@ QgsComposition::~QgsComposition()
   removePaperItems();
   deleteAndRemoveMultiFrames();
 
-  // clear pointers to QgsDataDefined objects
-  //TODO - should be qDeleteAll? Check original label code too for same leak.
-  mDataDefinedProperties.clear();
-
   // make sure that all composer items are removed before
   // this class is deconstructed - to avoid segfaults
   // when composer items access in destructor composition that isn't valid anymore
   QList<QGraphicsItem*> itemList = items();
   qDeleteAll( itemList );
+
+  // clear pointers to QgsDataDefined objects
+  qDeleteAll( mDataDefinedProperties );
+  mDataDefinedProperties.clear();
 
   //order is important here - we need to delete model last so that all items have already
   //been deleted. Deleting the undo stack will also delete any items which have been
@@ -214,6 +216,7 @@ void QgsComposition::loadDefaults()
   mSnapGridOffsetX = settings.value( "/Composer/defaultSnapGridOffsetX", 0 ).toDouble();
   mSnapGridOffsetY = settings.value( "/Composer/defaultSnapGridOffsetY", 0 ).toDouble();
   mSnapTolerance = settings.value( "/Composer/defaultSnapTolerancePixels", 5 ).toInt();
+  mBoundingBoxesVisible = settings.value( "/Composer/showBoundingBoxes", true ).toBool();
 }
 
 void QgsComposition::updateBounds()
@@ -224,6 +227,15 @@ void QgsComposition::updateBounds()
 void QgsComposition::refreshItems()
 {
   emit refreshItemsTriggered();
+  //force a redraw on all maps
+  QList<QgsComposerMap*> maps;
+  composerItems( maps );
+  QList<QgsComposerMap*>::iterator mapIt = maps.begin();
+  for ( ; mapIt != maps.end(); ++mapIt )
+  {
+    ( *mapIt )->cache();
+    ( *mapIt )->update();
+  }
 }
 
 void QgsComposition::setSelectedItem( QgsComposerItem *item )
@@ -294,6 +306,11 @@ QRectF QgsComposition::compositionBounds() const
 
 void QgsComposition::setPaperSize( const double width, const double height )
 {
+  if ( width == mPageWidth && height == mPageHeight )
+  {
+    return;
+  }
+
   //update item positions
   QList<QGraphicsItem *> itemList = items();
   QList<QGraphicsItem *>::iterator itemIt = itemList.begin();
@@ -415,6 +432,53 @@ int QgsComposition::numPages() const
   return mPages.size();
 }
 
+bool QgsComposition::pageIsEmpty( const int page ) const
+{
+  //get all items on page
+  QList<QgsComposerItem*> items;
+  //composerItemsOnPage uses 0-based page numbering
+  composerItemsOnPage( items, page - 1 );
+
+  //loop through and check for non-paper items
+  QList<QgsComposerItem*>::const_iterator itemIt = items.constBegin();
+  for ( ; itemIt != items.constEnd(); ++itemIt )
+  {
+    //is item a paper item?
+    QgsPaperItem* paper = dynamic_cast<QgsPaperItem*>( *itemIt );
+    if ( !paper )
+    {
+      //item is not a paper item, so we have other items on the page
+      return false;
+    }
+  }
+  //no non-paper items
+  return true;
+}
+
+bool QgsComposition::shouldExportPage( const int page ) const
+{
+  if ( page > numPages() || page < 1 )
+  {
+    //page number out of range
+    return false;
+  }
+
+  //check all frame items on page
+  QList<QgsComposerFrame*> frames;
+  //composerItemsOnPage uses 0 based page numbering
+  composerItemsOnPage( frames, page - 1 );
+  QList<QgsComposerFrame*>::const_iterator frameIt = frames.constBegin();
+  for ( ; frameIt != frames.constEnd(); ++frameIt )
+  {
+    if (( *frameIt )->hidePageIfEmpty() && ( *frameIt )->isEmpty() )
+    {
+      //frame is set to hide page if empty, and frame is empty, so we don't want to export this page
+      return false;
+    }
+  }
+  return true;
+}
+
 void QgsComposition::setPageStyleSymbol( QgsFillSymbolV2* symbol )
 {
   delete mPageStyleSymbol;
@@ -463,7 +527,7 @@ void QgsComposition::setStatusMessage( const QString & message )
   emit statusMsgChanged( message );
 }
 
-QgsComposerItem* QgsComposition::composerItemAt( const QPointF & position , const bool ignoreLocked ) const
+QgsComposerItem* QgsComposition::composerItemAt( const QPointF & position, const bool ignoreLocked ) const
 {
   return composerItemAt( position, 0, ignoreLocked );
 }
@@ -863,13 +927,14 @@ bool QgsComposition::loadFromTemplate( const QDomDocument& doc, QMap<QString, QS
   {
     deleteAndRemoveMultiFrames();
 
-    //delete all items and emit itemRemoved signal
+    //delete all non paper items and emit itemRemoved signal
     QList<QGraphicsItem *> itemList = items();
     QList<QGraphicsItem *>::iterator itemIter = itemList.begin();
     for ( ; itemIter != itemList.end(); ++itemIter )
     {
       QgsComposerItem* cItem = dynamic_cast<QgsComposerItem*>( *itemIter );
-      if ( cItem )
+      QgsPaperItem* pItem = dynamic_cast<QgsPaperItem*>( *itemIter );
+      if ( cItem && !pItem )
       {
         removeItem( cItem );
         emit itemRemoved( cItem );
@@ -878,7 +943,7 @@ bool QgsComposition::loadFromTemplate( const QDomDocument& doc, QMap<QString, QS
     }
     mItemsModel->clear();
 
-    mPages.clear();
+    removePaperItems();
     mUndoStack->clear();
   }
 
@@ -1086,7 +1151,7 @@ void QgsComposition::addItemsFromXML( const QDomElement& elem, const QDomDocumen
     QgsComposerMap* map = ( *mit );
     if ( map )
     {
-      QList<QgsComposerMapOverview* > overviews = map->mapOverviews();
+      QList<QgsComposerMapOverview* > overviews = map->overviews()->asList();
       QList<QgsComposerMapOverview* >::iterator overviewIt = overviews.begin();
       for ( ; overviewIt != overviews.end(); ++overviewIt )
       {
@@ -1266,7 +1331,7 @@ void QgsComposition::addItemsFromXML( const QDomElement& elem, const QDomDocumen
     }
   }
   // html
-  //TODO - fix this. pasting html items has no effect
+  //TODO - fix this. pasting multiframe frame items has no effect
   QDomNodeList composerHtmlList = elem.elementsByTagName( "ComposerHtml" );
   for ( int i = 0; i < composerHtmlList.size(); ++i )
   {
@@ -1275,6 +1340,23 @@ void QgsComposition::addItemsFromXML( const QDomElement& elem, const QDomDocumen
     newHtml->readXML( currentHtmlElem, doc );
     newHtml->setCreateUndoCommands( true );
     this->addMultiFrame( newHtml );
+
+    //offset z values for frames
+    //TODO - fix this after fixing html item paste
+    /*for ( int frameIdx = 0; frameIdx < newHtml->frameCount(); ++frameIdx )
+    {
+      QgsComposerFrame * frame = newHtml->frame( frameIdx );
+      frame->setZValue( frame->zValue() + zOrderOffset );
+    }*/
+  }
+  QDomNodeList composerAttributeTableV2List = elem.elementsByTagName( "ComposerAttributeTableV2" );
+  for ( int i = 0; i < composerAttributeTableV2List.size(); ++i )
+  {
+    QDomElement currentTableElem = composerAttributeTableV2List.at( i ).toElement();
+    QgsComposerAttributeTableV2* newTable = new QgsComposerAttributeTableV2( this, false );
+    newTable->readXML( currentTableElem, doc );
+    newTable->setCreateUndoCommands( true );
+    this->addMultiFrame( newTable );
 
     //offset z values for frames
     //TODO - fix this after fixing html item paste
@@ -1711,6 +1793,50 @@ void QgsComposition::unlockAllItems()
   QgsProject::instance()->dirty( true );
 }
 
+QgsComposerItemGroup *QgsComposition::groupItems( QList<QgsComposerItem *> items )
+{
+  if ( items.size() < 2 )
+  {
+    //not enough items for a group
+    return 0;
+  }
+
+  QgsComposerItemGroup* itemGroup = new QgsComposerItemGroup( this );
+
+  QList<QgsComposerItem*>::iterator itemIter = items.begin();
+  for ( ; itemIter != items.end(); ++itemIter )
+  {
+    itemGroup->addItem( *itemIter );
+  }
+
+  addItem( itemGroup );
+  return itemGroup;
+}
+
+QList<QgsComposerItem *> QgsComposition::ungroupItems( QgsComposerItemGroup* group )
+{
+  QList<QgsComposerItem *> ungroupedItems;
+  if ( !group )
+  {
+    return ungroupedItems;
+  }
+
+  QSet<QgsComposerItem*> groupedItems = group->items();
+  QSet<QgsComposerItem*>::iterator itemIt = groupedItems.begin();
+  for ( ; itemIt != groupedItems.end(); ++itemIt )
+  {
+    ungroupedItems << ( *itemIt );
+  }
+
+  group->removeItems();
+  removeComposerItem( group, false, false );
+
+  emit itemRemoved( group );
+  delete( group );
+
+  return ungroupedItems;
+}
+
 void QgsComposition::updateZValues( const bool addUndoCommands )
 {
   int counter = mItemsModel->zOrderListSize();
@@ -2018,6 +2144,20 @@ void QgsComposition::setGridStyle( const GridStyle s )
   updatePaperItems();
 }
 
+void QgsComposition::setBoundingBoxesVisible( const bool boundsVisible )
+{
+  mBoundingBoxesVisible = boundsVisible;
+
+  //save to settings
+  QSettings settings;
+  settings.setValue( "/Composer/showBoundingBoxes", mBoundingBoxesVisible );
+
+  if ( mSelectionHandles )
+  {
+    mSelectionHandles->update();
+  }
+}
+
 void QgsComposition::updateSettings()
 {
   //load new composer setting values
@@ -2141,6 +2281,12 @@ void QgsComposition::endMultiFrameCommand()
   }
 }
 
+void QgsComposition::cancelMultiFrameCommand()
+{
+  delete mActiveMultiFrameCommand;
+  mActiveMultiFrameCommand = 0;
+}
+
 void QgsComposition::addMultiFrame( QgsComposerMultiFrame* multiFrame )
 {
   mMultiFrames.insert( multiFrame );
@@ -2253,6 +2399,16 @@ void QgsComposition::addComposerHtmlFrame( QgsComposerHtml* html, QgsComposerFra
   connect( frame, SIGNAL( sizeChanged() ), this, SLOT( updateBounds() ) );
 
   emit composerHtmlFrameAdded( html, frame );
+}
+
+void QgsComposition::addComposerTableFrame( QgsComposerAttributeTableV2 *table, QgsComposerFrame *frame )
+{
+  addItem( frame );
+
+  updateBounds();
+  connect( frame, SIGNAL( sizeChanged() ), this, SLOT( updateBounds() ) );
+
+  emit composerTableFrameAdded( table, frame );
 }
 
 void QgsComposition::removeComposerItem( QgsComposerItem* item, const bool createCommand, const bool removeGroupItems )
@@ -2420,6 +2576,11 @@ void QgsComposition::sendItemAddedSignal( QgsComposerItem* item )
     {
       emit composerHtmlFrameAdded( html, frame );
     }
+    QgsComposerAttributeTableV2* table = dynamic_cast<QgsComposerAttributeTableV2*>( mf );
+    if ( table )
+    {
+      emit composerTableFrameAdded( table, frame );
+    }
     emit selectedItemChanged( frame );
     return;
   }
@@ -2450,10 +2611,7 @@ void QgsComposition::addPaperItem()
 
 void QgsComposition::removePaperItems()
 {
-  for ( int i = 0; i < mPages.size(); ++i )
-  {
-    delete mPages.at( i );
-  }
+  qDeleteAll( mPages );
   mPages.clear();
   QgsExpression::setSpecialColumn( "$numpages", QVariant(( int )0 ) );
 }
@@ -2478,8 +2636,11 @@ void QgsComposition::beginPrintAsPDF( QPrinter& printer, const QString& file )
   // https://bugreports.qt-project.org/browse/QTBUG-33583 - PDF output converts text to outline
   // Also an issue with PDF paper size using QPrinter::NativeFormat on Mac (always outputs portrait letter-size)
   printer.setOutputFormat( QPrinter::PdfFormat );
-  printer.setOutputFileName( file );
+
   refreshPageSize();
+  //must set orientation to portrait before setting paper size, otherwise size will be flipped
+  //for landscape sized outputs (#11352)
+  printer.setOrientation( QPrinter::Portrait );
   printer.setPaperSize( QSizeF( paperWidth(), paperHeight() ), QPrinter::Millimeter );
 
   // TODO: add option for this in Composer
@@ -2498,19 +2659,30 @@ bool QgsComposition::exportAsPDF( const QString& file )
 
 void QgsComposition::doPrint( QPrinter& printer, QPainter& p, bool startNewPage )
 {
-  //set the page size again so that data defined page size takes effect
-  refreshPageSize();
-  printer.setPaperSize( QSizeF( paperWidth(), paperHeight() ), QPrinter::Millimeter );
+  if ( ddPageSizeActive() )
+  {
+    //set the page size again so that data defined page size takes effect
+    refreshPageSize();
+    //must set orientation to portrait before setting paper size, otherwise size will be flipped
+    //for landscape sized outputs (#11352)
+    printer.setOrientation( QPrinter::Portrait );
+    printer.setPaperSize( QSizeF( paperWidth(), paperHeight() ), QPrinter::Millimeter );
+  }
 
   //QgsComposition starts page numbering at 0
-  int fromPage = ( printer.fromPage() < 1 ) ? 0 : printer.fromPage() - 1 ;
+  int fromPage = ( printer.fromPage() < 1 ) ? 0 : printer.fromPage() - 1;
   int toPage = ( printer.toPage() < 1 ) ? numPages() - 1 : printer.toPage() - 1;
 
+  bool pageExported = false;
   if ( mPrintAsRaster )
   {
     for ( int i = fromPage; i <= toPage; ++i )
     {
-      if ( i > fromPage || startNewPage )
+      if ( !shouldExportPage( i + 1 ) )
+      {
+        continue;
+      }
+      if (( pageExported && i > fromPage ) || startNewPage )
       {
         printer.newPage();
       }
@@ -2521,6 +2693,7 @@ void QgsComposition::doPrint( QPrinter& printer, QPainter& p, bool startNewPage 
         QRectF targetArea( 0, 0, image.width(), image.height() );
         p.drawImage( targetArea, image, targetArea );
       }
+      pageExported = true;
     }
   }
 
@@ -2528,11 +2701,16 @@ void QgsComposition::doPrint( QPrinter& printer, QPainter& p, bool startNewPage 
   {
     for ( int i = fromPage; i <= toPage; ++i )
     {
-      if ( i > fromPage || startNewPage )
+      if ( !shouldExportPage( i + 1 ) )
+      {
+        continue;
+      }
+      if (( pageExported && i > fromPage ) || startNewPage )
       {
         printer.newPage();
       }
       renderPage( &p, i );
+      pageExported = true;
     }
   }
 }
@@ -2546,12 +2724,14 @@ void QgsComposition::beginPrint( QPrinter &printer, const bool evaluateDDPageSiz
   //set user-defined resolution
   printer.setResolution( printResolution() );
 
-  if ( evaluateDDPageSize )
+  if ( evaluateDDPageSize && ddPageSizeActive() )
   {
     //set data defined page size
     refreshPageSize();
+    //must set orientation to portrait before setting paper size, otherwise size will be flipped
+    //for landscape sized outputs (#11352)
+    printer.setOrientation( QPrinter::Portrait );
     printer.setPaperSize( QSizeF( paperWidth(), paperHeight() ), QPrinter::Millimeter );
-    printer.setOrientation( paperWidth() > paperHeight() ? QPrinter::Landscape : QPrinter::Portrait );
   }
 }
 
@@ -2728,20 +2908,17 @@ bool QgsComposition::setAtlasMode( const AtlasMode mode )
     }
   }
 
-  QList<QgsComposerMap*> maps;
-  composerItems( maps );
-  for ( QList<QgsComposerMap*>::iterator mit = maps.begin(); mit != maps.end(); ++mit )
-  {
-    QgsComposerMap* currentMap = ( *mit );
-    if ( !currentMap->atlasDriven() )
-    {
-      continue;
-    }
-    currentMap->toggleAtlasPreview();
-  }
-
   update();
   return true;
+}
+
+bool QgsComposition::ddPageSizeActive() const
+{
+  //check if any data defined page settings are active
+  return dataDefinedActive( QgsComposerObject::PresetPaperSize, &mDataDefinedProperties ) ||
+         dataDefinedActive( QgsComposerObject::PaperWidth, &mDataDefinedProperties ) ||
+         dataDefinedActive( QgsComposerObject::PaperHeight, &mDataDefinedProperties ) ||
+         dataDefinedActive( QgsComposerObject::PaperOrientation, &mDataDefinedProperties );
 }
 
 void QgsComposition::refreshPageSize()
@@ -2901,7 +3078,36 @@ bool QgsComposition::dataDefinedEvaluate( QgsComposerObject::DataDefinedProperty
   return false;
 }
 
-QVariant QgsComposition::dataDefinedValue( QgsComposerObject::DataDefinedProperty property, const QgsFeature *feature, const QgsFields *fields, QMap<QgsComposerObject::DataDefinedProperty, QgsDataDefined *> *dataDefinedProperties )
+bool QgsComposition::dataDefinedActive( const QgsComposerObject::DataDefinedProperty property, const QMap<QgsComposerObject::DataDefinedProperty, QgsDataDefined *> *dataDefinedProperties ) const
+{
+  if ( property == QgsComposerObject::AllProperties || property == QgsComposerObject::NoProperty )
+  {
+    //invalid property
+    return false;
+  }
+  if ( !dataDefinedProperties->contains( property ) )
+  {
+    //missing property
+    return false;
+  }
+
+  QgsDataDefined* dd = 0;
+  QMap< QgsComposerObject::DataDefinedProperty, QgsDataDefined* >::const_iterator it = dataDefinedProperties->find( property );
+  if ( it != dataDefinedProperties->constEnd() )
+  {
+    dd = it.value();
+  }
+
+  if ( !dd )
+  {
+    return false;
+  }
+
+  //found the data defined property, return whether it is active
+  return dd->isActive();
+}
+
+QVariant QgsComposition::dataDefinedValue( QgsComposerObject::DataDefinedProperty property, const QgsFeature *feature, const QgsFields *fields, QMap<QgsComposerObject::DataDefinedProperty, QgsDataDefined *> *dataDefinedProperties ) const
 {
   if ( property == QgsComposerObject::AllProperties || property == QgsComposerObject::NoProperty )
   {

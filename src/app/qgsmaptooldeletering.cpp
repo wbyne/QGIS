@@ -20,11 +20,11 @@
 #include "qgsvectorlayer.h"
 
 #include <QMouseEvent>
-#include <QMessageBox>
 #include <limits>
 
 QgsMapToolDeleteRing::QgsMapToolDeleteRing( QgsMapCanvas* canvas )
-    : QgsMapToolVertexEdit( canvas ), mRubberBand( 0 )
+    : QgsMapToolVertexEdit( canvas )
+    , mRubberBand( 0 )
 {
   mToolName = tr( "Delete ring" );
 }
@@ -117,7 +117,7 @@ QgsGeometry* QgsMapToolDeleteRing::ringUnderPoint( QgsPoint p, QgsFeatureId& fid
   //so we iterate over all the features visible in the canvas
   //If several rings are found at this position, the smallest one is chosen,
   //in order to be able to delete a ring inside another ring
-  QgsFeatureIterator fit = vlayer->getFeatures( QgsFeatureRequest().setFilterRect( mCanvas->extent() ) );
+  QgsFeatureIterator fit = vlayer->getFeatures( QgsFeatureRequest().setFilterRect( toLayerCoordinates( vlayer, mCanvas->extent() ) ) );
   QgsFeature f;
   QgsGeometry* g;
   QgsGeometry* ringGeom = 0;

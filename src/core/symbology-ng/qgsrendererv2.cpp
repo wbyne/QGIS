@@ -44,7 +44,7 @@ const unsigned char* QgsFeatureRendererV2::_getPoint( QPointF& pt, QgsRenderCont
   double x, y;
   wkbPtr >> x >> y;
 
-  if ( wkbType == QGis::WKBPolygon25D )
+  if ( wkbType == QGis::WKBPoint25D )
     wkbPtr += sizeof( double );
 
   if ( context.coordinateTransform() )
@@ -467,7 +467,7 @@ QgsFeatureRendererV2* QgsFeatureRendererV2::loadSld( const QDomNode &node, QGis:
   QString rendererType;
   if ( needRuleRenderer )
   {
-    rendererType = "ruleRenderer";
+    rendererType = "RuleRenderer";
   }
   else
   {
@@ -583,6 +583,14 @@ QgsSymbolV2List QgsFeatureRendererV2::symbolsForFeature( QgsFeature& feat )
 {
   QgsSymbolV2List lst;
   QgsSymbolV2* s = symbolForFeature( feat );
+  if ( s ) lst.append( s );
+  return lst;
+}
+
+QgsSymbolV2List QgsFeatureRendererV2::originalSymbolsForFeature( QgsFeature& feat )
+{
+  QgsSymbolV2List lst;
+  QgsSymbolV2* s = originalSymbolForFeature( feat );
   if ( s ) lst.append( s );
   return lst;
 }

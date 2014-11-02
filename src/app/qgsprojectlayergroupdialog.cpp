@@ -27,8 +27,9 @@
 #include <QMessageBox>
 #include <QSettings>
 
-QgsProjectLayerGroupDialog::QgsProjectLayerGroupDialog( QWidget * parent, const QString& projectFile, Qt::WindowFlags f ): QDialog( parent, f ),
-    mShowEmbeddedContent( false )
+QgsProjectLayerGroupDialog::QgsProjectLayerGroupDialog( QWidget * parent, const QString& projectFile, Qt::WindowFlags f )
+    : QDialog( parent, f )
+    , mShowEmbeddedContent( false )
     , mRootGroup( new QgsLayerTreeGroup )
 {
   setupUi( this );
@@ -109,7 +110,7 @@ void QgsProjectLayerGroupDialog::on_mBrowseFileToolButton_clicked()
   QSettings s;
   QString projectFile = QFileDialog::getOpenFileName( this,
                         tr( "Select project file" ),
-                        s.value( "/qgis/last_embedded_project_path" ).toString() ,
+                        s.value( "/qgis/last_embedded_project_path" ).toString(),
                         tr( "QGIS files" ) + " (*.qgs *.QGS)" );
   if ( !projectFile.isEmpty() )
   {

@@ -1,3 +1,4 @@
+
 /***************************************************************************
     qgsgraduatedsymbolrendererv2.cpp
     ---------------------
@@ -33,7 +34,10 @@
 #include <ctime>
 
 QgsRendererRangeV2::QgsRendererRangeV2()
-    : mLowerValue( 0 ), mUpperValue( 0 ), mSymbol( 0 ), mLabel()
+    : mLowerValue( 0 )
+    , mUpperValue( 0 )
+    , mSymbol( 0 )
+    , mLabel()
 {
 }
 
@@ -61,6 +65,14 @@ QgsRendererRangeV2& QgsRendererRangeV2::operator=( QgsRendererRangeV2 range )
   swap( range );
   return *this;
 }
+
+bool QgsRendererRangeV2::operator<( const QgsRendererRangeV2 &other ) const
+{
+  return
+    lowerValue() < other.lowerValue() ||
+    ( lowerValue() == other.lowerValue() && upperValue() < other.upperValue() );
+}
+
 
 void QgsRendererRangeV2::swap( QgsRendererRangeV2 & other )
 {
@@ -122,7 +134,7 @@ void QgsRendererRangeV2::setRenderState( bool render )
 
 QString QgsRendererRangeV2::dump() const
 {
-  return QString( "%1 - %2::%3::%4\n" ).arg( mLowerValue ).arg( mUpperValue ).arg( mLabel ).arg( mSymbol->dump() );
+  return QString( "%1 - %2::%3::%4\n" ).arg( mLowerValue ).arg( mUpperValue ).arg( mLabel ).arg( mSymbol.data() ? mSymbol->dump() : "(no symbol)" );
 }
 
 void QgsRendererRangeV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
@@ -157,13 +169,121 @@ void QgsRendererRangeV2::toSld( QDomDocument &doc, QDomElement &element, QgsStri
 
 ///////////
 
+int QgsRendererRangeV2LabelFormat::MaxPrecision = 15;
+int QgsRendererRangeV2LabelFormat::MinPrecision = -6;
+
+QgsRendererRangeV2LabelFormat::QgsRendererRangeV2LabelFormat():
+    mFormat( " %1 - %2 " ),
+    mPrecision( 4 ),
+    mTrimTrailingZeroes( false ),
+    mNumberScale( 1.0 ),
+    mNumberSuffix( "" ),
+    mReTrailingZeroes( "[.,]?0*$" ),
+    mReNegativeZero( "^\\-0(?:[.,]0*)?$" )
+{
+}
+
+QgsRendererRangeV2LabelFormat::QgsRendererRangeV2LabelFormat( QString format, int precision, bool trimTrailingZeroes ):
+    mReTrailingZeroes( "[.,]?0*$" ),
+    mReNegativeZero( "^\\-0(?:[.,]0*)?$" )
+{
+  setFormat( format );
+  setPrecision( precision );
+  setTrimTrailingZeroes( trimTrailingZeroes );
+}
+
+
+bool QgsRendererRangeV2LabelFormat::operator==( const QgsRendererRangeV2LabelFormat &other ) const
+{
+  return
+    format() == other.format() &&
+    precision() == other.precision() &&
+    trimTrailingZeroes() == other.trimTrailingZeroes();
+}
+
+bool QgsRendererRangeV2LabelFormat::operator!=( const QgsRendererRangeV2LabelFormat &other ) const
+{
+  return !( *this == other );
+}
+
+void QgsRendererRangeV2LabelFormat::setPrecision( int precision )
+{
+  // Limit the range of decimal places to a reasonable range
+  precision = qBound( MinPrecision, precision, MaxPrecision );
+  mPrecision = precision;
+  mNumberScale = 1.0;
+  mNumberSuffix = "";
+  while ( precision < 0 )
+  {
+    precision++;
+    mNumberScale /= 10.0;
+    mNumberSuffix.append( '0' );
+  }
+}
+
+QString QgsRendererRangeV2LabelFormat::labelForRange( const QgsRendererRangeV2 &range ) const
+{
+  return labelForRange( range.lowerValue(), range.upperValue() );
+}
+
+QString QgsRendererRangeV2LabelFormat::formatNumber( double value ) const
+{
+  if ( mPrecision > 0 )
+  {
+    QString valueStr = QString::number( value, 'f', mPrecision );
+    if ( mTrimTrailingZeroes )
+      valueStr = valueStr.replace( mReTrailingZeroes, "" );
+    if ( mReNegativeZero.exactMatch( valueStr ) )
+      valueStr = valueStr.mid( 1 );
+    return valueStr;
+  }
+  else
+  {
+    QString valueStr = QString::number( value * mNumberScale, 'f', 0 );
+    if ( valueStr == "-0" )
+      valueStr = "0";
+    if ( valueStr != "0" )
+      valueStr = valueStr + mNumberSuffix;
+    return valueStr;
+  }
+}
+
+QString QgsRendererRangeV2LabelFormat::labelForRange( double lower, double upper ) const
+{
+  QString lowerStr = formatNumber( lower );
+  QString upperStr = formatNumber( upper );
+
+  QString legend( mFormat );
+  return legend.replace( "%1", lowerStr ).replace( "%2", upperStr );
+}
+
+void QgsRendererRangeV2LabelFormat::setFromDomElement( QDomElement &element )
+{
+  mFormat = element.attribute( "format",
+                               element.attribute( "prefix", " " ) + "%1" +
+                               element.attribute( "separator", " - " ) + "%2" +
+                               element.attribute( "suffix", " " )
+                             );
+  setPrecision( element.attribute( "decimalplaces", "4" ).toInt() );
+  mTrimTrailingZeroes = element.attribute( "trimtrailingzeroes", "false" ) == "true";
+}
+
+void QgsRendererRangeV2LabelFormat::saveToDomElement( QDomElement &element )
+{
+  element.setAttribute( "format", mFormat );
+  element.setAttribute( "decimalplaces", mPrecision );
+  element.setAttribute( "trimtrailingzeroes", mTrimTrailingZeroes ? "true" : "false" );
+}
+
+///////////
+
 QgsGraduatedSymbolRendererV2::QgsGraduatedSymbolRendererV2( QString attrName, QgsRangeList ranges )
-    : QgsFeatureRendererV2( "graduatedSymbol" ),
-    mAttrName( attrName ),
-    mRanges( ranges ),
-    mMode( Custom ),
-    mInvertedColorRamp( false ),
-    mScaleMethod( DEFAULT_SCALE_METHOD )
+    : QgsFeatureRendererV2( "graduatedSymbol" )
+    , mAttrName( attrName )
+    , mRanges( ranges )
+    , mMode( Custom )
+    , mInvertedColorRamp( false )
+    , mScaleMethod( DEFAULT_SCALE_METHOD )
 {
   // TODO: check ranges for sanity (NULL symbols, invalid ranges)
 }
@@ -191,23 +311,7 @@ QgsSymbolV2* QgsGraduatedSymbolRendererV2::symbolForValue( double value )
 
 QgsSymbolV2* QgsGraduatedSymbolRendererV2::symbolForFeature( QgsFeature& feature )
 {
-  const QgsAttributes& attrs = feature.attributes();
-  QVariant value;
-  if ( mAttrNum < 0 || mAttrNum >= attrs.count() )
-  {
-    value = mExpression->evaluate( &feature );
-  }
-  else
-  {
-    value = attrs[mAttrNum];
-  }
-
-  // Null values should not be categorized
-  if ( value.isNull() )
-    return NULL;
-
-  // find the right category
-  QgsSymbolV2* symbol = symbolForValue( value.toDouble() );
+  QgsSymbolV2* symbol = originalSymbolForFeature( feature );
   if ( symbol == NULL )
     return NULL;
 
@@ -237,6 +341,27 @@ QgsSymbolV2* QgsGraduatedSymbolRendererV2::symbolForFeature( QgsFeature& feature
   return tempSymbol;
 }
 
+QgsSymbolV2* QgsGraduatedSymbolRendererV2::originalSymbolForFeature( QgsFeature& feature )
+{
+  const QgsAttributes& attrs = feature.attributes();
+  QVariant value;
+  if ( mAttrNum < 0 || mAttrNum >= attrs.count() )
+  {
+    value = mExpression->evaluate( &feature );
+  }
+  else
+  {
+    value = attrs[mAttrNum];
+  }
+
+  // Null values should not be categorized
+  if ( value.isNull() )
+    return NULL;
+
+  // find the right category
+  return symbolForValue( value.toDouble() );
+}
+
 void QgsGraduatedSymbolRendererV2::startRender( QgsRenderContext& context, const QgsFields& fields )
 {
   mCounting = context.rendererScale() == 0.0;
@@ -253,6 +378,9 @@ void QgsGraduatedSymbolRendererV2::startRender( QgsRenderContext& context, const
   QgsRangeList::iterator it = mRanges.begin();
   for ( ; it != mRanges.end(); ++it )
   {
+    if( !it->symbol() )
+      continue;
+
     it->symbol()->startRender( context, &fields );
 
     if ( mRotation.data() || mSizeScale.data() )
@@ -270,7 +398,12 @@ void QgsGraduatedSymbolRendererV2::stopRender( QgsRenderContext& context )
 {
   QgsRangeList::iterator it = mRanges.begin();
   for ( ; it != mRanges.end(); ++it )
+  {
+    if( !it->symbol() )
+      continue;
+
     it->symbol()->stopRender( context );
+  }
 
   // cleanup mTempSymbols
   QHash<QgsSymbolV2*, QgsSymbolV2*>::iterator it2 = mTempSymbols.begin();
@@ -331,7 +464,10 @@ bool QgsGraduatedSymbolRendererV2::updateRangeUpperValue( int rangeIndex, double
 {
   if ( rangeIndex < 0 || rangeIndex >= mRanges.size() )
     return false;
-  mRanges[rangeIndex].setUpperValue( value );
+  QgsRendererRangeV2 &range = mRanges[rangeIndex];
+  bool isDefaultLabel = range.label() == mLabelFormat.labelForRange( range );
+  range.setUpperValue( value );
+  if ( isDefaultLabel ) range.setLabel( mLabelFormat.labelForRange( range ) );
   return true;
 }
 
@@ -339,7 +475,10 @@ bool QgsGraduatedSymbolRendererV2::updateRangeLowerValue( int rangeIndex, double
 {
   if ( rangeIndex < 0 || rangeIndex >= mRanges.size() )
     return false;
-  mRanges[rangeIndex].setLowerValue( value );
+  QgsRendererRangeV2 &range = mRanges[rangeIndex];
+  bool isDefaultLabel = range.label() == mLabelFormat.labelForRange( range );
+  range.setLowerValue( value );
+  if ( isDefaultLabel ) range.setLabel( mLabelFormat.labelForRange( range ) );
   return true;
 }
 
@@ -374,6 +513,7 @@ QgsFeatureRendererV2* QgsGraduatedSymbolRendererV2::clone() const
   r->setRotationField( rotationField() );
   r->setSizeScaleField( sizeScaleField() );
   r->setScaleMethod( scaleMethod() );
+  r->setLabelFormat( labelFormat() );
   return r;
 }
 
@@ -614,7 +754,7 @@ static QList<double> _calcPrettyBreaks( double minimum, double maximum, int clas
 } // _calcPrettyBreaks
 
 
-static QList<double> _calcStdDevBreaks( QList<double> values, int classes, QList<int> &labels )
+static QList<double> _calcStdDevBreaks( QList<double> values, int classes, QList<double> &labels )
 {
 
   // C++ implementation of the standard deviation class interval algorithm
@@ -653,7 +793,7 @@ static QList<double> _calcStdDevBreaks( QList<double> values, int classes, QList
   QList<double> breaks = _calcPrettyBreaks(( minimum - mean ) / stdDev, ( maximum - mean ) / stdDev, classes );
   for ( int i = 0; i < breaks.count(); i++ )
   {
-    labels.append(( int ) breaks[i] );
+    labels.append( breaks[i] );
     breaks[i] = ( breaks[i] * stdDev ) + mean;
   }
 
@@ -800,34 +940,88 @@ QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::createRenderer(
   Mode mode,
   QgsSymbolV2* symbol,
   QgsVectorColorRampV2* ramp,
-  bool inverted )
+  bool inverted,
+  QgsRendererRangeV2LabelFormat labelFormat
+)
 {
-  if ( classes < 1 )
-    return NULL;
+  QgsRangeList ranges;
+  QgsGraduatedSymbolRendererV2* r = new QgsGraduatedSymbolRendererV2( attrName, ranges );
+  r->setSourceSymbol( symbol->clone() );
+  r->setSourceColorRamp( ramp->clone() );
+  r->setInvertedColorRamp( inverted );
+  r->setMode( mode );
+  r->setLabelFormat( labelFormat );
+  r->updateClasses( vlayer, mode, classes );
+  return r;
+}
 
-  int attrNum = vlayer->fieldNameIndex( attrName );
-  double minimum;
-  double maximum;
-
+QList<double> QgsGraduatedSymbolRendererV2::getDataValues( QgsVectorLayer *vlayer )
+{
+  QList<double> values;
   QScopedPointer<QgsExpression> expression;
+  int attrNum = vlayer->fieldNameIndex( mAttrName );
 
   if ( attrNum == -1 )
   {
     // try to use expression
-    expression.reset( new QgsExpression( attrName ) );
+    expression.reset( new QgsExpression( mAttrName ) );
     if ( expression->hasParserError() || !expression->prepare( vlayer->pendingFields() ) )
-      return 0; // should have a means to report errors
+      return values; // should have a means to report errors
+  }
 
-    QList<double> values;
-    QgsFeatureIterator fit = vlayer->getFeatures();
-    QgsFeature feature;
-    while ( fit.nextFeature( feature ) )
-    {
-      values << expression->evaluate( feature ).toDouble();
-    }
+  QgsFeature f;
+  QStringList lst;
+  if ( expression.isNull() )
+    lst.append( mAttrName );
+  else
+    lst = expression->referencedColumns();
+
+  QgsFeatureIterator fit = vlayer->getFeatures( QgsFeatureRequest()
+                                                .setFlags( ( expression && expression->needsGeometry() ) ?
+                                                             QgsFeatureRequest::NoFlags :
+                                                             QgsFeatureRequest::NoGeometry  )
+                                                .setSubsetOfAttributes( lst, vlayer->pendingFields() ) );
+
+  // create list of non-null attribute values
+  while ( fit.nextFeature( f ) )
+  {
+    QVariant v = expression ? expression->evaluate( f ) : f.attribute( attrNum );
+    if ( !v.isNull() )
+      values.append( v.toDouble() );
+  }
+  return values;
+}
+
+void QgsGraduatedSymbolRendererV2::updateClasses( QgsVectorLayer *vlayer, Mode mode, int nclasses )
+{
+  if ( mAttrName.isEmpty() )
+    return;
+
+  setMode( mode );
+  // Custom classes are not recalculated
+  if ( mode == Custom )
+    return;
+
+  if ( nclasses < 1 )
+    nclasses = 1;
+
+  QList<double> values;
+  bool valuesLoaded = false;
+  double minimum;
+  double maximum;
+
+  int attrNum = vlayer->fieldNameIndex( mAttrName );
+
+  if ( attrNum == -1 )
+  {
+    values = getDataValues( vlayer );
+    if( values.isEmpty() )
+      return;
+
     qSort( values );
     minimum = values.first();
     maximum = values.last();
+    valuesLoaded = true;
   }
   else
   {
@@ -837,48 +1031,35 @@ QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::createRenderer(
 
   QgsDebugMsg( QString( "min %1 // max %2" ).arg( minimum ).arg( maximum ) );
   QList<double> breaks;
-  QList<int> labels;
+  QList<double> labels;
   if ( mode == EqualInterval )
   {
-    breaks = _calcEqualIntervalBreaks( minimum, maximum, classes );
+    breaks = _calcEqualIntervalBreaks( minimum, maximum, nclasses );
   }
   else if ( mode == Pretty )
   {
-    breaks = _calcPrettyBreaks( minimum, maximum, classes );
+    breaks = _calcPrettyBreaks( minimum, maximum, nclasses );
   }
   else if ( mode == Quantile || mode == Jenks || mode == StdDev )
   {
     // get values from layer
-    QList<double> values;
-    QgsFeature f;
-    QStringList lst;
-    if ( expression.isNull() )
-      lst.append( attrName );
-    else
-      lst = expression->referencedColumns();
-
-    QgsFeatureIterator fit = vlayer->getFeatures( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setSubsetOfAttributes( lst, vlayer->pendingFields() ) );
-
-    // create list of non-null attribute values
-    while ( fit.nextFeature( f ) )
+    if ( !valuesLoaded )
     {
-      QVariant v = expression.isNull() ? f.attribute( attrNum ) : expression->evaluate( f );
-      if ( !v.isNull() )
-        values.append( v.toDouble() );
+      values = getDataValues( vlayer );
     }
 
     // calculate the breaks
     if ( mode == Quantile )
     {
-      breaks = _calcQuantileBreaks( values, classes );
+      breaks = _calcQuantileBreaks( values, nclasses );
     }
     else if ( mode == Jenks )
     {
-      breaks = _calcJenksBreaks( values, classes, minimum, maximum );
+      breaks = _calcJenksBreaks( values, nclasses, minimum, maximum );
     }
     else if ( mode == StdDev )
     {
-      breaks = _calcStdDevBreaks( values, classes, labels );
+      breaks = _calcStdDevBreaks( values, nclasses, labels );
     }
   }
   else
@@ -886,52 +1067,44 @@ QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::createRenderer(
     Q_ASSERT( false );
   }
 
-  QgsRangeList ranges;
   double lower, upper = minimum;
   QString label;
+  deleteAllClasses();
 
   // "breaks" list contains all values at class breaks plus maximum as last break
+
   int i = 0;
   for ( QList<double>::iterator it = breaks.begin(); it != breaks.end(); ++it, ++i )
   {
     lower = upper; // upper border from last interval
     upper = *it;
+
+    // Label - either StdDev label or default label for a range
     if ( mode == StdDev )
     {
       if ( i == 0 )
       {
-        label = "< " + QString::number( labels[i], 'i', 0 ) + " Std Dev";
+        label = "< " + QString::number( labels[i], 'f', 2 ) + " Std Dev";
       }
       else if ( i == labels.count() - 1 )
       {
-        label = ">= " + QString::number( labels[i-1], 'i', 0 ) + " Std Dev";
+        label = ">= " + QString::number( labels[i-1], 'f', 2 ) + " Std Dev";
       }
       else
       {
-        label = QString::number( labels[i-1], 'i', 0 ) + " Std Dev" + " - " + QString::number( labels[i], 'i', 0 ) + " Std Dev";
+        label = QString::number( labels[i-1], 'f', 2 ) + " Std Dev" + " - " + QString::number( labels[i], 'f', 2 ) + " Std Dev";
       }
     }
     else
     {
-      label = QString::number( lower, 'f', 4 ) + " - " + QString::number( upper, 'f', 4 );
+      label = mLabelFormat.labelForRange( lower, upper );
     }
-
-    QgsSymbolV2* newSymbol = symbol->clone();
-    double colorValue;
-    if ( inverted ) colorValue = ( breaks.count() > 1 ? ( double )( breaks.count() - i - 1 ) / ( breaks.count() - 1 ) : 0 );
-    else colorValue = ( breaks.count() > 1 ? ( double ) i / ( breaks.count() - 1 ) : 0 );
-    newSymbol->setColor( ramp->color( colorValue ) ); // color from (0 / cl-1) to (cl-1 / cl-1)
-
-    ranges.append( QgsRendererRangeV2( lower, upper, newSymbol, label ) );
+    QgsSymbolV2* newSymbol = mSourceSymbol ? mSourceSymbol->clone() : QgsSymbolV2::defaultSymbol( vlayer->geometryType() );
+    addClass( QgsRendererRangeV2( lower, upper, newSymbol, label ) );
   }
-
-  QgsGraduatedSymbolRendererV2* r = new QgsGraduatedSymbolRendererV2( attrName, ranges );
-  r->setSourceSymbol( symbol->clone() );
-  r->setSourceColorRamp( ramp->clone() );
-  r->setInvertedColorRamp( inverted );
-  r->setMode( mode );
-  return r;
+  updateColorRamp( 0, mInvertedColorRamp );
 }
+
 
 QgsFeatureRendererV2* QgsGraduatedSymbolRendererV2::create( QDomElement& element )
 {
@@ -955,10 +1128,11 @@ QgsFeatureRendererV2* QgsGraduatedSymbolRendererV2::create( QDomElement& element
       double upperValue = rangeElem.attribute( "upper" ).toDouble();
       QString symbolName = rangeElem.attribute( "symbol" );
       QString label = rangeElem.attribute( "label" );
+      bool render = rangeElem.attribute( "render", "true" ) != "false";
       if ( symbolMap.contains( symbolName ) )
       {
         QgsSymbolV2* symbol = symbolMap.take( symbolName );
-        ranges.append( QgsRendererRangeV2( lowerValue, upperValue, symbol, label ) );
+        ranges.append( QgsRendererRangeV2( lowerValue, upperValue, symbol, label, render ) );
       }
     }
     rangeElem = rangeElem.nextSiblingElement();
@@ -1019,6 +1193,13 @@ QgsFeatureRendererV2* QgsGraduatedSymbolRendererV2::create( QDomElement& element
     r->setSizeScaleField( sizeScaleElem.attribute( "field" ) );
   r->setScaleMethod( QgsSymbolLayerV2Utils::decodeScaleMethod( sizeScaleElem.attribute( "scalemethod" ) ) );
 
+  QDomElement labelFormatElem = element.firstChildElement( "labelformat" );
+  if ( ! labelFormatElem.isNull() )
+  {
+    QgsRendererRangeV2LabelFormat labelFormat;
+    labelFormat.setFromDomElement( labelFormatElem );
+    r->setLabelFormat( labelFormat );
+  }
   // TODO: symbol levels
   return r;
 }
@@ -1106,6 +1287,10 @@ QDomElement QgsGraduatedSymbolRendererV2::save( QDomDocument& doc )
   sizeScaleElem.setAttribute( "scalemethod", QgsSymbolLayerV2Utils::encodeScaleMethod( mScaleMethod ) );
   rendererElem.appendChild( sizeScaleElem );
 
+  QDomElement labelFormatElem = doc.createElement( "labelformat" );
+  mLabelFormat.saveToDomElement( labelFormatElem );
+  rendererElem.appendChild( labelFormatElem );
+
   return rendererElem;
 }
 
@@ -1159,31 +1344,47 @@ void QgsGraduatedSymbolRendererV2::setSourceColorRamp( QgsVectorColorRampV2* ram
 void QgsGraduatedSymbolRendererV2::updateColorRamp( QgsVectorColorRampV2 *ramp, bool inverted )
 {
   int i = 0;
-  foreach ( QgsRendererRangeV2 range, mRanges )
+  if ( ramp )
   {
-    QgsSymbolV2* symbol = range.symbol()->clone();
-    double colorValue;
-    if ( inverted ) colorValue = ( mRanges.count() > 1 ? ( double )( mRanges.count() - i - 1 ) / ( mRanges.count() - 1 ) : 0 );
-    else colorValue = ( mRanges.count() > 1 ? ( double ) i / ( mRanges.count() - 1 ) : 0 );
-    symbol->setColor( ramp->color( colorValue ) );
-    updateRangeSymbol( i, symbol );
-    ++i;
+    setSourceColorRamp( ramp );
+    setInvertedColorRamp( inverted );
   }
-  this->setSourceColorRamp( ramp );
-  this->setInvertedColorRamp( inverted );
+
+  if ( mSourceColorRamp )
+  {
+    foreach ( QgsRendererRangeV2 range, mRanges )
+    {
+      QgsSymbolV2 *symbol = range.symbol() ? range.symbol()->clone() : 0;
+      if( symbol )
+      {
+        double colorValue;
+        if ( inverted )
+          colorValue = ( mRanges.count() > 1 ? ( double )( mRanges.count() - i - 1 ) / ( mRanges.count() - 1 ) : 0 );
+        else
+          colorValue = ( mRanges.count() > 1 ? ( double ) i / ( mRanges.count() - 1 ) : 0 );
+        symbol->setColor( mSourceColorRamp->color( colorValue ) );
+      }
+      updateRangeSymbol( i, symbol );
+      ++i;
+    }
+  }
+
 }
 
 void QgsGraduatedSymbolRendererV2::updateSymbols( QgsSymbolV2 *sym )
 {
+  if( !sym )
+    return;
+
   int i = 0;
   foreach ( QgsRendererRangeV2 range, mRanges )
   {
-    QgsSymbolV2* symbol = sym->clone();
+    QgsSymbolV2 *symbol = sym->clone();
     symbol->setColor( range.symbol()->color() );
     updateRangeSymbol( i, symbol );
     ++i;
   }
-  this->setSourceSymbol( sym->clone() );
+  setSourceSymbol( sym->clone() );
 }
 
 void QgsGraduatedSymbolRendererV2::setRotationField( QString fieldOrExpression )
@@ -1211,7 +1412,8 @@ void QgsGraduatedSymbolRendererV2::setScaleMethod( QgsSymbolV2::ScaleMethod scal
   mScaleMethod = scaleMethod;
   for ( QgsRangeList::iterator it = mRanges.begin(); it != mRanges.end(); ++it )
   {
-    setScaleMethodToSymbol( it->symbol(), scaleMethod );
+    if( it->symbol() )
+      setScaleMethodToSymbol( it->symbol(), scaleMethod );
   }
 }
 
@@ -1244,7 +1446,13 @@ void QgsGraduatedSymbolRendererV2::addClass( QgsSymbolV2* symbol )
   QgsSymbolV2* newSymbol = symbol->clone();
   QString label = "0.0 - 0.0";
   mRanges.insert( 0, QgsRendererRangeV2( 0.0, 0.0, newSymbol, label ) );
+}
 
+void QgsGraduatedSymbolRendererV2::addClass( double lower, double upper )
+{
+  QgsSymbolV2* newSymbol = mSourceSymbol->clone();
+  QString label = mLabelFormat.labelForRange( lower, upper );
+  mRanges.append( QgsRendererRangeV2( lower, upper, newSymbol, label ) );
 }
 
 void QgsGraduatedSymbolRendererV2::addClass( QgsRendererRangeV2 range )
@@ -1262,15 +1470,58 @@ void QgsGraduatedSymbolRendererV2::deleteAllClasses()
   mRanges.clear();
 }
 
+void QgsGraduatedSymbolRendererV2::setLabelFormat( const QgsRendererRangeV2LabelFormat &labelFormat, bool updateRanges )
+{
+  if ( updateRanges && labelFormat != mLabelFormat )
+  {
+    for ( QgsRangeList::iterator it = mRanges.begin(); it != mRanges.end(); ++it )
+    {
+      it->setLabel( labelFormat.labelForRange( *it ) );
+    }
+  }
+  mLabelFormat = labelFormat;
+}
+
+
+void QgsGraduatedSymbolRendererV2::calculateLabelPrecision( bool updateRanges )
+{
+  // Find the minimum size of a class
+  double minClassRange = 0.0;
+  for ( QgsRangeList::iterator it = mRanges.begin(); it != mRanges.end(); ++it )
+  {
+    double range = it->upperValue() - it->lowerValue();
+    if ( range <= 0.0 )
+      continue;
+    if ( minClassRange == 0.0 || range < minClassRange )
+      minClassRange = range;
+  }
+  if ( minClassRange <= 0.0 )
+    return;
+
+  // Now set the number of decimal places to ensure no more than 20% error in
+  // representing this range (up to 10% at upper and lower end)
+
+  int ndp = 10;
+  double nextDpMinRange = 0.0000000099;
+  while ( ndp > 0 && nextDpMinRange < minClassRange )
+  {
+    ndp--;
+    nextDpMinRange *= 10.0;
+  }
+  mLabelFormat.setPrecision( ndp );
+  if ( updateRanges ) setLabelFormat( mLabelFormat, true );
+}
+
 void QgsGraduatedSymbolRendererV2::moveClass( int from, int to )
 {
-  if ( from < 0 || from >= mRanges.size() || to < 0 || to >= mRanges.size() ) return;
+  if ( from < 0 || from >= mRanges.size() || to < 0 || to >= mRanges.size() )
+    return;
   mRanges.move( from, to );
 }
 
 bool valueLessThan( const QgsRendererRangeV2 &r1, const QgsRendererRangeV2 &r2 )
 {
-  return r1.lowerValue() < r2.lowerValue();
+  return r1 < r2;
 }
 
 bool valueGreaterThan( const QgsRendererRangeV2 &r1, const QgsRendererRangeV2 &r2 )
@@ -1329,5 +1580,16 @@ QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::convertFromRenderer(
     const QgsInvertedPolygonRenderer* invertedPolygonRenderer = dynamic_cast<const QgsInvertedPolygonRenderer*>( renderer );
     return convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
   }
-  return 0;
+
+  // If not one of the specifically handled renderers, then just grab the symbol from the renderer
+  // Could have applied this to specific renderer types (singleSymbol, graduatedSymbo)
+
+  QgsGraduatedSymbolRendererV2* r = new QgsGraduatedSymbolRendererV2( "", QgsRangeList() );
+  QgsSymbolV2List symbols = const_cast<QgsFeatureRendererV2 *>( renderer )->symbols();
+  if ( symbols.size() > 0 )
+  {
+    r->setSourceSymbol( symbols.at( 0 )->clone() );
+  }
+
+  return r;
 }

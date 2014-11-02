@@ -32,14 +32,14 @@
 #include <QDomElement>
 
 QgsSimpleFillSymbolLayerV2::QgsSimpleFillSymbolLayerV2( QColor color, Qt::BrushStyle style, QColor borderColor, Qt::PenStyle borderStyle, double borderWidth,
-    Qt::PenJoinStyle penJoinStyle ) :
-    mBrushStyle( style ),
-    mBorderColor( borderColor ),
-    mBorderStyle( borderStyle ),
-    mBorderWidth( borderWidth ),
-    mBorderWidthUnit( QgsSymbolV2::MM ),
-    mPenJoinStyle( penJoinStyle ),
-    mOffsetUnit( QgsSymbolV2::MM )
+    Qt::PenJoinStyle penJoinStyle )
+    : mBrushStyle( style )
+    , mBorderColor( borderColor )
+    , mBorderStyle( borderStyle )
+    , mBorderWidth( borderWidth )
+    , mBorderWidthUnit( QgsSymbolV2::MM )
+    , mPenJoinStyle( penJoinStyle )
+    , mOffsetUnit( QgsSymbolV2::MM )
 {
   mColor = color;
 }
@@ -77,6 +77,9 @@ QgsMapUnitScale QgsSimpleFillSymbolLayerV2::mapUnitScale() const
 
 void QgsSimpleFillSymbolLayerV2::applyDataDefinedSymbology( QgsSymbolV2RenderContext& context, QBrush& brush, QPen& pen, QPen& selPen )
 {
+  if ( mDataDefinedProperties.isEmpty() )
+    return; // shortcut
+
   QgsExpression* colorExpression = expression( "color" );
   if ( colorExpression )
   {
@@ -383,10 +386,10 @@ double QgsSimpleFillSymbolLayerV2::dxfWidth( const QgsDxfExport& e, const QgsSym
 
 QColor QgsSimpleFillSymbolLayerV2::dxfColor( const QgsSymbolV2RenderContext& context ) const
 {
-  QgsExpression* colorBorderExpression = expression( "color_border" );
-  if ( colorBorderExpression )
+  QgsExpression* colorExpression = expression( "border_color" );
+  if ( colorExpression )
   {
-    return QgsSymbolLayerV2Utils::decodeColor( colorBorderExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toString() );
+    return QgsSymbolLayerV2Utils::decodeColor( colorExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toString() );
   }
   return mBorderColor;
 }
@@ -396,22 +399,37 @@ Qt::PenStyle QgsSimpleFillSymbolLayerV2::dxfPenStyle() const
   return mBorderStyle;
 }
 
+QColor QgsSimpleFillSymbolLayerV2::dxfBrushColor( const QgsSymbolV2RenderContext& context ) const
+{
+  QgsExpression* colorExpression = expression( "color" );
+  if ( colorExpression )
+  {
+    return QgsSymbolLayerV2Utils::decodeColor( colorExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toString() );
+  }
+  return mColor;
+}
+
+Qt::BrushStyle QgsSimpleFillSymbolLayerV2::dxfBrushStyle() const
+{
+  return mBrushStyle;
+}
+
 //QgsGradientFillSymbolLayer
 
 QgsGradientFillSymbolLayerV2::QgsGradientFillSymbolLayerV2( QColor color, QColor color2,
     GradientColorType colorType, GradientType gradientType,
     GradientCoordinateMode coordinateMode, GradientSpread spread )
-    : mGradientColorType( colorType ),
-    mGradientRamp( NULL ),
-    mGradientType( gradientType ),
-    mCoordinateMode( coordinateMode ),
-    mGradientSpread( spread ),
-    mReferencePoint1( QPointF( 0.5, 0 ) ),
-    mReferencePoint1IsCentroid( false ),
-    mReferencePoint2( QPointF( 0.5, 1 ) ),
-    mReferencePoint2IsCentroid( false ),
-    mAngle( 0 ),
-    mOffsetUnit( QgsSymbolV2::MM )
+    : mGradientColorType( colorType )
+    , mGradientRamp( NULL )
+    , mGradientType( gradientType )
+    , mCoordinateMode( coordinateMode )
+    , mGradientSpread( spread )
+    , mReferencePoint1( QPointF( 0.5, 0 ) )
+    , mReferencePoint1IsCentroid( false )
+    , mReferencePoint2( QPointF( 0.5, 1 ) )
+    , mReferencePoint2IsCentroid( false )
+    , mAngle( 0 )
+    , mOffsetUnit( QgsSymbolV2::MM )
 {
   mColor = color;
   mColor2 = color2;
@@ -1127,7 +1145,7 @@ void QgsShapeburstFillSymbolLayerV2::renderPolygon( const QPolygonF& points, QLi
   p->setPen( QPen( Qt::NoPen ) );
 
   //calculate margin size in pixels so that QImage of polygon has sufficient space to draw the full blur effect
-  int sideBuffer = 4 + ( blurRadius + 2 ) * 4 ;
+  int sideBuffer = 4 + ( blurRadius + 2 ) * 4;
   //create a QImage to draw shapeburst in
   double imWidth = points.boundingRect().width() + ( sideBuffer * 2 );
   double imHeight = points.boundingRect().height() + ( sideBuffer * 2 );
@@ -2625,10 +2643,10 @@ void QgsLinePatternFillSymbolLayer::applyPattern( const QgsSymbolV2RenderContext
 
   // To see this rectangle, comment buffer cut below.
   // Subtract 1 because not antialiased are rendered to the right/down by 1 pixel
-  QPolygon polygon = QPolygon() << QPoint( 0, 0 ) << QPoint( width - 1, 0 ) << QPoint( width - 1, height - 1 ) << QPoint( 0, height - 1 ) << QPoint( 0, 0 ) ;
+  QPolygon polygon = QPolygon() << QPoint( 0, 0 ) << QPoint( width - 1, 0 ) << QPoint( width - 1, height - 1 ) << QPoint( 0, height - 1 ) << QPoint( 0, 0 );
   p.drawPolygon( polygon );
 
-  polygon = QPolygon() << QPoint( xBuffer, yBuffer ) << QPoint( width - xBuffer - 1, yBuffer ) << QPoint( width - xBuffer - 1, height - yBuffer - 1 ) << QPoint( xBuffer, height - yBuffer - 1 ) << QPoint( xBuffer, yBuffer ) ;
+  polygon = QPolygon() << QPoint( xBuffer, yBuffer ) << QPoint( width - xBuffer - 1, yBuffer ) << QPoint( width - xBuffer - 1, height - yBuffer - 1 ) << QPoint( xBuffer, height - yBuffer - 1 ) << QPoint( xBuffer, yBuffer );
   p.drawPolygon( polygon );
 #endif
 

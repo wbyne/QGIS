@@ -29,7 +29,7 @@ class QgsVectorLayer;
 class CORE_EXPORT QgsRendererCategoryV2
 {
   public:
-    QgsRendererCategoryV2( );
+    QgsRendererCategoryV2();
 
     //! takes ownership of symbol
     QgsRendererCategoryV2( QVariant value, QgsSymbolV2* symbol, QString label, bool render = true );
@@ -77,6 +77,8 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
 
     virtual QgsSymbolV2* symbolForFeature( QgsFeature& feature );
 
+    virtual QgsSymbolV2* originalSymbolForFeature( QgsFeature& feature );
+
     virtual void startRender( QgsRenderContext& context, const QgsFields& fields );
 
     virtual void stopRender( QgsRenderContext& context );
@@ -90,11 +92,9 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     virtual void toSld( QDomDocument& doc, QDomElement &element ) const;
 
     //! returns bitwise OR-ed capabilities of the renderer
-    //! \note added in 2.0
     virtual int capabilities() { return SymbolLevels | RotationField | Filter; }
 
     virtual QgsSymbolV2List symbols();
-    //! @note added in 2.0
     void updateSymbols( QgsSymbolV2 * sym );
 
     const QgsCategoryList& categories() const { return mCategories; }
@@ -136,7 +136,6 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     virtual QgsLegendSymbologyList legendSymbologyItems( QSize iconSize );
 
     //! return a list of item text / symbol
-    //! @note this method was added in version 1.5
     //! @note not available in python bindings
     virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = QString() );
 
@@ -150,19 +149,17 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     bool invertedColorRamp() { return mInvertedColorRamp; }
     void setInvertedColorRamp( bool inverted ) { mInvertedColorRamp = inverted; }
 
-    //! @note added in 1.6
+    // Update the color ramp used and all symbols colors.
+    //! @note added in 2.5
+    void updateColorRamp( QgsVectorColorRampV2* ramp, bool inverted = false );
+
     void setRotationField( QString fieldOrExpression );
-    //! @note added in 1.6
     QString rotationField() const;
 
-    //! @note added in 1.6
     void setSizeScaleField( QString fieldOrExpression );
-    //! @note added in 1.6
     QString sizeScaleField() const;
 
-    //! @note added in 2.0
     void setScaleMethod( QgsSymbolV2::ScaleMethod scaleMethod );
-    //! @note added in 2.0
     QgsSymbolV2::ScaleMethod scaleMethod() const { return mScaleMethod; }
 
     //! items of symbology items in legend should be checkable
@@ -205,7 +202,7 @@ class CORE_EXPORT QgsCategorizedSymbolRendererV2 : public QgsFeatureRendererV2
     bool mCounting;
 
     //! temporary symbols, used for data-defined rotation and scaling
-    QHash<QString, QgsSymbolV2*> mTempSymbols;
+    QHash<QgsSymbolV2*, QgsSymbolV2*> mTempSymbols;
 
     void rebuildHash();
 

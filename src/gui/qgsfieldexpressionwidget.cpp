@@ -32,6 +32,8 @@ QgsFieldExpressionWidget::QgsFieldExpressionWidget( QWidget *parent )
   mCombo = new QComboBox( this );
   mCombo->setEditable( true );
   mCombo->setSizePolicy( QSizePolicy::MinimumExpanding, QSizePolicy::Minimum );
+  int width = mCombo->minimumSizeHint().width();
+  mCombo->setMinimumWidth( width );
   mFieldProxyModel = new QgsFieldProxyModel( mCombo );
   mFieldProxyModel->sourceFieldModel()->setAllowExpression( true );
   mCombo->setModel( mFieldProxyModel );
@@ -100,7 +102,7 @@ bool QgsFieldExpressionWidget::isExpression() const
   return !mFieldProxyModel->sourceFieldModel()->isField( currentText() );
 }
 
-QString QgsFieldExpressionWidget::currentField( bool *isExpression , bool *isValid ) const
+QString QgsFieldExpressionWidget::currentField( bool *isExpression, bool *isValid ) const
 {
   QString text = currentText();
   if ( isValid )

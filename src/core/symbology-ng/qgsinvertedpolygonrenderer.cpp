@@ -377,6 +377,13 @@ QgsSymbolV2* QgsInvertedPolygonRenderer::symbolForFeature( QgsFeature& feature )
   return mSubRenderer->symbolForFeature( feature );
 }
 
+QgsSymbolV2* QgsInvertedPolygonRenderer::originalSymbolForFeature( QgsFeature& feat )
+{
+  if ( !mSubRenderer )
+    return 0;
+  return mSubRenderer->originalSymbolForFeature( feat );
+}
+
 QgsSymbolV2List QgsInvertedPolygonRenderer::symbolsForFeature( QgsFeature& feature )
 {
   if ( !mSubRenderer )
@@ -384,6 +391,13 @@ QgsSymbolV2List QgsInvertedPolygonRenderer::symbolsForFeature( QgsFeature& featu
     return QgsSymbolV2List();
   }
   return mSubRenderer->symbolsForFeature( feature );
+}
+
+QgsSymbolV2List QgsInvertedPolygonRenderer::originalSymbolsForFeature( QgsFeature& feat )
+{
+  if ( !mSubRenderer )
+    return QgsSymbolV2List();
+  return mSubRenderer->originalSymbolsForFeature( feat );
 }
 
 QgsSymbolV2List QgsInvertedPolygonRenderer::symbols()
@@ -450,7 +464,7 @@ QgsInvertedPolygonRenderer* QgsInvertedPolygonRenderer::convertFromRenderer( con
   if ( renderer->type() == "singleSymbol" ||
        renderer->type() == "categorizedSymbol" ||
        renderer->type() == "graduatedSymbol" ||
-       renderer->type() == "ruleRenderer" )
+       renderer->type() == "RuleRenderer" )
   {
     return new QgsInvertedPolygonRenderer( renderer->clone() );
   }

@@ -95,12 +95,20 @@ void QgsTextEditWrapper::initWidget( QWidget* editor )
     mLineEdit->setValidator( new QgsFieldValidator( mLineEdit, field() ) );
 
     QgsFilterLineEdit *fle = qobject_cast<QgsFilterLineEdit*>( mLineEdit );
-    if ( fle && !( field().type() == QVariant::Int || field().type() == QVariant::Double || field().type() == QVariant::LongLong || field().type() == QVariant::Date ) )
+    if ( field().type() == QVariant::Int || field().type() == QVariant::Double || field().type() == QVariant::LongLong || field().type() == QVariant::Date )
+    {
+      mLineEdit->setPlaceholderText( QSettings().value( "qgis/nullValue", "NULL" ).toString() );
+    }
+    else if ( fle )
     {
       fle->setNullValue( QSettings().value( "qgis/nullValue", "NULL" ).toString() );
     }
 
     connect( mLineEdit, SIGNAL( textChanged( QString ) ), this, SLOT( valueChanged( QString ) ) );
+
+    mWritablePalette = mLineEdit->palette();
+    mReadOnlyPalette = mLineEdit->palette();
+    mReadOnlyPalette.setColor( QPalette::Text, mWritablePalette.color( QPalette::Disabled, QPalette::Text ) );
   }
 }
 
@@ -139,5 +147,11 @@ void QgsTextEditWrapper::setEnabled( bool enabled )
     mPlainTextEdit->setReadOnly( !enabled );
 
   if ( mLineEdit )
+  {
     mLineEdit->setReadOnly( !enabled );
+    if ( enabled )
+      mLineEdit->setPalette( mWritablePalette );
+    else
+      mLineEdit->setPalette( mReadOnlyPalette );
+  }
 }

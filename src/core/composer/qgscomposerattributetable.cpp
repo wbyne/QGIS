@@ -138,6 +138,10 @@ void QgsComposerAttributeTable::paint( QPainter* painter, const QStyleOptionGrap
   {
     return;
   }
+  if ( !shouldDrawItem() )
+  {
+    return;
+  }
   QgsComposerTable::paint( painter, itemStyle, pWidget );
 }
 
@@ -445,7 +449,7 @@ bool QgsComposerAttributeTable::getFeatureAttributes( QList<QgsAttributeMap> &at
         QgsExpression* expression = new QgsExpression(( *columnIt )->attribute() );
         expression->setCurrentRowNumber( counter + 1 );
         expression->prepare( mVectorLayer->pendingFields() );
-        QVariant value = expression->evaluate( f ) ;
+        QVariant value = expression->evaluate( f );
         attributeMaps.last().insert( i, value.toString() );
       }
 

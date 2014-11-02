@@ -430,6 +430,30 @@ class FileFilter:
 
     return self.rastersFilter
 
+  # Retrieves the filter for supported raster files to save
+  # Skip *, *.zip and *.vrt and move tif to top
+  # TODO: only the formats with GDAL_DCAP_CREATE
+  @classmethod
+  def saveRastersFilter(self):
+    # move tif to top if available
+    available = self.allRastersFilter().split(";;")
+
+    filters = []
+
+    for f in available:
+      if "*.tif" in f:
+        filters.append( f )
+	break
+
+    for f in available:
+      if "*.tif" in f or "*.zip" in f or "(*)" in f:
+        continue
+
+      filters.append( f )
+
+    return ";;".join( filters )
+
+
   # Retrieves the last used filter for raster files
   # Note: filter string is in a list
   @classmethod
@@ -476,6 +500,11 @@ class FileFilter:
 
   @classmethod
   def getFilterName(self, aFilter):
+    if isinstance(aFilter, list):
+      if len(aFilter):
+        aFilter = aFilter[0]
+      else:
+        aFilter = ""
     return string.strip(re.sub('\ \(.*$', '', aFilter))
 
   @classmethod

@@ -21,12 +21,15 @@
 #include "qgscolorbuttonplugin.h"
 #include "qgscolorbuttonv2plugin.h"
 #include "qgsdatadefinedbuttonplugin.h"
+#include "qgsdatetimeeditplugin.h"
+#include "qgsdoublespinboxplugin.h"
 #include "qgsfieldcomboboxplugin.h"
 #include "qgsfieldexpressionwidgetplugin.h"
 #include "qgsmaplayercomboboxplugin.h"
 #include "qgsrelationeditorwidgetplugin.h"
 #include "qgsrelationreferencewidgetplugin.h"
 #include "qgsscalerangewidgetplugin.h"
+#include "qgsspinboxplugin.h"
 
 
 QgisCustomWidgets::QgisCustomWidgets( QObject *parent )
@@ -36,12 +39,15 @@ QgisCustomWidgets::QgisCustomWidgets( QObject *parent )
   mWidgets.append( new QgsColorButtonPlugin );
   mWidgets.append( new QgsColorButtonV2Plugin );
   mWidgets.append( new QgsDataDefinedButtonPlugin );
+  mWidgets.append( new QgsDateTimeEditPlugin );
+  mWidgets.append( new QgsDoubleSpinBoxPlugin );
   mWidgets.append( new QgsFieldComboBoxPlugin );
   mWidgets.append( new QgsFieldExpressionWidgetPlugin );
   mWidgets.append( new QgsMapLayerComboBoxPlugin );
   mWidgets.append( new QgsRelationEditorWidgetPlugin );
   mWidgets.append( new QgsRelationReferenceWidgetPlugin );
   mWidgets.append( new QgsScaleRangeWidgetPlugin );
+  mWidgets.append( new QgsSpinBoxPlugin );
 }
 
 QList<QDesignerCustomWidgetInterface*> QgisCustomWidgets::customWidgets() const

@@ -21,14 +21,14 @@
 #include "qgsattributedialog.h"
 #include <qgsapplication.h>
 
-#include <QMessageBox>
 #include <QMouseEvent>
 
 #include <limits>
 
-QgsMapToolFillRing::QgsMapToolFillRing( QgsMapCanvas* canvas ): QgsMapToolCapture( canvas, QgsMapToolCapture::CapturePolygon )
+QgsMapToolFillRing::QgsMapToolFillRing( QgsMapCanvas* canvas )
+    : QgsMapToolCapture( canvas, QgsMapToolCapture::CapturePolygon )
 {
-
+  mToolName = tr( "Fill ring" );
 }
 
 QgsMapToolFillRing::~QgsMapToolFillRing()
@@ -65,8 +65,7 @@ void QgsMapToolFillRing::canvasReleaseEvent( QMouseEvent * e )
     else if ( error == 2 )
     {
       //problem with coordinate transformation
-      QMessageBox::information( 0, tr( "Coordinate transform error" ),
-                                tr( "Cannot transform the point to the layers coordinate system" ) );
+      emit messageEmitted( tr( "Cannot transform the point to the layers coordinate system" ), QgsMessageBar::WARNING );
       return;
     }
 
@@ -74,6 +73,9 @@ void QgsMapToolFillRing::canvasReleaseEvent( QMouseEvent * e )
   }
   else if ( e->button() == Qt::RightButton )
   {
+    if ( !isCapturing() )
+      return;
+
     deleteTempRubberBand();
 
     closePolygon();
@@ -86,29 +88,29 @@ void QgsMapToolFillRing::canvasReleaseEvent( QMouseEvent * e )
       //todo: open message box to communicate errors
       if ( addRingReturnCode == 1 )
       {
-        errorMessage = tr( "A problem with geometry type occured" );
+        errorMessage = tr( "a problem with geometry type occured" );
       }
       else if ( addRingReturnCode == 2 )
       {
-        errorMessage = tr( "The inserted Ring is not closed" );
+        errorMessage = tr( "the inserted Ring is not closed" );
       }
       else if ( addRingReturnCode == 3 )
       {
-        errorMessage = tr( "The inserted Ring is not a valid geometry" );
+        errorMessage = tr( "the inserted Ring is not a valid geometry" );
       }
       else if ( addRingReturnCode == 4 )
       {
-        errorMessage = tr( "The inserted Ring crosses existing rings" );
+        errorMessage = tr( "the inserted Ring crosses existing rings" );
       }
       else if ( addRingReturnCode == 5 )
       {
-        errorMessage = tr( "The inserted Ring is not contained in a feature" );
+        errorMessage = tr( "the inserted Ring is not contained in a feature" );
       }
       else
       {
-        errorMessage = tr( "An unknown error occured" );
+        errorMessage = tr( "an unknown error occured" );
       }
-      QMessageBox::critical( 0, tr( "Error, could not add ring" ), errorMessage );
+      emit messageEmitted( tr( "could not add ring since %1." ).arg( errorMessage ), QgsMessageBar::CRITICAL );
       vlayer->destroyEditCommand();
     }
     else
@@ -153,7 +155,7 @@ void QgsMapToolFillRing::canvasReleaseEvent( QMouseEvent * e )
       while ( fit.nextFeature( f ) )
       {
         //create QgsFeature with wkb representation
-        QgsFeature* ft = new QgsFeature( vlayer->pendingFields(),  0 );
+        QgsFeature* ft = new QgsFeature( vlayer->pendingFields(), 0 );
 
         QgsGeometry *g;
         g = QgsGeometry::fromPolygon( QgsPolygon() << points().toVector() );

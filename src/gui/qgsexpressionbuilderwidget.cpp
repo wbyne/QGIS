@@ -34,7 +34,7 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
   mLoadGroupBox->hide();
 //  highlighter = new QgsExpressionHighlighter( txtExpressionString->document() );
 
-  mModel = new QStandardItemModel( );
+  mModel = new QStandardItemModel();
   mProxyModel = new QgsExpressionItemSearchProxy();
   mProxyModel->setSourceModel( mModel );
   expressionTree->setModel( mProxyModel );
@@ -55,7 +55,7 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
 
   // TODO Can we move this stuff to QgsExpression, like the functions?
   registerItem( "Operators", "+", " + ", tr( "Addition operator" ) );
-  registerItem( "Operators", "-", " -" , tr( "Subtraction operator" ) );
+  registerItem( "Operators", "-", " - ", tr( "Subtraction operator" ) );
   registerItem( "Operators", "*", " * ", tr( "Multiplication operator" ) );
   registerItem( "Operators", "/", " / ", tr( "Division operator" ) );
   registerItem( "Operators", "%", " % ", tr( "Modulo operator" ) );
@@ -72,6 +72,7 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
                 .arg( tr( "Joins two values together into a string" ) )
                 .arg( tr( "Usage" ) )
                 .arg( tr( "'Dia' || Diameter" ) ) );
+  registerItem( "Operators", "IN", " IN " );
   registerItem( "Operators", "LIKE", " LIKE " );
   registerItem( "Operators", "ILIKE", " ILIKE " );
   registerItem( "Operators", "IS", " IS " );
@@ -92,7 +93,7 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
     QString name = func->name();
     if ( name.startsWith( "_" ) ) // do not display private functions
       continue;
-    if ( func->params() >= 1 )
+    if ( func->params() != 0 )
       name += "(";
     registerItem( func->group(), func->name(), " " + name + " ", func->helptext() );
   }
@@ -109,6 +110,8 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
   QSettings settings;
   splitter->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter" ).toByteArray() );
   splitter_2->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter2" ).toByteArray() );
+
+  txtExpressionString->setFoldingVisible( false );
 }
 
 
@@ -157,8 +160,8 @@ void QgsExpressionBuilderWidget::on_expressionTree_doubleClicked( const QModelIn
   if ( item->getItemType() == QgsExpressionItem::Header )
     return;
 
-  // Insert the expression text.
-  txtExpressionString->insert( item->getExpressionText() );
+  // Insert the expression text or replace selected text
+  txtExpressionString->insertText( item->getExpressionText() );
   txtExpressionString->setFocus();
 }
 
@@ -392,14 +395,17 @@ void QgsExpressionBuilderWidget::on_lblPreview_linkActivated( QString link )
 
 void QgsExpressionBuilderWidget::on_mValueListWidget_itemDoubleClicked( QListWidgetItem *item )
 {
-  txtExpressionString->insert( " " + item->text() + " " );
+  // Insert the item text or replace selected text
+  txtExpressionString->insertText( " " + item->text() + " " );
   txtExpressionString->setFocus();
 }
 
 void QgsExpressionBuilderWidget::operatorButtonClicked()
 {
   QPushButton* button = dynamic_cast<QPushButton*>( sender() );
-  txtExpressionString->insert( " " + button->text() + " " );
+
+  // Insert the button text or replace selected text
+  txtExpressionString->insertText( " " + button->text() + " " );
   txtExpressionString->setFocus();
 }
 

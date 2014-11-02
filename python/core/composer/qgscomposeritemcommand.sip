@@ -6,7 +6,7 @@ class QgsComposerItemCommand: QUndoCommand
   #include "qgscomposeritemcommand.h"
 %End
   public:
-    QgsComposerItemCommand( QgsComposerItem* item, const QString& text, QUndoCommand* parent = 0 );
+    QgsComposerItemCommand( QgsComposerItem* item, const QString& text, QUndoCommand* parent /TransferThis/ = 0 );
     virtual ~QgsComposerItemCommand();
 
     /**Reverses the command*/
@@ -25,7 +25,10 @@ class QgsComposerItemCommand: QUndoCommand
     /**Returns true if previous state and after state are valid and different*/
     bool containsChange() const;
 
-    const QgsComposerItem* item() const;
+    /**Returns the target item the command applies to.
+     * @returns target composer item
+    */
+    QgsComposerItem* item() const;
 
   protected:
     void saveState( QDomDocument& stateDoc ) const;

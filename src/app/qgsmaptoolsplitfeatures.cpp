@@ -20,12 +20,12 @@
 #include "qgsproject.h"
 #include "qgsvectorlayer.h"
 
-#include <QMessageBox>
 #include <QMouseEvent>
 
-QgsMapToolSplitFeatures::QgsMapToolSplitFeatures( QgsMapCanvas* canvas ): QgsMapToolCapture( canvas, QgsMapToolCapture::CaptureLine )
+QgsMapToolSplitFeatures::QgsMapToolSplitFeatures( QgsMapCanvas* canvas )
+    : QgsMapToolCapture( canvas, QgsMapToolCapture::CaptureLine )
 {
-
+  mToolName = tr( "Split features" );
 }
 
 QgsMapToolSplitFeatures::~QgsMapToolSplitFeatures()

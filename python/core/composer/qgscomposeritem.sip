@@ -5,6 +5,9 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
 {
 %TypeHeaderCode
 #include <qgscomposeritem.h>
+#include <qgscomposerarrow.h>
+#include <qgscomposerframe.h>
+#include <qgscomposeritemgroup.h>
 #include <qgscomposerlabel.h>
 #include <qgscomposerlegend.h>
 #include <qgscomposermap.h>
@@ -13,6 +16,7 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
 #include <qgscomposerscalebar.h>
 #include <qgscomposershape.h>
 #include <qgscomposertable.h>
+#include <qgscomposertexttable.h>
 #include <qgscomposerattributetable.h>
 %End
 
@@ -25,16 +29,14 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
     sipClass = sipClass_QgsComposerItem;
     *sipCppRet = static_cast<QgsComposerItem*>(sipCpp);
     break;
-#if 0
   case QgsComposerItem::ComposerArrow:
     sipClass = sipClass_QgsComposerArrow;
     *sipCppRet = static_cast<QgsComposerArrow*>(sipCpp);
-    break;
+    break; 
   case QgsComposerItem::ComposerItemGroup:
     sipClass = sipClass_QgsComposerItemGroup;
     *sipCppRet = static_cast<QgsComposerItemGroup*>(sipCpp);
     break;
-#endif
   case QgsComposerItem::ComposerLabel:
     sipClass = sipClass_QgsComposerLabel;
     *sipCppRet = static_cast<QgsComposerLabel*>(sipCpp);
@@ -71,12 +73,14 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
     sipClass = sipClass_QgsComposerAttributeTable;
     *sipCppRet = static_cast<QgsComposerAttributeTable*>(sipCpp);
     break;
-/*
   case QgsComposerItem::ComposerTextTable:
     sipClass = sipClass_QgsComposerTextTable;
     *sipCppRet = static_cast<QgsComposerTextTable*>(sipCpp);
     break;
-*/
+  case QgsComposerItem::ComposerFrame:
+    sipClass = sipClass_QgsComposerFrame;
+    *sipCppRet = static_cast<QgsComposerFrame*>(sipCpp);
+    break;
   default:
     sipClass = 0;
   }
@@ -133,6 +137,16 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
       LowerRight
     };
 
+    /** Modes for zooming item content
+     */
+    enum ZoomMode
+    {
+      Zoom = 0, /*< Zoom to center of content */
+      ZoomRecenter, /*< Zoom and recenter content to point */
+      ZoomToPoint, /*< Zoom while maintaining relative position of point */
+      NoZoom /*< No zoom */
+    };
+
     /**Constructor
      @param composition parent composition
      @param manageZValue true if the z-Value of this object should be managed by mComposition*/
@@ -183,13 +197,23 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
     virtual void moveContent( double dx, double dy );
 
     /**Zoom content of item. Does nothing per default (but implemented in composer map)
-      @param delta value from wheel event that describes magnitude and direction (positive /negative number)
-      @param x x-position of mouse cursor (in item coordinates)
-      @param y y-position of mouse cursor (in item coordinates)*/
-    virtual void zoomContent( int delta, double x, double y );
+     * @param delta value from wheel event that describes direction (positive /negative number)
+     * @param x x-position of mouse cursor (in item coordinates)
+     * @param y y-position of mouse cursor (in item coordinates)
+     * @deprecated use zoomContent( double, QPointF, ZoomMode ) instead
+    */
+    virtual void zoomContent( int delta, double x, double y ) /Deprecated/;
+
+    /**Zoom content of item. Does nothing per default (but implemented in composer map)
+     * @param factor zoom factor, where > 1 results in a zoom in and < 1 results in a zoom out
+     * @param point item point for zoom center
+     * @param mode zoom mode
+     * @note added in QGIS 2.5
+    */
+    virtual void zoomContent( const double factor, const QPointF point, const ZoomMode mode = QgsComposerItem::Zoom );
 
     /**Gets the page the item is currently on.
-     * @returns page number for item
+     * @returns page number for item, beginning on page 1
      * @see pagePos
      * @see updatePagePos
      * @note this method was added in version 2.4
@@ -249,26 +273,47 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
      * @see setFrameEnabled
      * @see frameOutlineWidth
      * @see frameJoinStyle
+     * @see frameOutlineColor
      */
     bool hasFrame() const;
 
     /**Set whether this item has a frame drawn around it or not.
      * @param drawFrame draw frame
-     * @returns nothing
      * @note introduced in 1.8
      * @see hasFrame
      * @see setFrameOutlineWidth
      * @see setFrameJoinStyle
+     * @see setFrameOutlineColor
      */
-    void setFrameEnabled( const bool drawFrame );
+    virtual void setFrameEnabled( const bool drawFrame );
+    
+    /**Sets frame outline color
+     * @param color new color for outline frame
+     * @note introduced in 2.6
+     * @see frameOutlineColor
+     * @see setFrameEnabled
+     * @see setFrameJoinStyle
+     * @see setFrameOutlineWidth
+     */
+    virtual void setFrameOutlineColor( const QColor& color );
+
+    /**Returns the frame's outline color. Only used if hasFrame is true.
+     * @returns frame outline color
+     * @note introduced in 2.6
+     * @see hasFrame
+     * @see setFrameOutlineColor
+     * @see frameJoinStyle
+     * @see setFrameOutlineColor
+     */
+    QColor frameOutlineColor() const;
 
     /**Sets frame outline width
      * @param outlineWidth new width for outline frame
-     * @returns nothing
      * @note introduced in 2.2
      * @see frameOutlineWidth
      * @see setFrameEnabled
      * @see setFrameJoinStyle
+     * @see setFrameOutlineColor
      */
     virtual void setFrameOutlineWidth( const double outlineWidth );
 
@@ -278,6 +323,7 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
      * @see hasFrame
      * @see setFrameOutlineWidth
      * @see frameJoinStyle
+     * @see frameOutlineColor
      */
     double frameOutlineWidth() const;
 
@@ -287,16 +333,17 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
      * @see hasFrame
      * @see setFrameJoinStyle
      * @see frameOutlineWidth
+     * @see frameOutlineColor
      */
     Qt::PenJoinStyle frameJoinStyle() const;
 
     /**Sets join style used when drawing the item's frame
      * @param style Join style for outline frame
-     * @returns nothing
      * @note introduced in 2.3
      * @see setFrameEnabled
      * @see frameJoinStyle
      * @see setFrameOutlineWidth
+     * @see setFrameOutlineColor
      */
     void setFrameJoinStyle( const Qt::PenJoinStyle style );
 
@@ -543,6 +590,22 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
      * @note added in version 2.5
     */
     virtual void setVisibility( const bool visible );
+    
+    /**Returns whether the item should be excluded from composer exports and prints
+     * @param valueType controls whether the returned value is the user specified vaule,
+     * or the current evaluated value (which may be affected by data driven settings).
+     * @returns true if item should be excluded
+     * @note added in version 2.5
+     * @see setExcludeFromExports
+     */
+    bool excludeFromExports( const QgsComposerObject::PropertyValueType valueType = QgsComposerObject::EvaluatedValue );
+
+    /**Sets whether the item should be excluded from composer exports and prints
+     * @param exclude set to true to exclude the item from exports
+     * @note added in version 2.5
+     * @see excludeFromExports
+     */
+    virtual void setExcludeFromExports( const bool exclude );    
 
     /**Returns whether this item is part of a group
      * @returns true if item is in a group
@@ -698,8 +761,23 @@ class QgsComposerItem : QgsComposerObject, QGraphicsRectItem
     void deleteVAlignSnapItem();
     void deleteAlignItems();
 
-    /**Update an item rect to consider data defined position and size of item*/
-    QRectF evalItemRect( const QRectF &newRect );
+    /**Evaluates an item's bounding rect to consider data defined position and size of item
+     * and reference point
+     * @param newRect target bouding rect for item
+     * @param resizeOnly set to true if the item is only being resized. If true then
+     * the position of the returned rect will be adjusted to account for the item's
+     * position mode
+     * @returns bounding box rectangle for item after data defined size and position have been
+     * set and position mode has been accounted for
+     * @note added in QGIS 2.5
+    */
+    QRectF evalItemRect( const QRectF &newRect, const bool resizeOnly = false );
+    
+    /**Returns whether the item should be drawn in the current context
+     * @returns true if item should be drawn
+     * @note added in QGIS 2.5
+    */
+    bool shouldDrawItem() const;
 
   signals:
     /**Is emitted on item rotation change*/

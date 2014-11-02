@@ -66,9 +66,10 @@ class QgsColorWidget : QWidget
 
     /**Sets the color for the widget
      * @param color widget color
+     * @param emitSignals set to true to emit the colorChanged signal after setting color
      * @see color
      */
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
     /**Sets the color component which the widget controls
      * @param component color component for widget
@@ -133,7 +134,7 @@ class QgsColorWidget : QWidget
     static const QPixmap& transparentBackground();
 
     //Reimplemented to accept dragged colors
-    void dragEnterEvent( QDragEnterEvent * e ) ;
+    void dragEnterEvent( QDragEnterEvent * e );
 
     //Reimplemented to accept dropped colors
     void dropEvent( QDropEvent *e );
@@ -167,7 +168,7 @@ class QgsColorWheel : QgsColorWidget
 
   public slots:
 
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
 
@@ -212,7 +213,7 @@ class QgsColorBox : QgsColorWidget
  
   public slots:
 
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
 
@@ -339,7 +340,7 @@ class QgsColorSliderWidget : QgsColorWidget
     
     virtual void setComponent( const ColorComponent component );
     virtual void setComponentValue( const int value );
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
 };
 
@@ -366,7 +367,7 @@ class QgsColorTextWidget : QgsColorWidget
 
     virtual ~QgsColorTextWidget();
     
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
     void resizeEvent( QResizeEvent * event );
@@ -419,6 +420,9 @@ class QgsColorPreviewWidget : QgsColorWidget
 
     //reimplemented to allow dragging colors
     void mousePressEvent( QMouseEvent* e );
+
+    //reimplemented to click colors
+    void mouseReleaseEvent( QMouseEvent* e );
 
     //reimplemented to allow dragging colors
     void mouseMoveEvent( QMouseEvent *e );

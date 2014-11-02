@@ -17,7 +17,6 @@
 
 #include "qgsdxfpallabeling.h"
 #include "qgsdxfexport.h"
-#include "qgsmaplayerregistry.h"
 #include "qgspalgeometry.h"
 #include "qgsmapsettings.h"
 
@@ -75,44 +74,97 @@ void QgsDxfPalLabeling::drawLabel( pal::LabelPosition* label, QgsRenderContext& 
   //debug: print label infos
   if ( mDxfExport )
   {
-    //label text
-    QString text = (( QgsPalGeometry* )label->getFeaturePart()->getUserGeometry() )->text();
+    QgsPalGeometry *g = dynamic_cast< QgsPalGeometry* >( label->getFeaturePart()->getUserGeometry() );
 
-    //layer name
-    QgsMapLayer* layer = QgsMapLayerRegistry::instance()->mapLayer( QString( label->getLayerName() ) );
-    if ( !layer )
-    {
-      return;
-    }
-    QString layerName = mDxfExport->dxfLayerName( layer->name() );
+    //label text
+    QString text = g->text();
+    QString txt = label->getPartId() == -1 ? text : QString( text[ label->getPartId()] );
 
     //angle
     double angle = label->getAlpha() * 180 / M_PI;
 
     //debug: show label rectangle
-    /*QgsPolyline line;
-    for( int i = 0; i < 4; ++i )
+#if 0
+    QgsPolyline line;
+    for ( int i = 0; i < 4; ++i )
     {
-        line.append( QgsPoint( label->getX( i ), label->getY( i ) ) );
+      line.append( QgsPoint( label->getX( i ), label->getY( i ) ) );
     }
-    mDxfExport->writePolyline( line, layerName, "CONTINUOUS", 1, 0.01, true );*/
+    mDxfExport->writePolyline( line, g->dxfLayer(), "CONTINUOUS", 1, 0.01, true );
+#endif
 
-    QStringList textList;
-    if ( !tmpLyr.wrapChar.isEmpty() )
-    {
-      textList = text.split( tmpLyr.wrapChar );
-    }
-    else
-    {
-      textList = text.split( "\n" );
-    }
-    double textHeight = label->getHeight() / textList.size();
-    QFontMetricsF fm( tmpLyr.textFont );
-    double textAscent = textHeight * fm.ascent() / fm.height();
+    QString wrapchr = tmpLyr.wrapChar.isEmpty() ? "\n" : tmpLyr.wrapChar;
 
-    for ( int i = 0; i < textList.size(); ++i )
+    //add the direction symbol if needed
+    if ( !txt.isEmpty() && tmpLyr.placement == QgsPalLayerSettings::Line && tmpLyr.addDirectionSymbol )
     {
-      mDxfExport->writeText( layerName, textList.at( i ), QgsPoint( label->getX(), label->getY() + ( textList.size() - 1 - i ) * textHeight ), textAscent, angle, mDxfExport->closestColorMatch( tmpLyr.textColor.rgb() ) );
+      bool prependSymb = false;
+      QString symb = tmpLyr.rightDirectionSymbol;
+
+      if ( label->getReversed() )
+      {
+        prependSymb = true;
+        symb = tmpLyr.leftDirectionSymbol;
+      }
+
+      if ( tmpLyr.reverseDirectionSymbol )
+      {
+        if ( symb == tmpLyr.rightDirectionSymbol )
+        {
+          prependSymb = true;
+          symb = tmpLyr.leftDirectionSymbol;
+        }
+        else
+        {
+          prependSymb = false;
+          symb = tmpLyr.rightDirectionSymbol;
+        }
+      }
+
+      if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolAbove )
+      {
+        prependSymb = true;
+        symb = symb + wrapchr;
+      }
+      else if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolBelow )
+      {
+        prependSymb = false;
+        symb = wrapchr + symb;
+      }
+
+      if ( prependSymb )
+      {
+        txt.prepend( symb );
+      }
+      else
+      {
+        txt.append( symb );
+      }
     }
+
+    txt = txt.replace( wrapchr, "\\P" );
+
+    if ( tmpLyr.textFont.underline() )
+    {
+      txt.prepend( "\\L" ).append( "\\l" );
+    }
+
+    if ( tmpLyr.textFont.overline() )
+    {
+      txt.prepend( "\\O" ).append( "\\o" );
+    }
+
+    if ( tmpLyr.textFont.strikeOut() )
+    {
+      txt.prepend( "\\K" ).append( "\\k" );
+    }
+
+    txt.prepend( QString( "\\f%1|i%2|b%3;\\H%4;\\W0.75;" )
+                 .arg( tmpLyr.textFont.family() )
+                 .arg( tmpLyr.textFont.italic() ? 1 : 0 )
+                 .arg( tmpLyr.textFont.bold() ? 1 : 0 )
+                 .arg( label->getHeight() / ( 1 + txt.count( "\\P" ) ) * 0.75 ) );
+
+    mDxfExport->writeMText( g->dxfLayer(), txt, QgsPoint( label->getX(), label->getY() ), label->getWidth() * 1.1, angle, tmpLyr.textColor );
   }
 }

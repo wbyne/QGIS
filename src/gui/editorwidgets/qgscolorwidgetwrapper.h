@@ -18,7 +18,13 @@
 
 #include "qgseditorwidgetwrapper.h"
 
-#include "qgscolorbutton.h"
+#include "qgscolorbuttonv2.h"
+
+
+/**
+ * Wraps a color widget. Users will be able to choose a color.
+ *
+ */
 
 class GUI_EXPORT  QgsColorWidgetWrapper : public QgsEditorWidgetWrapper
 {
@@ -31,14 +37,14 @@ class GUI_EXPORT  QgsColorWidgetWrapper : public QgsEditorWidgetWrapper
     QVariant value();
 
   protected:
-    QWidget*createWidget( QWidget* parent );
+    QWidget* createWidget( QWidget* parent );
     void initWidget( QWidget* editor );
 
   public slots:
     void setValue( const QVariant& value );
 
   private:
-    QgsColorButton* mColorButton;
+    QgsColorButtonV2* mColorButton;
 };
 
 #endif // QGSCOLORWIDGETWRAPPER_H

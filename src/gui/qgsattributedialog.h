@@ -22,8 +22,8 @@
 #include "qgsattributeform.h"
 
 #include <QDialog>
-
-class QLayout;
+#include <QMenuBar>
+#include <QGridLayout>
 
 class QgsDistanceArea;
 class QgsFeature;
@@ -135,6 +135,8 @@ class GUI_EXPORT QgsAttributeDialog : public QDialog
     bool mShowDialogButtons;
     QString mReturnvarname;
     QgsAttributeForm* mAttributeForm;
+    QMenuBar* mMenuBar;
+    QgsFeature *mOwnedFeature;
 
     // true if this dialog is editable
     bool mEditable;

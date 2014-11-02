@@ -22,12 +22,15 @@
 #include "qgslogger.h"
 
 #include <stdlib.h> // for random()
+#include <algorithm>
+
 #include <QTime>
 
 //////////////
 
 static QColor _interpolate( QColor c1, QColor c2, double value )
 {
+  if ( qIsNaN( value ) ) value = 1;
   int r = ( int )( c1.red() + value * ( c2.red() - c1.red() ) );
   int g = ( int )( c1.green() + value * ( c2.green() - c1.green() ) );
   int b = ( int )( c1.blue() + value * ( c2.blue() - c1.blue() ) );
@@ -240,7 +243,7 @@ void QgsVectorGradientColorRampV2::addStopsToGradient( QGradient* gradient, doub
     {
       rampColor.setAlpha( rampColor.alpha() * alpha );
     }
-    gradient->setColorAt( it->offset , rampColor );
+    gradient->setColorAt( it->offset, rampColor );
   }
 }
 
@@ -363,13 +366,54 @@ double QgsRandomColorsV2::value( int index ) const
 
 QColor QgsRandomColorsV2::color( double value ) const
 {
-  Q_UNUSED( value );
   int minVal = 130;
   int maxVal = 255;
+
+  //if value is nan, then use last precalculated color
+  int colorIndex = ( !qIsNaN( value ) ? value : 1 ) * ( mTotalColorCount - 1 );
+  if ( mTotalColorCount >= 1 && mPrecalculatedColors.length() > colorIndex )
+  {
+    //use precalculated hue
+    return mPrecalculatedColors.at( colorIndex );
+  }
+
+  //can't use precalculated hues, use a totally random hue
   int h = 1 + ( int )( 360.0 * rand() / ( RAND_MAX + 1.0 ) );
   int s = ( rand() % ( DEFAULT_RANDOM_SAT_MAX - DEFAULT_RANDOM_SAT_MIN + 1 ) ) + DEFAULT_RANDOM_SAT_MIN;
   int v = ( rand() % ( maxVal - minVal + 1 ) ) + minVal;
   return QColor::fromHsv( h, s, v );
+}
+
+void QgsRandomColorsV2::setTotalColorCount( const int colorCount )
+{
+  //calculate colors in advance, so that we can ensure they are more visually distinct than pure random colors
+  mPrecalculatedColors.clear();
+  mTotalColorCount = colorCount;
+
+  //This works ok for low color counts, but for > 10 or so colors there's still a good chance of
+  //similar colors being picked. TODO - investigate alternative "n-visually distinct color" routines
+
+  //random offsets
+  double hueOffset = ( 360.0 * rand() / ( RAND_MAX + 1.0 ) );
+
+  //try to maximise difference between hues. this is not an ideal implementation, as constant steps
+  //through the hue wheel are not visually perceived as constant changes in hue
+  //(for instance, we are much more likely to get green hues than yellow hues)
+  double hueStep = 359.0 / colorCount;
+  double currentHue = hueOffset;
+
+  //build up a list of colors
+  for ( int idx = 0; idx < colorCount; ++ idx )
+  {
+    int h = qRound( currentHue ) % 360;
+    int s = ( rand() % ( DEFAULT_RANDOM_SAT_MAX - DEFAULT_RANDOM_SAT_MIN + 1 ) ) + DEFAULT_RANDOM_SAT_MIN;
+    int v = ( rand() % ( DEFAULT_RANDOM_VAL_MAX - DEFAULT_RANDOM_VAL_MIN + 1 ) ) + DEFAULT_RANDOM_VAL_MIN;
+    mPrecalculatedColors << QColor::fromHsv( h, s, v );
+    currentHue += hueStep;
+  }
+
+  //lastly, shuffle color list
+  std::random_shuffle( mPrecalculatedColors.begin(), mPrecalculatedColors.end() );
 }
 
 QString QgsRandomColorsV2::type() const
@@ -564,7 +608,7 @@ QString QgsCptCityColorRampV2::descFileName() const
                                           QgsCptCityArchive::defaultBaseDir() );
 }
 
-QgsStringMap QgsCptCityColorRampV2::copyingInfo( ) const
+QgsStringMap QgsCptCityColorRampV2::copyingInfo() const
 {
   return QgsCptCityArchive::copyingInfo( copyingFileName() );
 }
@@ -653,4 +697,3 @@ bool QgsCptCityColorRampV2::loadFile()
   mFileLoaded = true;
   return true;
 }
-

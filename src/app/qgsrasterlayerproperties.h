@@ -57,8 +57,7 @@ class APP_EXPORT QgsRasterLayerProperties : public QgsOptionsDialogBase, private
     //TODO: Verify that these all need to be public
     /** \brief Applies the settings made in the dialog without closing the box */
     void apply();
-    /** \brief Slot to update layer display name as original is edited
-     * @note added in QGIS 1.9 */
+    /** \brief Slot to update layer display name as original is edited. */
     void on_mLayerOrigNameLineEd_textEdited( const QString& text );
     /** \brief this slot asks the rasterlayer to construct pyramids */
     void on_buttonBuildPyramids_clicked();
@@ -80,7 +79,7 @@ class APP_EXPORT QgsRasterLayerProperties : public QgsOptionsDialogBase, private
     void on_pbnRemoveSelectedRow_clicked();
     /** \brief slot executed when the single band radio button is pressed. */
     /** \brief slot executed when the reset null value to file default icon is selected */
-    //void on_btnResetNull_clicked( );
+    //void on_btnResetNull_clicked();
 
     void pixelSelected( const QgsPoint& );
     /** \brief slot executed when the transparency level changes. */
@@ -99,9 +98,7 @@ class APP_EXPORT QgsRasterLayerProperties : public QgsOptionsDialogBase, private
     /** Help button */
     void on_buttonBox_helpRequested() { QgsContextHelp::run( metaObject()->className() ); }
 
-    /** Slot to reset all color rendering options to default
-     * @note added in 1.9
-     */
+    /** Slot to reset all color rendering options to default */
     void on_mResetColorRenderingBtn_clicked();
 
     /**Enable or disable Build pyramids button depending on selection in pyramids list*/

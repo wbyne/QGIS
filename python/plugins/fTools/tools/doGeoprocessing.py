@@ -471,7 +471,7 @@ class geoprocessingThread( QThread ):
     outFeatFields = QgsFields()
     if useField:
       importedField = vproviderA.fields().at( self.myParam )
-      importedFieldName = importedField.name( )
+      importedFieldName = importedField.name()
     #
     outFeatFields.extend( vproviderA.fields() )
     # creating area and perimeter fields
@@ -526,7 +526,7 @@ class geoprocessingThread( QThread ):
               outFeat.setGeometry( outGeom )
               (area, perim) = self.simpleMeasure( outGeom )
               for f in firstFeature.fields():
-                outFeat.setAttribute( f.name( ), firstFeature.attribute( f.name( ) ) )
+                outFeat.setAttribute( f.name(), firstFeature.attribute( f.name() ) )
               outFeat.setAttribute( "area", area )
               outFeat.setAttribute( "perim", perim )
               writer.addFeature( outFeat )
@@ -549,7 +549,7 @@ class geoprocessingThread( QThread ):
           outFeat.setGeometry( outGeom )
           (area, perim) = self.simpleMeasure( outGeom )
           for f in inFeat.fields():
-            outFeat.setAttribute( f.name( ), inFeat.attribute( f.name( ) ) )
+            outFeat.setAttribute( f.name(), inFeat.attribute( f.name() ) )
           outFeat.setAttribute( "area", area )
           outFeat.setAttribute( "perim", perim )
           writer.addFeature( outFeat )
@@ -586,7 +586,7 @@ class geoprocessingThread( QThread ):
               outFeat.setGeometry( outGeom )
               (area, perim) = self.simpleMeasure( outGeom )
               for f in firstFeature.fields():
-                outFeat.setAttribute( f.name( ), firstFeature.attribute( f.name( ) ) )
+                outFeat.setAttribute( f.name(), firstFeature.attribute( f.name() ) )
               outFeat.setAttribute( "area", area )
               outFeat.setAttribute( "perim", perim )
               writer.addFeature( outFeat )
@@ -610,7 +610,7 @@ class geoprocessingThread( QThread ):
           outFeat.setGeometry( outGeom )
           (area, perim) = self.simpleMeasure( outGeom )
           for f in inFeat.fields():
-            outFeat.setAttribute( f.name( ), inFeat.attribute( f.name( ) ) )
+            outFeat.setAttribute( f.name(), inFeat.attribute( f.name() ) )
           outFeat.setAttribute( "area", area )
           outFeat.setAttribute( "perim", perim )
           writer.addFeature( outFeat )
@@ -919,6 +919,7 @@ class geoprocessingThread( QThread ):
         crs_match = None
     else:
         crs_match = crsA == crsB
+
     fields = ftools_utils.combineVectorFields( self.vlayerA, self.vlayerB )
     writer = QgsVectorFileWriter( self.myName, self.myEncoding, fields,
                                   vproviderA.geometryType(), vproviderA.crs() )
@@ -928,6 +929,7 @@ class geoprocessingThread( QThread ):
     inFeatA = QgsFeature()
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
+
     nElement = 0
 
     index = ftools_utils.createIndex( vproviderB )
@@ -1104,6 +1106,7 @@ class geoprocessingThread( QThread ):
     inFeatA = QgsFeature()
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
+
     indexA = ftools_utils.createIndex( vproviderB )
     indexB = ftools_utils.createIndex( vproviderA )
 

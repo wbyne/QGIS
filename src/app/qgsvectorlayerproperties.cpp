@@ -84,6 +84,7 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
   connect( buttonBox->button( QDialogButtonBox::Apply ), SIGNAL( clicked() ), this, SLOT( apply() ) );
   connect( this, SIGNAL( accepted() ), this, SLOT( apply() ) );
+  connect( this, SIGNAL( rejected() ), this, SLOT( onCancel() ) );
 
   connect( mOptionsStackedWidget, SIGNAL( currentChanged( int ) ), this, SLOT( mOptionsStackedWidget_CurrentChanged( int ) ) );
 
@@ -150,7 +151,7 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
     pbnLoadStyle->setMenu( mLoadStyleMenu );
 
     QObject::connect( mLoadStyleMenu, SIGNAL( triggered( QAction * ) ),
-                      this, SLOT( loadStyleMenuTriggered( QAction * ) ) ) ;
+                      this, SLOT( loadStyleMenuTriggered( QAction * ) ) );
 
     //for saving
     mSaveAsMenu->addAction( tr( "Save in database (%1)" ).arg( layer->providerType() ) );
@@ -213,6 +214,8 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
   {
     addJoinToTreeWidget( joins[i] );
   }
+
+  mOldJoins = layer->vectorJoins();
 
   diagramPropertiesDialog = new QgsDiagramProperties( layer, mDiagramFrame );
   diagramPropertiesDialog->layout()->setMargin( 0 );
@@ -316,7 +319,7 @@ void QgsVectorLayerProperties::insertExpression()
     selText = selText.mid( 2, selText.size() - 4 );
 
   // display the expression builder
-  QgsExpressionBuilderDialog dlg( layer , selText, this );
+  QgsExpressionBuilderDialog dlg( layer, selText, this );
   dlg.setWindowTitle( tr( "Insert expression" ) );
   if ( dlg.exec() == QDialog::Accepted )
   {
@@ -571,12 +574,29 @@ void QgsVectorLayerProperties::apply()
   simplifyMethod.setMaximumScale( 1.0 / mSimplifyMaximumScaleComboBox->scale() );
   layer->setSimplifyMethod( simplifyMethod );
 
+  mOldJoins = layer->vectorJoins();
+
   // update symbology
   emit refreshLegend( layer->id() );
 
   layer->triggerRepaint();
   // notify the project we've made a change
   QgsProject::instance()->dirty( true );
+}
+
+void QgsVectorLayerProperties::onCancel()
+{
+  if ( mOldJoins != layer->vectorJoins() )
+  {
+    // need to undo changes in vector layer joins - they are applied directly to the layer (not in apply())
+    // so other parts of the properties dialog can use the fields from the joined layers
+
+    foreach ( const QgsVectorJoinInfo& info, layer->vectorJoins() )
+      layer->removeJoin( info.joinLayerId );
+
+    foreach ( const QgsVectorJoinInfo& info, mOldJoins )
+      layer->addJoin( info );
+  }
 }
 
 void QgsVectorLayerProperties::on_pbnQueryBuilder_clicked()

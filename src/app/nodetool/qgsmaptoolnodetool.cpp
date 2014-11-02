@@ -40,6 +40,7 @@ QgsMapToolNodeTool::QgsMapToolNodeTool( QgsMapCanvas* canvas )
     , mIsPoint( false )
     , mDeselectOnRelease( -1 )
 {
+  mToolName =  tr( "Node tool" );
 }
 
 QgsMapToolNodeTool::~QgsMapToolNodeTool()
@@ -782,7 +783,7 @@ QgsRubberBand* QgsMapToolNodeTool::createRubberBandMarker( QgsPoint center, QgsV
   return marker;
 }
 
-int QgsMapToolNodeTool::firstSelectedVertex( )
+int QgsMapToolNodeTool::firstSelectedVertex()
 {
   if ( mSelectedFeature )
   {

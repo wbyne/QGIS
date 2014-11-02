@@ -22,11 +22,12 @@
 #include "qgstolerance.h"
 
 #include <QMouseEvent>
-#include <QMessageBox>
 
 QgsMapToolDeletePart::QgsMapToolDeletePart( QgsMapCanvas* canvas )
-    : QgsMapToolEdit( canvas ), mRubberBand( 0 )
+    : QgsMapToolEdit( canvas )
+    , mRubberBand( 0 )
 {
+  mToolName = tr( "Delete part" );
 }
 
 QgsMapToolDeletePart::~QgsMapToolDeletePart()

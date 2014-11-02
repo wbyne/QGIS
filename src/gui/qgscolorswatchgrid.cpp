@@ -256,7 +256,7 @@ void QgsColorSwatchGrid::draw( QPainter &painter )
   QColor highlight = pal.color( QPalette::Highlight );
 
   //draw header background
-  painter.setBrush( headerBgColor ) ;
+  painter.setBrush( headerBgColor );
   painter.setPen( Qt::NoPen );
   painter.drawRect( QRect( 0, 0, width(), LABEL_SIZE ) );
 
@@ -307,6 +307,11 @@ void QgsColorSwatchGrid::draw( QPainter &painter )
     else if ( mFocused && index == mCurrentFocusBox )
     {
       painter.setPen( highlight );
+    }
+    else if (( *colorIt ).first.name() == mBaseColor.name() )
+    {
+      //currently active color
+      painter.setPen( QColor( 75, 75, 75 ) );
     }
     else
     {

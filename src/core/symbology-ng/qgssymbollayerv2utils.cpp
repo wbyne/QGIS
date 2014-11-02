@@ -37,6 +37,7 @@
 #include <QIcon>
 #include <QPainter>
 #include <QSettings>
+#include <QRegExp>
 
 QString QgsSymbolLayerV2Utils::encodeColor( QColor color )
 {
@@ -521,7 +522,7 @@ QIcon QgsSymbolLayerV2Utils::symbolPreviewIcon( QgsSymbolV2* symbol, QSize size 
   return QIcon( symbolPreviewPixmap( symbol, size ) );
 }
 
-QPixmap QgsSymbolLayerV2Utils::symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size )
+QPixmap QgsSymbolLayerV2Utils::symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size, QgsRenderContext* customContext )
 {
   Q_ASSERT( symbol );
 
@@ -530,7 +531,9 @@ QPixmap QgsSymbolLayerV2Utils::symbolPreviewPixmap( QgsSymbolV2* symbol, QSize s
   QPainter painter;
   painter.begin( &pixmap );
   painter.setRenderHint( QPainter::Antialiasing );
-  symbol->drawPreviewIcon( &painter, size );
+  if ( customContext )
+    customContext->setPainter( &painter );
+  symbol->drawPreviewIcon( &painter, size, customContext );
   painter.end();
   return pixmap;
 }
@@ -694,7 +697,8 @@ static QPolygonF makeOffsetGeometry( const QgsPolyline& polyline )
 static QList<QPolygonF> makeOffsetGeometry( const QgsPolygon& polygon )
 {
   QList<QPolygonF> resultGeom;
-  for ( int ring = 0; ring < polygon.size(); ++ring ) resultGeom.append( makeOffsetGeometry( polygon[ ring ] ) );
+  for ( int ring = 0; ring < polygon.size(); ++ring )
+    resultGeom.append( makeOffsetGeometry( polygon[ ring ] ) );
   return resultGeom;
 }
 #endif
@@ -722,7 +726,7 @@ QList<QPolygonF> offsetLine( QPolygonF polyline, double dist, QGis::GeometryType
   for ( i = 0; i < pointCount; ++i, tempPtr++ )
     tempPolyline[i] = QgsPoint( tempPtr->rx(), tempPtr->ry() );
 
-  QgsGeometry* tempGeometry = ( geometryType == QGis::Polygon ) ? QgsGeometry::fromPolygon( QgsPolygon() << tempPolyline ) : QgsGeometry::fromPolyline( tempPolyline );
+  QgsGeometry* tempGeometry = geometryType == QGis::Polygon ? QgsGeometry::fromPolygon( QgsPolygon() << tempPolyline ) : QgsGeometry::fromPolyline( tempPolyline );
   if ( tempGeometry )
   {
     int quadSegments = 0; // we want mitre joins, not round joins
@@ -822,6 +826,7 @@ QList<QPolygonF> offsetLine( QPolygonF polyline, double dist, QGis::GeometryType
 
 #endif
 }
+
 QList<QPolygonF> offsetLine( QPolygonF polyline, double dist )
 {
   QGis::GeometryType geometryType = QGis::Point;
@@ -3032,7 +3037,7 @@ bool QgsSymbolLayerV2Utils::saveColorsToGpl( QFile &file, const QString paletteN
   return true;
 }
 
-QgsNamedColorList QgsSymbolLayerV2Utils::importColorsFromGpl( QFile &file, bool &ok )
+QgsNamedColorList QgsSymbolLayerV2Utils::importColorsFromGpl( QFile &file, bool &ok, QString &name )
 {
   QgsNamedColorList importedColors;
 
@@ -3051,6 +3056,20 @@ QgsNamedColorList QgsSymbolLayerV2Utils::importColorsFromGpl( QFile &file, bool 
     return importedColors;
   }
 
+  //find name line
+  while ( !in.atEnd() && !line.startsWith( "Name:" ) && !line.startsWith( "#" ) )
+  {
+    line = in.readLine();
+  }
+  if ( line.startsWith( "Name:" ) )
+  {
+    QRegExp nameRx( "Name:\\s*(\\S.*)$" );
+    if ( nameRx.indexIn( line ) != -1 )
+    {
+      name = nameRx.cap( 1 );
+    }
+  }
+
   //ignore lines until after "#"
   while ( !in.atEnd() && !line.startsWith( "#" ) )
   {
@@ -3063,25 +3082,32 @@ QgsNamedColorList QgsSymbolLayerV2Utils::importColorsFromGpl( QFile &file, bool 
   }
 
   //ready to start reading colors
+  QRegExp rx( "^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)(\\s.*)?$" );
   while ( !in.atEnd() )
   {
     line = in.readLine();
-    QStringList parts = line.simplified().split( " " );
-    if ( parts.length() < 3 )
+    if ( rx.indexIn( line ) == -1 )
     {
       continue;
     }
-    int red = parts.at( 0 ).toInt();
-    int green = parts.at( 1 ).toInt();
-    int blue = parts.at( 2 ).toInt();
+    int red = rx.cap( 1 ).toInt();
+    int green = rx.cap( 2 ).toInt();
+    int blue = rx.cap( 3 ).toInt();
     QColor color = QColor( red, green, blue );
+    if ( !color.isValid() )
+    {
+      continue;
+    }
 
     //try to read color name
     QString label;
-    parts = line.split( "\t" );
-    if ( parts.length() > 1 )
+    if ( rx.captureCount() > 3 )
     {
-      label = parts.at( parts.length() - 1 );
+      label = rx.cap( 4 ).simplified();
+    }
+    else
+    {
+      label = colorToName( color );
     }
 
     importedColors << qMakePair( color, label );
@@ -3092,7 +3118,7 @@ QgsNamedColorList QgsSymbolLayerV2Utils::importColorsFromGpl( QFile &file, bool 
   return importedColors;
 }
 
-QColor QgsSymbolLayerV2Utils::parseColor( QString colorStr , bool strictEval )
+QColor QgsSymbolLayerV2Utils::parseColor( QString colorStr, bool strictEval )
 {
   bool hasAlpha;
   return parseColorWithAlpha( colorStr, hasAlpha, strictEval );

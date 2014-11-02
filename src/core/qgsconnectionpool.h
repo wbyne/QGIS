@@ -232,8 +232,9 @@ class QgsConnectionPool
 
   protected:
     T_Groups mGroups;
-    QMutex mMutex;
 
+  private:
+    QMutex mMutex;
 };
 
 

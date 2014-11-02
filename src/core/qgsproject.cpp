@@ -307,7 +307,7 @@ struct QgsProject::Imp
   bool dirty;
 
   Imp()
-      : title( )
+      : title()
       , dirty( false )
   {                             // top property node is the root
     // "properties" that contains all plug-in
@@ -457,7 +457,7 @@ properties tags for all optional properties.  Within that there will be scope
 tags.  In the following example there exist one property in the "fsplugin"
 scope.  "layers" is a list containing three string values.
 
-\verbatim
+\code{.xml}
 <properties>
   <fsplugin>
     <foo type="int" >42</foo>
@@ -473,7 +473,7 @@ scope.  "layers" is a list containing three string values.
     </feature_types>
   </fsplugin>
 </properties>
-\endverbatim
+\endcode
 
 @param doc xml document
 @param project_properties should be the top QgsPropertyKey node.
@@ -559,10 +559,10 @@ _getProperties( QDomDocument const &doc, QgsPropertyKey & project_properties )
    Get the project title
 
    XML in file has this form:
-\verbatim
+\code{.xml}
    <qgis projectname="default project">
    <title>a project title</title>
-\endverbatim
+\endcode
 
    @todo XXX we should go with the attribute xor title, not both.
 */
@@ -634,7 +634,7 @@ static QgsProjectVersion _getVersion( QDomDocument const &doc )
 
    @note XML of form:
 
-\verbatim
+\code{.xml}
    <maplayer type="vector">
       <layername>Hydrop</layername>
       <datasource>/data/usgs/city_shp/hydrop.shp</datasource>
@@ -669,7 +669,7 @@ static QgsProjectVersion _getVersion( QDomDocument const &doc )
          <alignment value="center" field="" />
       </labelattributes>
    </maplayer>
-\endverbatim
+\endcode
 */
 QPair< bool, QList<QDomNode> > QgsProject::_getMapLayers( QDomDocument const &doc )
 {
@@ -1561,7 +1561,7 @@ QString QgsProject::readPath( QString src ) const
 }
 
 // return the absolute or relative path to write it to the project file
-QString QgsProject::writePath( QString src ) const
+QString QgsProject::writePath( QString src, QString relativeBasePath ) const
 {
   if ( readBoolEntry( "Paths", "/Absolute", false ) || src.isEmpty() )
   {
@@ -1572,6 +1572,11 @@ QString QgsProject::writePath( QString src ) const
   QFileInfo projFileInfo( fileName() );
   QString srcPath = srcFileInfo.canonicalFilePath();
   QString projPath = projFileInfo.canonicalFilePath();
+
+  if ( !relativeBasePath.isNull() )
+  {
+    projPath = relativeBasePath;
+  }
 
   if ( projPath.isEmpty() )
   {

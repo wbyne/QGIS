@@ -71,6 +71,9 @@ class APP_EXPORT QgsMapToolIdentifyAction : public QgsMapToolIdentify
     void identifyMessage( QString );
     void copyToClipboard( QgsFeatureStore & );
 
+  private slots:
+    void showAttributeTable( QgsMapLayer* layer, const QList<QgsFeature> featureList );
+
   private:
     //! Pointer to the identify results dialog for name/value pairs
     QPointer<QgsIdentifyResultsDialog> mResultsDialog;
@@ -78,6 +81,9 @@ class APP_EXPORT QgsMapToolIdentifyAction : public QgsMapToolIdentify
     QgsIdentifyResultsDialog *resultsDialog();
 
     virtual QGis::UnitType displayUnits();
+
+    // pointers to the custom actions for identify menu
+    QAction* mAttributeTableAction;
 };
 
 #endif

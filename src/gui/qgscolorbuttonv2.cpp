@@ -38,12 +38,13 @@
 #include <QGridLayout>
 #include <QPushButton>
 
-QgsColorButtonV2::QgsColorButtonV2( QWidget *parent, QString cdt, QColorDialog::ColorDialogOptions cdo, QgsColorSchemeRegistry* registry )
+QgsColorButtonV2::QgsColorButtonV2( QWidget *parent, QString cdt, QgsColorSchemeRegistry* registry )
     : QToolButton( parent )
+    , mBehaviour( QgsColorButtonV2::ShowDialog )
     , mColorDialogTitle( cdt.isEmpty() ? tr( "Select Color" ) : cdt )
-    , mColor( Qt::black )
+    , mColor( QColor() )
     , mDefaultColor( QColor() ) //default to invalid color
-    , mColorDialogOptions( cdo )
+    , mAllowAlpha( false )
     , mAcceptLiveUpdates( true )
     , mColorSet( false )
     , mShowNoColorOption( false )
@@ -57,7 +58,7 @@ QgsColorButtonV2::QgsColorButtonV2( QWidget *parent, QString cdt, QColorDialog::
 
   setAcceptDrops( true );
   setMinimumSize( QSize( 24, 16 ) );
-  connect( this, SIGNAL( clicked() ), this, SLOT( showColorDialog() ) );
+  connect( this, SIGNAL( clicked() ), this, SLOT( buttonClicked() ) );
 
   //setup dropdown menu
   mMenu = new QMenu( this );
@@ -94,17 +95,51 @@ void QgsColorButtonV2::showColorDialog()
 {
   QColor newColor;
   QSettings settings;
-  if ( mAcceptLiveUpdates && settings.value( "/qgis/live_color_dialogs", false ).toBool() )
+
+  //using native color dialogs?
+  bool useNative = settings.value( "/qgis/native_color_dialogs", false ).toBool();
+
+  if ( useNative )
   {
-    newColor = QgsColorDialog::getLiveColor(
-                 color(), this, SLOT( setValidColor( const QColor& ) ),
-                 this->parentWidget(), mColorDialogTitle, mColorDialogOptions );
+    // use native o/s dialogs
+    if ( mAcceptLiveUpdates && settings.value( "/qgis/live_color_dialogs", false ).toBool() )
+    {
+      newColor = QgsColorDialog::getLiveColor(
+                   color(), this, SLOT( setValidColor( const QColor& ) ),
+                   this->parentWidget(), mColorDialogTitle, mAllowAlpha ? QColorDialog::ShowAlphaChannel : ( QColorDialog::ColorDialogOption )0 );
+    }
+    else
+    {
+      newColor = QColorDialog::getColor( color(), this->parentWidget(), mColorDialogTitle, mAllowAlpha ? QColorDialog::ShowAlphaChannel : ( QColorDialog::ColorDialogOption )0 );
+    }
   }
   else
   {
-    newColor = QColorDialog::getColor( color(), this->parentWidget(), mColorDialogTitle, mColorDialogOptions );
+    //use QGIS style color dialogs
+    if ( mAcceptLiveUpdates && settings.value( "/qgis/live_color_dialogs", false ).toBool() )
+    {
+      newColor = QgsColorDialogV2::getLiveColor(
+                   color(), this, SLOT( setValidColor( const QColor& ) ),
+                   this->parentWidget(), mColorDialogTitle, mAllowAlpha );
+    }
+    else
+    {
+      QgsColorDialogV2 dialog( this, 0, color() );
+      dialog.setTitle( mColorDialogTitle );
+      dialog.setAllowAlpha( mAllowAlpha );
+
+      if ( dialog.exec() )
+      {
+        newColor = dialog.color();
+      }
+    }
   }
-  setValidColor( newColor );
+
+  if ( newColor.isValid() )
+  {
+    setValidColor( newColor );
+    addRecentColor( newColor );
+  }
 
   // reactivate button's window
   activateWindow();
@@ -122,7 +157,7 @@ void QgsColorButtonV2::setToDefaultColor()
 
 void QgsColorButtonV2::setToNoColor()
 {
-  if ( mColorDialogOptions & QColorDialog::ShowAlphaChannel )
+  if ( mAllowAlpha )
   {
     setColor( QColor( 0, 0, 0, 0 ) );
   }
@@ -151,7 +186,7 @@ bool QgsColorButtonV2::colorFromMimeData( const QMimeData * mimeData, QColor& re
 
   if ( mimeColor.isValid() )
   {
-    if ( !( mColorDialogOptions & QColorDialog::ShowAlphaChannel ) )
+    if ( !mAllowAlpha )
     {
       //remove alpha channel
       mimeColor.setAlpha( 255 );
@@ -189,9 +224,9 @@ void QgsColorButtonV2::mouseMoveEvent( QMouseEvent *e )
 
   //handle dragging colors from button
 
-  if ( !( e->buttons() & Qt::LeftButton ) )
+  if ( !( e->buttons() & Qt::LeftButton ) || !mColor.isValid() )
   {
-    //left button not depressed, so not a drag
+    //left button not depressed or no color set, so not a drag
     QToolButton::mouseMoveEvent( e );
     return;
   }
@@ -330,6 +365,19 @@ QPixmap QgsColorButtonV2::createMenuIcon( const QColor color, const bool showChe
   return pixmap;
 }
 
+void QgsColorButtonV2::buttonClicked()
+{
+  switch ( mBehaviour )
+  {
+    case ShowDialog:
+      showColorDialog();
+      return;
+    case SignalOnly:
+      emit colorClicked( mColor );
+      return;
+  }
+}
+
 void QgsColorButtonV2::prepareMenu()
 {
   //we need to tear down and rebuild this menu every time it is shown. Otherwise the space allocated to any
@@ -347,7 +395,7 @@ void QgsColorButtonV2::prepareMenu()
     connect( defaultColorAction, SIGNAL( triggered() ), this, SLOT( setToDefaultColor() ) );
   }
 
-  if ( mShowNoColorOption && mColorDialogOptions & QColorDialog::ShowAlphaChannel )
+  if ( mShowNoColorOption && mAllowAlpha )
   {
     QAction* noColorAction = new QAction( mNoColorString, this );
     noColorAction->setIcon( createMenuIcon( Qt::transparent, false ) );
@@ -357,14 +405,16 @@ void QgsColorButtonV2::prepareMenu()
 
   if ( mColorSchemeRegistry )
   {
-    QList< QgsColorScheme* > schemeList = mColorSchemeRegistry->schemes();
+    //get schemes with ShowInColorButtonMenu flag set
+    QList< QgsColorScheme* > schemeList = mColorSchemeRegistry->schemes( QgsColorScheme::ShowInColorButtonMenu );
     QList< QgsColorScheme* >::iterator it = schemeList.begin();
     for ( ; it != schemeList.end(); ++it )
     {
       QgsColorSwatchGridAction* colorAction = new QgsColorSwatchGridAction( *it, mMenu, mContext, this );
       colorAction->setBaseColor( mColor );
       mMenu->addAction( colorAction );
-      connect( colorAction, SIGNAL( colorChanged( QColor ) ), this, SLOT( setValidColor( QColor ) ) );
+      connect( colorAction, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( setValidColor( const QColor& ) ) );
+      connect( colorAction, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( addRecentColor( const QColor& ) ) );
     }
   }
 
@@ -429,13 +479,16 @@ void QgsColorButtonV2::showEvent( QShowEvent* e )
   QToolButton::showEvent( e );
 }
 
+void QgsColorButtonV2::resizeEvent( QResizeEvent *event )
+{
+  QToolButton::resizeEvent( event );
+  //recalculate icon size and redraw icon
+  mIconSize = QSize();
+  setButtonBackground( mColor );
+}
+
 void QgsColorButtonV2::setColor( const QColor &color )
 {
-  if ( !color.isValid() )
-  {
-    return;
-  }
-
   QColor oldColor = mColor;
   mColor = color;
 
@@ -453,19 +506,34 @@ void QgsColorButtonV2::setColor( const QColor &color )
   mColorSet = true;
 }
 
-void QgsColorButtonV2::addRecentColor( const QColor color )
+void QgsColorButtonV2::addRecentColor( const QColor& color )
 {
+  if ( !color.isValid() )
+  {
+    return;
+  }
+
   //strip alpha from color
   QColor opaqueColor = color;
   opaqueColor.setAlpha( 255 );
 
   QSettings settings;
   QList< QVariant > recentColorVariants = settings.value( QString( "/colors/recent" ) ).toList();
-  QVariant colorVariant = QVariant( opaqueColor );
-  recentColorVariants.removeAll( colorVariant );
 
+  //remove colors by name
+  for ( int colorIdx = recentColorVariants.length() - 1; colorIdx >= 0; --colorIdx )
+  {
+    if (( recentColorVariants.at( colorIdx ).value<QColor>() ).name() == opaqueColor.name() )
+    {
+      recentColorVariants.removeAt( colorIdx );
+    }
+  }
+
+  //add color
+  QVariant colorVariant = QVariant( opaqueColor );
   recentColorVariants.prepend( colorVariant );
 
+  //trim to 20 colors
   while ( recentColorVariants.count() > 20 )
   {
     recentColorVariants.pop_back();
@@ -483,46 +551,67 @@ void QgsColorButtonV2::setButtonBackground( const QColor color )
     backgroundColor = mColor;
   }
 
-  bool useAlpha = ( mColorDialogOptions & QColorDialog::ShowAlphaChannel );
-
+  QSize currentIconSize;
   //icon size is button size with a small margin
-  if ( !mIconSize.isValid() )
+  if ( menu() )
   {
-    //calculate size of push button part of widget (ie, without the menu dropdown button part)
-    QStyleOptionToolButton opt;
-    initStyleOption( &opt );
-    QRect buttonSize = QApplication::style()->subControlRect( QStyle::CC_ToolButton, &opt, QStyle::SC_ToolButton,
-                       this );
-    //make sure height of icon looks good under different platforms
+    if ( !mIconSize.isValid() )
+    {
+      //calculate size of push button part of widget (ie, without the menu dropdown button part)
+      QStyleOptionToolButton opt;
+      initStyleOption( &opt );
+      QRect buttonSize = QApplication::style()->subControlRect( QStyle::CC_ToolButton, &opt, QStyle::SC_ToolButton,
+                         this );
+      //make sure height of icon looks good under different platforms
 #ifdef Q_WS_WIN
-    mIconSize = QSize( buttonSize.width() - 10, height() - 14 );
+      mIconSize = QSize( buttonSize.width() - 10, height() - 6 );
 #else
-    mIconSize = QSize( buttonSize.width() - 10, height() - 12 );
+      mIconSize = QSize( buttonSize.width() - 10, height() - 12 );
+#endif
+    }
+    currentIconSize = mIconSize;
+  }
+  else
+  {
+    //no menu
+#ifdef Q_WS_WIN
+    currentIconSize = QSize( width() - 10, height() - 6 );
+#else
+    currentIconSize = QSize( width() - 10, height() - 12 );
 #endif
   }
-  //create an icon pixmap
-  QPixmap pixmap( mIconSize );
-  pixmap.fill( Qt::transparent );
 
-  QRect rect( 0, 0, mIconSize.width(), mIconSize.height() );
-  QPainter p;
-  p.begin( &pixmap );
-  p.setRenderHint( QPainter::Antialiasing );
-  p.setPen( Qt::NoPen );
-  if ( useAlpha && backgroundColor.alpha() < 255 )
+  if ( !currentIconSize.isValid() || currentIconSize.width() <= 0 || currentIconSize.height() <= 0 )
   {
-    //start with checkboard pattern
-    QBrush checkBrush = QBrush( transparentBackground() );
-    p.setBrush( checkBrush );
-    p.drawRoundedRect( rect, 3, 3 );
+    return;
   }
 
-  //draw semi-transparent color on top
-  p.setBrush( backgroundColor );
-  p.drawRoundedRect( rect, 3, 3 );
-  p.end();
+  //create an icon pixmap
+  QPixmap pixmap( currentIconSize );
+  pixmap.fill( Qt::transparent );
 
-  setIconSize( mIconSize );
+  if ( backgroundColor.isValid() )
+  {
+    QRect rect( 0, 0, currentIconSize.width(), currentIconSize.height() );
+    QPainter p;
+    p.begin( &pixmap );
+    p.setRenderHint( QPainter::Antialiasing );
+    p.setPen( Qt::NoPen );
+    if ( mAllowAlpha && backgroundColor.alpha() < 255 )
+    {
+      //start with checkboard pattern
+      QBrush checkBrush = QBrush( transparentBackground() );
+      p.setBrush( checkBrush );
+      p.drawRoundedRect( rect, 3, 3 );
+    }
+
+    //draw semi-transparent color on top
+    p.setBrush( backgroundColor );
+    p.drawRoundedRect( rect, 3, 3 );
+    p.end();
+  }
+
+  setIconSize( currentIconSize );
   setIcon( pixmap );
 }
 
@@ -558,14 +647,9 @@ QColor QgsColorButtonV2::color() const
   return mColor;
 }
 
-void QgsColorButtonV2::setColorDialogOptions( const QColorDialog::ColorDialogOptions cdo )
+void QgsColorButtonV2::setAllowAlpha( const bool allowAlpha )
 {
-  mColorDialogOptions = cdo;
-}
-
-QColorDialog::ColorDialogOptions QgsColorButtonV2::colorDialogOptions() const
-{
-  return mColorDialogOptions;
+  mAllowAlpha = allowAlpha;
 }
 
 void QgsColorButtonV2::setColorDialogTitle( const QString title )
@@ -576,6 +660,20 @@ void QgsColorButtonV2::setColorDialogTitle( const QString title )
 QString QgsColorButtonV2::colorDialogTitle() const
 {
   return mColorDialogTitle;
+}
+
+void QgsColorButtonV2::setShowMenu( const bool showMenu )
+{
+  setMenu( showMenu ? mMenu : 0 );
+  setPopupMode( showMenu ? QToolButton::MenuButtonPopup : QToolButton::DelayedPopup );
+  //force recalculation of icon size
+  mIconSize = QSize();
+  setButtonBackground( mColor );
+}
+
+void QgsColorButtonV2::setBehaviour( const QgsColorButtonV2::Behaviour behaviour )
+{
+  mBehaviour = behaviour;
 }
 
 void QgsColorButtonV2::setDefaultColor( const QColor color )

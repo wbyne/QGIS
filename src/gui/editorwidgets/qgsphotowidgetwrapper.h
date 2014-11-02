@@ -21,6 +21,20 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QWebView>
+
+
+/**
+ * Wraps a photo widget. Will show a picture and a file chooser to change the picture.
+ *
+ * Options:
+ *
+ * <ul>
+ * <li><b>Width</b> <i>The width of the picture widget. If 0 and "Height" &gt; 0 will be determined automatically.</i></li>
+ * <li><b>Height</b> <i>The height of the picture widget. If 0 and "Width" &gt; 0 will be determined automatically.</i></li>
+ * </ul>
+ *
+ */
 
 class GUI_EXPORT QgsPhotoWidgetWrapper : public QgsEditorWidgetWrapper
 {
@@ -47,6 +61,8 @@ class GUI_EXPORT QgsPhotoWidgetWrapper : public QgsEditorWidgetWrapper
   private:
     //! This label is used as a container to display the picture
     QLabel* mPhotoLabel;
+    //! This webview is used as a container to display the picture
+    QWebView* mWebView;
     //! The line edit containing the path to the picture
     QLineEdit* mLineEdit;
     //! The button to open the file chooser dialog

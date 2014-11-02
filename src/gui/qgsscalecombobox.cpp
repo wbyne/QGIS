@@ -115,14 +115,12 @@ void QgsScaleComboBox::showPopup()
 }
 
 //! Function to read the selected scale as text
-// @note added in 2.0
 QString QgsScaleComboBox::scaleString()
 {
   return toString( mScale );
 }
 
 //! Function to set the selected scale from text
-// @note added in 2.0
 bool QgsScaleComboBox::setScaleString( QString scaleTxt )
 {
   bool ok;
@@ -141,14 +139,12 @@ bool QgsScaleComboBox::setScaleString( QString scaleTxt )
 }
 
 //! Function to read the selected scale as double
-// @note added in 2.0
 double QgsScaleComboBox::scale()
 {
   return mScale;
 }
 
 //! Function to set the selected scale from double
-// @note added in 2.0
 void QgsScaleComboBox::setScale( double scale )
 {
   setScaleString( toString( scale ) );
@@ -161,7 +157,7 @@ void QgsScaleComboBox::fixupScale()
   double oldScale = mScale;
   bool ok, userSetScale;
   QStringList txtList = currentText().split( ':' );
-  txtList.size() == 2 ? userSetScale = false : userSetScale = true ;
+  userSetScale = txtList.size() != 2;
 
   // QgsDebugMsg( QString( "entered with oldScale: %1" ).arg( oldScale ) );
   newScale = toDouble( currentText(), &ok );

@@ -37,7 +37,7 @@
 #include "qgsexpressionbuilderdialog.h"
 #include "qgsgenericprojectionselector.h"
 #include "qgsproject.h"
-#include "qgsvisibilitygroups.h"
+#include "qgsvisibilitypresets.h"
 #include <QColorDialog>
 #include <QFontDialog>
 #include <QMessageBox>
@@ -45,6 +45,8 @@
 QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap ): QgsComposerItemBaseWidget( 0, composerMap ), mComposerMap( composerMap )
 {
   setupUi( this );
+
+  mLabel->setText( tr( "Map %1" ).arg( composerMap->id() ) );
 
   //add widget for general composer item properties
   QgsComposerItemWidget* itemPropertiesWidget = new QgsComposerItemWidget( this, composerMap );
@@ -78,7 +80,7 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap ): QgsCo
 
 
   mAnnotationFontColorButton->setColorDialogTitle( tr( "Select font color" ) );
-  mAnnotationFontColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mAnnotationFontColorButton->setAllowAlpha( true );
   mAnnotationFontColorButton->setContext( "composer" );
 
   insertAnnotationPositionEntries( mAnnotationPositionLeftComboBox );
@@ -92,19 +94,19 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap ): QgsCo
   insertAnnotationDirectionEntries( mAnnotationDirectionComboBoxBottom );
 
   mGridFramePenColorButton->setColorDialogTitle( tr( "Select grid frame color" ) );
-  mGridFramePenColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mGridFramePenColorButton->setAllowAlpha( true );
   mGridFramePenColorButton->setContext( "composer" );
   mGridFramePenColorButton->setNoColorString( tr( "Transparent frame" ) );
   mGridFramePenColorButton->setShowNoColor( true );
 
   mGridFrameFill1ColorButton->setColorDialogTitle( tr( "Select grid frame fill color" ) );
-  mGridFrameFill1ColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mGridFrameFill1ColorButton->setAllowAlpha( true );
   mGridFrameFill1ColorButton->setContext( "composer" );
   mGridFrameFill1ColorButton->setNoColorString( tr( "Transparent fill" ) );
   mGridFrameFill1ColorButton->setShowNoColor( true );
 
   mGridFrameFill2ColorButton->setColorDialogTitle( tr( "Select grid frame fill color" ) );
-  mGridFrameFill2ColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mGridFrameFill2ColorButton->setAllowAlpha( true );
   mGridFrameFill2ColorButton->setContext( "composer" );
   mGridFrameFill2ColorButton->setNoColorString( tr( "Transparent fill" ) );
   mGridFrameFill2ColorButton->setShowNoColor( true );
@@ -113,12 +115,11 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap ): QgsCo
   toggleFrameControls( false, false, false );
 
   QMenu* m = new QMenu( this );
-  m->addAction( "No groups" )->setEnabled( false );
-  mLayerListFromGroupButton->setMenu( m );
-  mLayerListFromGroupButton->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
-  mLayerListFromGroupButton->setToolTip( tr( "Set layer list from a visibility group" ) );
+  mLayerListFromPresetButton->setMenu( m );
+  mLayerListFromPresetButton->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
+  mLayerListFromPresetButton->setToolTip( tr( "Set layer list from a visibility preset" ) );
 
-  connect( m, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowVisibilityGroupsMenu() ) );
+  connect( m, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowVisibilityPresetsMenu() ) );
 
   if ( composerMap )
   {
@@ -139,29 +140,26 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap ): QgsCo
   }
 
   //connections for data defined buttons
-  connect( mScaleDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mScaleDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mScaleDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mScaleLineEdit, SLOT( setDisabled( bool ) ) );
+  connect( mScaleDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mScaleDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
-  connect( mMapRotationDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mMapRotationDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mMapRotationDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mMapRotationSpinBox, SLOT( setDisabled( bool ) ) );
+  connect( mMapRotationDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mMapRotationDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
-  connect( mXMinDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mXMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mXMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mXMinLineEdit, SLOT( setDisabled( bool ) ) );
+  connect( mXMinDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mXMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
-  connect( mYMinDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mYMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mYMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mYMinLineEdit, SLOT( setDisabled( bool ) ) );
+  connect( mYMinDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mYMinDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
-  connect( mXMaxDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mXMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mXMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mXMaxLineEdit, SLOT( setDisabled( bool ) ) );
+  connect( mXMaxDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mXMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
-  connect( mYMaxDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mYMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mYMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mYMaxLineEdit, SLOT( setDisabled( bool ) ) );
+  connect( mYMaxDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mYMaxDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
+
+  connect( mAtlasMarginDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mAtlasMarginDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
 
   updateGuiElements();
   loadGridEntries();
@@ -184,6 +182,7 @@ void QgsComposerMapWidget::populateDataDefinedButtons()
   mYMinDDBtn->blockSignals( true );
   mXMaxDDBtn->blockSignals( true );
   mYMaxDDBtn->blockSignals( true );
+  mAtlasMarginDDBtn->blockSignals( true );
 
   //initialise buttons to use atlas coverage layer
   mScaleDDBtn->init( vl, mComposerMap->dataDefinedProperty( QgsComposerObject::MapScale ),
@@ -198,14 +197,8 @@ void QgsComposerMapWidget::populateDataDefinedButtons()
                     QgsDataDefinedButton::AnyType, QgsDataDefinedButton::doubleDesc() );
   mYMaxDDBtn->init( vl, mComposerMap->dataDefinedProperty( QgsComposerObject::MapYMax ),
                     QgsDataDefinedButton::AnyType, QgsDataDefinedButton::doubleDesc() );
-
-  //initial state of controls - disable related controls when dd buttons are active
-  mScaleLineEdit->setEnabled( !mScaleDDBtn->isActive() );
-  mMapRotationSpinBox->setEnabled( !mMapRotationDDBtn->isActive() );
-  mXMinLineEdit->setEnabled( !mXMinDDBtn->isActive() );
-  mYMinLineEdit->setEnabled( !mYMinDDBtn->isActive() );
-  mXMaxLineEdit->setEnabled( !mXMaxDDBtn->isActive() );
-  mYMaxLineEdit->setEnabled( !mYMaxDDBtn->isActive() );
+  mAtlasMarginDDBtn->init( vl, mComposerMap->dataDefinedProperty( QgsComposerObject::MapAtlasMargin ),
+                           QgsDataDefinedButton::AnyType, QgsDataDefinedButton::doubleDesc() );
 
   //unblock signals from data defined buttons
   mScaleDDBtn->blockSignals( false );
@@ -214,6 +207,7 @@ void QgsComposerMapWidget::populateDataDefinedButtons()
   mYMinDDBtn->blockSignals( false );
   mXMaxDDBtn->blockSignals( false );
   mYMaxDDBtn->blockSignals( false );
+  mAtlasMarginDDBtn->blockSignals( false );
 }
 
 QgsComposerObject::DataDefinedProperty QgsComposerMapWidget::ddPropertyForWidget( QgsDataDefinedButton* widget )
@@ -242,6 +236,10 @@ QgsComposerObject::DataDefinedProperty QgsComposerMapWidget::ddPropertyForWidget
   {
     return QgsComposerObject::MapYMax;
   }
+  else if ( widget == mAtlasMarginDDBtn )
+  {
+    return QgsComposerObject::MapAtlasMargin;
+  }
 
   return QgsComposerObject::NoProperty;
 }
@@ -259,29 +257,34 @@ void QgsComposerMapWidget::compositionAtlasToggled( bool atlasEnabled )
   }
 }
 
-void QgsComposerMapWidget::aboutToShowVisibilityGroupsMenu()
+void QgsComposerMapWidget::aboutToShowVisibilityPresetsMenu()
 {
   QMenu* menu = qobject_cast<QMenu*>( sender() );
   if ( !menu )
     return;
 
+  QgsVisibilityPresets::PresetRecord rec = QgsVisibilityPresets::instance()->currentStateFromLayerList( mComposerMap->layerSet() );
+
   menu->clear();
-  foreach ( QString groupName, QgsVisibilityGroups::instance()->groups() )
+  foreach ( QString presetName, QgsVisibilityPresets::instance()->presets() )
   {
-    menu->addAction( groupName, this, SLOT( visibilityGroupSelected() ) );
+    QAction* a = menu->addAction( presetName, this, SLOT( visibilityPresetSelected() ) );
+    a->setCheckable( true );
+    if ( rec == QgsVisibilityPresets::instance()->presetState( presetName ) )
+      a->setChecked( true );
   }
 
   if ( menu->actions().isEmpty() )
-    menu->addAction( tr( "No groups defined" ) )->setEnabled( false );
+    menu->addAction( tr( "No presets defined" ) )->setEnabled( false );
 }
 
-void QgsComposerMapWidget::visibilityGroupSelected()
+void QgsComposerMapWidget::visibilityPresetSelected()
 {
   QAction* action = qobject_cast<QAction*>( sender() );
   if ( !action )
     return;
 
-  QStringList lst = QgsVisibilityGroups::instance()->groupVisibleLayers( action->text() );
+  QStringList lst = QgsVisibilityPresets::instance()->presetVisibleLayers( action->text() );
   if ( mComposerMap )
   {
     mKeepLayerListCheckBox->setChecked( true );
@@ -289,7 +292,7 @@ void QgsComposerMapWidget::visibilityGroupSelected()
 
     // also apply legend node check states
     foreach ( QString layerID, lst )
-      QgsVisibilityGroups::instance()->applyGroupCheckedLegendNodesToLayer( action->text(), layerID );
+      QgsVisibilityPresets::instance()->applyPresetCheckedLegendNodesToLayer( action->text(), layerID );
 
     mComposerMap->cache();
     mComposerMap->update();
@@ -350,13 +353,19 @@ void QgsComposerMapWidget::updateMapForAtlas()
     return;
   }
 
-  //update atlas based extent for map
-  QgsAtlasComposition* atlas = &composition->atlasComposition();
-  atlas->prepareMap( mComposerMap );
-
-  //redraw map
-  mComposerMap->cache();
-  mComposerMap->update();
+  if ( mComposerMap->atlasDriven() )
+  {
+    //update atlas based extent for map
+    QgsAtlasComposition* atlas = &composition->atlasComposition();
+    //prepareMap causes a redraw
+    atlas->prepareMap( mComposerMap );
+  }
+  else
+  {
+    //redraw map
+    mComposerMap->cache();
+    mComposerMap->update();
+  }
 }
 
 void QgsComposerMapWidget::on_mAtlasMarginRadio_toggled( bool checked )
@@ -636,7 +645,7 @@ void QgsComposerMapWidget::updateGuiElements()
 
   //atlas controls
   mAtlasCheckBox->setChecked( mComposerMap->atlasDriven() );
-  mAtlasMarginSpinBox->setValue( static_cast<int>( mComposerMap->atlasMargin() * 100 ) );
+  mAtlasMarginSpinBox->setValue( static_cast<int>( mComposerMap->atlasMargin( QgsComposerObject::OriginalValue ) * 100 ) );
 
   mAtlasFixedScaleRadio->setEnabled( mComposerMap->atlasDriven() );
   mAtlasFixedScaleRadio->setChecked( mComposerMap->atlasScalingMode() == QgsComposerMap::Fixed );
@@ -2061,10 +2070,10 @@ void QgsComposerMapWidget::on_mAddOverviewPushButton_clicked()
     return;
   }
 
-  QString itemName = tr( "Overview %1" ).arg( mComposerMap->overviewCount() + 1 );
+  QString itemName = tr( "Overview %1" ).arg( mComposerMap->overviews()->size() + 1 );
   QgsComposerMapOverview* overview = new QgsComposerMapOverview( itemName, mComposerMap );
   mComposerMap->beginCommand( tr( "Add map overview" ) );
-  mComposerMap->addOverview( overview );
+  mComposerMap->overviews()->addOverview( overview );
   mComposerMap->endCommand();
   mComposerMap->update();
 
@@ -2080,7 +2089,7 @@ void QgsComposerMapWidget::on_mRemoveOverviewPushButton_clicked()
     return;
   }
 
-  mComposerMap->removeOverview( item->text() );
+  mComposerMap->overviews()->removeOverview( item->data( Qt::UserRole ).toString() );
   QListWidgetItem* delItem = mOverviewListWidget->takeItem( mOverviewListWidget->row( item ) );
   delete delItem;
   mComposerMap->update();
@@ -2102,7 +2111,8 @@ void QgsComposerMapWidget::on_mOverviewUpButton_clicked()
   mOverviewListWidget->takeItem( row );
   mOverviewListWidget->insertItem( row - 1, item );
   mOverviewListWidget->setCurrentItem( item );
-  mComposerMap->moveOverviewUp( item->text() );
+  mComposerMap->overviews()->moveOverviewUp( item->data( Qt::UserRole ).toString() );
+  mComposerMap->update();
 }
 
 void QgsComposerMapWidget::on_mOverviewDownButton_clicked()
@@ -2121,7 +2131,8 @@ void QgsComposerMapWidget::on_mOverviewDownButton_clicked()
   mOverviewListWidget->takeItem( row );
   mOverviewListWidget->insertItem( row + 1, item );
   mOverviewListWidget->setCurrentItem( item );
-  mComposerMap->moveOverviewDown( item->text() );
+  mComposerMap->overviews()->moveOverviewDown( item->data( Qt::UserRole ).toString() );
+  mComposerMap->update();
 }
 
 QgsComposerMapOverview* QgsComposerMapWidget::currentOverview()
@@ -2137,7 +2148,7 @@ QgsComposerMapOverview* QgsComposerMapWidget::currentOverview()
     return 0;
   }
 
-  return mComposerMap->mapOverview( item->data( Qt::UserRole ).toString() );
+  return mComposerMap->overviews()->overview( item->data( Qt::UserRole ).toString() );
 }
 
 void QgsComposerMapWidget::on_mOverviewListWidget_currentItemChanged( QListWidgetItem* current, QListWidgetItem* previous )
@@ -2150,7 +2161,7 @@ void QgsComposerMapWidget::on_mOverviewListWidget_currentItemChanged( QListWidge
   }
 
   mOverviewCheckBox->setEnabled( true );
-  setOverviewItems( mComposerMap->constMapOverview( current->data( Qt::UserRole ).toString() ) );
+  setOverviewItems( mComposerMap->overviews()->constOverview( current->data( Qt::UserRole ).toString() ) );
 }
 
 void QgsComposerMapWidget::on_mOverviewListWidget_itemChanged( QListWidgetItem* item )
@@ -2160,7 +2171,7 @@ void QgsComposerMapWidget::on_mOverviewListWidget_itemChanged( QListWidgetItem* 
     return;
   }
 
-  QgsComposerMapOverview* overview = mComposerMap->mapOverview( item->data( Qt::UserRole ).toString() );
+  QgsComposerMapOverview* overview = mComposerMap->overviews()->overview( item->data( Qt::UserRole ).toString() );
   if ( !overview )
   {
     return;
@@ -2262,7 +2273,7 @@ void QgsComposerMapWidget::loadOverviewEntries()
   }
 
   //load all composer overviews into list widget
-  QList< QgsComposerMapOverview* > overviews = mComposerMap->mapOverviews();
+  QList< QgsComposerMapOverview* > overviews = mComposerMap->overviews()->asList();
   QList< QgsComposerMapOverview* >::const_iterator overviewIt = overviews.constBegin();
   for ( ; overviewIt != overviews.constEnd(); ++overviewIt )
   {

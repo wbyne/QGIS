@@ -89,12 +89,18 @@ void QgsComposerMouseHandles::paint( QPainter* painter, const QStyleOptionGraphi
     return;
   }
 
-  //draw resize handles around bounds of entire selection
-  double rectHandlerSize = rectHandlerBorderTolerance();
-  drawHandles( painter, rectHandlerSize );
+  if ( mComposition->boundingBoxesVisible() )
+  {
+    //draw resize handles around bounds of entire selection
+    double rectHandlerSize = rectHandlerBorderTolerance();
+    drawHandles( painter, rectHandlerSize );
+  }
 
-  //draw dotted boxes around selected items
-  drawSelectedItemBounds( painter );
+  if ( mIsResizing || mIsDragging || mComposition->boundingBoxesVisible() )
+  {
+    //draw dotted boxes around selected items
+    drawSelectedItemBounds( painter );
+  }
 }
 
 void QgsComposerMouseHandles::drawHandles( QPainter* painter, double rectHandlerSize )
@@ -205,15 +211,15 @@ void QgsComposerMouseHandles::selectionChanged()
       {
         QObject::connect( item, SIGNAL( sizeChanged() ), this, SLOT( selectedItemSizeChanged() ) );
         QObject::connect( item, SIGNAL( itemRotationChanged( double ) ), this, SLOT( selectedItemRotationChanged() ) );
-        QObject::connect( item, SIGNAL( frameChanged( ) ), this, SLOT( selectedItemSizeChanged() ) );
-        QObject::connect( item, SIGNAL( lockChanged( ) ), this, SLOT( selectedItemSizeChanged() ) );
+        QObject::connect( item, SIGNAL( frameChanged() ), this, SLOT( selectedItemSizeChanged() ) );
+        QObject::connect( item, SIGNAL( lockChanged() ), this, SLOT( selectedItemSizeChanged() ) );
       }
       else
       {
         QObject::disconnect( item, SIGNAL( sizeChanged() ), this, 0 );
         QObject::disconnect( item, SIGNAL( itemRotationChanged( double ) ), this, 0 );
-        QObject::disconnect( item, SIGNAL( frameChanged( ) ), this, 0 );
-        QObject::disconnect( item, SIGNAL( lockChanged( ) ), this, 0 );
+        QObject::disconnect( item, SIGNAL( frameChanged() ), this, 0 );
+        QObject::disconnect( item, SIGNAL( lockChanged() ), this, 0 );
       }
     }
   }
@@ -589,6 +595,7 @@ void QgsComposerMouseHandles::mouseReleaseEvent( QGraphicsSceneMouseEvent* event
   {
     mIsDragging = false;
     mIsResizing = false;
+    update();
     return;
   }
 
@@ -1038,19 +1045,19 @@ void QgsComposerMouseHandles::resizeMouseMove( const QPointF& currentPosition, b
   //handle non-normalised resizes - eg, dragging the left handle so far to the right that it's past the right handle
   if ( mBeginHandleWidth + rx >= 0 && mBeginHandleHeight + ry >= 0 )
   {
-    mResizeRect = QRectF( 0, 0,  mBeginHandleWidth + rx, mBeginHandleHeight + ry );
+    mResizeRect = QRectF( 0, 0, mBeginHandleWidth + rx, mBeginHandleHeight + ry );
   }
   else if ( mBeginHandleHeight + ry >= 0 )
   {
-    mResizeRect = QRectF( QPointF( -( mBeginHandleWidth + rx ), 0 ),  QPointF( 0, mBeginHandleHeight + ry ) );
+    mResizeRect = QRectF( QPointF( -( mBeginHandleWidth + rx ), 0 ), QPointF( 0, mBeginHandleHeight + ry ) );
   }
   else if ( mBeginHandleWidth + rx >= 0 )
   {
-    mResizeRect = QRectF( QPointF( 0, -( mBeginHandleHeight + ry ) ),  QPointF( mBeginHandleWidth + rx, 0 ) );
+    mResizeRect = QRectF( QPointF( 0, -( mBeginHandleHeight + ry ) ), QPointF( mBeginHandleWidth + rx, 0 ) );
   }
   else
   {
-    mResizeRect = QRectF( QPointF( -( mBeginHandleWidth + rx ), -( mBeginHandleHeight + ry ) ),  QPointF( 0, 0 ) );
+    mResizeRect = QRectF( QPointF( -( mBeginHandleWidth + rx ), -( mBeginHandleHeight + ry ) ), QPointF( 0, 0 ) );
   }
 
   setRect( 0, 0, fabs( mBeginHandleWidth + rx ), fabs( mBeginHandleHeight + ry ) );
@@ -1099,7 +1106,7 @@ QPointF QgsComposerMouseHandles::snapPoint( const QPointF& point, QgsComposerMou
     {
       yLineCoord = mComposition->paperHeight() * numPages + mComposition->spaceBetweenPages() * ( numPages - 1 );
     }
-    item->setLine( QLineF( alignX, 0, alignX,  yLineCoord ) );
+    item->setLine( QLineF( alignX, 0, alignX, yLineCoord ) );
     item->show();
   }
   else
@@ -1264,7 +1271,8 @@ void QgsComposerMouseHandles::collectAlignCoordinates( QMap< double, const QgsCo
       const QgsComposerItem* currentItem = dynamic_cast<const QgsComposerItem *>( *itemIt );
       //don't snap to selected items, since they're the ones that will be snapping to something else
       //also ignore group members - only snap to bounds of group itself
-      if ( !currentItem || currentItem->selected() || currentItem->isGroupMember() )
+      //also ignore hidden items
+      if ( !currentItem || currentItem->selected() || currentItem->isGroupMember() || !currentItem->isVisible() )
       {
         continue;
       }

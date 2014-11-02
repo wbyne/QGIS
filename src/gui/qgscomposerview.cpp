@@ -39,7 +39,7 @@
 #include "qgscomposerruler.h"
 #include "qgscomposerscalebar.h"
 #include "qgscomposershape.h"
-#include "qgscomposerattributetable.h"
+#include "qgscomposerattributetablev2.h"
 #include "qgslogger.h"
 #include "qgsaddremovemultiframecommand.h"
 #include "qgspaperitem.h"
@@ -113,6 +113,7 @@ void QgsComposerView::setCurrentTool( QgsComposerView::Tool t )
     case QgsComposerView::AddEllipse:
     case QgsComposerView::AddTriangle:
     case QgsComposerView::AddTable:
+    case QgsComposerView::AddAttributeTable:
     {
       //using a drawing tool
       //lock cursor to prevent composer items changing it
@@ -303,13 +304,13 @@ void QgsComposerView::mousePressEvent( QMouseEvent* e )
         return;
       }
 
-      //find highest QgsComposerItem at clicked position
+      //find highest non-locked QgsComposerItem at clicked position
       //(other graphics items may be higher, eg selection handles)
       QList<QGraphicsItem*>::iterator itemIter = itemsAtCursorPos.begin();
       for ( ; itemIter != itemsAtCursorPos.end(); ++itemIter )
       {
         QgsComposerItem* item = dynamic_cast<QgsComposerItem *>(( *itemIter ) );
-        if ( item )
+        if ( item && !item->positionLock() )
         {
           //we've found the highest QgsComposerItem
           mMoveContentStartPos = scenePoint;
@@ -345,6 +346,7 @@ void QgsComposerView::mousePressEvent( QMouseEvent* e )
     case AddLabel:
     case AddLegend:
     case AddTable:
+    case AddAttributeTable:
     {
       QTransform t;
       mRubberBandItem = new QGraphicsRectItem( 0, 0, 0, 0 );
@@ -416,6 +418,7 @@ QCursor QgsComposerView::defaultCursorForTool( Tool currentTool )
     case AddLegend:
     case AddPicture:
     case AddTable:
+    case AddAttributeTable:
     {
       QPixmap myCrosshairQPixmap = QPixmap(( const char ** )( cross_hair_cursor ) );
       return QCursor( myCrosshairQPixmap, 8, 8 );
@@ -842,6 +845,11 @@ void QgsComposerView::mouseReleaseEvent( QMouseEvent* e )
       else
       {
         QgsComposerLegend* newLegend = new QgsComposerLegend( composition() );
+        QList<const QgsComposerMap*> mapItemList = composition()->composerMapItems();
+        if ( mapItemList.size() > 0 )
+        {
+          newLegend->setComposerMap( mapItemList.at( 0 ) );
+        }
         newLegend->setSceneRect( QRectF( mRubberBandItem->transform().dx(), mRubberBandItem->transform().dy(), mRubberBandItem->rect().width(), mRubberBandItem->rect().height() ) );
         composition()->addComposerLegend( newLegend );
         newLegend->updateLegend();
@@ -865,12 +873,13 @@ void QgsComposerView::mouseReleaseEvent( QMouseEvent* e )
       else
       {
         QgsComposerAttributeTable* newTable = new QgsComposerAttributeTable( composition() );
-        newTable->setSceneRect( QRectF( mRubberBandItem->transform().dx(), mRubberBandItem->transform().dy(), mRubberBandItem->rect().width(), qMax( mRubberBandItem->rect().height(), (qreal)15.0 ) ) );
         QList<const QgsComposerMap*> mapItemList = composition()->composerMapItems();
         if ( mapItemList.size() > 0 )
         {
           newTable->setComposerMap( mapItemList.at( 0 ) );
         }
+        newTable->setSceneRect( QRectF( mRubberBandItem->transform().dx(), mRubberBandItem->transform().dy(), mRubberBandItem->rect().width(), mRubberBandItem->rect().height() ) );
+
         composition()->addComposerTable( newTable );
 
         composition()->setAllUnselected();
@@ -880,6 +889,39 @@ void QgsComposerView::mouseReleaseEvent( QMouseEvent* e )
         removeRubberBand();
         emit actionFinished();
         composition()->pushAddRemoveCommand( newTable, tr( "Table added" ) );
+      }
+      break;
+
+    case AddAttributeTable:
+      if ( !composition() || !mRubberBandItem )
+      {
+        removeRubberBand();
+        return;
+      }
+      else
+      {
+        QgsComposerAttributeTableV2* newTable = new QgsComposerAttributeTableV2( composition(), true );
+        QList<const QgsComposerMap*> mapItemList = composition()->composerMapItems();
+        if ( mapItemList.size() > 0 )
+        {
+          newTable->setComposerMap( mapItemList.at( 0 ) );
+        }
+        QgsAddRemoveMultiFrameCommand* command = new QgsAddRemoveMultiFrameCommand( QgsAddRemoveMultiFrameCommand::Added,
+            newTable, composition(), tr( "Attribute table added" ) );
+        composition()->undoStack()->push( command );
+        QgsComposerFrame* frame = new QgsComposerFrame( composition(), newTable, mRubberBandItem->transform().dx(),
+            mRubberBandItem->transform().dy(), mRubberBandItem->rect().width(),
+            mRubberBandItem->rect().height() );
+        composition()->beginMultiFrameCommand( newTable, tr( "Attribute table frame added" ) );
+        newTable->addFrame( frame );
+        composition()->endMultiFrameCommand();
+
+        composition()->setAllUnselected();
+        frame->setSelected( true );
+        emit selectedItemChanged( frame );
+
+        removeRubberBand();
+        emit actionFinished();
       }
       break;
 
@@ -994,6 +1036,7 @@ void QgsComposerView::mouseMoveEvent( QMouseEvent* e )
       case AddLabel:
       case AddLegend:
       case AddTable:
+      case AddAttributeTable:
         //adjust rubber band item
       {
         updateRubberBandRect( scenePoint, shiftModifier, altModifier );
@@ -1520,9 +1563,26 @@ void QgsComposerView::wheelEvent( QWheelEvent* event )
     {
       if ( theItem->isSelected() )
       {
+        QSettings settings;
+        //read zoom mode
+        QgsComposerItem::ZoomMode zoomMode = ( QgsComposerItem::ZoomMode )settings.value( "/qgis/wheel_action", 2 ).toInt();
+        if ( zoomMode == QgsComposerItem::NoZoom )
+        {
+          //do nothing
+          return;
+        }
+
+        double zoomFactor = settings.value( "/qgis/zoom_factor", 2.0 ).toDouble();
+        if ( event->modifiers() & Qt::ControlModifier )
+        {
+          //holding ctrl while wheel zooming results in a finer zoom
+          zoomFactor = 1.0 + ( zoomFactor - 1.0 ) / 20.0;
+        }
+        zoomFactor = event->delta() > 0 ? zoomFactor : 1 / zoomFactor;
+
         QPointF itemPoint = theItem->mapFromScene( scenePoint );
-        theItem->beginCommand( tr( "Zoom item content" ) );
-        theItem->zoomContent( event->delta(), itemPoint.x(), itemPoint.y() );
+        theItem->beginCommand( tr( "Zoom item content" ), QgsComposerMergeCommand::ItemZoomContent );
+        theItem->zoomContent( zoomFactor, itemPoint, zoomMode );
         theItem->endCommand();
       }
     }
@@ -1621,7 +1681,7 @@ void QgsComposerView::setZoomLevel( double zoomLevel )
 
   //desired pixel width for 1mm on screen
   double scale = zoomLevel * dpi / 25.4;
-  setTransform( QTransform::fromScale( scale , scale ) );
+  setTransform( QTransform::fromScale( scale, scale ) );
 
   updateRulers();
   update();
@@ -1722,20 +1782,16 @@ void QgsComposerView::groupItems()
     return;
   }
 
+  //group selected items
   QList<QgsComposerItem*> selectionList = composition()->selectedComposerItems();
-  if ( selectionList.size() < 2 )
-  {
-    return; //not enough items for a group
-  }
-  QgsComposerItemGroup* itemGroup = new QgsComposerItemGroup( composition() );
+  QgsComposerItemGroup* itemGroup = composition()->groupItems( selectionList );
 
-  QList<QgsComposerItem*>::iterator itemIter = selectionList.begin();
-  for ( ; itemIter != selectionList.end(); ++itemIter )
+  if ( !itemGroup )
   {
-    itemGroup->addItem( *itemIter );
+    //group could not be created
+    return;
   }
 
-  composition()->addItem( itemGroup );
   itemGroup->setSelected( true );
   emit selectedItemChanged( itemGroup );
 }
@@ -1747,6 +1803,7 @@ void QgsComposerView::ungroupItems()
     return;
   }
 
+  //hunt through selection for any groups, and ungroup them
   QList<QgsComposerItem*> selectionList = composition()->selectedComposerItems();
   QList<QgsComposerItem*>::iterator itemIter = selectionList.begin();
   for ( ; itemIter != selectionList.end(); ++itemIter )
@@ -1754,11 +1811,7 @@ void QgsComposerView::ungroupItems()
     QgsComposerItemGroup* itemGroup = dynamic_cast<QgsComposerItemGroup *>( *itemIter );
     if ( itemGroup )
     {
-      itemGroup->removeItems();
-      composition()->removeComposerItem( *itemIter, false, false );
-
-      delete( *itemIter );
-      emit itemRemoved( *itemIter );
+      composition()->ungroupItems( itemGroup );
     }
   }
 }

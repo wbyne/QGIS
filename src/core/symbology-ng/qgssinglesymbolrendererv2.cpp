@@ -69,6 +69,12 @@ QgsSymbolV2* QgsSingleSymbolRendererV2::symbolForFeature( QgsFeature& feature )
   return mTempSymbol.data();
 }
 
+QgsSymbolV2* QgsSingleSymbolRendererV2::originalSymbolForFeature( QgsFeature& feature )
+{
+  Q_UNUSED( feature );
+  return mSymbol.data();
+}
+
 void QgsSingleSymbolRendererV2::startRender( QgsRenderContext& context, const QgsFields& fields )
 {
   if ( !mSymbol.data() ) return;
@@ -166,7 +172,7 @@ void QgsSingleSymbolRendererV2::setScaleMethod( QgsSymbolV2::ScaleMethod scaleMe
 
 QString QgsSingleSymbolRendererV2::dump() const
 {
-  return mSymbol.data() ? QString( "SINGLE: %1" ).arg( mSymbol->dump() ) : "" ;
+  return mSymbol.data() ? QString( "SINGLE: %1" ).arg( mSymbol->dump() ) : "";
 }
 
 QgsFeatureRendererV2* QgsSingleSymbolRendererV2::clone() const
@@ -392,6 +398,12 @@ QgsSingleSymbolRendererV2* QgsSingleSymbolRendererV2::convertFromRenderer( const
     const QgsInvertedPolygonRenderer* invertedPolygonRenderer = dynamic_cast<const QgsInvertedPolygonRenderer*>( renderer );
     return convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
 
+  }
+
+  QgsSymbolV2List symbols = const_cast<QgsFeatureRendererV2 *>( renderer )->symbols();
+  if ( symbols.size() > 0 )
+  {
+    return new QgsSingleSymbolRendererV2( symbols.at( 0 )->clone() );
   }
   return 0;
 }

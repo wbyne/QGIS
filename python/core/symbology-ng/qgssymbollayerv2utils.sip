@@ -68,7 +68,8 @@ class QgsSymbolLayerV2Utils
 
     static void drawStippledBackround( QPainter* painter, QRect rect );
 
-    static QPixmap symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size );
+    //! @note customContext parameter added in 2.6
+    static QPixmap symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size, QgsRenderContext* customContext = 0 );
     static QPixmap colorRampPreviewPixmap( QgsVectorColorRampV2* ramp, QSize size );
 
     /**Returns the maximum estimated bleed for the symbol */
@@ -123,17 +124,17 @@ class QgsSymbolLayerV2Utils
     /** @deprecated Use wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element, QString name, QColor color, QColor borderColor, Qt::PenStyle borderStyle, double borderWidth, double size ) instead */
     static void wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element,
         QString name, QColor color, QColor borderColor = QColor(),
-        double borderWidth = -1, double size = -1 ) /Deprecated/ ;
+        double borderWidth = -1, double size = -1 ) /Deprecated/;
     static void wellKnownMarkerToSld( QDomDocument &doc, QDomElement &element,
                                       QString name, QColor color, QColor borderColor, Qt::PenStyle borderStyle,
                                       double borderWidth = -1, double size = -1 );
     /** @deprecated Use wellKnownMarkerFromSld( QDomElement &element, QString &name, QColor &color, QColor &borderColor, Qt::PenStyle &borderStyle, double &borderWidth, double &size ) instead */
     static bool wellKnownMarkerFromSld( QDomElement &element,
         QString &name, QColor &color, QColor &borderColor,
-        double &borderWidth, double &size ) /Deprecated/ ;
+        double &borderWidth, double &size ) /Deprecated/;
     static bool wellKnownMarkerFromSld( QDomElement &element,
                                         QString &name, QColor &color, QColor &borderColor, Qt::PenStyle &borderStyle,
-                                        double &borderWidth, double &size ) /PyName=wellKnownMarkerFromSld2/ ;
+                                        double &borderWidth, double &size ) /PyName=wellKnownMarkerFromSld2/;
 
     static void externalMarkerToSld( QDomDocument &doc, QDomElement &element,
                                      QString path, QString format, int *markIndex = 0,
@@ -259,10 +260,11 @@ class QgsSymbolLayerV2Utils
      * Imports colors from a gpl GIMP palette file
      * @param file source gpl file
      * @param ok will be true if file was successfully read
+     * @param name will be set to palette name from gpl file, if present
      * @returns list of imported colors
      * @see saveColorsToGpl
     */
-    static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok );
+    static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok, QString& name );
 
     /**
      * Attempts to parse a string as a color using a variety of common formats, including hex

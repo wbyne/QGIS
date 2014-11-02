@@ -15,7 +15,7 @@
 #include "qgsrendererv2widget.h"
 #include "qgssymbolv2.h"
 #include "qgsvectorlayer.h"
-#include <QColorDialog>
+#include "qgscolordialog.h"
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QMenu>
@@ -35,7 +35,7 @@ QgsRendererV2Widget::QgsRendererV2Widget( QgsVectorLayer* layer, QgsStyleV2* sty
   mPasteAction->setShortcut( QKeySequence( QKeySequence::Paste ) );
 
   contextMenu->addSeparator();
-  contextMenu->addAction( tr( "Change color" ), this, SLOT( changeSymbolColor( ) ) );
+  contextMenu->addAction( tr( "Change color" ), this, SLOT( changeSymbolColor() ) );
   contextMenu->addAction( tr( "Change transparency" ), this, SLOT( changeSymbolTransparency() ) );
   contextMenu->addAction( tr( "Change output unit" ), this, SLOT( changeSymbolUnit() ) );
 
@@ -62,7 +62,7 @@ void QgsRendererV2Widget::changeSymbolColor()
     return;
   }
 
-  QColor color = QColorDialog::getColor( symbolList.at( 0 )->color(), this, "Change Symbol Color", QColorDialog::ShowAlphaChannel );
+  QColor color = QgsColorDialogV2::getColor( symbolList.at( 0 )->color(), this, "Change Symbol Color", true );
   if ( color.isValid() )
   {
     QList<QgsSymbolV2*>::iterator symbolIt = symbolList.begin();
@@ -196,7 +196,7 @@ QgsRendererV2DataDefinedMenus::QgsRendererV2DataDefinedMenus( QMenu* menu, QgsVe
 
   mSizeScaleMenu->addSeparator();
 
-  QAction* aScaleByArea = new QAction( tr( "Scale area" ), mSizeMethodActionGroup ) ;
+  QAction* aScaleByArea = new QAction( tr( "Scale area" ), mSizeMethodActionGroup );
   QAction* aScaleByDiameter = new QAction( tr( "Scale diameter" ), mSizeMethodActionGroup );
 
   aScaleByArea->setCheckable( true );

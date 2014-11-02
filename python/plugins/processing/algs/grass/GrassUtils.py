@@ -270,7 +270,7 @@ class GrassUtils:
             command,
             shell=True,
             stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE,
+            stdin=open(os.devnull),
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             ).stdout
@@ -299,7 +299,7 @@ class GrassUtils:
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE,
+                stdin=open(os.devnull),
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 ).stdout
@@ -385,6 +385,6 @@ class GrassUtils:
                     running GRASS algorithms.'
         except:
             return 'Error while checking GRASS installation. GRASS might not \
-                be correctly configured.\n' + s
+                be correctly configured.\n'
 
         GrassUtils.isGrassInstalled = True

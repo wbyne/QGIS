@@ -45,14 +45,17 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>-101</y>
+        <y>-157</y>
         <width>391</width>
-        <height>461</height>
+        <height>517</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="mainLayout">
        <item>
         <widget class="QgsCollapsibleGroupBoxBasic" name="groupBox">
+         <property name="focusPolicy">
+          <enum>Qt::StrongFocus</enum>
+         </property>
          <property name="title">
           <string>HTML Source</string>
          </property>
@@ -130,6 +133,9 @@
        </item>
        <item>
         <widget class="QgsCollapsibleGroupBoxBasic" name="frameGroupBox">
+         <property name="focusPolicy">
+          <enum>Qt::StrongFocus</enum>
+         </property>
          <property name="title">
           <string>Frames</string>
          </property>
@@ -146,16 +152,6 @@
           <string notr="true">composeritem</string>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="0">
-           <widget class="QLabel" name="mResizeModeLabel">
-            <property name="text">
-             <string>Resize mode</string>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="1">
            <widget class="QComboBox" name="mResizeModeComboBox">
             <property name="sizePolicy">
@@ -166,10 +162,34 @@
             </property>
            </widget>
           </item>
+          <item row="2" column="0" colspan="2">
+           <widget class="QCheckBox" name="mEmptyFrameCheckBox">
+            <property name="text">
+             <string>Don't export page if frame is empty</string>
+            </property>
+           </widget>
+          </item>
           <item row="1" column="0" colspan="2">
            <widget class="QPushButton" name="mAddFramePushButton">
             <property name="text">
              <string>Add Frame</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="mResizeModeLabel">
+            <property name="text">
+             <string>Resize mode</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="2">
+           <widget class="QCheckBox" name="mHideEmptyBgCheckBox">
+            <property name="text">
+             <string>Don't draw background if frame is empty</string>
             </property>
            </widget>
           </item>
@@ -193,7 +213,7 @@
          <property name="syncGroup" stdset="0">
           <string notr="true">composeritem</string>
          </property>
-         <layout class="QFormLayout" name="formLayout">
+         <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,1">
           <item row="0" column="0">
            <widget class="QLabel" name="mLabelMaxDistance">
             <property name="text">
@@ -261,7 +281,7 @@
   <customwidget>
    <class>QgsCollapsibleGroupBoxBasic</class>
    <extends>QGroupBox</extends>
-   <header>qgscollapsiblegroupbox.h</header>
+   <header location="global">qgscollapsiblegroupbox.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -270,6 +290,27 @@
    <header>qgsdatadefinedbutton.h</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>scrollArea</tabstop>
+  <tabstop>groupBox</tabstop>
+  <tabstop>mRadioUrlSource</tabstop>
+  <tabstop>mUrlLineEdit</tabstop>
+  <tabstop>mFileToolButton</tabstop>
+  <tabstop>mUrlDDBtn</tabstop>
+  <tabstop>mRadioManualSource</tabstop>
+  <tabstop>mInsertExpressionButton</tabstop>
+  <tabstop>mEvaluateExpressionsCheckbox</tabstop>
+  <tabstop>mReloadPushButton</tabstop>
+  <tabstop>frameGroupBox</tabstop>
+  <tabstop>mResizeModeComboBox</tabstop>
+  <tabstop>mAddFramePushButton</tabstop>
+  <tabstop>mEmptyFrameCheckBox</tabstop>
+  <tabstop>mHideEmptyBgCheckBox</tabstop>
+  <tabstop>mUseSmartBreaksCheckBox</tabstop>
+  <tabstop>mMaxDistanceSpinBox</tabstop>
+  <tabstop>mUserStylesheetCheckBox</tabstop>
+  <tabstop>mReloadPushButton2</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

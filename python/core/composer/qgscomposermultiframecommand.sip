@@ -4,7 +4,7 @@ class QgsComposerMultiFrameCommand : QUndoCommand
 #include <qgscomposermultiframecommand.h>
 %End
   public:
-    QgsComposerMultiFrameCommand( QgsComposerMultiFrame* multiFrame, const QString& text, QUndoCommand* parent = 0 );
+    QgsComposerMultiFrameCommand( QgsComposerMultiFrame* multiFrame, const QString& text, QUndoCommand* parent /TransferThis/ = 0 );
     ~QgsComposerMultiFrameCommand();
 
     void undo();
@@ -45,7 +45,11 @@ class QgsComposerMultiFrameMergeCommand: QgsComposerMultiFrameCommand
       //composer html
       HtmlSource,
       HtmlStylesheet,
-      HtmlBreakDistance
+      HtmlBreakDistance,
+      //attribute table
+      TableMaximumFeatures,
+      TableMargin,
+      TableGridStrokeWidth
     };
 
     QgsComposerMultiFrameMergeCommand( Context c, QgsComposerMultiFrame* multiFrame, const QString& text );

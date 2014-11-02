@@ -64,7 +64,6 @@ class CORE_EXPORT QgsSymbolV2
       ScaleDiameter
     };
 
-    //! @note added in 1.5
     enum RenderHint
     {
       DataDefinedSizeScale = 1,
@@ -110,6 +109,8 @@ class CORE_EXPORT QgsSymbolV2
     //! @note customContext parameter added in 2.6
     void drawPreviewIcon( QPainter* painter, QSize size, QgsRenderContext* customContext = 0 );
 
+    QImage asImage( QSize size, QgsRenderContext* customContext = 0 );
+
     QImage bigSymbolPreviewImage();
 
     QString dump() const;
@@ -129,9 +130,7 @@ class CORE_EXPORT QgsSymbolV2
     //! Set alpha transparency 1 for opaque, 0 for invisible
     void setAlpha( qreal alpha ) { mAlpha = alpha; }
 
-    //! @note added in 1.5
     void setRenderHints( int hints ) { mRenderHints = hints; }
-    //! @note added in 1.5
     int renderHints() const { return mRenderHints; }
 
     QSet<QString> usedAttributes() const;
@@ -146,7 +145,6 @@ class CORE_EXPORT QgsSymbolV2
 
     //! check whether a symbol layer type can be used within the symbol
     //! (marker-marker, line-line, fill-fill/line)
-    //! @note added in 1.7
     bool isSymbolLayerCompatible( SymbolType t );
 
     SymbolType mType;
@@ -165,7 +163,7 @@ class CORE_EXPORT QgsSymbolV2
 class CORE_EXPORT QgsSymbolV2RenderContext
 {
   public:
-    QgsSymbolV2RenderContext( QgsRenderContext& c, QgsSymbolV2::OutputUnit u , qreal alpha = 1.0, bool selected = false, int renderHints = 0, const QgsFeature* f = 0, const QgsFields* = 0, const QgsMapUnitScale& mapUnitScale = QgsMapUnitScale() );
+    QgsSymbolV2RenderContext( QgsRenderContext& c, QgsSymbolV2::OutputUnit u, qreal alpha = 1.0, bool selected = false, int renderHints = 0, const QgsFeature* f = 0, const QgsFields* = 0, const QgsMapUnitScale& mapUnitScale = QgsMapUnitScale() );
     ~QgsSymbolV2RenderContext();
 
     QgsRenderContext& renderContext() { return mRenderContext; }
@@ -186,9 +184,7 @@ class CORE_EXPORT QgsSymbolV2RenderContext
     bool selected() const { return mSelected; }
     void setSelected( bool selected ) { mSelected = selected; }
 
-    //! @note added in 1.5
     int renderHints() const { return mRenderHints; }
-    //! @note added in 1.5
     void setRenderHints( int hints ) { mRenderHints = hints; }
 
     void setFeature( const QgsFeature* f ) { mFeature = f; }
@@ -229,7 +225,6 @@ class CORE_EXPORT QgsMarkerSymbolV2 : public QgsSymbolV2
   public:
     /** Create a marker symbol with one symbol layer: SimpleMarker with specified properties.
       This is a convenience method for easier creation of marker symbols.
-      \note added in v1.7
     */
     static QgsMarkerSymbolV2* createSimple( const QgsStringMap& properties );
 
@@ -256,7 +251,6 @@ class CORE_EXPORT QgsLineSymbolV2 : public QgsSymbolV2
   public:
     /** Create a line symbol with one symbol layer: SimpleLine with specified properties.
       This is a convenience method for easier creation of line symbols.
-      \note added in v1.7
     */
     static QgsLineSymbolV2* createSimple( const QgsStringMap& properties );
 
@@ -277,7 +271,6 @@ class CORE_EXPORT QgsFillSymbolV2 : public QgsSymbolV2
   public:
     /** Create a fill symbol with one symbol layer: SimpleFill with specified properties.
       This is a convenience method for easier creation of fill symbols.
-      \note added in v1.7
     */
     static QgsFillSymbolV2* createSimple( const QgsStringMap& properties );
 

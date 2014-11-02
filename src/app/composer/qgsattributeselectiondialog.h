@@ -28,9 +28,12 @@ class QGridLayout;
 class QgsVectorLayer;
 class QPushButton;
 class QgsComposerAttributeTable;
+class QgsComposerAttributeTableV2;
 class QgsComposerAttributeTableColumnModel;
+class QgsComposerAttributeTableColumnModelV2;
 class QgsComposerTableSortColumnsProxyModel;
-class QgsComposerTableAvailableSortProxyModel;
+class QgsComposerTableSortColumnsProxyModelV2;
+class QgsComposerTableAvailableSortProxyModelV2;
 
 // QgsComposerColumnAlignmentDelegate
 
@@ -68,6 +71,22 @@ class QgsComposerColumnSourceDelegate : public QItemDelegate
     QgsVectorLayer* mVectorLayer;
 };
 
+// QgsComposerColumnWidthDelegate
+
+/**A delegate for showing column width as a spin box*/
+class QgsComposerColumnWidthDelegate : public QItemDelegate
+{
+    Q_OBJECT
+
+  public:
+    QgsComposerColumnWidthDelegate( QObject *parent = 0 );
+    QWidget *createEditor( QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index ) const;
+    void setEditorData( QWidget *editor, const QModelIndex &index ) const;
+    void setModelData( QWidget *editor, QAbstractItemModel *model, const QModelIndex &index ) const;
+    void updateEditorGeometry( QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index ) const;
+
+};
+
 
 // QgsComposerColumnSortOrderDelegate
 
@@ -93,7 +112,12 @@ class QgsAttributeSelectionDialog: public QDialog, private Ui::QgsAttributeSelec
 {
     Q_OBJECT
   public:
+    QgsAttributeSelectionDialog( QgsComposerAttributeTableV2* table, QgsVectorLayer* vLayer, QWidget * parent = 0, Qt::WindowFlags f = 0 );
+
+    //todo - remove for QGIS 3.0
     QgsAttributeSelectionDialog( QgsComposerAttributeTable* table, QgsVectorLayer* vLayer, QWidget * parent = 0, Qt::WindowFlags f = 0 );
+
+
     ~QgsAttributeSelectionDialog();
 
   private slots:
@@ -108,15 +132,24 @@ class QgsAttributeSelectionDialog: public QDialog, private Ui::QgsAttributeSelec
     void on_mSortColumnDownPushButton_clicked();
 
   private:
-    QgsComposerAttributeTable* mComposerTable;
+    QgsComposerAttributeTableV2* mComposerTable;
+    QgsComposerAttributeTable* mComposerTableV1;
+
     const QgsVectorLayer* mVectorLayer;
 
-    QgsComposerAttributeTableColumnModel* mColumnModel;
-    QgsComposerTableSortColumnsProxyModel* mSortedProxyModel;
-    QgsComposerTableSortColumnsProxyModel* mAvailableSortProxyModel;
+    QgsComposerAttributeTableColumnModelV2* mColumnModel;
+    QgsComposerAttributeTableColumnModel* mColumnModelV1;
+
+    QgsComposerTableSortColumnsProxyModelV2* mSortedProxyModel;
+    QgsComposerTableSortColumnsProxyModel* mSortedProxyModelV1;
+
+    QgsComposerTableSortColumnsProxyModelV2* mAvailableSortProxyModel;
+    QgsComposerTableSortColumnsProxyModel* mAvailableSortProxyModelV1;
+
     QgsComposerColumnAlignmentDelegate *mColumnAlignmentDelegate;
     QgsComposerColumnSourceDelegate *mColumnSourceDelegate;
     QgsComposerColumnSortOrderDelegate *mColumnSortOrderDelegate;
+    QgsComposerColumnWidthDelegate *mColumnWidthDelegate;
 
 };
 

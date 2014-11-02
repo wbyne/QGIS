@@ -64,7 +64,7 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
     return mExpression->evaluate( &feat, fields );
   }
 
-  if ( role == Qt::UserRole )
+  if ( role == FeatureInfoRole )
   {
     FeatureInfo featInfo;
 
@@ -90,6 +90,14 @@ QVariant QgsFeatureListModel::data( const QModelIndex &index, int role ) const
     }
 
     return QVariant::fromValue( featInfo );
+  }
+  else if ( role == FeatureRole )
+  {
+    QgsFeature feat;
+
+    mFilterModel->layerCache()->featureAtId( idxToFid( index ), feat );
+
+    return QVariant::fromValue( feat );
   }
 
   return sourceModel()->data( mapToSource( index ), role );
@@ -186,12 +194,12 @@ QModelIndex QgsFeatureListModel::mapFromMaster( const QModelIndex &sourceIndex )
 
 QItemSelection QgsFeatureListModel::mapSelectionFromMaster( const QItemSelection& selection ) const
 {
-  return mapSelectionFromSource( mFilterModel->mapSelectionFromSource( selection ) ) ;
+  return mapSelectionFromSource( mFilterModel->mapSelectionFromSource( selection ) );
 }
 
 QItemSelection QgsFeatureListModel::mapSelectionToMaster( const QItemSelection& selection ) const
 {
-  return mFilterModel->mapSelectionToSource( mapSelectionToSource( selection ) ) ;
+  return mFilterModel->mapSelectionToSource( mapSelectionToSource( selection ) );
 }
 
 // Override some methods from QAbstractProxyModel, not that interesting

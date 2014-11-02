@@ -63,9 +63,7 @@ class CORE_EXPORT QgsLabelPosition
     bool isPinned;
 };
 
-/** Labeling engine interface.
- * \note Added in QGIS v1.4
- */
+/** Labeling engine interface. */
 class CORE_EXPORT QgsLabelingEngineInterface
 {
   public:
@@ -80,22 +78,18 @@ class CORE_EXPORT QgsLabelingEngineInterface
     //! called to find out whether the layer is used for labeling
     virtual bool willUseLayer( QgsVectorLayer* layer ) = 0;
     //! clears all PAL layer settings for registered layers
-    //! @note: this method was added in version 1.9
     virtual void clearActiveLayers() = 0;
     //! clears data defined objects from PAL layer settings for a registered layer
-    //! @note: this method was added in version 1.9
     virtual void clearActiveLayer( const QString& layerID ) = 0;
     //! called when starting rendering of a layer
-    //! @note: this method was added in version 1.6
     virtual int prepareLayer( QgsVectorLayer* layer, QStringList& attrNames, QgsRenderContext& ctx ) = 0;
     //! returns PAL layer settings for a registered layer
-    //! @note: this method was added in version 1.9
     virtual QgsPalLayerSettings& layer( const QString& layerName ) = 0;
     //! adds a diagram layer to the labeling engine
     virtual int addDiagramLayer( QgsVectorLayer* layer, const QgsDiagramLayerSettings* s )
     { Q_UNUSED( layer ); Q_UNUSED( s ); return 0; }
     //! called for every feature
-    virtual void registerFeature( const QString& layerID, QgsFeature& feat, const QgsRenderContext& context = QgsRenderContext() ) = 0;
+    virtual void registerFeature( const QString& layerID, QgsFeature& feat, const QgsRenderContext& context = QgsRenderContext(), QString dxfLayer = QString::null ) = 0;
     //! called for every diagram feature
     virtual void registerDiagramFeature( const QString& layerID, QgsFeature& feat, const QgsRenderContext& context = QgsRenderContext() )
     { Q_UNUSED( layerID ); Q_UNUSED( feat ); Q_UNUSED( context ); }
@@ -104,11 +98,9 @@ class CORE_EXPORT QgsLabelingEngineInterface
     //! called when we're done with rendering
     virtual void exit() = 0;
     //! return infos about labels at a given (map) position
-    //! @note: this method was added in version 1.7
     //! @deprecated since 2.4 - use takeResults() and methods of QgsLabelingResults
     Q_DECL_DEPRECATED virtual QList<QgsLabelPosition> labelsAtPosition( const QgsPoint& p ) = 0;
     //! return infos about labels within a given (map) rectangle
-    //! @note: this method was added in version 1.9
     //! @deprecated since 2.4 - use takeResults() and methods of QgsLabelingResults
     Q_DECL_DEPRECATED virtual QList<QgsLabelPosition> labelsWithinRect( const QgsRectangle& r ) = 0;
 
@@ -300,19 +292,15 @@ class CORE_EXPORT QgsMapRenderer : public QObject
     QgsRenderContext* rendererContext() {return &mRenderContext;}
 
     //! Labeling engine (NULL if there's no custom engine)
-    //! \note Added in QGIS v1.4
     QgsLabelingEngineInterface* labelingEngine() { return mLabelingEngine; }
 
     //! Set labeling engine. Previous engine (if any) is deleted.
     //! Takes ownership of the engine.
-    //! Added in QGIS v1.4
     void setLabelingEngine( QgsLabelingEngineInterface* iface );
 
     //! Returns a QPainter::CompositionMode corresponding to a BlendMode
-    //! Added in 1.9
     static QPainter::CompositionMode getCompositionMode( const QgsMapRenderer::BlendMode &blendMode );
     //! Returns a BlendMode corresponding to a QPainter::CompositionMode
-    //! Added in 1.9
     static QgsMapRenderer::BlendMode getBlendModeEnum( const QPainter::CompositionMode &blendMode );
 
     void addLayerCoordinateTransform( const QString& layerId, const QString& srcAuthId, const QString& destAuthId, int srcDatumTransform = -1, int destDatumTransform = -1 );
@@ -323,6 +311,14 @@ class CORE_EXPORT QgsMapRenderer : public QObject
     //! bridge to QgsMapSettings
     //! @note added in 2.4
     const QgsMapSettings& mapSettings();
+
+    /** Convenience function to project an extent into the layer source
+     * CRS, but also split it into two extents if it crosses
+     * the +/- 180 degree line. Modifies the given extent to be in the
+     * source CRS coordinates, and if it was split, returns true, and
+     * also sets the contents of the r2 parameter
+     */
+    bool splitLayersExtent( QgsMapLayer* layer, QgsRectangle& extent, QgsRectangle& r2 );
 
   signals:
 
@@ -371,14 +367,6 @@ class CORE_EXPORT QgsMapRenderer : public QObject
     //! adjust extent to fit the pixmap size
     void adjustExtentToSize();
 
-    /** Convenience function to project an extent into the layer source
-     * CRS, but also split it into two extents if it crosses
-     * the +/- 180 degree line. Modifies the given extent to be in the
-     * source CRS coordinates, and if it was split, returns true, and
-     * also sets the contents of the r2 parameter
-     */
-    bool splitLayersExtent( QgsMapLayer* layer, QgsRectangle& extent, QgsRectangle& r2 );
-
     //! indicates drawing in progress
     static bool mDrawing;
 
@@ -397,8 +385,7 @@ class CORE_EXPORT QgsMapRenderer : public QObject
     /** Last extent to we drew so we know if we can
         used layer render caching or not. Note there are no
         accessors for this as it is intended to internal
-        use only.
-        @note added in QGIS 1.4 */
+        use only. */
     QgsRectangle mLastExtent;
 
     //! indicates whether it's map image for overview
@@ -437,7 +424,6 @@ class CORE_EXPORT QgsMapRenderer : public QObject
     QgsMapSettings mMapSettings;
 
     QHash< QString, QgsLayerCoordinateTransform > mLayerCoordinateTransformInfo;
-
 };
 
 #endif

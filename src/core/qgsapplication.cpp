@@ -446,18 +446,13 @@ const QString QgsApplication::donorsFilePath()
   return ABISYM( mPkgDataPath ) + QString( "/doc/DONORS" );
 }
 
-/*!
-  Returns the path to the sponsors file.
-  @note Added in QGIS 1.1
-*/
+/** Returns the path to the sponsors file. */
 const QString QgsApplication::translatorsFilePath()
 {
   return ABISYM( mPkgDataPath ) + QString( "/doc/TRANSLATORS" );
 }
 
-/*!
-  Returns the path to the licence file.
-*/
+/** Returns the path to the licence file. */
 const QString QgsApplication::licenceFilePath()
 {
   return ABISYM( mPkgDataPath ) + QString( "/doc/LICENSE" );
@@ -597,7 +592,7 @@ const QString QgsApplication::libexecPath()
 
 QgsApplication::endian_t QgsApplication::endian()
 {
-  return ( htonl( 1 ) == 1 ) ? XDR : NDR ;
+  return ( htonl( 1 ) == 1 ) ? XDR : NDR;
 }
 
 void QgsApplication::initQgis()

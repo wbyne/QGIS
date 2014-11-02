@@ -44,7 +44,6 @@ static QIcon icon( QString icon )
 QgsMessageLogViewer::QgsMessageLogViewer( QStatusBar *statusBar, QWidget *parent, Qt::WindowFlags fl )
     : QDialog( parent, fl )
     , mButton( 0 )
-    , mCount( 0 )
     , mShowToolTips( true )
 {
   setupUi( this );
@@ -112,8 +111,6 @@ void QgsMessageLogViewer::buttonDestroyed()
 void QgsMessageLogViewer::logMessage( QString message, QString tag, QgsMessageLog::MessageLevel level )
 {
 #ifdef ANDROID
-  mCount++;
-#else
   mButton->setToolTip( tr( "Message(s) logged." ) );
 #endif
 
@@ -145,9 +142,9 @@ void QgsMessageLogViewer::logMessage( QString message, QString tag, QgsMessageLo
     tabWidget->setCurrentIndex( tabWidget->count() - 1 );
   }
 
-  QString prefix = QString( "%1\t%2\t")
-                       .arg( QDateTime::currentDateTime().toString( Qt::ISODate ) )
-                       .arg( level );
+  QString prefix = QString( "%1\t%2\t" )
+                   .arg( QDateTime::currentDateTime().toString( Qt::ISODate ) )
+                   .arg( level );
   w->appendPlainText( message.prepend( prefix ).replace( "\n", "\n\t\t\t" ) );
   w->verticalScrollBar()->setValue( w->verticalScrollBar()->maximum() );
 }

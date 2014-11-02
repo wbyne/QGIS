@@ -27,7 +27,7 @@ class QToolButton;
  * \class QgsColorWidget
  * A base class for interactive color widgets. Widgets can either allow setting a single component of
  * a color (eg the red or green components), or an entire color. The QgsColorWidget also keeps track of
- * any explicitely set hue for the color, so that this information is not lost when the widget is
+ * any explicitly set hue for the color, so that this information is not lost when the widget is
  * set to a color with an ambiguous hue (eg black or white shades).
  * \note Added in version 2.5
  */
@@ -89,9 +89,10 @@ class GUI_EXPORT QgsColorWidget : public QWidget
 
     /**Sets the color for the widget
      * @param color widget color
+     * @param emitSignals set to true to emit the colorChanged signal after setting color
      * @see color
      */
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
     /**Sets the color component which the widget controls
      * @param component color component for widget
@@ -165,7 +166,7 @@ class GUI_EXPORT QgsColorWidget : public QWidget
     static const QPixmap& transparentBackground();
 
     //Reimplemented to accept dragged colors
-    void dragEnterEvent( QDragEnterEvent * e ) ;
+    void dragEnterEvent( QDragEnterEvent * e );
 
     //Reimplemented to accept dropped colors
     void dropEvent( QDropEvent *e );
@@ -196,7 +197,7 @@ class GUI_EXPORT QgsColorWheel : public QgsColorWidget
 
   public slots:
 
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
 
@@ -291,7 +292,7 @@ class GUI_EXPORT QgsColorBox : public QgsColorWidget
 
   public slots:
 
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
 
@@ -484,7 +485,7 @@ class GUI_EXPORT QgsColorSliderWidget : public QgsColorWidget
 
     virtual void setComponent( const ColorComponent component );
     virtual void setComponentValue( const int value );
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   private:
 
@@ -546,7 +547,7 @@ class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
 
     virtual ~QgsColorTextWidget();
 
-    virtual void setColor( const QColor color );
+    virtual void setColor( const QColor color, const bool emitSignals = false );
 
   protected:
     void resizeEvent( QResizeEvent * event );
@@ -557,8 +558,8 @@ class GUI_EXPORT QgsColorTextWidget : public QgsColorWidget
      */
     enum ColorTextFormat
     {
-      HexRgb = 0, /*!< #RRGGBB in hexadecimal */
-      HexRgbA, /*!< #RRGGBBAA in hexadecimal, with alpha */
+      HexRgb = 0, /*!< \#RRGGBB in hexadecimal */
+      HexRgbA, /*!< \#RRGGBBAA in hexadecimal, with alpha */
       Rgb, /*!< rgb( r, g, b ) format */
       Rgba /*!< rgba( r, g, b, a ) format, with alpha */
     };
@@ -630,6 +631,9 @@ class GUI_EXPORT QgsColorPreviewWidget : public QgsColorWidget
 
     //reimplemented to allow dragging colors
     void mousePressEvent( QMouseEvent* e );
+
+    //reimplemented to click colors
+    void mouseReleaseEvent( QMouseEvent* e );
 
     //reimplemented to allow dragging colors
     void mouseMoveEvent( QMouseEvent *e );

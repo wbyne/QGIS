@@ -59,10 +59,7 @@ QgsAttributeTableView::QgsAttributeTableView( QWidget *parent )
 
 QgsAttributeTableView::~QgsAttributeTableView()
 {
-  if ( mActionPopup )
-  {
-    delete mActionPopup;
-  }
+  delete mActionPopup;
 }
 #if 0
 void QgsAttributeTableView::setCanvasAndLayerCache( QgsMapCanvas *canvas, QgsVectorLayerCache *layerCache )
@@ -121,8 +118,10 @@ void QgsAttributeTableView::setModel( QgsAttributeTableFilterModel* filterModel 
   mFilterModel = filterModel;
   QTableView::setModel( filterModel );
 
+  connect( mFilterModel, SIGNAL( destroyed() ), this, SLOT( modelDeleted() ) );
+
   delete mFeatureSelectionModel;
-  mFeatureSelectionModel = NULL;
+  mFeatureSelectionModel = 0;
 
   if ( filterModel )
   {
@@ -222,11 +221,8 @@ void QgsAttributeTableView::selectAll()
 
 void QgsAttributeTableView::contextMenuEvent( QContextMenuEvent* event )
 {
-  if ( mActionPopup )
-  {
-    delete mActionPopup;
-    mActionPopup = 0;
-  }
+  delete mActionPopup;
+  mActionPopup = 0;
 
   QModelIndex idx = indexAt( event->pos() );
   if ( !idx.isValid() )
@@ -259,6 +255,13 @@ void QgsAttributeTableView::selectRow( int row )
 void QgsAttributeTableView::_q_selectRow( int row )
 {
   selectRow( row, false );
+}
+
+void QgsAttributeTableView::modelDeleted()
+{
+  mFilterModel = 0;
+  mFeatureSelectionManager = 0;
+  mFeatureSelectionModel = 0;
 }
 
 void QgsAttributeTableView::selectRow( int row, bool anchor )

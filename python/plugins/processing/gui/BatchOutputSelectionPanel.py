@@ -63,7 +63,7 @@ class BatchOutputSelectionPanel(QtGui.QWidget):
 
     def showSelectionDialog(self):
         filefilter = self.output.getFileFilter(self.alg)
-        filename = QtGui.QFileDialog.getSaveFileName(self, 'Save file', '',
+        filename = QtGui.QFileDialog.getSaveFileName(self, self.tr('Save file'), '',
                 filefilter)
         if filename:
             filename = unicode(filename)
@@ -92,7 +92,7 @@ class BatchOutputSelectionPanel(QtGui.QWidget):
                                     ParameterMultipleInput)):
                                 s = unicode(widget.getText())
                                 s = os.path.basename(s)
-                                s = s[:s.rfind('.')]
+                                s = os.path.splitext(s)[0]
                             elif isinstance(param, ParameterBoolean):
                                 s = str(widget.currentIndex() == 0)
                             elif isinstance(param, ParameterSelection):

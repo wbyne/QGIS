@@ -17,6 +17,7 @@
 ***************************************************************************
 """
 
+
 __author__ = 'Victor Olaya'
 __date__ = 'August 2012'
 __copyright__ = '(C) 2012, Victor Olaya'
@@ -25,7 +26,11 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
-from PyQt4 import QtCore, QtGui
+import math
+
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+
 from processing.core.parameters import Parameter
 from processing.core.parameters import ParameterBoolean
 from processing.core.parameters import ParameterRaster
@@ -39,10 +44,10 @@ from processing.core.parameters import ParameterExtent
 from processing.core.parameters import ParameterFile
 
 
-class ModelerParameterDefinitionDialog(QtGui.QDialog):
+class ModelerParameterDefinitionDialog(QDialog):
 
     PARAMETER_NUMBER = 'Number'
-    PARAMETER_RASTER = 'Raster Layer'
+    PARAMETER_RASTER = 'Raster layer'
     PARAMETER_TABLE = 'Table'
     PARAMETER_VECTOR = 'Vector layer'
     PARAMETER_STRING = 'String'
@@ -71,30 +76,30 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         self.alg = alg
         self.paramType = paramType
         self.param = param
-        QtGui.QDialog.__init__(self)
+        QDialog.__init__(self)
         self.setModal(True)
         self.setupUi()
 
     def setupUi(self):
-        self.setWindowTitle('Parameter definition')
+        self.setWindowTitle(self.tr('Parameter definition'))
 
-        self.verticalLayout = QtGui.QVBoxLayout(self)
+        self.verticalLayout = QVBoxLayout(self)
         self.verticalLayout.setSpacing(40)
         self.verticalLayout.setMargin(20)
 
-        self.horizontalLayout = QtGui.QHBoxLayout(self)
+        self.horizontalLayout = QHBoxLayout(self)
         self.horizontalLayout.setSpacing(2)
         self.horizontalLayout.setMargin(0)
-        self.label = QtGui.QLabel('Parameter name')
+        self.label = QLabel(self.tr('Parameter name'))
         self.horizontalLayout.addWidget(self.label)
-        self.nameTextBox = QtGui.QLineEdit()
+        self.nameTextBox = QLineEdit()
         self.horizontalLayout.addWidget(self.nameTextBox)
         self.verticalLayout.addLayout(self.horizontalLayout)
 
-        self.horizontalLayout2 = QtGui.QHBoxLayout(self)
+        self.horizontalLayout2 = QHBoxLayout(self)
         self.horizontalLayout2.setSpacing(2)
         self.horizontalLayout2.setMargin(0)
-        self.horizontalLayout3 = QtGui.QHBoxLayout(self)
+        self.horizontalLayout3 = QHBoxLayout(self)
         self.horizontalLayout3.setSpacing(2)
         self.horizontalLayout3.setMargin(0)
 
@@ -104,19 +109,18 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         if self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_BOOLEAN \
                 or isinstance(self.param, ParameterBoolean):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Default value'))
-            self.yesNoCombo = QtGui.QComboBox()
-            self.yesNoCombo.addItem('Yes')
-            self.yesNoCombo.addItem('No')
+            self.state = QCheckBox()
+            self.state.setText(self.tr('Checked'))
+            self.state.setChecked(False)
             if self.param is not None:
-                self.yesNoCombo.setCurrentIndex((0 if self.param.value else 1))
-            self.horizontalLayout2.addWidget(self.yesNoCombo)
+                self.state.setChecked(True if self.param.value else False)
+            self.horizontalLayout2.addWidget(self.state)
             self.verticalLayout.addLayout(self.horizontalLayout2)
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_TABLE_FIELD \
                 or isinstance(self.param, ParameterTableField):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Parent layer'))
-            self.parentCombo = QtGui.QComboBox()
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Parent layer')))
+            self.parentCombo = QComboBox()
             idx = 0
             for param in self.alg.inputs.values():
                 if isinstance(param.param, (ParameterVector, ParameterTable)):
@@ -130,10 +134,10 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_RASTER \
                 or isinstance(self.param, ParameterRaster):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Required'))
-            self.yesNoCombo = QtGui.QComboBox()
-            self.yesNoCombo.addItem('Yes')
-            self.yesNoCombo.addItem('No')
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Required')))
+            self.yesNoCombo = QComboBox()
+            self.yesNoCombo.addItem(self.tr('Yes'))
+            self.yesNoCombo.addItem(self.tr('No'))
             if self.param is not None:
                 self.yesNoCombo.setCurrentIndex(
                         (1 if self.param.optional else 0))
@@ -142,10 +146,10 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_TABLE \
                 or isinstance(self.param, ParameterTable):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Required'))
-            self.yesNoCombo = QtGui.QComboBox()
-            self.yesNoCombo.addItem('Yes')
-            self.yesNoCombo.addItem('No')
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Required')))
+            self.yesNoCombo = QComboBox()
+            self.yesNoCombo.addItem(self.tr('Yes'))
+            self.yesNoCombo.addItem(self.tr('No'))
             if self.param is not None:
                 self.yesNoCombo.setCurrentIndex(
                         (1 if self.param.optional else 0))
@@ -154,17 +158,17 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_VECTOR \
                 or isinstance(self.param, ParameterVector):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Required'))
-            self.yesNoCombo = QtGui.QComboBox()
-            self.yesNoCombo.addItem('Yes')
-            self.yesNoCombo.addItem('No')
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Required')))
+            self.yesNoCombo = QComboBox()
+            self.yesNoCombo.addItem(self.tr('Yes'))
+            self.yesNoCombo.addItem(self.tr('No'))
             self.horizontalLayout2.addWidget(self.yesNoCombo)
-            self.horizontalLayout3.addWidget(QtGui.QLabel('Shape type'))
-            self.shapetypeCombo = QtGui.QComboBox()
-            self.shapetypeCombo.addItem('Any')
-            self.shapetypeCombo.addItem('Point')
-            self.shapetypeCombo.addItem('Line')
-            self.shapetypeCombo.addItem('Polygon')
+            self.horizontalLayout3.addWidget(QLabel(self.tr('Shape type')))
+            self.shapetypeCombo = QComboBox()
+            self.shapetypeCombo.addItem(self.tr('Any'))
+            self.shapetypeCombo.addItem(self.tr('Point'))
+            self.shapetypeCombo.addItem(self.tr('Line'))
+            self.shapetypeCombo.addItem(self.tr('Polygon'))
             if self.param is not None:
                 self.yesNoCombo.setCurrentIndex(
                         (1 if self.param.optional else 0))
@@ -176,19 +180,19 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_MULTIPLE \
                 or isinstance(self.param, ParameterMultipleInput):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Mandatory'))
-            self.yesNoCombo = QtGui.QComboBox()
-            self.yesNoCombo.addItem('Yes')
-            self.yesNoCombo.addItem('No')
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Mandatory')))
+            self.yesNoCombo = QComboBox()
+            self.yesNoCombo.addItem(self.tr('Yes'))
+            self.yesNoCombo.addItem(self.tr('No'))
             self.horizontalLayout2.addWidget(self.yesNoCombo)
-            self.horizontalLayout3.addWidget(QtGui.QLabel('Data type'))
-            self.datatypeCombo = QtGui.QComboBox()
-            self.datatypeCombo.addItem('Vector (any)')
-            self.datatypeCombo.addItem('Vector (point)')
-            self.datatypeCombo.addItem('Vector (line)')
-            self.datatypeCombo.addItem('Vector (polygon)')
-            self.datatypeCombo.addItem('Raster')
-            self.datatypeCombo.addItem('Table')
+            self.horizontalLayout3.addWidget(QLabel(self.tr('Data type')))
+            self.datatypeCombo = QComboBox()
+            self.datatypeCombo.addItem(self.tr('Vector (any)'))
+            self.datatypeCombo.addItem(self.tr('Vector (point)'))
+            self.datatypeCombo.addItem(self.tr('Vector (line)'))
+            self.datatypeCombo.addItem(self.tr('Vector (polygon)'))
+            self.datatypeCombo.addItem(self.tr('Raster'))
+            self.datatypeCombo.addItem(self.tr('Table'))
             if self.param is not None:
                 self.yesNoCombo.setCurrentIndex(
                         (1 if self.param.optional else 0))
@@ -199,24 +203,30 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_NUMBER \
                 or isinstance(self.param, ParameterNumber):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Min/Max values'))
-            self.minTextBox = QtGui.QLineEdit()
-            self.maxTextBox = QtGui.QLineEdit()
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Min/Max values')))
+            self.minTextBox = QLineEdit()
+            self.maxTextBox = QLineEdit()
+            if self.param is not None:
+                self.minTextBox.setText(str(self.param.min))
+                self.maxTextBox.setText(str(self.param.max))
             self.horizontalLayout2.addWidget(self.minTextBox)
             self.horizontalLayout2.addWidget(self.maxTextBox)
             self.verticalLayout.addLayout(self.horizontalLayout2)
-            self.horizontalLayout3.addWidget(QtGui.QLabel('Default value'))
-            self.defaultTextBox = QtGui.QLineEdit()
-            self.defaultTextBox.setText('0')
+            self.horizontalLayout3.addWidget(QLabel(self.tr('Default value')))
+            self.defaultTextBox = QLineEdit()
+            self.defaultTextBox.setText(self.tr('0'))
             if self.param is not None:
-                self.defaultTextBox.setText(str(self.param.default))
+                default = self.param.default
+                if self.param.isInteger:
+                    default = int(math.floor(default))
+                self.defaultTextBox.setText(str(default))
             self.horizontalLayout3.addWidget(self.defaultTextBox)
             self.verticalLayout.addLayout(self.horizontalLayout3)
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_STRING \
                 or isinstance(self.param, ParameterString):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Default value'))
-            self.defaultTextBox = QtGui.QLineEdit()
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Default value')))
+            self.defaultTextBox = QLineEdit()
             if self.param is not None:
                 self.defaultTextBox.setText(self.param.default)
             self.horizontalLayout2.addWidget(self.defaultTextBox)
@@ -224,25 +234,23 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
         elif self.paramType == \
                 ModelerParameterDefinitionDialog.PARAMETER_FILE \
                 or isinstance(self.param, ParameterFile):
-            self.horizontalLayout2.addWidget(QtGui.QLabel('Type'))
-            self.fileFolderCombo = QtGui.QComboBox()
-            self.fileFolderCombo.addItem('File')
-            self.fileFolderCombo.addItem('Folder')
+            self.horizontalLayout2.addWidget(QLabel(self.tr('Type')))
+            self.fileFolderCombo = QComboBox()
+            self.fileFolderCombo.addItem(self.tr('File'))
+            self.fileFolderCombo.addItem(self.tr('Folder'))
             if self.param is not None:
                 self.fileFolderCombo.setCurrentIndex(
                         (1 if self.param.isFolder else 0))
             self.horizontalLayout2.addWidget(self.fileFolderCombo)
             self.verticalLayout.addLayout(self.horizontalLayout2)
 
-        self.buttonBox = QtGui.QDialogButtonBox(self)
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel
-                | QtGui.QDialogButtonBox.Ok)
+        self.buttonBox = QDialogButtonBox(self)
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel
+                | QDialogButtonBox.Ok)
         self.buttonBox.setObjectName('buttonBox')
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL('accepted()'),
-                        self.okPressed)
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL('rejected()'),
-                        self.cancelPressed)
+        self.buttonBox.accepted.connect(self.okPressed)
+        self.buttonBox.rejected.connect(self.cancelPressed)
 
         self.verticalLayout.addWidget(self.buttonBox)
 
@@ -251,8 +259,8 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
     def okPressed(self):
         description = unicode(self.nameTextBox.text())
         if description.strip() == '':
-            QtGui.QMessageBox.warning(self, 'Unable to define parameter',
-                                 'Invalid parameter name')
+            QMessageBox.warning(self, self.tr('Unable to define parameter'),
+                                self.tr('Invalid parameter name'))
             return
         if self.param is None:
             validChars = \
@@ -266,13 +274,13 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
                 == ModelerParameterDefinitionDialog.PARAMETER_BOOLEAN \
                 or isinstance(self.param, ParameterBoolean):
             self.param = ParameterBoolean(name, description,
-                    self.yesNoCombo.currentIndex() == 0)
+                    self.state.isChecked())
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_TABLE_FIELD \
                 or isinstance(self.param, ParameterTableField):
             if self.parentCombo.currentIndex() < 0:
-                QtGui.QMessageBox.warning(self, 'Unable to define parameter',
-                                     'Wrong or missing parameter values')
+                QMessageBox.warning(self, self.tr('Unable to define parameter'),
+                                    self.tr('Wrong or missing parameter values'))
                 return
             parent = self.parentCombo.itemData(self.parentCombo.currentIndex())
             self.param = ParameterTableField(name, description, parent)
@@ -313,10 +321,10 @@ class ModelerParameterDefinitionDialog(QtGui.QDialog):
                 else:
                     vmax = float(vmax)
                 self.param = ParameterNumber(name, description, vmin, vmax,
-                        float(str(self.defaultTextBox.text())))
+                        str(self.defaultTextBox.text()))
             except:
-                QtGui.QMessageBox.warning(self, 'Unable to define parameter',
-                                     'Wrong or missing parameter values')
+                QMessageBox.warning(self, self.tr('Unable to define parameter'),
+                                    self.tr('Wrong or missing parameter values'))
                 return
         elif self.paramType \
                 == ModelerParameterDefinitionDialog.PARAMETER_STRING \

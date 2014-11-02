@@ -59,6 +59,9 @@
       <layout class="QVBoxLayout" name="mainLayout">
        <item>
         <widget class="QgsCollapsibleGroupBoxBasic" name="mTextGroupBox">
+         <property name="focusPolicy">
+          <enum>Qt::StrongFocus</enum>
+         </property>
          <property name="title">
           <string>Main properties</string>
          </property>
@@ -71,91 +74,38 @@
          <property name="collapsed" stdset="0">
           <bool>false</bool>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout">
-          <item>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <item row="0" column="0">
            <widget class="QPlainTextEdit" name="mTextEdit">
             <property name="tabStopWidth">
              <number>10</number>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="1" column="0">
            <widget class="QCheckBox" name="mHtmlCheckBox">
             <property name="text">
              <string>Render as HTML</string>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="2" column="0">
            <widget class="QPushButton" name="mInsertExpressionButton">
             <property name="text">
              <string>Insert an expression...</string>
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QPushButton" name="mFontButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Font...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QLabel" name="label_2">
-              <property name="text">
-               <string>Font color</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QgsColorButtonV2" name="mFontColorButton">
-              <property name="minimumSize">
-               <size>
-                <width>120</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>120</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer_2">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </item>
          </layout>
         </widget>
        </item>
        <item>
-        <widget class="QgsCollapsibleGroupBoxBasic" name="mAlignementGroup">
+        <widget class="QgsCollapsibleGroupBoxBasic" name="mAppearanceGroup">
+         <property name="focusPolicy">
+          <enum>Qt::StrongFocus</enum>
+         </property>
          <property name="title">
-          <string>Alignment</string>
+          <string>Appearance</string>
          </property>
          <property name="checkable">
           <bool>false</bool>
@@ -167,33 +117,14 @@
           <bool>false</bool>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <property name="verticalSpacing">
-           <number>3</number>
-          </property>
           <item row="1" column="0">
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>4</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="2" column="0" colspan="2">
-           <widget class="QLabel" name="mVerticalAlignementLabel">
+           <widget class="QLabel" name="label_2">
             <property name="text">
-             <string>Vertical</string>
+             <string>Font color</string>
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
+          <item row="7" column="0" colspan="2">
            <layout class="QHBoxLayout" name="horizontalLayout_6">
             <item>
              <widget class="QRadioButton" name="mTopRadioButton">
@@ -240,7 +171,20 @@
             </item>
            </layout>
           </item>
-          <item row="1" column="1">
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="mMarginXDoubleSpinBox">
+            <property name="prefix">
+             <string/>
+            </property>
+            <property name="suffix">
+             <string> mm</string>
+            </property>
+            <property name="minimum">
+             <double>-99.989999999999995</double>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0" colspan="2">
            <layout class="QHBoxLayout" name="horizontalLayout_5">
             <item>
              <widget class="QRadioButton" name="mLeftRadioButton">
@@ -287,51 +231,90 @@
             </item>
            </layout>
           </item>
-          <item row="0" column="0" colspan="2">
+          <item row="4" column="0" colspan="2">
            <widget class="QLabel" name="mHorizontalAlignementLabel">
             <property name="text">
-             <string>Horizontal</string>
+             <string>Horizontal alignment</string>
             </property>
            </widget>
           </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QgsCollapsibleGroupBoxBasic" name="mDisplayGroupBox">
-         <property name="title">
-          <string>Display</string>
-         </property>
-         <property name="checkable">
-          <bool>false</bool>
-         </property>
-         <property name="syncGroup" stdset="0">
-          <string notr="true">composeritem</string>
-         </property>
-         <property name="collapsed" stdset="0">
-          <bool>true</bool>
-         </property>
-         <layout class="QFormLayout" name="formLayout_2">
-          <property name="fieldGrowthPolicy">
-           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-          </property>
-          <property name="labelAlignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-          </property>
-          <item row="0" column="0">
-           <widget class="QLabel" name="mMarginLabel">
+          <item row="6" column="0" colspan="2">
+           <widget class="QLabel" name="mVerticalAlignementLabel">
             <property name="text">
-             <string>Margin</string>
+             <string>Vertical alignment</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="1">
-           <widget class="QDoubleSpinBox" name="mMarginDoubleSpinBox">
-            <property name="prefix">
-             <string/>
+          <item row="0" column="0" colspan="2">
+           <widget class="QPushButton" name="mFontButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
+            <property name="text">
+             <string>Font...</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="mMarginXLabel">
+            <property name="text">
+             <string>Horizontal margin</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QgsColorButtonV2" name="mFontColorButton">
+              <property name="minimumSize">
+               <size>
+                <width>120</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>120</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item row="3" column="1">
+           <widget class="QDoubleSpinBox" name="mMarginYDoubleSpinBox">
             <property name="suffix">
              <string> mm</string>
+            </property>
+            <property name="minimum">
+             <double>-99.989999999999995</double>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="mMarginYLabel">
+            <property name="text">
+             <string>Vertical margin</string>
             </property>
            </widget>
           </item>
@@ -356,8 +339,27 @@
    <class>QgsColorButtonV2</class>
    <extends>QToolButton</extends>
    <header>qgscolorbuttonv2.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>scrollArea</tabstop>
+  <tabstop>mTextGroupBox</tabstop>
+  <tabstop>mTextEdit</tabstop>
+  <tabstop>mHtmlCheckBox</tabstop>
+  <tabstop>mInsertExpressionButton</tabstop>
+  <tabstop>mAppearanceGroup</tabstop>
+  <tabstop>mFontButton</tabstop>
+  <tabstop>mFontColorButton</tabstop>
+  <tabstop>mMarginXDoubleSpinBox</tabstop>
+  <tabstop>mMarginYDoubleSpinBox</tabstop>
+  <tabstop>mLeftRadioButton</tabstop>
+  <tabstop>mCenterRadioButton</tabstop>
+  <tabstop>mRightRadioButton</tabstop>
+  <tabstop>mTopRadioButton</tabstop>
+  <tabstop>mMiddleRadioButton</tabstop>
+  <tabstop>mBottomRadioButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
  <buttongroups>

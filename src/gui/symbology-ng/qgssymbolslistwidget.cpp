@@ -85,7 +85,7 @@ QgsSymbolsListWidget::QgsSymbolsListWidget( QgsSymbolV2* symbol, QgsStyleV2* sty
 
   // Live color updates are not undoable to child symbol layers
   btnColor->setAcceptLiveUpdates( false );
-  btnColor->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  btnColor->setAllowAlpha( true );
   btnColor->setColorDialogTitle( tr( "Select color" ) );
   btnColor->setContext( "symbology" );
 }
@@ -207,7 +207,7 @@ void QgsSymbolsListWidget::addSymbolToStyle()
 {
   bool ok;
   QString name = QInputDialog::getText( this, tr( "Symbol name" ),
-                                        tr( "Please enter name for the symbol:" ) , QLineEdit::Normal, tr( "New symbol" ), &ok );
+                                        tr( "Please enter name for the symbol:" ), QLineEdit::Normal, tr( "New symbol" ), &ok );
   if ( !ok || name.isEmpty() )
     return;
 
@@ -232,7 +232,7 @@ void QgsSymbolsListWidget::addSymbolToStyle()
   populateSymbolView();
 }
 
-void QgsSymbolsListWidget::on_mSymbolUnitWidget_changed( )
+void QgsSymbolsListWidget::on_mSymbolUnitWidget_changed()
 {
   if ( mSymbol )
   {

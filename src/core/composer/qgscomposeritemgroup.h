@@ -14,6 +14,8 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+#ifndef QGSCOMPOSERITEMGROUP_H
+#define QGSCOMPOSERITEMGROUP_H
 
 #include "qgscomposeritem.h"
 #include <QSet>
@@ -28,7 +30,7 @@ class CORE_EXPORT QgsComposerItemGroup: public QgsComposerItem
     QgsComposerItemGroup( QgsComposition* c );
     ~QgsComposerItemGroup();
 
-    /** return correct graphics item type. Added in v1.7 */
+    /** return correct graphics item type. */
     virtual int type() const { return ComposerItemGroup; }
 
     /**Adds an item to the group. All the group members are deleted
@@ -72,3 +74,5 @@ class CORE_EXPORT QgsComposerItemGroup: public QgsComposerItem
     QSet<QgsComposerItem*> mItems;
     QRectF mBoundingRectangle;
 };
+
+#endif

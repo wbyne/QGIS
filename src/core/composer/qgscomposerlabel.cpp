@@ -21,6 +21,8 @@
 #include "qgsexpression.h"
 #include "qgsnetworkaccessmanager.h"
 #include "qgscomposermodel.h"
+#include "qgsvectorlayer.h"
+#include "qgsproject.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -32,12 +34,21 @@
 #include <QWebPage>
 #include <QEventLoop>
 
-QgsComposerLabel::QgsComposerLabel( QgsComposition *composition ):
-    QgsComposerItem( composition ), mHtmlState( 0 ), mHtmlUnitsToMM( 1.0 ),
-    mHtmlLoaded( false ), mMargin( 1.0 ), mFontColor( QColor( 0, 0, 0 ) ),
-    mHAlignment( Qt::AlignLeft ), mVAlignment( Qt::AlignTop ),
-    mExpressionFeature( 0 ), mExpressionLayer( 0 )
+QgsComposerLabel::QgsComposerLabel( QgsComposition *composition )
+    : QgsComposerItem( composition )
+    , mHtmlState( 0 )
+    , mHtmlUnitsToMM( 1.0 )
+    , mHtmlLoaded( false )
+    , mMarginX( 1.0 )
+    , mMarginY( 1.0 )
+    , mFontColor( QColor( 0, 0, 0 ) )
+    , mHAlignment( Qt::AlignLeft )
+    , mVAlignment( Qt::AlignTop )
+    , mExpressionFeature( 0 )
+    , mExpressionLayer( 0 )
+    , mDistanceArea( 0 )
 {
+  mDistanceArea = new QgsDistanceArea();
   mHtmlUnitsToMM = htmlUnitsToMM();
 
   //get default composer font from settings
@@ -61,14 +72,17 @@ QgsComposerLabel::QgsComposerLabel( QgsComposition *composition ):
     setExpressionContext( mComposition->atlasComposition().currentFeature(), mComposition->atlasComposition().coverageLayer() );
   }
 
-  //connect to atlas feature changes
-  //to update the expression context
-  connect( &mComposition->atlasComposition(), SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( refreshExpressionContext() ) );
-
+  if ( mComposition )
+  {
+    //connect to atlas feature changes
+    //to update the expression context
+    connect( &mComposition->atlasComposition(), SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( refreshExpressionContext() ) );
+  }
 }
 
 QgsComposerLabel::~QgsComposerLabel()
 {
+  delete mDistanceArea;
 }
 
 void QgsComposerLabel::paint( QPainter* painter, const QStyleOptionGraphicsItem* itemStyle, QWidget* pWidget )
@@ -79,6 +93,10 @@ void QgsComposerLabel::paint( QPainter* painter, const QStyleOptionGraphicsItem*
   {
     return;
   }
+  if ( !shouldDrawItem() )
+  {
+    return;
+  }
 
   drawBackground( painter );
   painter->save();
@@ -86,15 +104,16 @@ void QgsComposerLabel::paint( QPainter* painter, const QStyleOptionGraphicsItem*
   //antialiasing on
   painter->setRenderHint( QPainter::Antialiasing, true );
 
-  double penWidth = hasFrame() ? pen().widthF() : 0;
-  QRectF painterRect( penWidth + mMargin, penWidth + mMargin, rect().width() - 2 * penWidth - 2 * mMargin, rect().height() - 2 * penWidth - 2 * mMargin );
+  double penWidth = hasFrame() ? ( pen().widthF() / 2.0 ) : 0;
+  double xPenAdjust = mMarginX < 0 ? -penWidth : penWidth;
+  double yPenAdjust = mMarginY < 0 ? -penWidth : penWidth;
+  QRectF painterRect( xPenAdjust + mMarginX, yPenAdjust + mMarginY, rect().width() - 2 * xPenAdjust - 2 * mMarginX, rect().height() - 2 * yPenAdjust - 2 * mMarginY );
 
   QString textToDraw = displayText();
 
   if ( mHtmlState )
   {
     painter->scale( 1.0 / mHtmlUnitsToMM / 10.0, 1.0 / mHtmlUnitsToMM / 10.0 );
-
     QWebPage *webPage = new QWebPage();
     webPage->setNetworkAccessManager( QgsNetworkAccessManager::instance() );
 
@@ -145,7 +164,6 @@ void QgsComposerLabel::paint( QPainter* painter, const QStyleOptionGraphicsItem*
       // Pause until html is loaded
       loop.exec();
     }
-
     webPage->mainFrame()->render( painter );//DELETE WEBPAGE ?
   }
   else
@@ -217,6 +235,23 @@ void QgsComposerLabel::setExpressionContext( QgsFeature* feature, QgsVectorLayer
   mExpressionFeature = feature;
   mExpressionLayer = layer;
   mSubstitutions = substitutions;
+
+  //setup distance area conversion
+  if ( layer )
+  {
+    mDistanceArea->setSourceCrs( layer->crs().srsid() );
+  }
+  else if ( mComposition )
+  {
+    //set to composition's mapsettings' crs
+    mDistanceArea->setSourceCrs( mComposition->mapSettings().destinationCrs().srsid() );
+  }
+  if ( mComposition )
+  {
+    mDistanceArea->setEllipsoidalMode( mComposition->mapSettings().hasCrsTransformEnabled() );
+  }
+  mDistanceArea->setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
+
   // Force label to redraw -- fixes label printing for labels with blend modes when used with atlas
   update();
 }
@@ -244,7 +279,7 @@ QString QgsComposerLabel::displayText() const
   replaceDateText( displayText );
   QMap<QString, QVariant> subs = mSubstitutions;
   subs[ "$page" ] = QVariant(( int )mComposition->itemPageNumber( this ) + 1 );
-  return QgsExpression::replaceExpressionText( displayText, mExpressionFeature, mExpressionLayer, &subs );
+  return QgsExpression::replaceExpressionText( displayText, mExpressionFeature, mExpressionLayer, &subs, mDistanceArea );
 }
 
 void QgsComposerLabel::replaceDateText( QString& text ) const
@@ -277,15 +312,34 @@ void QgsComposerLabel::setFont( const QFont& f )
   mFont = f;
 }
 
+void QgsComposerLabel::setMargin( const double m )
+{
+  mMarginX = m;
+  mMarginY = m;
+  prepareGeometryChange();
+}
+
+void QgsComposerLabel::setMarginX( const double margin )
+{
+  mMarginX = margin;
+  prepareGeometryChange();
+}
+
+void QgsComposerLabel::setMarginY( const double margin )
+{
+  mMarginY = margin;
+  prepareGeometryChange();
+}
+
 void QgsComposerLabel::adjustSizeToText()
 {
   double textWidth = QgsComposerUtils::textWidthMM( mFont, displayText() );
   double fontHeight = QgsComposerUtils::fontHeightMM( mFont );
 
-  double penWidth = hasFrame() ? pen().widthF() : 0;
+  double penWidth = hasFrame() ? ( pen().widthF() / 2.0 ) : 0;
 
-  double width = textWidth + 2 * mMargin + 2 * penWidth + 1;
-  double height = fontHeight + 2 * mMargin + 2 * penWidth;
+  double width = textWidth + 2 * mMarginX + 2 * penWidth + 1;
+  double height = fontHeight + 2 * mMarginY + 2 * penWidth;
 
   //keep alignment point constant
   double xShift = 0;
@@ -316,8 +370,8 @@ bool QgsComposerLabel::writeXML( QDomElement& elem, QDomDocument & doc ) const
   composerLabelElem.setAttribute( "htmlState", mHtmlState );
 
   composerLabelElem.setAttribute( "labelText", mText );
-  composerLabelElem.setAttribute( "margin", QString::number( mMargin ) );
-
+  composerLabelElem.setAttribute( "marginX", QString::number( mMarginX ) );
+  composerLabelElem.setAttribute( "marginY", QString::number( mMarginY ) );
   composerLabelElem.setAttribute( "halign", mHAlignment );
   composerLabelElem.setAttribute( "valign", mVAlignment );
 
@@ -355,7 +409,17 @@ bool QgsComposerLabel::readXML( const QDomElement& itemElem, const QDomDocument&
   mHtmlState = itemElem.attribute( "htmlState" ).toInt();
 
   //margin
-  mMargin = itemElem.attribute( "margin" ).toDouble();
+  bool marginXOk = false;
+  bool marginYOk = false;
+  mMarginX = itemElem.attribute( "marginX" ).toDouble( &marginXOk );
+  mMarginY = itemElem.attribute( "marginY" ).toDouble( &marginYOk );
+  if ( !marginXOk || !marginYOk )
+  {
+    //upgrade old projects where margins where stored in a single attribute
+    double margin = itemElem.attribute( "margin", "1.0" ).toDouble();
+    mMarginX = margin;
+    mMarginY = margin;
+  }
 
   //Horizontal alignment
   mHAlignment = ( Qt::AlignmentFlag )( itemElem.attribute( "halign" ).toInt() );
@@ -418,19 +482,49 @@ QString QgsComposerLabel::displayName() const
   }
 
   //if no id, default to portion of label text
-  QString text = displayText();
+  QString text = mText;
   if ( text.isEmpty() )
   {
     return tr( "<label>" );
   }
   if ( text.length() > 25 )
   {
-    return QString( tr( "%1..." ) ).arg( text.left( 25 ) );
+    return QString( tr( "%1..." ) ).arg( text.left( 25 ).simplified() );
   }
   else
   {
-    return text;
+    return text.simplified();
   }
+}
+
+QRectF QgsComposerLabel::boundingRect() const
+{
+  QRectF rectangle = rect();
+  double penWidth = hasFrame() ? ( pen().widthF() / 2.0 ) : 0;
+  rectangle.adjust( -penWidth, -penWidth, penWidth, penWidth );
+
+  if ( mMarginX < 0 )
+  {
+    rectangle.adjust( mMarginX, 0, -mMarginX, 0 );
+  }
+  if ( mMarginY < 0 )
+  {
+    rectangle.adjust( 0, mMarginY, 0, -mMarginY );
+  }
+
+  return rectangle;
+}
+
+void QgsComposerLabel::setFrameEnabled( const bool drawFrame )
+{
+  QgsComposerItem::setFrameEnabled( drawFrame );
+  prepareGeometryChange();
+}
+
+void QgsComposerLabel::setFrameOutlineWidth( const double outlineWidth )
+{
+  QgsComposerItem::setFrameOutlineWidth( outlineWidth );
+  prepareGeometryChange();
 }
 
 void QgsComposerLabel::itemShiftAdjustSize( double newWidth, double newHeight, double& xShift, double& yShift ) const

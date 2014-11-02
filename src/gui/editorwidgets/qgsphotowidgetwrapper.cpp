@@ -17,7 +17,7 @@
 
 #include <QGridLayout>
 #include <QFileDialog>
-
+#include <QSettings>
 
 #include "qgsfilterlineedit.h"
 
@@ -30,7 +30,7 @@ void QgsPhotoWidgetWrapper::selectFileName()
 {
   if ( mLineEdit )
   {
-    QString fileName = QFileDialog::getOpenFileName( 0 , tr( "Select a picture" ), QFileInfo( mLineEdit->text() ).absolutePath() );
+    QString fileName = QFileDialog::getOpenFileName( 0, tr( "Select a picture" ), QFileInfo( mLineEdit->text() ).absolutePath() );
     if ( !fileName.isNull() )
       mLineEdit->setText( QDir::toNativeSeparators( fileName ) );
   }
@@ -38,6 +38,11 @@ void QgsPhotoWidgetWrapper::selectFileName()
 
 void QgsPhotoWidgetWrapper::loadPixmap( const QString &fileName )
 {
+  if ( mWebView )
+  {
+    mWebView->setUrl( fileName );
+  }
+
   QPixmap pm( fileName );
   if ( !pm.isNull() && mPhotoLabel )
   {
@@ -53,7 +58,6 @@ void QgsPhotoWidgetWrapper::loadPixmap( const QString &fileName )
 
     pm = pm.scaled( size, Qt::KeepAspectRatio, Qt::SmoothTransformation );
 
-
     mPhotoLabel->setPixmap( pm );
     mPhotoLabel->setMinimumSize( size );
   }
@@ -64,7 +68,12 @@ QVariant QgsPhotoWidgetWrapper::value()
   QVariant v;
 
   if ( mLineEdit )
-    v = mLineEdit->text();
+  {
+    if ( mLineEdit->text() == QSettings().value( "qgis/nullValue", "NULL" ).toString() )
+      v = QVariant( QVariant::String );
+    else
+      v = mLineEdit->text();
+  }
 
   return v;
 }
@@ -93,9 +102,17 @@ void QgsPhotoWidgetWrapper::initWidget( QWidget* editor )
   QWidget* container;
 
   mLineEdit = qobject_cast<QLineEdit*>( editor );
+  mWebView = qobject_cast<QWebView*>( editor );
 
   if ( mLineEdit )
-    container = qobject_cast<QWidget*>( mLineEdit->parent() );
+  {
+    container = mLineEdit->parentWidget();
+  }
+  else if ( mWebView )
+  {
+    container = mWebView->parentWidget();
+    mLineEdit = container->findChild<QLineEdit*>();
+  }
   else
   {
     container = editor;
@@ -115,6 +132,13 @@ void QgsPhotoWidgetWrapper::initWidget( QWidget* editor )
 
   if ( mLineEdit )
   {
+
+    QgsFilterLineEdit *fle = qobject_cast<QgsFilterLineEdit*>( mLineEdit );
+    if ( fle )
+    {
+      fle->setNullValue( QSettings().value( "qgis/nullValue", "NULL" ).toString() );
+    }
+
     connect( mLineEdit, SIGNAL( textChanged( QString ) ), this, SLOT( valueChanged( QString ) ) );
     connect( mLineEdit, SIGNAL( textChanged( QString ) ), this, SLOT( loadPixmap( QString ) ) );
   }
@@ -123,9 +147,16 @@ void QgsPhotoWidgetWrapper::initWidget( QWidget* editor )
 void QgsPhotoWidgetWrapper::setValue( const QVariant& value )
 {
   if ( mLineEdit )
-    mLineEdit->setText( value.toString() );
-
-
+  {
+    if ( value.isNull() )
+      mLineEdit->setText( QSettings().value( "qgis/nullValue", "NULL" ).toString() );
+    else
+      mLineEdit->setText( value.toString() );
+  }
+  else
+  {
+    loadPixmap( value.toString() );
+  }
 }
 
 void QgsPhotoWidgetWrapper::setEnabled( bool enabled )

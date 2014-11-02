@@ -27,7 +27,8 @@ __revision__ = '$Format:%H$'
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from PyQt4 import QtCore, QtGui, QtWebKit
+from PyQt4.QtWebKit import *
+
 from processing.modeler.ModelerAlgorithm import ValueFromInput,\
     ValueFromOutput, Algorithm, ModelerOutput
 from processing.gui.CrsSelectionPanel import CrsSelectionPanel
@@ -39,14 +40,14 @@ from processing.core.parameters import *
 from processing.core.outputs import *
 
 
-class ModelerParametersDialog(QtGui.QDialog):
+class ModelerParametersDialog(QDialog):
 
     ENTER_NAME = '[Enter name if this is a final result]'
     NOT_SELECTED = '[Not selected]'
     USE_MIN_COVERING_EXTENT = '[Use min covering extent]'
 
     def __init__(self, alg, model, algName=None):
-        QtGui.QDialog.__init__(self)
+        QDialog.__init__(self)
         self.setModal(True)
         #The algorithm to define in this dialog. It is an instance of GeoAlgorithm
         self._alg = alg
@@ -67,39 +68,38 @@ class ModelerParametersDialog(QtGui.QDialog):
         self.valueItems = {}
         self.dependentItems = {}
         self.resize(650, 450)
-        self.buttonBox = QtGui.QDialogButtonBox()
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel
-                | QtGui.QDialogButtonBox.Ok)
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel
+                | QDialogButtonBox.Ok)
         tooltips = self._alg.getParameterDescriptions()
-        self.setSizePolicy(QtGui.QSizePolicy.Expanding,
-                           QtGui.QSizePolicy.Expanding)
-        self.verticalLayout = QtGui.QVBoxLayout()
+        self.setSizePolicy(QSizePolicy.Expanding,
+                           QSizePolicy.Expanding)
+        self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setSpacing(5)
         self.verticalLayout.setMargin(20)
 
-        hLayout = QtGui.QHBoxLayout()
+        hLayout = QHBoxLayout()
         hLayout.setSpacing(5)
         hLayout.setMargin(0)
-        descriptionLabel = QtGui.QLabel("Description")
-        self.descriptionBox = QtGui.QLineEdit()
+        descriptionLabel = QLabel(self.tr("Description"))
+        self.descriptionBox = QLineEdit()
         self.descriptionBox.setText(self._alg.name)
         hLayout.addWidget(descriptionLabel)
         hLayout.addWidget(self.descriptionBox)
         self.verticalLayout.addLayout(hLayout)
-        line = QtGui.QFrame()
-        line.setFrameShape(QtGui.QFrame.HLine)
-        line.setFrameShadow(QtGui.QFrame.Sunken)
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
         self.verticalLayout.addWidget(line)
 
         for param in self._alg.parameters:
             if param.isAdvanced:
-                self.advancedButton = QtGui.QPushButton()
-                self.advancedButton.setText('Show advanced parameters')
+                self.advancedButton = QPushButton()
+                self.advancedButton.setText(self.tr('Show advanced parameters'))
                 self.advancedButton.setMaximumWidth(150)
-                QtCore.QObject.connect(self.advancedButton,
-                                       QtCore.SIGNAL('clicked()'),
-                                       self.showAdvancedParametersClicked)
+                self.advancedButton.clicked.connect(
+                    self.showAdvancedParametersClicked)
                 self.verticalLayout.addWidget(self.advancedButton)
                 break
         for param in self._alg.parameters:
@@ -108,7 +108,7 @@ class ModelerParametersDialog(QtGui.QDialog):
             desc = param.description
             if isinstance(param, ParameterExtent):
                 desc += '(xmin, xmax, ymin, ymax)'
-            label = QtGui.QLabel(desc)
+            label = QLabel(desc)
             self.labels[param.name] = label
             widget = self.getWidgetFromParameter(param)
             self.valueItems[param.name] = widget
@@ -130,8 +130,8 @@ class ModelerParametersDialog(QtGui.QDialog):
                 continue
             if isinstance(output, (OutputRaster, OutputVector, OutputTable,
                           OutputHTML, OutputFile, OutputDirectory)):
-                label = QtGui.QLabel(output.description + '<'
-                                     + output.__module__.split('.')[-1] + '>')
+                label = QLabel(output.description + '<'
+                                     + output.__class__.__name__ + '>')
                 item = QLineEdit()
                 if hasattr(item, 'setPlaceholderText'):
                     item.setPlaceholderText(ModelerParametersDialog.ENTER_NAME)
@@ -139,9 +139,9 @@ class ModelerParametersDialog(QtGui.QDialog):
                 self.verticalLayout.addWidget(item)
                 self.valueItems[output.name] = item
 
-        label = QtGui.QLabel(' ')
+        label = QLabel(' ')
         self.verticalLayout.addWidget(label)
-        label = QtGui.QLabel('Parent algorithms')
+        label = QLabel(self.tr('Parent algorithms'))
         self.dependenciesPanel = self.getDependenciesPanel()
         self.verticalLayout.addWidget(label)
         self.verticalLayout.addWidget(self.dependenciesPanel)
@@ -151,18 +151,18 @@ class ModelerParametersDialog(QtGui.QDialog):
 
         self.setPreviousValues()
         self.setWindowTitle(self._alg.name)
-        self.verticalLayout2 = QtGui.QVBoxLayout()
+        self.verticalLayout2 = QVBoxLayout()
         self.verticalLayout2.setSpacing(2)
         self.verticalLayout2.setMargin(0)
-        self.tabWidget = QtGui.QTabWidget()
+        self.tabWidget = QTabWidget()
         self.tabWidget.setMinimumWidth(300)
-        self.paramPanel = QtGui.QWidget()
+        self.paramPanel = QWidget()
         self.paramPanel.setLayout(self.verticalLayout)
-        self.scrollArea = QtGui.QScrollArea()
+        self.scrollArea = QScrollArea()
         self.scrollArea.setWidget(self.paramPanel)
         self.scrollArea.setWidgetResizable(True)
-        self.tabWidget.addTab(self.scrollArea, 'Parameters')
-        self.webView = QtWebKit.QWebView()
+        self.tabWidget.addTab(self.scrollArea, self.tr('Parameters'))
+        self.webView = QWebView()
 
         html = None
         url = None
@@ -171,26 +171,24 @@ class ModelerParametersDialog(QtGui.QDialog):
             if isText:
                 html = help;
             else:
-                url = QtCore.QUrl(help)
+                url = QUrl(help)
         else:
-            html = '<h2>Sorry, no help is available for this \
-                    algorithm.</h2>'
+            html = self.tr('<h2>Sorry, no help is available for this '
+                           'algorithm.</h2>')
         try:
             if html:
                 self.webView.setHtml(html)
             elif url:
                 self.webView.load(url)
         except:
-            self.webView.setHtml('<h2>Could not open help file :-( </h2>')
+            self.webView.setHtml(self.tr('<h2>Could not open help file :-( </h2>'))
         self.tabWidget.addTab(self.webView, 'Help')
         self.verticalLayout2.addWidget(self.tabWidget)
         self.verticalLayout2.addWidget(self.buttonBox)
         self.setLayout(self.verticalLayout2)
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL('accepted()'),
-                               self.okPressed)
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL('rejected()'),
-                               self.cancelPressed)
-        QtCore.QMetaObject.connectSlotsByName(self)
+        self.buttonBox.accepted.connect(self.okPressed)
+        self.buttonBox.rejected.connect(self.cancelPressed)
+        QMetaObject.connectSlotsByName(self)
 
     def getAvailableDependencies(self):
         if self._algName is None:
@@ -209,9 +207,9 @@ class ModelerParametersDialog(QtGui.QDialog):
     def showAdvancedParametersClicked(self):
         self.showAdvanced = not self.showAdvanced
         if self.showAdvanced:
-            self.advancedButton.setText('Hide advanced parameters')
+            self.advancedButton.setText(self.tr('Hide advanced parameters'))
         else:
-            self.advancedButton.setText('Show advanced parameters')
+            self.advancedButton.setText(self.tr('Show advanced parameters'))
         for param in self._alg.parameters:
             if param.isAdvanced:
                 self.labels[param.name].setVisible(self.showAdvanced)
@@ -243,26 +241,26 @@ class ModelerParametersDialog(QtGui.QDialog):
             return self.model.inputs[value.name].param.description
         else:
             alg = self.model.algs[value.alg]
-            return "'%s' from algorithm '%s'" % (alg.algorithm.getOutputFromName(value.output).description, alg.description)
+            return self.tr("'%s' from algorithm '%s'") % (alg.algorithm.getOutputFromName(value.output).description, alg.description)
 
 
     def getWidgetFromParameter(self, param):
         if isinstance(param, ParameterRaster):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             layers = self.getAvailableValuesOfType(ParameterRaster, OutputRaster)
             if param.optional:
                 item.addItem(self.NOT_SELECTED, None)
             for layer in layers:
                 item.addItem(self.resolveValueDescription(layer), layer)
         elif isinstance(param, ParameterVector):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             layers = self.getAvailableValuesOfType(ParameterVector, OutputVector)
             if param.optional:
                 item.addItem(self.NOT_SELECTED, None)
             for layer in layers:
                 item.addItem(self.resolveValueDescription(layer), layer)
         elif isinstance(param, ParameterTable):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.setEditable(True)
             layers = self.getAvailableValuesOfType(ParameterTable, OutputTable)
             if param.optional:
@@ -270,14 +268,14 @@ class ModelerParametersDialog(QtGui.QDialog):
             for layer in layers:
                 item.addItem(self.resolveValueDescription(layer), layer)
         elif isinstance(param, ParameterBoolean):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.addItem('Yes')
             item.addItem('No')
             bools = self.getAvailableValuesOfType(ParameterBoolean, None)
             for b in bools:
                 item.addItem(self.resolveValueDescription(b), b)
         elif isinstance(param, ParameterSelection):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.addItems(param.options)
         elif isinstance(param, ParameterFixedTable):
             item = FixedTablePanel(param)
@@ -299,19 +297,19 @@ class ModelerParametersDialog(QtGui.QDialog):
                 item = MultilineTextPanel(options)
                 item.setText(unicode(param.default))
             else:
-                item = QtGui.QComboBox()
+                item = QComboBox()
                 item.setEditable(True)
                 for desc, val in options:
                     item.addItem(desc, val)
                 item.setEditText(unicode(param.default))
         elif isinstance(param, ParameterTableField):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.setEditable(True)
             fields = self.getAvailableValuesOfType(ParameterTableField, None)
             for f in fields:
                 item.addItem(self.resolveValueDescription(f), f)
         elif isinstance(param, ParameterNumber):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.setEditable(True)
             numbers = self.getAvailableValuesOfType(ParameterNumber, OutputNumber)
             for n in numbers:
@@ -320,7 +318,7 @@ class ModelerParametersDialog(QtGui.QDialog):
         elif isinstance(param, ParameterCrs):
             item = CrsSelectionPanel(param.default)
         elif isinstance(param, ParameterExtent):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.setEditable(True)
             extents = self.getAvailableValuesOfType(ParameterExtent, OutputExtent)
             if self.canUseAutoExtent():
@@ -330,13 +328,13 @@ class ModelerParametersDialog(QtGui.QDialog):
             if not self.canUseAutoExtent():
                 item.setEditText(str(param.default))
         elif isinstance(param, ParameterFile):
-            item = QtGui.QComboBox()
+            item = QComboBox()
             item.setEditable(True)
             files = self.getAvailableValuesOfType(ParameterFile, OutputFile)
             for f in files:
                 item.addItem(self.resolveValueDescription(f), f)
         else:
-            item = QtGui.QLineEdit()
+            item = QLineEdit()
             try:
                 item.setText(str(param.default))
             except:
@@ -357,8 +355,8 @@ class ModelerParametersDialog(QtGui.QDialog):
         self.tableWidget.setRowCount(len(visibleParams) + len(visibleOutputs))
 
         for i, param in visibleParams:
-            item = QtGui.QTableWidgetItem(param.description)
-            item.setFlags(QtCore.Qt.ItemIsEnabled)
+            item = QTableWidgetItem(param.description)
+            item.setFlags(Qt.ItemIsEnabled)
             self.tableWidget.setItem(i, 0, item)
             item = self.getWidgetFromParameter(param)
             self.valueItems[param.name] = item
@@ -366,9 +364,9 @@ class ModelerParametersDialog(QtGui.QDialog):
             self.tableWidget.setRowHeight(i, 22)
 
         for i, output in visibleOutputs:
-            item = QtGui.QTableWidgetItem(output.description + '<'
+            item = QTableWidgetItem(output.description + '<'
                     + output.__module__.split('.')[-1] + '>')
-            item.setFlags(QtCore.Qt.ItemIsEnabled)
+            item.setFlags(Qt.ItemIsEnabled)
             self.tableWidget.setItem(i, 0, item)
             item = QLineEdit()
             if hasattr(item, 'setPlaceholderText'):
@@ -380,10 +378,7 @@ class ModelerParametersDialog(QtGui.QDialog):
     def setComboBoxValue(self, combo, value, param):
         if isinstance(value, list):
             value = value[0]
-        print param.name
-        print value
         items = [combo.itemData(i) for i in range(combo.count())]
-        print items
         try:
             idx = items.index(value)
             combo.setCurrentIndex(idx)
@@ -499,7 +494,7 @@ class ModelerParametersDialog(QtGui.QDialog):
                 else:
                     return False
             else:
-                alg.values[param.name] = s
+                alg.params[param.name] = s
                 return True
         else:
             alg.params[param.name] = widget.itemData(widget.currentIndex())
@@ -632,8 +627,8 @@ class ModelerParametersDialog(QtGui.QDialog):
         if self.alg is not None:
             self.close()
         else:
-            QMessageBox.warning(self, 'Unable to add algorithm',
-                                 'Wrong or missing parameter values')
+            QMessageBox.warning(self, self.tr('Unable to add algorithm'),
+                                self.tr('Wrong or missing parameter values'))
 
     def cancelPressed(self):
         self.alg = None

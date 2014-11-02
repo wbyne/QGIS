@@ -23,6 +23,8 @@ class QWebPage;
 class QImage;
 class QgsFeature;
 class QgsVectorLayer;
+class QgsNetworkContentFetcher;
+class QgsDistanceArea;
 
 class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
 {
@@ -38,7 +40,10 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     };
 
     QgsComposerHtml( QgsComposition* c, bool createUndoCommands );
+
+    //should be private - fix for QGIS 3.0
     QgsComposerHtml();
+
     ~QgsComposerHtml();
 
     /**Sets the source mode for item's HTML content.
@@ -116,17 +121,6 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
      * @note added in QGIS 2.5
      */
     void setEvaluateExpressions( bool evaluateExpressions );
-
-    QSizeF totalSize() const;
-    void render( QPainter* p, const QRectF& renderExtent );
-
-    bool writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames = false ) const;
-    bool readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames = false );
-
-    void addFrame( QgsComposerFrame* frame, bool recalcFrameSizes = true );
-
-    //overriden to break frames without dividing lines of text
-    double findNearbyPageBreak( double yPos );
 
     /**Returns whether html item is using smart breaks. Smart breaks prevent
      * the html frame contents from breaking mid-way though a line of text.
@@ -206,6 +200,13 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     bool userStylesheetEnabled() const { return mEnableUserStylesheet; }
 
     virtual QString displayName() const;
+    QSizeF totalSize() const;
+    void render( QPainter* p, const QRectF& renderExtent, const int frameIndex );
+    bool writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames = false ) const;
+    bool readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames = false );
+    void addFrame( QgsComposerFrame* frame, bool recalcFrameSizes = true );
+    //overriden to break frames without dividing lines of text
+    double findNearbyPageBreak( double yPos );
 
   public slots:
 
@@ -215,6 +216,8 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
      */
     void loadHtml();
 
+    /**Recalculates the frame sizes for the current viewport dimensions*/
+    void recalculateFrameSizes();
     void refreshExpressionContext();
 
     virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties );
@@ -240,8 +243,12 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
 
     QgsFeature* mExpressionFeature;
     QgsVectorLayer* mExpressionLayer;
+    QgsDistanceArea* mDistanceArea;
+
     QString mUserStylesheet;
     bool mEnableUserStylesheet;
+
+    QgsNetworkContentFetcher* mFetcher;
 
     double htmlUnitsToMM(); //calculate scale factor
 
@@ -253,6 +260,9 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
 
     /** Sets the current feature, the current layer and a list of local variable substitutions for evaluating expressions */
     void setExpressionContext( QgsFeature* feature, QgsVectorLayer* layer );
+
+    /**calculates the max width of frames in the html multiframe*/
+    double maxFrameWidth() const;
 };
 
 #endif // QGSCOMPOSERHTML_H

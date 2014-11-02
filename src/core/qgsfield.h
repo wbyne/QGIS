@@ -129,6 +129,15 @@ class CORE_EXPORT QgsField
     /** Formats string for display*/
     QString displayString( const QVariant& v ) const;
 
+    /**
+     * Converts the provided variant to a compatible format
+     *
+     * @param v  The value to convert
+     *
+     * @return   True if the conversion was successful
+     */
+    bool convertCompatible( QVariant& v ) const;
+
   private:
 
     //! Name
@@ -246,7 +255,7 @@ class CORE_EXPORT QgsFields
     //! @note added in 2.6
     bool operator==( const QgsFields& other ) const { return mFields == other.mFields; }
     //! @note added in 2.6
-    bool operator!=( const QgsFields& other ) const { return ! ( *this == other ); }
+    bool operator!=( const QgsFields& other ) const { return !( *this == other ); }
 
   protected:
     //! internal storage of the container

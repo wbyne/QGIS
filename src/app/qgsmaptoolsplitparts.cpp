@@ -22,9 +22,10 @@
 
 #include <QMouseEvent>
 
-QgsMapToolSplitParts::QgsMapToolSplitParts( QgsMapCanvas* canvas ): QgsMapToolCapture( canvas, QgsMapToolCapture::CaptureLine )
+QgsMapToolSplitParts::QgsMapToolSplitParts( QgsMapCanvas* canvas )
+    : QgsMapToolCapture( canvas, QgsMapToolCapture::CaptureLine )
 {
-
+  mToolName = tr( "Split parts" );
 }
 
 QgsMapToolSplitParts::~QgsMapToolSplitParts()
@@ -120,7 +121,7 @@ void QgsMapToolSplitParts::canvasReleaseEvent( QMouseEvent * e )
     {
       QgisApp::instance()->messageBar()->pushMessage(
         tr( "No part split done" ),
-        tr( "The geometry is invalid. Please repair before trying to split it." ) ,
+        tr( "The geometry is invalid. Please repair before trying to split it." ),
         QgsMessageBar::WARNING,
         QgisApp::instance()->messageTimeout() );
     }

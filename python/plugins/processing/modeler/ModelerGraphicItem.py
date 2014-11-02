@@ -43,7 +43,6 @@ class ModelerGraphicItem(QtGui.QGraphicsItem):
         super(ModelerGraphicItem, self).__init__(None, None)
         self.model = model
         self.element = element
-        print element.__class__
         if isinstance(element, ModelerParameter):
             icon = QtGui.QIcon(os.path.dirname(__file__)
                                + '/../images/input.png')
@@ -130,7 +129,8 @@ class ModelerGraphicItem(QtGui.QGraphicsItem):
         return rect
 
     def mouseDoubleClickEvent(self, event):
-        self.editElement()
+        pass
+        #self.editElement()
 
     def contextMenuEvent(self, event):
         if isinstance(self.element, ModelerOutput):

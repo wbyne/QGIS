@@ -16,30 +16,33 @@
 #include "qgsmaplayeractionregistry.h"
 
 
-QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, Targets targets ) : QAction( name, parent ),
-    mSingleLayer( false ),
-    mActionLayer( 0 ),
-    mSpecificLayerType( false ),
-    mTargets( targets )
+QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, Targets targets, QIcon icon )
+    : QAction( icon, name, parent )
+    , mSingleLayer( false )
+    , mActionLayer( 0 )
+    , mSpecificLayerType( false )
+    , mTargets( targets )
 {
 }
 
 /**Creates a map layer action which can run only on a specific layer*/
-QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, QgsMapLayer* layer , Targets targets ) : QAction( name, parent ),
-    mSingleLayer( true ),
-    mActionLayer( layer ),
-    mSpecificLayerType( false ),
-    mTargets( targets )
+QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, QgsMapLayer* layer , Targets targets, QIcon icon )
+    : QAction( icon, name, parent )
+    , mSingleLayer( true )
+    , mActionLayer( layer )
+    , mSpecificLayerType( false )
+    , mTargets( targets )
 {
 }
 
 /**Creates a map layer action which can run on a specific type of layer*/
-QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, QgsMapLayer::LayerType layerType, Targets targets ) : QAction( name, parent ),
-    mSingleLayer( false ),
-    mActionLayer( 0 ),
-    mSpecificLayerType( true ),
-    mLayerType( layerType ),
-    mTargets( targets )
+QgsMapLayerAction::QgsMapLayerAction( QString name, QObject* parent, QgsMapLayer::LayerType layerType, Targets targets, QIcon icon )
+    : QAction( icon, name, parent )
+    , mSingleLayer( false )
+    , mActionLayer( 0 )
+    , mSpecificLayerType( true )
+    , mLayerType( layerType )
+    , mTargets( targets )
 {
 }
 
@@ -72,14 +75,14 @@ bool QgsMapLayerAction::canRunUsingLayer( QgsMapLayer* layer ) const
   return false;
 }
 
-void QgsMapLayerAction::triggerForFeatures( QgsMapLayer* layer, QList<const QgsFeature*> featureList )
+void QgsMapLayerAction::triggerForFeatures( QgsMapLayer* layer, const QList<QgsFeature> featureList )
 {
   emit triggeredForFeatures( layer, featureList );
 }
 
 void QgsMapLayerAction::triggerForFeature( QgsMapLayer* layer, const QgsFeature* feature )
 {
-  emit triggeredForFeature( layer, feature );
+  emit triggeredForFeature( layer, *feature );
 }
 
 void QgsMapLayerAction::triggerForLayer( QgsMapLayer* layer )

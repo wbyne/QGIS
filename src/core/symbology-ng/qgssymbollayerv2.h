@@ -128,6 +128,8 @@ class CORE_EXPORT QgsSymbolLayerV2
 
     virtual QVector<qreal> dxfCustomDashPattern( QgsSymbolV2::OutputUnit& unit ) const;
     virtual Qt::PenStyle dxfPenStyle() const;
+    virtual QColor dxfBrushColor( const QgsSymbolV2RenderContext& context ) const;
+    virtual Qt::BrushStyle dxfBrushStyle() const;
 
   protected:
     QgsSymbolLayerV2( QgsSymbolV2::SymbolType type, bool locked = false )
@@ -261,7 +263,6 @@ class CORE_EXPORT QgsLineSymbolLayerV2 : public QgsSymbolLayerV2
   public:
     virtual void renderPolyline( const QPolygonF& points, QgsSymbolV2RenderContext& context ) = 0;
 
-    //! @note added in v1.7
     virtual void renderPolygonOutline( const QPolygonF& points, QList<QPolygonF>* rings, QgsSymbolV2RenderContext& context );
 
     virtual void setWidth( double width ) { mWidth = width; }

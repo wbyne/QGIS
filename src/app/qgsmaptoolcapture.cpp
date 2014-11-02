@@ -28,7 +28,6 @@
 
 #include <QCursor>
 #include <QPixmap>
-#include <QMessageBox>
 #include <QMouseEvent>
 #include <QStatusBar>
 
@@ -150,18 +149,6 @@ int QgsMapToolCapture::nextPoint( const QPoint &p, QgsPoint &layerPoint, QgsPoin
     return 1;
   }
 
-  QgsPoint digitisedPoint;
-  try
-  {
-    digitisedPoint = toLayerCoordinates( vlayer, p );
-  }
-  catch ( QgsCsException &cse )
-  {
-    Q_UNUSED( cse );
-    QgsDebugMsg( "transformation to layer coordinate failed" );
-    return 2;
-  }
-
   QList<QgsSnappingResult> snapResults;
   if ( mSnapper.snapToBackgroundLayers( p, snapResults ) == 0 )
   {
@@ -208,7 +195,7 @@ int QgsMapToolCapture::addVertex( const QPoint &p )
 
   if ( !mTempRubberBand )
   {
-    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QGis::Polygon : QGis::Line , true );
+    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QGis::Polygon : QGis::Line, true );
   }
   else
   {
@@ -220,7 +207,7 @@ int QgsMapToolCapture::addVertex( const QPoint &p )
   }
   else if ( mCaptureMode == CapturePolygon )
   {
-    const QgsPoint *firstPoint = mRubberBand->getPoint( 0 , 0 );
+    const QgsPoint *firstPoint = mRubberBand->getPoint( 0, 0 );
     mTempRubberBand->addPoint( *firstPoint );
     mTempRubberBand->movePoint( mapPoint );
     mTempRubberBand->addPoint( mapPoint );
@@ -279,6 +266,11 @@ void QgsMapToolCapture::keyPressEvent( QKeyEvent* e )
 void QgsMapToolCapture::startCapturing()
 {
   mCapturing = true;
+}
+
+bool QgsMapToolCapture::isCapturing() const
+{
+  return mCapturing;
 }
 
 void QgsMapToolCapture::stopCapturing()

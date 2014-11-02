@@ -6,32 +6,65 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>615</width>
+    <width>647</width>
     <height>339</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>0</number>
    </property>
    <item>
     <layout class="QGridLayout">
-     <item row="5" column="0">
-      <widget class="QLabel" name="label_7">
-       <property name="text">
-        <string>Color ramp</string>
+     <property name="rightMargin">
+      <number>6</number>
+     </property>
+     <item row="6" column="3">
+      <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <item>
+        <widget class="QSpinBox" name="spinPrecision">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Precision of upper and lower values in label text.
+Positive is number of decimal places
+Negative rounds to powers of 10</string>
+         </property>
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>10</number>
+         </property>
+         <property name="value">
+          <number>4</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbxTrimTrailingZeroes">
+         <property name="toolTip">
+          <string>Check to remove trailing zeroes after the decimal point from the upper and lower values in the legend.</string>
+         </property>
+         <property name="text">
+          <string>Trim</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="txtFormat">
+       <property name="toolTip">
+        <string>Template for the legend text associated with each classification.  
+Use &quot;%1&quot; for the lower bound of the classification, and &quot;%2&quot; for the upper bound.</string>
        </property>
-       <property name="buddy">
-        <cstring>cboGraduatedColorRamp</cstring>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -45,6 +78,16 @@
        </property>
        <property name="buddy">
         <cstring>cboGraduatedMode</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Color ramp</string>
+       </property>
+       <property name="buddy">
+        <cstring>cboGraduatedColorRamp</cstring>
        </property>
       </widget>
      </item>
@@ -132,13 +175,6 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string>Column</string>
-       </property>
-      </widget>
-     </item>
      <item row="5" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
@@ -153,13 +189,26 @@
        </item>
       </layout>
      </item>
-     <item row="0" column="1" colspan="3">
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Column</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1" colspan="2">
       <layout class="QHBoxLayout" name="horizontalLayout">
        <property name="topMargin">
         <number>0</number>
        </property>
        <item>
         <widget class="QgsFieldExpressionWidget" name="mExpressionWidget" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="maximumSize">
           <size>
            <width>500</width>
@@ -182,6 +231,32 @@
         </spacer>
        </item>
       </layout>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Legend Format</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>txtFormat</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="2">
+      <widget class="QLabel" name="label_16">
+       <property name="text">
+        <string>Precision</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>spinPrecision</cstring>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -243,7 +318,7 @@
      <item>
       <widget class="QCheckBox" name="cbxLinkBoundaries">
        <property name="text">
-        <string>Link classes boundaries</string>
+        <string>Link class boundaries</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -289,13 +364,20 @@
  </customwidgets>
  <tabstops>
   <tabstop>btnChangeGraduatedSymbol</tabstop>
+  <tabstop>spinGraduatedClasses</tabstop>
   <tabstop>cboGraduatedColorRamp</tabstop>
   <tabstop>cbxInvertedColorRamp</tabstop>
-  <tabstop>spinGraduatedClasses</tabstop>
   <tabstop>cboGraduatedMode</tabstop>
+  <tabstop>txtFormat</tabstop>
+  <tabstop>spinPrecision</tabstop>
+  <tabstop>cbxTrimTrailingZeroes</tabstop>
   <tabstop>viewGraduated</tabstop>
   <tabstop>btnGraduatedClassify</tabstop>
+  <tabstop>btnGraduatedAdd</tabstop>
   <tabstop>btnGraduatedDelete</tabstop>
+  <tabstop>btnDeleteAllClasses</tabstop>
+  <tabstop>cbxLinkBoundaries</tabstop>
+  <tabstop>btnAdvanced</tabstop>
  </tabstops>
  <resources/>
  <connections/>

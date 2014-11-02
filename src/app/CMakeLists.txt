@@ -108,12 +108,13 @@ SET(QGIS_APP_SRCS
   qgstipgui.cpp
   qgstipfactory.cpp
   qgsvectorlayerproperties.cpp
-  qgsvisibilitygroups.cpp
+  qgsvisibilitypresets.cpp
   qgshandlebadlayers.cpp
 
   composer/qgsattributeselectiondialog.cpp
   composer/qgscomposer.cpp
   composer/qgscomposerarrowwidget.cpp
+  composer/qgscomposerattributetablewidget.cpp
   composer/qgscomposerhtmlwidget.cpp
   composer/qgscomposeritemwidget.cpp
   composer/qgscomposerlabelwidget.cpp
@@ -247,12 +248,13 @@ SET (QGIS_APP_MOC_HDRS
   qgstipfactory.h
   qgsundowidget.h
   qgsvectorlayerproperties.h
-  qgsvisibilitygroups.h
+  qgsvisibilitypresets.h
   qgshandlebadlayers.h
 
   composer/qgsattributeselectiondialog.h
   composer/qgscomposer.h
   composer/qgscomposerarrowwidget.h
+  composer/qgscomposerattributetablewidget.h
   composer/qgscomposerhtmlwidget.h
   composer/qgscomposeritemwidget.h
   composer/qgscomposerlabelwidget.h
@@ -418,6 +420,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/../ui
   ${QWT_INCLUDE_DIR}
   ${QT_QTUITOOLS_INCLUDE_DIR}
+  ${QSCINTILLA_INCLUDE_DIR}
   ${QEXTSERIALPORT_INCLUDE_DIR}
   ../analysis/raster
   ../analysis/openstreetmap

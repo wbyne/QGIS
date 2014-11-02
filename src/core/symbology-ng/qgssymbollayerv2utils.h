@@ -108,7 +108,8 @@ class CORE_EXPORT QgsSymbolLayerV2Utils
 
     static void drawStippledBackround( QPainter* painter, QRect rect );
 
-    static QPixmap symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size );
+    //! @note customContext parameter added in 2.6
+    static QPixmap symbolPreviewPixmap( QgsSymbolV2* symbol, QSize size, QgsRenderContext* customContext = 0 );
     static QPixmap colorRampPreviewPixmap( QgsVectorColorRampV2* ramp, QSize size );
 
     /**Returns the maximum estimated bleed for the symbol */
@@ -297,10 +298,11 @@ class CORE_EXPORT QgsSymbolLayerV2Utils
      * Imports colors from a gpl GIMP palette file
      * @param file source gpl file
      * @param ok will be true if file was successfully read
+     * @param name will be set to palette name from gpl file, if present
      * @returns list of imported colors
      * @see saveColorsToGpl
     */
-    static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok );
+    static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok, QString& name );
 
     /**
      * Attempts to parse a string as a color using a variety of common formats, including hex
@@ -333,9 +335,7 @@ class CORE_EXPORT QgsSymbolLayerV2Utils
     /**Multiplies opacity of image pixel values with a (global) transparency value*/
     static void multiplyImageOpacity( QImage* image, qreal alpha );
 
-    /** Blurs an image in place, e.g. creating Qt-independent drop shadows
-     * @note added in 1.9
-     */
+    /** Blurs an image in place, e.g. creating Qt-independent drop shadows */
     static void blurImageInPlace( QImage& image, const QRect& rect, int radius, bool alphaOnly );
 
     /** Converts a QColor into a premultiplied ARGB QColor value using a specified alpha value

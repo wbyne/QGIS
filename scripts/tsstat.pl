@@ -49,7 +49,7 @@ my $translators= {
 	eu => 'Asier Sarasua Garmendia, Irantzu Alvarez',
 	fa => 'Mola Pahnadayan, Masoud Pashotan , Masoud Erfanyan',
 	fi => 'Kari Salovaara, Marko Järvenpää',
-	fr => 'Stéphane Brunner, Olivier Dalang, Nicolas Damien, Michael Douchin, Régis Haubourg, Matthias Khun, Sylvain Maillard, Jean-Roc Morreale, Mehdi Semchaoui',
+	fr => 'Stéphane Brunner, Olivier Dalang, Nicolas Damien, Michael Douchin, Régis Haubourg, Matthias Khun, Sylvain Maillard, Jean-Roc Morreale, Mehdi Semchaoui, Harrissou Sant-anna',
 	gl => 'Xan Vieiro',
 	hi => 'Harish Kumar Solanki',
 	hu => 'Zoltan Siki',
@@ -85,7 +85,7 @@ my $translators= {
 	te => '',
 	th => 'Man Chao',
         tl => 'Kathrina Gregana',
-	tr => 'Osman Yalçın YILMAZ',
+	tr => 'Osman Yalçın YILMAZ, Omur Saygin',
 	uk => 'Alexander Bruy',
 	vi => 'Phan Anh, Bùi Hữu Mạnh',
 	zh_CN => 'Calvin Ngei, Zhang Jun, Richard Xie',
@@ -148,6 +148,7 @@ for my $i (<i18n/qgis_*.ts>) {
 
 	push @lang, {
 		code=>$langcode,
+		origcode=>$lc,
 		name=>$name, n=>$n,
 		translations=>$translations,
 		finished=>$finished,
@@ -161,7 +162,6 @@ foreach my $l (@lang) {
 	$l->{diff}       = $l->{n}-$maxn;
 	$l->{percentage} = ($l->{finished}+$l->{unfinished}/2)/$maxn*100;
 }
-
 
 if ( @ARGV && $ARGV[0] eq "site") {
 	print "<html><body>";
@@ -177,6 +177,7 @@ if ( @ARGV && $ARGV[0] eq "site") {
 	print "<table>";
 	print "<tr><td colspan=\"2\" style=\"width:250px;\">Language</td><td>Count</td><td>Finished</td><td>Unfinished</td><td>Untranslated</td><td>Percentage</td><td>Translators</td></tr>\n";
 	for my $l (sort { $b->{percentage} <=> $a->{percentage} } @lang) {
+		last if $l->{percentage} < 35;
 		printf "\n<tr>"
 			. '<td><img src="flags/%s.png"></td><td nowrap>%s</td>'
 			. '<td nowrap>%s</td><td>%d</td><td>%d</td><td>%d</td>'
@@ -200,6 +201,7 @@ if ( @ARGV && $ARGV[0] eq "site") {
 	print "<table>";
 	print "<tr><th colspan=\"2\" style=\"width:250px;\">Language</th><th>Finished %</th><th>Translators</th></tr>\n";
 	for my $l (sort { $b->{percentage} <=> $a->{percentage} } @lang) {
+		last if $l->{percentage} < 35;
 		printf "\n<tr>"
 			. '<td><img src="qrc:/images/flags/%s.png"></td><td>%s</td>'
 			. '<td><div title="finished:%d unfinished:%d untranslated:%d" class="bartodo"><div class="bardone" style="width:%dpx">%.1f</div></div></td>'
@@ -212,3 +214,25 @@ if ( @ARGV && $ARGV[0] eq "site") {
 	}
 	print "</table>\n";
 }
+
+my @ts;
+for my $l (sort { $a->{code} cmp $b->{code} } @lang) {
+	next if $l->{percentage} < 35;
+	push @ts, $l->{origcode};
+}
+
+rename "i18n/CMakeLists.txt", "i18n/CMakeLists.txt.temp" || die "cannot rename i18n/CMakeLists.txt: $!";
+
+open I, "i18n/CMakeLists.txt.temp";
+open O, ">i18n/CMakeLists.txt";
+while(<I>) {
+	if( /^SET\(TS_FILES / || /^FILE \(GLOB TS_FILES \*\.ts\)/ ) {
+		print O "SET(TS_FILES " . join( " ", map { "qgis_$_\.ts"; } @ts ) . ")\n";
+	} else {
+		print O;
+	}
+}
+close O;
+close I;
+
+unlink "i18n/CMakeLists.txt.temp";

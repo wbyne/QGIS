@@ -371,6 +371,23 @@ QgsDataProvider *QgsProviderRegistry::provider( QString const & providerKey, QSt
   return dataProvider;
 } // QgsProviderRegistry::setDataProvider
 
+int QgsProviderRegistry::providerCapabilities( const QString &providerKey ) const
+{
+  QLibrary *library = providerLibrary( providerKey );
+  if ( !library )
+  {
+    return QgsDataProvider::NoDataCapabilities;
+  }
+
+  dataCapabilities_t * dataCapabilities = ( dataCapabilities_t * ) cast_to_fptr( library->resolve( "dataCapabilities" ) );
+  if ( !dataCapabilities )
+  {
+    return QgsDataProvider::NoDataCapabilities;
+  }
+
+  return dataCapabilities();
+}
+
 // This should be QWidget, not QDialog
 typedef QWidget * selectFactoryFunction_t( QWidget * parent, Qt::WindowFlags fl );
 
@@ -474,12 +491,3 @@ const QgsProviderMetadata* QgsProviderRegistry::providerMetadata( const QString&
 {
   return findMetadata_( mProviders, providerKey );
 }
-
-
-#if 0
-QgsDataProvider *
-QgsProviderRegistry::openVector( QString const & dataSource, QString const & providerKey )
-{
-  return getProvider( providerKey, dataSource );
-} // QgsProviderRegistry::openVector
-#endif

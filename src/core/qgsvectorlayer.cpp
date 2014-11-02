@@ -769,7 +769,7 @@ bool QgsVectorLayer::countSymbolFeatures( bool showProgress )
   QgsFeature f;
   while ( fit.nextFeature( f ) )
   {
-    QgsSymbolV2List featureSymbolList = mRendererV2->symbolsForFeature( f );
+    QgsSymbolV2List featureSymbolList = mRendererV2->originalSymbolsForFeature( f );
     for ( QgsSymbolV2List::iterator symbolIt = featureSymbolList.begin(); symbolIt != featureSymbolList.end(); ++symbolIt )
     {
       mSymbolFeatureCountMap[*symbolIt] += 1;
@@ -1298,7 +1298,7 @@ bool QgsVectorLayer::readXml( const QDomNode& layer_node )
   //load vector joins
   if ( !mJoinBuffer )
   {
-    mJoinBuffer = new QgsVectorLayerJoinBuffer();
+    mJoinBuffer = new QgsVectorLayerJoinBuffer( this );
     connect( mJoinBuffer, SIGNAL( joinedFieldsChanged() ), this, SLOT( onJoinedFieldsChanged() ) );
   }
   mJoinBuffer->readXml( layer_node );
@@ -1361,7 +1361,7 @@ bool QgsVectorLayer::setDataProvider( QString const & provider )
       // get and store the feature type
       mWkbType = mDataProvider->geometryType();
 
-      mJoinBuffer = new QgsVectorLayerJoinBuffer();
+      mJoinBuffer = new QgsVectorLayerJoinBuffer( this );
       connect( mJoinBuffer, SIGNAL( joinedFieldsChanged() ), this, SLOT( onJoinedFieldsChanged() ) );
       mExpressionFieldBuffer = new QgsExpressionFieldBuffer();
       updateFields();
@@ -1485,7 +1485,8 @@ bool QgsVectorLayer::writeXml( QDomNode & layer_node,
 
 bool QgsVectorLayer::readSymbology( const QDomNode& node, QString& errorMessage )
 {
-  Q_UNUSED( errorMessage );
+  emit readCustomSymbology( node.toElement(), errorMessage );
+
   if ( hasGeometryType() )
   {
     // try renderer v2 first
@@ -1644,7 +1645,6 @@ bool QgsVectorLayer::readSymbology( const QDomNode& node, QString& errorMessage 
   if ( !aliasesNode.isNull() )
   {
     QDomElement aliasElem;
-    QString name;
 
     QDomNodeList aliasNodeList = aliasesNode.toElement().elementsByTagName( "alias" );
     for ( int i = 0; i < aliasNodeList.size(); ++i )
@@ -1767,8 +1767,9 @@ QgsAttributeEditorElement* QgsVectorLayer::attributeEditorElementFromDomElement(
 
 bool QgsVectorLayer::writeSymbology( QDomNode& node, QDomDocument& doc, QString& errorMessage ) const
 {
-  Q_UNUSED( errorMessage );
   QDomElement mapLayerNode = node.toElement();
+
+  emit writeCustomSymbology( mapLayerNode, doc, errorMessage );
 
   if ( hasGeometryType() )
   {
@@ -2118,6 +2119,12 @@ QString QgsVectorLayer::attributeDisplayName( int attributeIndex ) const
 
 bool QgsVectorLayer::deleteAttribute( int index )
 {
+  if ( mUpdatedFields.fieldOrigin( index ) == QgsFields::OriginExpression )
+  {
+    removeExpressionField( index );
+    return true;
+  }
+
   if ( !mEditBuffer || !mDataProvider )
     return false;
 
@@ -2133,7 +2140,7 @@ bool QgsVectorLayer::deleteAttributes( QList<int> attrs )
 
   qSort( attrs.begin(), attrs.end(), qGreater<int>() );
 
-  foreach ( int attr, attrs )
+  Q_FOREACH ( int attr, attrs )
   {
     if ( deleteAttribute( attr ) )
     {
@@ -2295,22 +2302,29 @@ const QgsFeatureIds& QgsVectorLayer::selectedFeaturesIds() const
   return mSelectedFeatureIds;
 }
 
-
 QgsFeatureList QgsVectorLayer::selectedFeatures()
 {
   QgsFeatureList features;
 
-  QgsFeatureRequest req;
-  if ( geometryType() == QGis::NoGeometry )
-    req.setFlags( QgsFeatureRequest::NoGeometry );
+  QgsFeatureIterator it = selectedFeaturesIterator();
 
-  foreach ( QgsFeatureId fid, mSelectedFeatureIds )
+  QgsFeature f;
+  while ( it.nextFeature( f ) )
   {
-    features.push_back( QgsFeature() );
-    getFeatures( req.setFilterFid( fid ) ).nextFeature( features.back() );
+    features.push_back( f );
   }
 
   return features;
+}
+
+QgsFeatureIterator QgsVectorLayer::selectedFeaturesIterator( QgsFeatureRequest request )
+{
+  if ( geometryType() == QGis::NoGeometry )
+    request.setFlags( QgsFeatureRequest::NoGeometry );
+
+  request.setFilterFids( mSelectedFeatureIds );
+
+  return getFeatures( request );
 }
 
 bool QgsVectorLayer::addFeatures( QgsFeatureList features, bool makeSelected )
@@ -2736,10 +2750,9 @@ int QgsVectorLayer::fieldNameIndex( const QString& fieldName ) const
   return pendingFields().fieldNameIndex( fieldName );
 }
 
-void QgsVectorLayer::addJoin( const QgsVectorJoinInfo& joinInfo )
+bool QgsVectorLayer::addJoin( const QgsVectorJoinInfo& joinInfo )
 {
-  mJoinBuffer->addJoin( joinInfo );
-  updateFields();
+  return mJoinBuffer->addJoin( joinInfo );
 }
 
 void QgsVectorLayer::checkJoinLayerRemove( QString theLayerId )
@@ -2750,7 +2763,6 @@ void QgsVectorLayer::checkJoinLayerRemove( QString theLayerId )
 void QgsVectorLayer::removeJoin( const QString& joinLayerId )
 {
   mJoinBuffer->removeJoin( joinLayerId );
-  updateFields();
 }
 
 const QList< QgsVectorJoinInfo >& QgsVectorLayer::vectorJoins() const
@@ -2825,7 +2837,9 @@ void QgsVectorLayer::uniqueValues( int index, QList<QVariant> &uniqueValues, int
     {
       QSet<QString> vals;
       Q_FOREACH ( const QVariant& v, uniqueValues )
+      {
         vals << v.toString();
+      }
 
       QMapIterator< QgsFeatureId, QgsAttributeMap > it( mEditBuffer->changedAttributeValues() );
       while ( it.hasNext() && ( limit < 0 || uniqueValues.count() < limit ) )

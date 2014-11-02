@@ -53,7 +53,7 @@ class CORE_EXPORT QgsComposerAttributeTable: public QgsComposerTable
     QgsComposerAttributeTable( QgsComposition* composition );
     ~QgsComposerAttributeTable();
 
-    /** return correct graphics item type. Added in v1.7 */
+    /** return correct graphics item type. */
     virtual int type() const { return ComposerAttributeTable; }
 
     /** \brief Reimplementation of QCanvasItem::paint*/
@@ -281,9 +281,6 @@ class CORE_EXPORT QgsComposerAttributeTable: public QgsComposerTable
     /**Checks if this vector layer will be removed (and sets mVectorLayer to 0 if yes) */
     void removeLayer( QString layerId );
 
-  signals:
-    /**This signal is emitted if the maximum number of feature changes (interactively)*/
-    void maximumNumberOfFeaturesChanged( int n );
 };
 
 #endif // QGSCOMPOSERATTRIBUTETABLE_H

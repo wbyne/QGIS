@@ -22,6 +22,8 @@
 #include "qgsexpression.h"
 #include "qgslogger.h"
 #include "qgsnetworkcontentfetcher.h"
+#include "qgsvectorlayer.h"
+#include "qgsproject.h"
 
 #include <QCoreApplication>
 #include <QPainter>
@@ -30,21 +32,33 @@
 #include <QImage>
 #include <QNetworkReply>
 
-QgsComposerHtml::QgsComposerHtml( QgsComposition* c, bool createUndoCommands ): QgsComposerMultiFrame( c, createUndoCommands ),
-    mContentMode( QgsComposerHtml::Url ),
-    mWebPage( 0 ),
-    mLoaded( false ),
-    mHtmlUnitsToMM( 1.0 ),
-    mRenderedPage( 0 ),
-    mEvaluateExpressions( true ),
-    mUseSmartBreaks( true ),
-    mMaxBreakDistance( 10 ),
-    mExpressionFeature( 0 ),
-    mExpressionLayer( 0 ),
-    mEnableUserStylesheet( false )
+QgsComposerHtml::QgsComposerHtml( QgsComposition* c, bool createUndoCommands )
+    : QgsComposerMultiFrame( c, createUndoCommands )
+    , mContentMode( QgsComposerHtml::Url )
+    , mWebPage( 0 )
+    , mLoaded( false )
+    , mHtmlUnitsToMM( 1.0 )
+    , mRenderedPage( 0 )
+    , mEvaluateExpressions( true )
+    , mUseSmartBreaks( true )
+    , mMaxBreakDistance( 10 )
+    , mExpressionFeature( 0 )
+    , mExpressionLayer( 0 )
+    , mDistanceArea( 0 )
+    , mEnableUserStylesheet( false )
+    , mFetcher( 0 )
 {
+  mDistanceArea = new QgsDistanceArea();
   mHtmlUnitsToMM = htmlUnitsToMM();
   mWebPage = new QWebPage();
+  mWebPage->mainFrame()->setScrollBarPolicy( Qt::Horizontal, Qt::ScrollBarAlwaysOff );
+  mWebPage->mainFrame()->setScrollBarPolicy( Qt::Vertical, Qt::ScrollBarAlwaysOff );
+
+  //This makes the background transparent. Found on http://blog.qt.digia.com/blog/2009/06/30/transparent-qwebview-or-qwebpage/
+  QPalette palette = mWebPage->palette();
+  palette.setBrush( QPalette::Base, Qt::transparent );
+  mWebPage->setPalette( palette );
+
   mWebPage->setNetworkAccessManager( QgsNetworkAccessManager::instance() );
   QObject::connect( mWebPage, SIGNAL( loadFinished( bool ) ), this, SLOT( frameLoaded( bool ) ) );
   if ( mComposition )
@@ -66,25 +80,36 @@ QgsComposerHtml::QgsComposerHtml( QgsComposition* c, bool createUndoCommands ): 
   //to update the expression context
   connect( &mComposition->atlasComposition(), SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( refreshExpressionContext() ) );
 
+  mFetcher = new QgsNetworkContentFetcher();
+  connect( mFetcher, SIGNAL( finished() ), this, SLOT( frameLoaded() ) );
+
 }
 
-QgsComposerHtml::QgsComposerHtml(): QgsComposerMultiFrame( 0, false ),
-    mContentMode( QgsComposerHtml::Url ),
-    mWebPage( 0 ),
-    mLoaded( false ),
-    mHtmlUnitsToMM( 1.0 ),
-    mRenderedPage( 0 ),
-    mUseSmartBreaks( true ),
-    mMaxBreakDistance( 10 ),
-    mExpressionFeature( 0 ),
-    mExpressionLayer( 0 )
+QgsComposerHtml::QgsComposerHtml()
+    : QgsComposerMultiFrame( 0, false )
+    , mContentMode( QgsComposerHtml::Url )
+    , mWebPage( 0 )
+    , mLoaded( false )
+    , mHtmlUnitsToMM( 1.0 )
+    , mRenderedPage( 0 )
+    , mUseSmartBreaks( true )
+    , mMaxBreakDistance( 10 )
+    , mExpressionFeature( 0 )
+    , mExpressionLayer( 0 )
+    , mDistanceArea( 0 )
+    , mFetcher( 0 )
 {
+  mDistanceArea = new QgsDistanceArea();
+  mFetcher = new QgsNetworkContentFetcher();
+  connect( mFetcher, SIGNAL( finished() ), this, SLOT( frameLoaded() ) );
 }
 
 QgsComposerHtml::~QgsComposerHtml()
 {
+  delete mDistanceArea;
   delete mWebPage;
   delete mRenderedPage;
+  mFetcher->deleteLater();
 }
 
 void QgsComposerHtml::setUrl( const QUrl& url )
@@ -96,17 +121,23 @@ void QgsComposerHtml::setUrl( const QUrl& url )
 
   mUrl = url;
   loadHtml();
+  emit changed();
 }
 
 void QgsComposerHtml::setHtml( const QString html )
 {
   mHtml = html;
+  //TODO - this signal should be emitted, but without changing the signal which sets the html
+  //to an equivalent of editingFinished it causes a lot of problems. Need to investigate
+  //ways of doing this using QScintilla widgets.
+  //emit changed();
 }
 
 void QgsComposerHtml::setEvaluateExpressions( bool evaluateExpressions )
 {
   mEvaluateExpressions = evaluateExpressions;
   loadHtml();
+  emit changed();
 }
 
 void QgsComposerHtml::loadHtml()
@@ -155,10 +186,14 @@ void QgsComposerHtml::loadHtml()
   //evaluate expressions
   if ( mEvaluateExpressions )
   {
-    loadedHtml = QgsExpression::replaceExpressionText( loadedHtml, mExpressionFeature, mExpressionLayer );
+    loadedHtml = QgsExpression::replaceExpressionText( loadedHtml, mExpressionFeature, mExpressionLayer, 0, mDistanceArea );
   }
 
   mLoaded = false;
+
+  //reset page size. otherwise viewport size increases but never decreases again
+  mWebPage->setViewportSize( QSize( maxFrameWidth() * mHtmlUnitsToMM, 0 ) );
+
   //set html, using the specified url as base if in Url mode
   mWebPage->mainFrame()->setHtml( loadedHtml, mContentMode == QgsComposerHtml::Url ? QUrl( mActualFetchedUrl ) : QUrl() );
 
@@ -181,30 +216,7 @@ void QgsComposerHtml::loadHtml()
     qApp->processEvents();
   }
 
-  if ( frameCount() < 1 )  return;
-
-  QSize contentsSize = mWebPage->mainFrame()->contentsSize();
-
-  //find maximum frame width
-  double maxFrameWidth = 0;
-  QList<QgsComposerFrame*>::const_iterator frameIt = mFrameItems.constBegin();
-  for ( ; frameIt != mFrameItems.constEnd(); ++frameIt )
-  {
-    maxFrameWidth = qMax( maxFrameWidth, ( *frameIt )->boundingRect().width() );
-  }
-  //set content width to match maximum frame width
-  contentsSize.setWidth( maxFrameWidth * mHtmlUnitsToMM );
-
-  mWebPage->setViewportSize( contentsSize );
-  mWebPage->mainFrame()->setScrollBarPolicy( Qt::Horizontal, Qt::ScrollBarAlwaysOff );
-  mWebPage->mainFrame()->setScrollBarPolicy( Qt::Vertical, Qt::ScrollBarAlwaysOff );
-  mSize.setWidth( contentsSize.width() / mHtmlUnitsToMM );
-  mSize.setHeight( contentsSize.height() / mHtmlUnitsToMM );
-
-  renderCachedImage();
-
   recalculateFrameSizes();
-  emit changed();
   //trigger a repaint
   emit contentsChanged();
 }
@@ -215,6 +227,40 @@ void QgsComposerHtml::frameLoaded( bool ok )
   mLoaded = true;
 }
 
+double QgsComposerHtml::maxFrameWidth() const
+{
+  double maxWidth = 0;
+  QList<QgsComposerFrame*>::const_iterator frameIt = mFrameItems.constBegin();
+  for ( ; frameIt != mFrameItems.constEnd(); ++frameIt )
+  {
+    maxWidth = qMax( maxWidth, ( *frameIt )->boundingRect().width() );
+  }
+
+  return maxWidth;
+}
+
+void QgsComposerHtml::recalculateFrameSizes()
+{
+  if ( frameCount() < 1 ) return;
+
+  QSize contentsSize = mWebPage->mainFrame()->contentsSize();
+
+  //find maximum frame width
+  double maxWidth = maxFrameWidth();
+  //set content width to match maximum frame width
+  contentsSize.setWidth( maxWidth * mHtmlUnitsToMM );
+
+  mWebPage->setViewportSize( contentsSize );
+  mSize.setWidth( contentsSize.width() / mHtmlUnitsToMM );
+  mSize.setHeight( contentsSize.height() / mHtmlUnitsToMM );
+  if ( contentsSize.isValid() )
+  {
+    renderCachedImage();
+  }
+  QgsComposerMultiFrame::recalculateFrameSizes();
+  emit changed();
+}
+
 void QgsComposerHtml::renderCachedImage()
 {
   //render page to cache image
@@ -223,6 +269,10 @@ void QgsComposerHtml::renderCachedImage()
     delete mRenderedPage;
   }
   mRenderedPage = new QImage( mWebPage->viewportSize(), QImage::Format_ARGB32 );
+  if ( mRenderedPage->isNull() )
+  {
+    return;
+  }
   QPainter painter;
   painter.begin( mRenderedPage );
   mWebPage->mainFrame()->render( &painter );
@@ -231,19 +281,17 @@ void QgsComposerHtml::renderCachedImage()
 
 QString QgsComposerHtml::fetchHtml( QUrl url )
 {
-  QgsNetworkContentFetcher fetcher;
   //pause until HTML fetch
   mLoaded = false;
-  fetcher.fetchContent( url );
-  connect( &fetcher, SIGNAL( finished() ), this, SLOT( frameLoaded() ) );
+  mFetcher->fetchContent( url );
 
   while ( !mLoaded )
   {
     qApp->processEvents();
   }
 
-  mFetchedHtml = fetcher.contentAsString();
-  mActualFetchedUrl = fetcher.reply()->url().toString();
+  mFetchedHtml = mFetcher->contentAsString();
+  mActualFetchedUrl = mFetcher->reply()->url().toString();
   return mFetchedHtml;
 }
 
@@ -252,8 +300,10 @@ QSizeF QgsComposerHtml::totalSize() const
   return mSize;
 }
 
-void QgsComposerHtml::render( QPainter* p, const QRectF& renderExtent )
+void QgsComposerHtml::render( QPainter* p, const QRectF& renderExtent, const int frameIndex )
 {
+  Q_UNUSED( frameIndex );
+
   if ( !mWebPage )
   {
     return;
@@ -398,6 +448,10 @@ void QgsComposerHtml::setMaxBreakDistance( double maxBreakDistance )
 void QgsComposerHtml::setUserStylesheet( const QString stylesheet )
 {
   mUserStylesheet = stylesheet;
+  //TODO - this signal should be emitted, but without changing the signal which sets the css
+  //to an equivalent of editingFinished it causes a lot of problems. Need to investigate
+  //ways of doing this using QScintilla widgets.
+  //emit changed();
 }
 
 void QgsComposerHtml::setUserStylesheetEnabled( const bool stylesheetEnabled )
@@ -406,6 +460,7 @@ void QgsComposerHtml::setUserStylesheetEnabled( const bool stylesheetEnabled )
   {
     mEnableUserStylesheet = stylesheetEnabled;
     loadHtml();
+    emit changed();
   }
 }
 
@@ -417,7 +472,7 @@ QString QgsComposerHtml::displayName() const
 bool QgsComposerHtml::writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames ) const
 {
   QDomElement htmlElem = doc.createElement( "ComposerHtml" );
-  htmlElem.setAttribute( "contentMode",  QString::number(( int ) mContentMode ) );
+  htmlElem.setAttribute( "contentMode", QString::number(( int ) mContentMode ) );
   htmlElem.setAttribute( "url", mUrl.toString() );
   htmlElem.setAttribute( "html", mHtml );
   htmlElem.setAttribute( "evaluateExpressions", mEvaluateExpressions ? "true" : "false" );
@@ -433,7 +488,10 @@ bool QgsComposerHtml::writeXML( QDomElement& elem, QDomDocument & doc, bool igno
 
 bool QgsComposerHtml::readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames )
 {
-  deleteFrames();
+  if ( !ignoreFrames )
+  {
+    deleteFrames();
+  }
 
   //first create the frames
   if ( !_readXML( itemElem, doc, ignoreFrames ) )
@@ -471,6 +529,22 @@ void QgsComposerHtml::setExpressionContext( QgsFeature* feature, QgsVectorLayer*
 {
   mExpressionFeature = feature;
   mExpressionLayer = layer;
+
+  //setup distance area conversion
+  if ( layer )
+  {
+    mDistanceArea->setSourceCrs( layer->crs().srsid() );
+  }
+  else if ( mComposition )
+  {
+    //set to composition's mapsettings' crs
+    mDistanceArea->setSourceCrs( mComposition->mapSettings().destinationCrs().srsid() );
+  }
+  if ( mComposition )
+  {
+    mDistanceArea->setEllipsoidalMode( mComposition->mapSettings().hasCrsTransformEnabled() );
+  }
+  mDistanceArea->setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
 }
 
 void QgsComposerHtml::refreshExpressionContext()

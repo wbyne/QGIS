@@ -85,9 +85,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     /** Get metadata about the layer in nice formatted html */
     QString metadata();
 
-    /** Slot to update layer display name as original is edited
-     * @note added in QGIS 1.9
-     */
+    /** Slot to update layer display name as original is edited */
     void on_mLayerOrigNameLineEdit_textEdited( const QString& text );
 
     /** Toggles on the label check box */
@@ -95,6 +93,9 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
 
     /** Called when apply button is pressed or dialog is accepted */
     void apply();
+
+    /** Called when cancel button is pressed */
+    void onCancel();
 
     //
     //methods reimplemented from qt designer base class
@@ -165,6 +166,9 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     QgsDiagramProperties* diagramPropertiesDialog;
     /**Fields dialog. If apply is pressed, options are applied to vector's diagrams*/
     QgsFieldsProperties* mFieldsPropertiesDialog;
+
+    //! List of joins of a layer at the time of creation of the dialog. Used to return joins to previous state if dialog is cancelled
+    QList< QgsVectorJoinInfo > mOldJoins;
 
     void initDiagramTab();
 

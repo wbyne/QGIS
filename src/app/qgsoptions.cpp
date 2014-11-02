@@ -38,6 +38,7 @@
 #include "qgscomposer.h"
 #include "qgscolorschemeregistry.h"
 #include "qgssymbollayerv2utils.h"
+#include "qgscolordialog.h"
 
 #include <QInputDialog>
 #include <QFileDialog>
@@ -102,7 +103,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   }
 
   mIdentifyHighlightColorButton->setColorDialogTitle( tr( "Identify highlight color" ) );
-  mIdentifyHighlightColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mIdentifyHighlightColorButton->setAllowAlpha( true );
   mIdentifyHighlightColorButton->setContext( "gui" );
   mIdentifyHighlightColorButton->setDefaultColor( QGis::DEFAULT_HIGHLIGHT_COLOR );
 
@@ -544,6 +545,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   QString name = QApplication::style()->objectName();
   cmbStyle->setCurrentIndex( cmbStyle->findText( name, Qt::MatchFixedString ) );
 
+  mNativeColorDialogsChkBx->setChecked( settings.value( "/qgis/native_color_dialogs", false ).toBool() );
   mLiveColorDialogsChkBx->setChecked( settings.value( "/qgis/live_color_dialogs", false ).toBool() );
 
   //set the state of the checkboxes
@@ -621,7 +623,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   int myAlpha = settings.value( "/qgis/default_selection_color_alpha", 255 ).toInt();
   pbnSelectionColor->setColor( QColor( myRed, myGreen, myBlue, myAlpha ) );
   pbnSelectionColor->setColorDialogTitle( tr( "Set selection color" ) );
-  pbnSelectionColor->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  pbnSelectionColor->setAllowAlpha( true );
   pbnSelectionColor->setContext( "gui" );
   pbnSelectionColor->setDefaultColor( QColor( 255, 255, 0, 255 ) );
 
@@ -729,7 +731,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   QColor gridColor = QColor( gridRed, gridGreen, gridBlue, gridAlpha );
   mGridColorButton->setColor( gridColor );
   mGridColorButton->setColorDialogTitle( tr( "Select grid color" ) );
-  mGridColorButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mGridColorButton->setAllowAlpha( true );
   mGridColorButton->setContext( "gui" );
   mGridColorButton->setDefaultColor( QColor( 190, 190, 190, 100 ) );
 
@@ -786,7 +788,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   myBlue = settings.value( "/qgis/digitizing/line_color_blue", 0 ).toInt();
   myAlpha = settings.value( "/qgis/digitizing/line_color_alpha", 200 ).toInt();
   mLineColorToolButton->setColor( QColor( myRed, myGreen, myBlue, myAlpha ) );
-  mLineColorToolButton->setColorDialogOptions( QColorDialog::ShowAlphaChannel );
+  mLineColorToolButton->setAllowAlpha( true );
   mLineColorToolButton->setContext( "gui" );
   mLineColorToolButton->setDefaultColor( QColor( 255, 0, 0, 200 ) );
 
@@ -907,7 +909,7 @@ void QgsOptions::on_cbxProjectDefaultNew_toggled( bool checked )
   }
 }
 
-void QgsOptions::on_pbnProjectDefaultSetCurrent_clicked( )
+void QgsOptions::on_pbnProjectDefaultSetCurrent_clicked()
 {
   QString fileName = QgsApplication::qgisSettingsDirPath() + QString( "project_default.qgs" );
   if ( QgsProject::instance()->write( QFileInfo( fileName ) ) )
@@ -920,7 +922,7 @@ void QgsOptions::on_pbnProjectDefaultSetCurrent_clicked( )
   }
 }
 
-void QgsOptions::on_pbnProjectDefaultReset_clicked( )
+void QgsOptions::on_pbnProjectDefaultReset_clicked()
 {
   QString fileName = QgsApplication::qgisSettingsDirPath() + QString( "project_default.qgs" );
   if ( QFile::exists( fileName ) )
@@ -930,7 +932,7 @@ void QgsOptions::on_pbnProjectDefaultReset_clicked( )
   cbxProjectDefaultNew->setChecked( false );
 }
 
-void QgsOptions::on_pbnTemplateFolderBrowse_pressed( )
+void QgsOptions::on_pbnTemplateFolderBrowse_pressed()
 {
   QString newDir = QFileDialog::getExistingDirectory( 0, tr( "Choose a directory to store project template files" ),
                    leTemplateFolder->text() );
@@ -940,7 +942,7 @@ void QgsOptions::on_pbnTemplateFolderBrowse_pressed( )
   }
 }
 
-void QgsOptions::on_pbnTemplateFolderReset_pressed( )
+void QgsOptions::on_pbnTemplateFolderReset_pressed()
 {
   leTemplateFolder->setText( QgsApplication::qgisSettingsDirPath() + QString( "project_templates" ) );
 }
@@ -1155,6 +1157,7 @@ void QgsOptions::saveOptions()
 
   settings.setValue( "/qgis/messageTimeout", mMessageTimeoutSpnBx->value() );
 
+  settings.setValue( "/qgis/native_color_dialogs", mNativeColorDialogsChkBx->isChecked() );
   settings.setValue( "/qgis/live_color_dialogs", mLiveColorDialogsChkBx->isChecked() );
 
   // rasters settings
@@ -1315,7 +1318,10 @@ void QgsOptions::saveOptions()
   //
   // Color palette
   //
-  mTreeCustomColors->saveColorsToScheme();
+  if ( mTreeCustomColors->isDirty() )
+  {
+    mTreeCustomColors->saveColorsToScheme();
+  }
 
   //
   // Composer settings
@@ -1771,7 +1777,7 @@ void QgsOptions::loadGdalDriverList()
   mLoadedGdalDriverList = true;
 
   // allow to retrieve metadata from all drivers, they will be skipped again when saving
-  CPLSetConfigOption( "GDAL_SKIP",  "" );
+  CPLSetConfigOption( "GDAL_SKIP", "" );
   GDALAllRegister();
 
   int myGdalDriverCount = GDALGetDriverCount();
@@ -2066,12 +2072,12 @@ void QgsOptions::saveDefaultDatumTransformations()
     int srcDatumTransform = item->text( 2 ).toInt( &conversionOk );
     if ( conversionOk )
     {
-      s.setValue( srcAuthId + "//" + destAuthId + "_srcTransform" , srcDatumTransform );
+      s.setValue( srcAuthId + "//" + destAuthId + "_srcTransform", srcDatumTransform );
     }
     int destDatumTransform = item->text( 3 ).toInt( &conversionOk );
     if ( conversionOk )
     {
-      s.setValue( srcAuthId + "//" + destAuthId + "_destTransform" , destDatumTransform );
+      s.setValue( srcAuthId + "//" + destAuthId + "_destTransform", destDatumTransform );
     }
   }
 
@@ -2081,7 +2087,7 @@ void QgsOptions::saveDefaultDatumTransformations()
 
 void QgsOptions::on_mButtonAddColor_clicked()
 {
-  QColor newColor = QColorDialog::getColor( QColor(), this->parentWidget(), tr( "Select color" ), QColorDialog::ShowAlphaChannel );
+  QColor newColor = QgsColorDialogV2::getColor( QColor(), this->parentWidget(), tr( "Select color" ), true );
   if ( !newColor.isValid() )
   {
     return;

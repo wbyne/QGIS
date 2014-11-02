@@ -51,7 +51,7 @@ class QwtPlotCurve;
 
 class APP_EXPORT QgsIdentifyResultsWebView : public QWebView
 {
-    Q_OBJECT;
+    Q_OBJECT
   public:
     QgsIdentifyResultsWebView( QWidget *parent = 0 );
     QSize sizeHint() const;
@@ -100,7 +100,7 @@ class APP_EXPORT QgsIdentifyPlotCurve
 
     QgsIdentifyPlotCurve() { mPlotCurve = 0; }
     QgsIdentifyPlotCurve( const QMap<QString, QString> &attributes,
-                          QwtPlot* plot, const QString &title = QString(), QColor color = QColor() ) ;
+                          QwtPlot* plot, const QString &title = QString(), QColor color = QColor() );
     ~QgsIdentifyPlotCurve();
 
   private:

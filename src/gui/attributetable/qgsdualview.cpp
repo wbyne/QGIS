@@ -37,6 +37,8 @@ QgsDualView::QgsDualView( QWidget* parent )
     : QStackedWidget( parent )
     , mEditorContext()
     , mMasterModel( 0 )
+    , mFilterModel( 0 )
+    , mFeatureListModel( 0 )
     , mAttributeForm( 0 )
     , mLayerCache( 0 )
     , mProgressDlg( 0 )
@@ -78,7 +80,10 @@ void QgsDualView::init( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, const Qg
 
   connect( mAttributeForm, SIGNAL( attributeChanged( QString, QVariant ) ), this, SLOT( featureFormAttributeChanged() ) );
 
-  columnBoxInit();
+  if ( mFeatureListPreviewButton->defaultAction() )
+    mFeatureList->setDisplayExpression( mDisplayExpression );
+  else
+    columnBoxInit();
 }
 
 void QgsDualView::columnBoxInit()
@@ -142,21 +147,10 @@ void QgsDualView::columnBoxInit()
     }
   }
 
-  // now initialise the menu
-  QList< QAction* > previewActions = mFeatureListPreviewButton->actions();
-  foreach ( QAction* a, previewActions )
-  {
-    if ( a != mActionExpressionPreview )
-    {
-      mPreviewActionMapper->removeMappings( a );
-      delete a;
-    }
-  }
-
   mFeatureListPreviewButton->addAction( mActionExpressionPreview );
   mFeatureListPreviewButton->addAction( mActionPreviewColumnsMenu );
 
-  foreach ( const QgsField& field, fields )
+  Q_FOREACH ( const QgsField& field, fields )
   {
     if ( mLayerCache->layer()->editorWidgetV2( mLayerCache->layer()->fieldNameIndex( field.name() ) ) != "Hidden" )
     {
@@ -181,6 +175,7 @@ void QgsDualView::columnBoxInit()
   {
     mFeatureList->setDisplayExpression( displayExpression );
     mFeatureListPreviewButton->setDefaultAction( mActionExpressionPreview );
+    mDisplayExpression = mFeatureList->displayExpression();
   }
   else
   {
@@ -222,8 +217,13 @@ void QgsDualView::initLayerCache( QgsVectorLayer* layer )
 
 void QgsDualView::initModels( QgsMapCanvas* mapCanvas, const QgsFeatureRequest& request )
 {
+  delete mFeatureListModel;
+  delete mFilterModel;
+  delete mMasterModel;
+
   mMasterModel = new QgsAttributeTableModel( mLayerCache, this );
   mMasterModel->setRequest( request );
+  mMasterModel->setEditorContext( mEditorContext );
 
   connect( mMasterModel, SIGNAL( progress( int, bool & ) ), this, SLOT( progress( int, bool & ) ) );
   connect( mMasterModel, SIGNAL( finished() ), this, SLOT( finished() ) );
@@ -270,7 +270,7 @@ bool QgsDualView::saveEditChanges()
 void QgsDualView::previewExpressionBuilder()
 {
   // Show expression builder
-  QgsExpressionBuilderDialog dlg( mLayerCache->layer(), mFeatureList->displayExpression() , this );
+  QgsExpressionBuilderDialog dlg( mLayerCache->layer(), mFeatureList->displayExpression(), this );
   dlg.setWindowTitle( tr( "Expression based preview" ) );
   dlg.setExpressionText( mFeatureList->displayExpression() );
 
@@ -280,6 +280,8 @@ void QgsDualView::previewExpressionBuilder()
     mFeatureListPreviewButton->setDefaultAction( mActionExpressionPreview );
     mFeatureListPreviewButton->setPopupMode( QToolButton::MenuButtonPopup );
   }
+
+  mDisplayExpression = mFeatureList->displayExpression();
 }
 
 void QgsDualView::previewColumnChanged( QObject* action )
@@ -290,9 +292,9 @@ void QgsDualView::previewColumnChanged( QObject* action )
   {
     if ( !mFeatureList->setDisplayExpression( QString( "COALESCE( \"%1\", '<NULL>' )" ).arg( previewAction->text() ) ) )
     {
-      QMessageBox::warning( this
-                            , tr( "Could not set preview column" )
-                            , tr( "Could not set column '%1' as preview column.\nParser error:\n%2" )
+      QMessageBox::warning( this,
+                            tr( "Could not set preview column" ),
+                            tr( "Could not set column '%1' as preview column.\nParser error:\n%2" )
                             .arg( previewAction->text() )
                             .arg( mFeatureList->parserErrorString() )
                           );
@@ -303,6 +305,8 @@ void QgsDualView::previewColumnChanged( QObject* action )
       mFeatureListPreviewButton->setPopupMode( QToolButton::InstantPopup );
     }
   }
+
+  mDisplayExpression = mFeatureList->displayExpression();
 
   Q_ASSERT( previewAction );
 }

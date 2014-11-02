@@ -113,6 +113,9 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         //! Unique rule identifier (for identification of rule within renderer)
         //! @note added in 2.6
         QString ruleKey() const { return mRuleKey; }
+        //! Override the assigned rule key (should be used just internally by rule-based renderer)
+        //! @note added in 2.6
+        void setRuleKey( const QString& key ) { mRuleKey = key; }
 
         //! set a new symbol (or NULL). Deletes old symbol.
         void setSymbol( QgsSymbolV2* sym );
@@ -143,11 +146,9 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         bool renderFeature( FeatureToRender& featToRender, QgsRenderContext& context, RenderQueue& renderQueue );
 
         //! only tell whether a feature will be rendered without actually rendering it
-        //! @note added in 1.9
         bool willRenderFeature( QgsFeature& feat );
 
         //! tell which symbols will be used to render the feature
-        //! @note added in 1.9
         QgsSymbolV2List symbolsForFeature( QgsFeature& feat );
 
         //! tell which rules will be used to render the feature
@@ -253,7 +254,6 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
     virtual void checkLegendSymbolItem( QString key, bool state = true );
 
     //! return a list of item text / symbol
-    //! @note: this method was added in version 1.5
     //! @note not available in python bindings
     virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = "" );
 
@@ -267,17 +267,16 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
 
     //! return whether the renderer will render a feature or not.
     //! Must be called between startRender() and stopRender() calls.
-    //! @note added in 1.9
     virtual bool willRenderFeature( QgsFeature& feat );
 
     //! return list of symbols used for rendering the feature.
     //! For renderers that do not support MoreSymbolsPerFeature it is more efficient
     //! to use symbolForFeature()
-    //! @note added in 1.9
     virtual QgsSymbolV2List symbolsForFeature( QgsFeature& feat );
 
+    virtual QgsSymbolV2List originalSymbolsForFeature( QgsFeature& feat );
+
     //! returns bitwise OR-ed capabilities of the renderer
-    //! \note added in 2.0
     virtual int capabilities() { return MoreSymbolsPerFeature | Filter | ScaleDependent; }
 
     /////

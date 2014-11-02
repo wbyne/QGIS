@@ -152,7 +152,7 @@ class ConnectionItem(TreeItem):
 					return False
 
 			except BaseError, e:
-				QMessageBox.warning( None, self.tr("Unable to connect"), unicode(e) )
+				DlgDbError.showError(unicode(e), None)
 				return False
 
 		database = connection.database()
@@ -542,7 +542,7 @@ class DBModel(QAbstractItemModel):
 
 		if not inLayer.isValid():
 			# invalid layer
-			QMessageBox.warning(None, self.tr("Invalid layer"), self.tr("Unable to load the layer %s") % inLayer.name)
+			QMessageBox.warning(None, self.tr("Invalid layer"), self.tr("Unable to load the layer %s") % inLayer.name())
 			return False
 
 		# retrieve information about the new table's db and schema

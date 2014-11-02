@@ -14,7 +14,7 @@ class QgsComposerHtml: QgsComposerMultiFrame
       ManualHtml /*< HTML content is manually set for the item*/
     };
 
-    QgsComposerHtml( QgsComposition* c, bool createUndoCommands );
+    QgsComposerHtml( QgsComposition* c /TransferThis/, bool createUndoCommands );
     QgsComposerHtml();
     ~QgsComposerHtml();
 
@@ -94,17 +94,6 @@ class QgsComposerHtml: QgsComposerMultiFrame
      */
     void setEvaluateExpressions( bool evaluateExpressions );
 
-    QSizeF totalSize() const;
-    void render( QPainter* p, const QRectF& renderExtent );
-
-    bool writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames = false ) const;
-    bool readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames = false );
-
-    void addFrame( QgsComposerFrame* frame, bool recalcFrameSizes = true );
-
-    //overriden to break frames without dividing lines of text
-    double findNearbyPageBreak( double yPos );
-
     /**Returns whether html item is using smart breaks. Smart breaks prevent
      * the html frame contents from breaking mid-way though a line of text.
      * @returns true if html item is using smart breaks
@@ -183,6 +172,13 @@ class QgsComposerHtml: QgsComposerMultiFrame
     bool userStylesheetEnabled() const;
 
     virtual QString displayName() const;
+    QSizeF totalSize() const;
+    void render( QPainter* p, const QRectF& renderExtent, const int frameIndex );
+    bool writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames = false ) const;
+    bool readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames = false );
+    void addFrame( QgsComposerFrame* frame /Transfer/, bool recalcFrameSizes = true );
+    //overriden to break frames without dividing lines of text
+    double findNearbyPageBreak( double yPos );
 
   public slots:
 
@@ -191,6 +187,9 @@ class QgsComposerHtml: QgsComposerMultiFrame
      * @see url
      */
     void loadHtml();
+
+    /**Recalculates the frame sizes for the current viewport dimensions*/
+    void recalculateFrameSizes();
 
     void refreshExpressionContext();
 

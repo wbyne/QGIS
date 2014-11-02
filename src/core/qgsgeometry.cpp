@@ -32,6 +32,8 @@ email                : morb at ozemail dot com dot au
 #include "qgsmessagelog.h"
 #include "qgsgeometryvalidator.h"
 
+#include <QDebug>
+
 #ifndef Q_WS_WIN
 #include <netinet/in.h>
 #else
@@ -96,7 +98,7 @@ static void throwGEOSException( const char *fmt, ... )
   vsnprintf( buffer, sizeof buffer, fmt, ap );
   va_end( ap );
 
-  QgsDebugMsg( QString( "GEOS exception: %1" ).arg( buffer ) );
+  qWarning() << QString( "GEOS exception: %1" ).arg( buffer );
 
   throw GEOSException( QString::fromUtf8( buffer ) );
 }
@@ -129,7 +131,7 @@ class GEOSInit
 
     ~GEOSInit()
     {
-      finishGEOS_r(ctxt);
+      finishGEOS_r( ctxt );
     }
 };
 
@@ -137,7 +139,7 @@ static GEOSInit geosinit;
 
 GEOSContextHandle_t QgsGeometry::getGEOSHandler()
 {
-    return geosinit.ctxt;
+  return geosinit.ctxt;
 }
 
 QgsGeometry::QgsGeometry()
@@ -193,7 +195,7 @@ static GEOSGeometry *createGeosPoint( const QgsPoint &point )
   GEOSCoordSequence *coord = GEOSCoordSeq_create_r( geosinit.ctxt, 1, 2 );
   GEOSCoordSeq_setX_r( geosinit.ctxt, coord, 0, point.x() );
   GEOSCoordSeq_setY_r( geosinit.ctxt, coord, 0, point.y() );
-  return GEOSGeom_createPoint_r(geosinit.ctxt, coord );
+  return GEOSGeom_createPoint_r( geosinit.ctxt, coord );
 }
 
 static GEOSCoordSequence *createGeosCoordSequence( const QgsPolyline& points )
@@ -268,7 +270,7 @@ static GEOSGeometry *createGeosLinearRing( const QgsPolyline& polyline )
 {
   GEOSCoordSequence *coord = 0;
 
-  if ( polyline.count() == 0 )
+  if ( polyline.count() <= 2 )
     return 0;
 
   try
@@ -282,6 +284,11 @@ static GEOSGeometry *createGeosLinearRing( const QgsPolyline& polyline )
     }
     else
     {
+      // XXX [MD] this exception should not be silenced!
+      // this is here just because maptopixel simplification can return invalid linear rings
+      if ( polyline.count() == 3 ) //-> Avoid 'GEOS::IllegalArgumentException: Invalid number of points in LinearRing found 3 - must be 0 or >= 4'
+        return 0;
+
       coord = createGeosCoordSequence( polyline );
     }
 
@@ -305,7 +312,7 @@ static GEOSGeometry *createGeosPolygon( const QVector<GEOSGeometry*> &rings )
   {
 #if defined(GEOS_VERSION_MAJOR) && defined(GEOS_VERSION_MINOR) && \
     ((GEOS_VERSION_MAJOR>3) || ((GEOS_VERSION_MAJOR==3) && (GEOS_VERSION_MINOR>=3)))
-    return GEOSGeom_createEmptyPolygon_r(geosinit.ctxt);
+    return GEOSGeom_createEmptyPolygon_r( geosinit.ctxt );
 #else
     shell = GEOSGeom_createLinearRing_r( geosinit.ctxt, GEOSCoordSeq_create_r( geosinit.ctxt, 0, 2 ) );
 #endif
@@ -352,7 +359,19 @@ static GEOSGeometry *createGeosPolygon( const QgsPolygon& polygon )
   try
   {
     for ( int i = 0; i < polygon.count(); i++ )
-      geoms << createGeosLinearRing( polygon[i] );
+    {
+      GEOSGeometry *ring = createGeosLinearRing( polygon[i] );
+      if ( !ring )
+      {
+        // something went really wrong - exit
+        for ( int j = 0; j < geoms.count(); j++ )
+          GEOSGeom_destroy_r( geosinit.ctxt, geoms[j] );
+        // XXX [MD] we just silently return here - but we shouldn't
+        // this is just because maptopixel simplification can return invalid linear rings
+        return 0;
+      }
+      geoms << ring;
+    }
 
     return createGeosPolygon( geoms );
   }
@@ -379,7 +398,7 @@ QgsGeometry* QgsGeometry::fromWkt( QString wkt )
 {
   try
   {
-    GEOSWKTReader *reader = GEOSWKTReader_create_r(geosinit.ctxt);
+    GEOSWKTReader *reader = GEOSWKTReader_create_r( geosinit.ctxt );
     QgsGeometry *g = fromGeosGeom( GEOSWKTReader_read_r( geosinit.ctxt, reader, wkt.toLocal8Bit().data() ) );
     GEOSWKTReader_destroy_r( geosinit.ctxt, reader );
     return g;
@@ -4063,7 +4082,8 @@ bool QgsGeometry::exportWkbToGeos() const
             sequence << QgsPoint( x, y );
           }
 
-          rings << createGeosLinearRing( sequence );
+          GEOSGeometry *ring = createGeosLinearRing( sequence );
+          if ( ring ) rings << ring;
         }
         mGeos = createGeosPolygon( rings );
         mDirtyGeos = false;
@@ -4110,10 +4130,12 @@ bool QgsGeometry::exportWkbToGeos() const
               sequence << QgsPoint( x, y );
             }
 
-            rings << createGeosLinearRing( sequence );
+            GEOSGeometry *ring = createGeosLinearRing( sequence );
+            if ( ring ) rings << ring;
           }
 
-          polygons << createGeosPolygon( rings );
+          GEOSGeometry *polygon = createGeosPolygon( rings );
+          if ( polygon ) polygons << polygon;
         }
         mGeos = createGeosCollection( GEOS_MULTIPOLYGON, polygons );
         mDirtyGeos = false;
@@ -4868,7 +4890,15 @@ GEOSGeometry* QgsGeometry::reshapePolygon( const GEOSGeometry* polygon, const GE
 
   GEOSGeom_destroy_r( geosinit.ctxt, reshapeResult );
 
-  newRing = GEOSGeom_createLinearRing_r( geosinit.ctxt, newCoordSequence );
+  try
+  {
+    newRing = GEOSGeom_createLinearRing_r( geosinit.ctxt, newCoordSequence );
+  }
+  catch ( GEOSException &e )
+  {
+    QgsMessageLog::logMessage( QObject::tr( "Exception: %1" ).arg( e.what() ), QObject::tr( "GEOS" ) );
+  }
+
   if ( !newRing )
   {
     delete [] innerRings;
@@ -5191,18 +5221,17 @@ GEOSGeometry *QgsGeometry::nodeGeometries( const GEOSGeometry *splitLine, const 
   if ( !splitLine || !geom )
     return 0;
 
-  GEOSGeometry *geometryBoundary = 0;
   if ( GEOSGeomTypeId_r( geosinit.ctxt, geom ) == GEOS_POLYGON || GEOSGeomTypeId_r( geosinit.ctxt, geom ) == GEOS_MULTIPOLYGON )
-    geometryBoundary = GEOSBoundary_r( geosinit.ctxt, geom );
+  {
+    GEOSGeometry *geometryBoundary = GEOSBoundary_r( geosinit.ctxt, geom );
+    GEOSGeometry *unionGeometry = GEOSUnion_r( geosinit.ctxt, splitLine, geometryBoundary );
+    GEOSGeom_destroy_r( geosinit.ctxt, geometryBoundary );
+    return unionGeometry;
+  }
   else
-    geometryBoundary = GEOSGeom_clone_r( geosinit.ctxt, geom );
-
-  GEOSGeometry *splitLineClone = GEOSGeom_clone_r( geosinit.ctxt, splitLine );
-  GEOSGeometry *unionGeometry = GEOSUnion_r( geosinit.ctxt, splitLineClone, geometryBoundary );
-  GEOSGeom_destroy_r( geosinit.ctxt, splitLineClone );
-
-  GEOSGeom_destroy_r( geosinit.ctxt, geometryBoundary );
-  return unionGeometry;
+  {
+    return GEOSUnion_r( geosinit.ctxt, splitLine, geom );
+  }
 }
 
 int QgsGeometry::lineContainedInLine( const GEOSGeometry* line1, const GEOSGeometry* line2 )
@@ -5212,7 +5241,7 @@ int QgsGeometry::lineContainedInLine( const GEOSGeometry* line1, const GEOSGeome
     return -1;
   }
 
-  double bufferDistance = pow( 1.0L, geomDigits( line2 ) - 11 );
+  double bufferDistance = pow( 10.0L, geomDigits( line2 ) - 11 );
 
   GEOSGeometry* bufferGeom = GEOSBuffer_r( geosinit.ctxt, line2, bufferDistance, DEFAULT_QUADRANT_SEGMENTS );
   if ( !bufferGeom )
@@ -5242,7 +5271,7 @@ int QgsGeometry::pointContainedInLine( const GEOSGeometry* point, const GEOSGeom
   if ( !point || !line )
     return -1;
 
-  double bufferDistance = pow( 1.0L, geomDigits( line ) - 11 );
+  double bufferDistance = pow( 10.0L, geomDigits( line ) - 11 );
 
   GEOSGeometry* lineBuffer = GEOSBuffer_r( geosinit.ctxt, line, bufferDistance, 8 );
   if ( !lineBuffer )
@@ -5258,7 +5287,7 @@ int QgsGeometry::pointContainedInLine( const GEOSGeometry* point, const GEOSGeom
 
 int QgsGeometry::geomDigits( const GEOSGeometry* geom )
 {
-  GEOSGeometry* bbox = GEOSEnvelope_r( geosinit.ctxt,  geom );
+  GEOSGeometry* bbox = GEOSEnvelope_r( geosinit.ctxt, geom );
   if ( !bbox )
     return -1;
 
@@ -5597,7 +5626,7 @@ double QgsGeometry::distance( QgsGeometry& geom )
 
   try
   {
-    GEOSDistance_r( geosinit.ctxt,  mGeos, geom.mGeos, &dist );
+    GEOSDistance_r( geosinit.ctxt, mGeos, geom.mGeos, &dist );
   }
   CATCH_GEOS( -1.0 )
 

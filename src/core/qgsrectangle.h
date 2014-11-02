@@ -15,8 +15,8 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef QGSRECT_H
-#define QGSRECT_H
+#ifndef QGSRECTANGLE_H
+#define QGSRECTANGLE_H
 
 #include <iosfwd>
 #include <QDomDocument>
@@ -40,7 +40,6 @@ class CORE_EXPORT QgsRectangle
     //! Construct a rectangle from two points. The rectangle is normalized after construction.
     QgsRectangle( const QgsPoint & p1, const QgsPoint & p2 );
     //! Construct a rectangle from a QRectF. The rectangle is normalized after construction.
-    //! @note added in 2.0
     QgsRectangle( const QRectF & qRectF );
     //! Copy constructor
     QgsRectangle( const QgsRectangle &other );
@@ -90,10 +89,8 @@ class CORE_EXPORT QgsRectangle
     //! returns true when rectangle intersects with other rectangle
     bool intersects( const QgsRectangle& rect ) const;
     //! return true when rectangle contains other rectangle
-    //! @note added in version 1.1
     bool contains( const QgsRectangle& rect ) const;
     //! return true when rectangle contains a point
-    //! @note added in version 1.3
     bool contains( const QgsPoint &p ) const;
     //! expand the rectangle so that covers both the original rectangle and the given rectangle
     void combineExtentWith( QgsRectangle *rect );
@@ -109,10 +106,8 @@ class CORE_EXPORT QgsRectangle
     //! returns string representation in Wkt form
     QString asWktCoordinates() const;
     //! returns string representation as WKT Polygon
-    //! @note added in 2.0
     QString asWktPolygon() const;
     //! returns a QRectF with same coordinates.
-    //! @note added in 2.0
     QRectF toRectF() const;
     //! returns string representation of form xmin,ymin xmax,ymax
     QString toString( bool automaticPrecision = false ) const;
@@ -141,7 +136,6 @@ class CORE_EXPORT QgsRectangle
     bool isFinite() const;
 
     //! swap x/y
-    //! @note added in 1.9
     void invert();
 
   protected:
@@ -213,11 +207,11 @@ inline double QgsRectangle::height() const
 
 inline QgsPoint QgsRectangle::center() const
 {
-  return QgsPoint( xmin + width() / 2,  ymin + height() / 2 );
+  return QgsPoint( xmin + width() / 2, ymin + height() / 2 );
 }
 inline std::ostream& operator << ( std::ostream& os, const QgsRectangle &r )
 {
   return os << r.toString().toLocal8Bit().data();
 }
 
-#endif // QGSRECT_H
+#endif // QGSRECTANGLE_H

@@ -25,7 +25,10 @@
 #include <QSettings>
 
 
-QgsComposerHtmlWidget::QgsComposerHtmlWidget( QgsComposerHtml* html, QgsComposerFrame* frame ): QgsComposerItemBaseWidget( 0, html ), mHtml( html ), mFrame( frame )
+QgsComposerHtmlWidget::QgsComposerHtmlWidget( QgsComposerHtml* html, QgsComposerFrame* frame )
+    : QgsComposerItemBaseWidget( 0, html )
+    , mHtml( html )
+    , mFrame( frame )
 {
   setupUi( this );
 
@@ -70,8 +73,8 @@ QgsComposerHtmlWidget::QgsComposerHtmlWidget( QgsComposerHtml* html, QgsComposer
   }
 
   //connections for data defined buttons
-  connect( mUrlDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty( ) ) );
-  connect( mUrlDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty( ) ) );
+  connect( mUrlDDBtn, SIGNAL( dataDefinedChanged( const QString& ) ), this, SLOT( updateDataDefinedProperty() ) );
+  connect( mUrlDDBtn, SIGNAL( dataDefinedActivated( bool ) ), this, SLOT( updateDataDefinedProperty() ) );
   connect( mUrlDDBtn, SIGNAL( dataDefinedActivated( bool ) ), mUrlLineEdit, SLOT( setDisabled( bool ) ) );
 
 }
@@ -97,6 +100,8 @@ void QgsComposerHtmlWidget::blockSignals( bool block )
   mRadioManualSource->blockSignals( block );
   mRadioUrlSource->blockSignals( block );
   mEvaluateExpressionsCheckbox->blockSignals( block );
+  mEmptyFrameCheckBox->blockSignals( block );
+  mHideEmptyBgCheckBox->blockSignals( block );
 }
 
 void QgsComposerHtmlWidget::on_mUrlLineEdit_editingFinished()
@@ -260,6 +265,30 @@ void QgsComposerHtmlWidget::on_mUserStylesheetCheckBox_toggled( bool checked )
     composition->endMultiFrameCommand();
     blockSignals( false );
   }
+}
+
+void QgsComposerHtmlWidget::on_mEmptyFrameCheckBox_toggled( bool checked )
+{
+  if ( !mFrame )
+  {
+    return;
+  }
+
+  mFrame->beginCommand( tr( "Empty frame mode toggled" ) );
+  mFrame->setHidePageIfEmpty( checked );
+  mFrame->endCommand();
+}
+
+void QgsComposerHtmlWidget::on_mHideEmptyBgCheckBox_toggled( bool checked )
+{
+  if ( !mFrame )
+  {
+    return;
+  }
+
+  mFrame->beginCommand( tr( "Hide background if empty toggled" ) );
+  mFrame->setHideBackgroundIfEmpty( checked );
+  mFrame->endCommand();
 }
 
 void QgsComposerHtmlWidget::on_mRadioManualSource_clicked( bool checked )
@@ -429,6 +458,9 @@ void QgsComposerHtmlWidget::setGuiElementValues()
 
   mUserStylesheetCheckBox->setChecked( mHtml->userStylesheetEnabled() );
   mStylesheetEditor->setText( mHtml->userStylesheet() );
+
+  mEmptyFrameCheckBox->setChecked( mFrame->hidePageIfEmpty() );
+  mHideEmptyBgCheckBox->setChecked( mFrame->hideBackgroundIfEmpty() );
 
   populateDataDefinedButtons();
 

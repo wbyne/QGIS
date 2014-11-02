@@ -121,6 +121,8 @@
 %Include composer/qgscomposerarrow.sip
 %Include composer/qgscomposerattributetable.sip
 %Include composer/qgscomposerattributetablemodel.sip
+%Include composer/qgscomposerattributetablemodelv2.sip
+%Include composer/qgscomposerattributetablev2.sip
 %Include composer/qgscomposerframe.sip
 %Include composer/qgscomposerhtml.sip
 %Include composer/qgscomposerobject.sip
@@ -132,6 +134,8 @@
 %Include composer/qgscomposerlegenditem.sip
 %Include composer/qgscomposermap.sip
 %Include composer/qgscomposermapgrid.sip
+%Include composer/qgscomposermapitem.sip
+%Include composer/qgscomposermapoverview.sip
 %Include composer/qgscomposermultiframe.sip
 %Include composer/qgscomposermultiframecommand.sip
 %Include composer/qgscomposerpicture.sip
@@ -139,6 +143,7 @@
 %Include composer/qgscomposershape.sip
 %Include composer/qgscomposertable.sip
 %Include composer/qgscomposertablecolumn.sip
+%Include composer/qgscomposertablev2.sip
 %Include composer/qgscomposerutils.sip
 %Include composer/qgscomposition.sip
 %Include composer/qgscomposermodel.sip

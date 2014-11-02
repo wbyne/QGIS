@@ -155,9 +155,9 @@ class QgsComposerMapWidget: public QgsComposerItemBaseWidget, private Ui::QgsCom
     /**Enables or disables the atlas controls when composer atlas is toggled on/off*/
     void compositionAtlasToggled( bool atlasEnabled );
 
-    void aboutToShowVisibilityGroupsMenu();
+    void aboutToShowVisibilityPresetsMenu();
 
-    void visibilityGroupSelected();
+    void visibilityPresetSelected();
 
   private:
     QgsComposerMap* mComposerMap;
@@ -184,7 +184,7 @@ class QgsComposerMapWidget: public QgsComposerItemBaseWidget, private Ui::QgsCom
     void refreshMapComboBox();
 
     /**Enables/disables grid frame related controls*/
-    void toggleFrameControls( bool frameEnabled , bool frameFillEnabled, bool frameSizeEnabled );
+    void toggleFrameControls( bool frameEnabled, bool frameFillEnabled, bool frameSizeEnabled );
 
     /**Enables or disables the atlas margin and predefined scales radio depending on the atlas coverage layer type*/
     void toggleAtlasScalingOptionsByLayerType();

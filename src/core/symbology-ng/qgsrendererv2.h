@@ -85,6 +85,14 @@ class CORE_EXPORT QgsFeatureRendererV2
      */
     virtual QgsSymbolV2* symbolForFeature( QgsFeature& feature ) = 0;
 
+    /**
+     * Return symbol for feature. The difference compared to symbolForFeature() is that it returns original
+     * symbol which can be used as an identifier for renderer's rule - the former may return a temporary replacement
+     * of a symbol for use in rendering.
+     * @note added in 2.6
+     */
+    virtual QgsSymbolV2* originalSymbolForFeature( QgsFeature& feature ) { return symbolForFeature( feature ); }
+
     virtual void startRender( QgsRenderContext& context, const QgsFields& fields ) = 0;
 
     //! @deprecated since 2.4 - not using QgsVectorLayer directly anymore
@@ -113,7 +121,6 @@ class CORE_EXPORT QgsFeatureRendererV2
     };
 
     //! returns bitwise OR-ed capabilities of the renderer
-    //! \note added in 2.0
     virtual int capabilities() { return 0; }
 
     //! for symbol levels
@@ -129,7 +136,6 @@ class CORE_EXPORT QgsFeatureRendererV2
     virtual QDomElement save( QDomDocument& doc );
 
     //! create the SLD UserStyle element following the SLD v1.1 specs
-    //! @note added in 1.9
     virtual QDomElement writeSld( QDomDocument& doc, const QgsVectorLayer &layer ) const;
 
     /** create a new renderer according to the information contained in
@@ -141,12 +147,10 @@ class CORE_EXPORT QgsFeatureRendererV2
      * @param errorMessage it will contain the error message if something
      * went wrong
      * @return the renderer
-     * @note added in 1.9
      */
     static QgsFeatureRendererV2* loadSld( const QDomNode &node, QGis::GeometryType geomType, QString &errorMessage );
 
     //! used from subclasses to create SLD Rule elements following SLD v1.1 specs
-    //! @note added in 1.9
     virtual void toSld( QDomDocument& doc, QDomElement &element ) const
     { element.appendChild( doc.createComment( QString( "FeatureRendererV2 %1 not implemented yet" ).arg( type() ) ) ); }
 
@@ -166,7 +170,6 @@ class CORE_EXPORT QgsFeatureRendererV2
     virtual void checkLegendSymbolItem( QString key, bool state = true );
 
     //! return a list of item text / symbol
-    //! @note: this method was added in version 1.5
     //! @note not available in python bindings
     virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, QString rule = "" );
 
@@ -183,23 +186,24 @@ class CORE_EXPORT QgsFeatureRendererV2
     void setVertexMarkerAppearance( int type, int size );
 
     //! return rotation field name (or empty string if not set or not supported by renderer)
-    //! @note added in 1.9
     virtual QString rotationField() const { return ""; }
     //! sets rotation field of renderer (if supported by the renderer)
-    //! @note added in 1.9
     virtual void setRotationField( QString fieldName ) { Q_UNUSED( fieldName ); }
 
     //! return whether the renderer will render a feature or not.
     //! Must be called between startRender() and stopRender() calls.
     //! Default implementation uses symbolForFeature().
-    //! @note added in 1.9
     virtual bool willRenderFeature( QgsFeature& feat ) { return symbolForFeature( feat ) != NULL; }
 
     //! return list of symbols used for rendering the feature.
     //! For renderers that do not support MoreSymbolsPerFeature it is more efficient
     //! to use symbolForFeature()
-    //! @note added in 1.9
     virtual QgsSymbolV2List symbolsForFeature( QgsFeature& feat );
+
+    //! Equivalent of originalSymbolsForFeature() call
+    //! extended to support renderers that may use more symbols per feature - similar to symbolsForFeature()
+    //! @note added in 2.6
+    virtual QgsSymbolV2List originalSymbolsForFeature( QgsFeature& feat );
 
   protected:
     QgsFeatureRendererV2( QString type );

@@ -84,8 +84,7 @@ class CORE_EXPORT QgsMapToPixel
 
     QgsPoint toMapCoordinates( int x, int y ) const;
 
-    /*! Transform device coordinates to map (world) coordinates
-      @note: this method was added in version 1.6*/
+    /*! Transform device coordinates to map (world) coordinates */
     QgsPoint toMapCoordinatesF( double x, double y ) const;
 
     /*! Tranform device coordinates to map (world)  coordinates
@@ -109,7 +108,7 @@ class CORE_EXPORT QgsMapToPixel
     void setYMinimum( double ymin );
     //! set minimum x value
     void setXMinimum( double xmin );
-    /*! Set parameters for use in tranfsorming coordinates
+    /*! Set parameters for use in transforming coordinates
     * @param mapUnitsPerPixel Map units per pixel
     * @param xmin Minimum x value
     * @param ymin Minimum y value

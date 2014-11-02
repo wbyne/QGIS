@@ -148,9 +148,11 @@ class CORE_EXPORT QgsCoordinateTransform : public QObject
      * returned rectangle.
      * @param theRect rect to transform
      * @param direction TransformDirection (defaults to ForwardTransform)
+     * @param handle180Crossover set to true if destination crs is geographic and handling of extents crossing the 180 degree
+     * longitude line is required
      * @return QgsRectangle in Destination Coordinate System
      */
-    QgsRectangle transformBoundingBox( const QgsRectangle theRect, TransformDirection direction = ForwardTransform ) const;
+    QgsRectangle transformBoundingBox( const QgsRectangle theRect, TransformDirection direction = ForwardTransform, const bool handle180Crossover = false ) const;
 
     // Same as for the other transform() functions, but alters the x
     // and y variables in place. The second one works with good old-fashioned
@@ -317,16 +319,16 @@ inline std::ostream& operator << ( std::ostream& os, const QgsCoordinateTransfor
   }
   else
   {
-    mySummary += "No" ;
+    mySummary += "No";
   }
-  mySummary += "\n\tShort Circuit?  : " ;
+  mySummary += "\n\tShort Circuit?  : ";
   if ( r.isShortCircuited() )
   {
     mySummary += "Yes";
   }
   else
   {
-    mySummary += "No" ;
+    mySummary += "No";
   }
 
   mySummary += "\n\tSource Spatial Ref Sys  : ";
@@ -336,17 +338,17 @@ inline std::ostream& operator << ( std::ostream& os, const QgsCoordinateTransfor
   }
   else
   {
-    mySummary += "Undefined" ;
+    mySummary += "Undefined";
   }
 
-  mySummary += "\n\tDest Spatial Ref Sys  : " ;
+  mySummary += "\n\tDest Spatial Ref Sys  : ";
   if ( r.destCRS() )
   {
     mySummary << r.destCRS();
   }
   else
   {
-    mySummary += "Undefined" ;
+    mySummary += "Undefined";
   }
 #endif
 

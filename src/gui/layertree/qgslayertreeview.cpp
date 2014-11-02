@@ -131,9 +131,10 @@ void QgsLayerTreeView::modelRowsInserted( QModelIndex index, int start, int end 
   if ( QgsLayerTree::isLayer( parentNode ) )
     return; // layers have only symbology nodes (no expanded/collapsed handling)
 
+  QList<QgsLayerTreeNode*> children = parentNode->children();
   for ( int i = start; i <= end; ++i )
   {
-    updateExpandedStateFromNode( parentNode->children()[i] );
+    updateExpandedStateFromNode( children[i] );
   }
 
   // make sure we still have correct current layer
@@ -209,7 +210,7 @@ QgsMapLayer* QgsLayerTreeView::layerForIndex( const QModelIndex& index ) const
     // possibly a legend node
     QgsLayerTreeModelLegendNode* legendNode = layerTreeModel()->index2legendNode( index );
     if ( legendNode )
-      return legendNode->parent()->layer();
+      return legendNode->layerNode()->layer();
   }
 
   return 0;
@@ -234,7 +235,7 @@ QgsLayerTreeGroup* QgsLayerTreeView::currentGroupNode() const
 
   if ( QgsLayerTreeModelLegendNode* legendNode = layerTreeModel()->index2legendNode( selectionModel()->currentIndex() ) )
   {
-    QgsLayerTreeLayer* parent = legendNode->parent();
+    QgsLayerTreeLayer* parent = legendNode->layerNode();
     if ( QgsLayerTree::isGroup( parent->parent() ) )
       return QgsLayerTree::toGroup( parent->parent() );
   }

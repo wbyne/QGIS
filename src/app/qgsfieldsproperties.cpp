@@ -140,6 +140,8 @@ void QgsFieldsProperties::onAttributeSelectionChanged()
     if ( mDesignerTree->selectedItems()[0]->data( 0, DesignerTreeRole ).value<DesignerTreeItemData>().type() == DesignerTreeItemData::Container )
       isAddPossible = true;
   mAddItemButton->setEnabled( isAddPossible );
+
+  updateButtons();
 }
 
 QTreeWidgetItem *QgsFieldsProperties::loadAttributeEditorTreeItem( QgsAttributeEditorElement* const widgetDef, QTreeWidgetItem* parent )
@@ -311,7 +313,7 @@ void QgsFieldsProperties::on_mAddItemButton_clicked()
   Q_FOREACH ( QTableWidgetItem* item, listItems )
   {
     if ( item->column() == 0 ) // Information is in the first column
-      mDesignerTree->addItem( parent , item->data( DesignerTreeRole ).value<DesignerTreeItemData>() );
+      mDesignerTree->addItem( parent, item->data( DesignerTreeRole ).value<DesignerTreeItemData>() );
   }
 }
 
@@ -340,7 +342,7 @@ void QgsFieldsProperties::on_mAddTabOrGroupButton_clicked()
   else
   {
     QTreeWidgetItem* tabItem = addTabOrGroup.tab();
-    mDesignerTree->addContainer( tabItem , name );
+    mDesignerTree->addContainer( tabItem, name );
   }
 }
 
@@ -486,6 +488,7 @@ bool QgsFieldsProperties::addAttribute( const QgsField &field )
   else
   {
     mLayer->destroyEditCommand();
+    QMessageBox::critical( this, tr( "Failed to add field" ), tr( "Failed to add field '%1' of type '%2'. Is the field name unique?" ).arg( field.name() ).arg( field.typeName() ) );
     return false;
   }
 }
@@ -497,7 +500,7 @@ void QgsFieldsProperties::editingToggled()
 
 QgsFieldsProperties::FieldConfig QgsFieldsProperties::configForRow( int row )
 {
-  foreach ( QTableWidgetItem* wdg , mIndexedWidgets )
+  foreach ( QTableWidgetItem* wdg, mIndexedWidgets )
   {
     if ( wdg->row() == row )
     {
@@ -512,7 +515,7 @@ QgsFieldsProperties::FieldConfig QgsFieldsProperties::configForRow( int row )
 
 void QgsFieldsProperties::setConfigForRow( int row, QgsFieldsProperties::FieldConfig cfg )
 {
-  foreach ( QTableWidgetItem* wdg , mIndexedWidgets )
+  foreach ( QTableWidgetItem* wdg, mIndexedWidgets )
   {
     if ( wdg->row() == row )
     {
@@ -530,40 +533,38 @@ void QgsFieldsProperties::on_mAddAttributeButton_clicked()
   QgsAddAttrDialog dialog( mLayer, this );
   if ( dialog.exec() == QDialog::Accepted )
   {
-    if ( dialog.mode() == QgsAddAttrDialog::VirtualField )
-    {
-      mLayer->addExpressionField( dialog.expression(), dialog.field() );
-    }
-    else
-    {
-      mLayer->beginEditCommand( "Attribute added" );
-      if ( !addAttribute( dialog.field() ) )
-      {
-        mLayer->destroyEditCommand();
-        QMessageBox::information( this, tr( "Name conflict" ), tr( "The attribute could not be inserted. The name already exists in the table." ) );
-      }
-      else
-      {
-        mLayer->endEditCommand();
-      }
-    }
+    addAttribute( dialog.field() );
+
   }
 }
 
 void QgsFieldsProperties::on_mDeleteAttributeButton_clicked()
 {
-  QSet<int> attrs;
-  foreach ( QTableWidgetItem* item, mFieldsList->selectedItems() )
+  QSet<int> providerFields;
+  QSet<int> expressionFields;
+  Q_FOREACH ( QTableWidgetItem* item, mFieldsList->selectedItems() )
   {
     if ( item->column() == 0 )
     {
-      attrs << mIndexedWidgets.indexOf( item );
+      int idx = mIndexedWidgets.indexOf( item );
+      if ( mLayer->pendingFields().fieldOrigin( idx ) == QgsFields::OriginExpression )
+        expressionFields << idx;
+      else
+        providerFields << idx;
     }
   }
 
-  mLayer->beginEditCommand( tr( "Deleted attribute" ) );
-  mLayer->deleteAttributes( attrs.toList() );
-  mLayer->endEditCommand();
+  if ( expressionFields.count() )
+    mLayer->deleteAttributes( expressionFields.toList() );
+
+  if ( providerFields.count() )
+  {
+    mLayer->beginEditCommand( tr( "Deleted attributes" ) );
+    if ( mLayer->deleteAttributes( providerFields.toList() ) )
+      mLayer->endEditCommand();
+    else
+      mLayer->destroyEditCommand();
+  }
 }
 
 void QgsFieldsProperties::updateButtons()
@@ -574,17 +575,31 @@ void QgsFieldsProperties::updateButtons()
 
   if ( mLayer->isEditable() )
   {
-    mAddAttributeButton->setEnabled( cap & QgsVectorDataProvider::AddAttributes );
     mDeleteAttributeButton->setEnabled( cap & QgsVectorDataProvider::DeleteAttributes );
-    mCalculateFieldButton->setEnabled( cap & ( QgsVectorDataProvider::ChangeAttributeValues | QgsVectorDataProvider::AddAttributes ) );
+    mAddAttributeButton->setEnabled( cap & QgsVectorDataProvider::AddAttributes );
     mToggleEditingButton->setChecked( true );
   }
   else
   {
-    mAddAttributeButton->setEnabled( false );
-    mDeleteAttributeButton->setEnabled( false );
     mToggleEditingButton->setChecked( false );
-    mCalculateFieldButton->setEnabled( false );
+    mAddAttributeButton->setEnabled( false );
+
+    // Enable delete button if items are selected
+    mDeleteAttributeButton->setEnabled( mFieldsList->selectedItems().count() > 0 );
+
+    // and only if all selected items have their origin in an expression
+    Q_FOREACH ( QTableWidgetItem* item, mFieldsList->selectedItems() )
+    {
+      if ( item->column() == 0 )
+      {
+        int idx = mIndexedWidgets.indexOf( item );
+        if ( mLayer->pendingFields().fieldOrigin( idx ) != QgsFields::OriginExpression )
+        {
+          mDeleteAttributeButton->setEnabled( false );
+          break;
+        }
+      }
+    }
   }
 }
 
@@ -848,7 +863,7 @@ QMimeData* QgsFieldsProperties::DragList::mimeData( const QList<QTableWidgetItem
 QTreeWidgetItem* QgsFieldsProperties::DesignerTree::addContainer( QTreeWidgetItem* parent, QString title )
 {
   QTreeWidgetItem *newItem = new QTreeWidgetItem( QStringList() << title );
-  newItem->setBackground( 0 , QBrush( Qt::lightGray ) );
+  newItem->setBackground( 0, QBrush( Qt::lightGray ) );
   newItem->setFlags( Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled );
   newItem->setData( 0, DesignerTreeRole, DesignerTreeItemData( DesignerTreeItemData::Container, title ).asQVariant() );
   parent->addChild( newItem );
@@ -863,7 +878,7 @@ QTreeWidgetItem* QgsFieldsProperties::DesignerTree::addItem( QTreeWidgetItem* pa
   if ( data.type() == DesignerTreeItemData::Container )
   {
     newItem->setFlags( Qt::ItemIsEditable | Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled );
-    newItem->setBackground( 0 , QBrush( Qt::lightGray ) );
+    newItem->setBackground( 0, QBrush( Qt::lightGray ) );
 
 #if 0
     switch ( data.type() )
@@ -882,7 +897,7 @@ QTreeWidgetItem* QgsFieldsProperties::DesignerTree::addItem( QTreeWidgetItem* pa
     }
 #endif
   }
-  newItem->setData( 0 , DesignerTreeRole, data.asQVariant() );
+  newItem->setData( 0, DesignerTreeRole, data.asQVariant() );
   parent->addChild( newItem );
 
   return newItem;

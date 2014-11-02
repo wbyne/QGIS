@@ -20,14 +20,15 @@
 #include "qgsattributeform.h"
 #include "qgshighlight.h"
 #include "qgsapplication.h"
+#include "qgsactionmenu.h"
 
 #include <QSettings>
-#include <QGridLayout>
 
 
 QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeature, bool featureOwner, QgsDistanceArea myDa, QWidget* parent, bool showDialogButtons )
     : QDialog( parent )
     , mHighlight( 0 )
+    , mOwnedFeature( featureOwner ? thepFeature : 0 )
 {
   QgsAttributeEditorContext context;
   context.setDistanceArea( myDa );
@@ -36,22 +37,17 @@ QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeat
 
   if ( !showDialogButtons )
     mAttributeForm->hideButtonBox();
-
-  if ( featureOwner )
-    delete thepFeature;
 }
 
 QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeature, bool featureOwner, QWidget* parent, bool showDialogButtons, QgsAttributeEditorContext context )
     : QDialog( parent )
     , mHighlight( 0 )
+    , mOwnedFeature( featureOwner ? thepFeature : 0 )
 {
   init( vl, thepFeature, context, parent );
 
   if ( !showDialogButtons )
     mAttributeForm->hideButtonBox();
-
-  if ( featureOwner )
-    delete thepFeature;
 }
 
 QgsAttributeDialog::~QgsAttributeDialog()
@@ -61,6 +57,9 @@ QgsAttributeDialog::~QgsAttributeDialog()
     mHighlight->hide();
     delete mHighlight;
   }
+
+  if( mOwnedFeature )
+    delete mOwnedFeature;
 
   saveGeometry();
 }
@@ -100,7 +99,7 @@ void QgsAttributeDialog::show( bool autoDelete )
 
 void QgsAttributeDialog::init( QgsVectorLayer* layer, QgsFeature* feature, QgsAttributeEditorContext& context, QWidget* parent )
 {
-  setWindowTitle( tr( "Feature Attributes" ) );
+  setWindowTitle( tr( "%1 - Feature Attributes" ).arg( layer->name() ) );
   setLayout( new QGridLayout() );
   layout()->setMargin( 0 );
   mAttributeForm = new QgsAttributeForm( layer, *feature, context, parent );
@@ -109,6 +108,12 @@ void QgsAttributeDialog::init( QgsVectorLayer* layer, QgsFeature* feature, QgsAt
   QDialogButtonBox* buttonBox = mAttributeForm->findChild<QDialogButtonBox*>();
   connect( buttonBox, SIGNAL( rejected() ), this, SLOT( reject() ) );
   connect( buttonBox, SIGNAL( accepted() ), this, SLOT( accept() ) );
+
+  mMenuBar = new QMenuBar( this );
+  QgsActionMenu* menu = new QgsActionMenu( layer, &mAttributeForm->feature(), this );
+  mMenuBar->addMenu( menu );
+  layout()->setMenuBar( mMenuBar );
+
   restoreGeometry();
   focusNextChild();
 }

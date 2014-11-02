@@ -47,6 +47,9 @@ QgsAtlasComposition::QgsAtlasComposition( QgsComposition* composition ) :
   QgsExpression::setSpecialColumn( "$atlasfeatureid", QVariant(( int )0 ) );
   QgsExpression::setSpecialColumn( "$atlasfeature", QVariant::fromValue( QgsFeature() ) );
   QgsExpression::setSpecialColumn( "$atlasgeometry", QVariant::fromValue( QgsGeometry() ) );
+
+  //listen out for layer removal
+  connect( QgsMapLayerRegistry::instance(), SIGNAL( layersWillBeRemoved( QStringList ) ), this, SLOT( removeLayers( QStringList ) ) );
 }
 
 QgsAtlasComposition::~QgsAtlasComposition()
@@ -55,13 +58,43 @@ QgsAtlasComposition::~QgsAtlasComposition()
 
 void QgsAtlasComposition::setEnabled( bool enabled )
 {
+  if ( enabled == mEnabled )
+  {
+    return;
+  }
+
   mEnabled = enabled;
   mComposition->setAtlasMode( QgsComposition::AtlasOff );
   emit toggled( enabled );
+  emit parameterChanged();
+}
+
+void QgsAtlasComposition::removeLayers( QStringList layers )
+{
+  if ( !mCoverageLayer )
+  {
+    return;
+  }
+
+  foreach ( QString layerId, layers )
+  {
+    if ( layerId == mCoverageLayer->id() )
+    {
+      //current coverage layer removed
+      mCoverageLayer = 0;
+      setEnabled( false );
+      return;
+    }
+  }
 }
 
 void QgsAtlasComposition::setCoverageLayer( QgsVectorLayer* layer )
 {
+  if ( layer == mCoverageLayer )
+  {
+    return;
+  }
+
   mCoverageLayer = layer;
 
   // update the number of features
@@ -345,7 +378,12 @@ bool QgsAtlasComposition::prepareForFeature( const QgsFeature * feat )
   return prepareForFeature( featureI );
 }
 
-bool QgsAtlasComposition::prepareForFeature( const int featureI )
+void QgsAtlasComposition::refreshFeature()
+{
+  prepareForFeature( mCurrentFeatureNo, false );
+}
+
+bool QgsAtlasComposition::prepareForFeature( const int featureI, const bool updateMaps )
 {
   if ( !mCoverageLayer )
   {
@@ -384,12 +422,22 @@ bool QgsAtlasComposition::prepareForFeature( const int featureI )
     return true;
   }
 
+  if ( !updateMaps )
+  {
+    //nothing more to do
+    return true;
+  }
+
   //update composer maps
 
   //build a list of atlas-enabled composer maps
   QList<QgsComposerMap*> maps;
   QList<QgsComposerMap*> atlasMaps;
   mComposition->composerItems( maps );
+  if ( maps.isEmpty() )
+  {
+    return true;
+  }
   for ( QList<QgsComposerMap*>::iterator mit = maps.begin(); mit != maps.end(); ++mit )
   {
     QgsComposerMap* currentMap = ( *mit );
@@ -400,24 +448,30 @@ bool QgsAtlasComposition::prepareForFeature( const int featureI )
     atlasMaps << currentMap;
   }
 
-  //clear the transformed bounds of the previous feature
-  mTransformedFeatureBounds = QgsRectangle();
-
-  if ( atlasMaps.isEmpty() )
+  if ( atlasMaps.count() > 0 )
   {
-    //no atlas enabled maps
-    return true;
+    //clear the transformed bounds of the previous feature
+    mTransformedFeatureBounds = QgsRectangle();
+
+    // compute extent of current feature in the map CRS. This should be set on a per-atlas map basis,
+    // but given that it's not currently possible to have maps with different CRSes we can just
+    // calculate it once based on the first atlas maps' CRS.
+    computeExtent( atlasMaps[0] );
   }
 
-  // compute extent of current feature in the map CRS. This should be set on a per-atlas map basis,
-  // but given that it's not currently possible to have maps with different CRSes we can just
-  // calculate it once based on the first atlas maps' CRS.
-  computeExtent( atlasMaps[0] );
-
-  //update atlas bounds of every atlas enabled composer map
-  for ( QList<QgsComposerMap*>::iterator mit = atlasMaps.begin(); mit != atlasMaps.end(); ++mit )
+  for ( QList<QgsComposerMap*>::iterator mit = maps.begin(); mit != maps.end(); ++mit )
   {
-    prepareMap( *mit );
+    if (( *mit )->atlasDriven() )
+    {
+      // map is atlas driven, so update it's bounds (causes a redraw)
+      prepareMap( *mit );
+    }
+    else
+    {
+      // map is not atlas driven, so manually force a redraw (to reflect possibly atlas
+      // dependent symbology)
+      ( *mit )->cache();
+    }
   }
 
   return true;

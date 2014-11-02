@@ -27,11 +27,14 @@ __copyright__ = '(C) 2012, Victor Olaya'
 __revision__ = '$Format:%H$'
 
 import sys
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+
 from qgis.core import *
-import processing
 from qgis.utils import iface
+
+import processing
 from processing.modeler.ModelerUtils import ModelerUtils
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.GeoAlgorithm import GeoAlgorithm
@@ -92,9 +95,8 @@ class Processing:
                 Processing.updateAlgsList()
         except:
             ProcessingLog.addToLog(ProcessingLog.LOG_ERROR,
-                                   'Could not load provider:'
-                                   + provider.getDescription() + '\n'
-                                   + unicode(sys.exc_info()[1]))
+                Processing.tr('Could not load provider: %s\n%s')
+                % (provider.getDescription(), unicode(sys.exc_info()[1])))
             Processing.removeProvider(provider)
 
     @staticmethod
@@ -281,15 +283,17 @@ class Processing:
                     continue
                 print 'Error: Wrong parameter value %s for parameter %s.' \
                     % (value, name)
-                ProcessingLog.addToLog(ProcessingLog.LOG_ERROR, "Error in %s. Wrong parameter value %s for parameter %s." \
+                ProcessingLog.addToLog(ProcessingLog.LOG_ERROR,
+                    Processing.tr('Error in %s. Wrong parameter value %s for parameter %s.') \
                     % (alg.name, value, name))
                 return
             # fill any missing parameters with default values if allowed
             for param in alg.parameters:
                 if param.name not in setParams:
                     if not param.setValue(None):
-                        print ("Error: Missing parameter value for parameter %s." % (param.name))
-                        ProcessingLog.addToLog(ProcessingLog.LOG_ERROR, "Error in %s. Missing parameter value for parameter %s." \
+                        print ('Error: Missing parameter value for parameter %s.' % (param.name))
+                        ProcessingLog.addToLog(ProcessingLog.LOG_ERROR,
+                            Processing.tr('Error in %s. Missing parameter value for parameter %s.') \
                             % (alg.name, param.name))
                         return
         else:
@@ -323,15 +327,14 @@ class Processing:
             print 'Warning: Not all input layers use the same CRS.\n' \
                 + 'This can cause unexpected results.'
 
-        ProcessingLog.addToLog(ProcessingLog.LOG_ALGORITHM, alg.getAsCommand())
-
-        # Don't set the wait cursor twice, because then when you
-        # restore it, it will still be a wait cursor.
-        cursor = QApplication.overrideCursor()
-        if cursor is None or cursor == 0:
-            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        elif cursor.shape() != Qt.WaitCursor:
-            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        if iface is not None:
+          # Don't set the wait cursor twice, because then when you
+          # restore it, it will still be a wait cursor.
+          cursor = QApplication.overrideCursor()
+          if cursor is None or cursor == 0:
+              QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+          elif cursor.shape() != Qt.WaitCursor:
+              QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         progress = None
         if iface is not None :
@@ -339,6 +342,15 @@ class Processing:
         ret = runalg(alg, progress)
         if onFinish is not None and ret:
             onFinish(alg, progress)
-        QApplication.restoreOverrideCursor()
-        progress.close()
+
+        if iface is not None:
+          QApplication.restoreOverrideCursor()
+          progress.close()
         return alg
+
+    @staticmethod
+    def tr(string, context=''):
+        if context == '':
+            context = 'Processing'
+        return QCoreApplication.translate(context, string)
+
