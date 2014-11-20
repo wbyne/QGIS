@@ -33,7 +33,7 @@ from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
 from processing.gui.HelpEditionDialog import HelpEditionDialog
-from processing.gui.ParametersDialog import ParametersDialog
+from processing.gui.AlgorithmDialog import AlgorithmDialog
 from processing.gui.AlgorithmClassification import AlgorithmDecorator
 from processing.modeler.ModelerParameterDefinitionDialog import ModelerParameterDefinitionDialog
 from processing.modeler.ModelerAlgorithm import ModelerAlgorithm, ModelerParameter
@@ -203,11 +203,9 @@ class ModelerDialog(QDialog, Ui_DlgModeler):
 
     def closeEvent(self, evt):
         if self.hasChanged:
-            ret = QMessageBox.question(self, self.tr('Message'),
-                    self.tr('There are unsaved changes in model. Close '
-                            'modeler without saving?'),
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No)
+            ret = QMessageBox.question(self, self.tr('Unsaved changes'),
+                    self.tr('There are unsaved changes in model. Continue?'),
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
             if ret == QMessageBox.Yes:
                 evt.accept()
@@ -231,7 +229,7 @@ class ModelerDialog(QDialog, Ui_DlgModeler):
             # Might happen if model is opened from modeler dialog
             self.alg.provider = ModelerUtils.providers['model']
         alg = self.alg.getCopy()
-        dlg = ParametersDialog(alg)
+        dlg = AlgorithmDialog(alg)
         dlg.exec_()
 
     def save(self):

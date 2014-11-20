@@ -30,6 +30,7 @@ class APP_EXPORT QgsBrowserDockWidget : public QDockWidget, private Ui::QgsBrows
     Q_OBJECT
   public:
     explicit QgsBrowserDockWidget( QString name, QWidget *parent = 0 );
+    //~QgsBrowserDockWidget();
     void addFavouriteDirectory( QString favDir );
 
   public slots:
@@ -53,16 +54,36 @@ class APP_EXPORT QgsBrowserDockWidget : public QDockWidget, private Ui::QgsBrows
     void showProperties();
     void toggleFastScan();
 
+    void fetchFinished( const QModelIndex & index );
+
   protected:
     void refreshModel( const QModelIndex& index );
 
     void showEvent( QShowEvent * event );
+
+    void hideEvent( QHideEvent * event );
 
     void addLayer( QgsLayerItem *layerItem );
 
     QgsBrowserTreeView* mBrowserView;
     QgsBrowserModel* mModel;
     QgsBrowserTreeFilterProxyModel* mProxyModel;
+    QString mInitPath;
+
+  private:
+    QString expandedPathsKey() const;
+    // Get list of expanded items paths recursively
+    QStringList expandedPathsList( const QModelIndex & proxyIndex );
+
+    // Expand path recursively to root
+    void expand( const QModelIndex & proxyIndex );
+    // returns true if expanded from root to item
+    bool treeExpanded( const QModelIndex & proxyIndex );
+
+    void saveState();
+    void restoreState();
+    // returns true if at least one descendat is expanded, used in refresh
+    bool hasExpandedDescendant( const QModelIndex& proxyIndex ) const;
 };
 
 #endif // QGSBROWSERDOCKWIDGET_H

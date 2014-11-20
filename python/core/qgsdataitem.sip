@@ -20,8 +20,6 @@ class QgsDataItem : QObject
 
     int rowCount();
 
-    //
-
     virtual void refresh();
 
     // Create vector of children
@@ -30,6 +28,7 @@ class QgsDataItem : QObject
     // Populate children using children vector created by createChildren()
     virtual void populate();
     bool isPopulated();
+    void setPopulated();
 
     // Insert new child using alphabetical order based on mName, emits necessary signal to model before and after, sets parent and connects signals
     // refresh - refresh populated item, emit signals to model
@@ -79,11 +78,16 @@ class QgsDataItem : QObject
     QgsDataItem* parent() const;
     void setParent( QgsDataItem* parent );
     QVector<QgsDataItem*> children() const;
-    QIcon icon() const;
+    QIcon icon();
     QString name() const;
     QString path() const;
+    void setPath( const QString );
 
+    // Because QIcon (QPixmap) must not be used in outside the GUI thread, it is
+    // not possible to set mIcon in constructor. Either use mIconName/setIconName()
+    // or implement icon().
     void setIcon( QIcon icon );
+    void setIconName( const QString & icon );
 
     void setToolTip( QString msg );
     QString toolTip() const;
@@ -160,7 +164,6 @@ class QgsDataCollectionItem : QgsDataItem
     QgsDataCollectionItem( QgsDataItem* parent, QString name, QString path = QString::null );
     ~QgsDataCollectionItem();
 
-    void setPopulated();
     void addChild( QgsDataItem *item /Transfer/ );
 
     static const QIcon &iconDir(); // shared icon: open/closed directory

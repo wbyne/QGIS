@@ -54,6 +54,8 @@ class TestQgsExpression: public QObject
       // init QGIS's paths - true means that all path will be inited from prefix
       QgsApplication::init();
       QgsApplication::initQgis();
+      // Will make sure the settings dir with the style file for color ramp is created
+      QgsApplication::createDB();
       QgsApplication::showSettings();
     }
 
@@ -974,5 +976,5 @@ class TestQgsExpression: public QObject
 
 QTEST_MAIN( TestQgsExpression )
 
-#include "moc_testqgsexpression.cxx"
+#include "testqgsexpression.moc"
 

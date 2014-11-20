@@ -189,12 +189,13 @@ void TestQgsMapRenderer::performanceTest()
   myChecker.setControlName( "expected_maprender" );
   mMapSettings.setFlag( QgsMapSettings::Antialiasing );
   myChecker.setMapSettings( mMapSettings );
+  myChecker.setColorTolerance( 5 );
   bool myResultFlag = myChecker.runTest( "maprender" );
   mReport += myChecker.report();
   QVERIFY( myResultFlag );
 }
 
 QTEST_MAIN( TestQgsMapRenderer )
-#include "moc_testqgsmaprenderer.cxx"
+#include "testqgsmaprenderer.moc"
 
 

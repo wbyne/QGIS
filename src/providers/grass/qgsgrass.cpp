@@ -55,6 +55,10 @@ extern "C"
 #define BOUND_BOX bound_box
 #endif
 
+#if GRASS_VERSION_MAJOR > 7 || (GRASS_VERSION_MAJOR == 7 && GRASS_VERSION_MINOR >= 1)
+#define G_available_mapsets G_get_available_mapsets
+#endif
+
 #if !defined(GRASS_VERSION_MAJOR) || \
     !defined(GRASS_VERSION_MINOR) || \
     GRASS_VERSION_MAJOR<6 || \
@@ -439,14 +443,14 @@ int QgsGrass::error_routine( const char *msg, int fatal )
     lastError = FATAL;
 
 #if (GRASS_VERSION_MAJOR == 7) && (GRASS_VERSION_MINOR == 0)
-    // G_fatal_error in GRASS 7.0.0beta1 always exists the second time it is called.
-    if ( QString( GRASS_VERSION_RELEASE_STRING ) == "0beta1" )
-    {
-      QMessageBox::warning( 0, QObject::tr( "Warning" ), QObject::tr( "Fatal error occurred in GRASS library. QGIS gets over the error but any next fatal error will cause QGIS exit without warning. This is a problem of GRASS 7.0.0beta1 and hopefully will be fixed in higher GRASS versions. Error message: %1" ).arg( msg ) );
-    }
+    // G_fatal_error in GRASS 7.0.0beta1 always exits the second time it is called. This was fixed in 7.1.
+    QMessageBox::warning( 0, QObject::tr( "Warning" ), QObject::tr( "Fatal error occurred in GRASS library. QGIS gets over the error but any next fatal error will cause QGIS exit without warning. This is a problem of GRASS 7.0.0beta1 but it is fixed in GRASS 7.1 and higher. Error message: %1" ).arg( msg ) );
 #endif
 
+#if (GRASS_VERSION_MAJOR < 7) || (GRASS_VERSION_MAJOR == 7 && GRASS_VERSION_MINOR == 0)
+    // longjump() is called by G_fatal_error in GRASS >= 7.1
     longjmp( QgsGrass::jumper, 1 );
+#endif
   }
   else
   {
@@ -912,18 +916,26 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( QString gisdbase,
     }
   }
 
-  // add topology layers
-  if ( Vect_get_num_primitives( &map, GV_POINTS ) > 0 )
+  // TODO: add option in GUI to set listTopoLayers
+  QSettings settings;
+  bool listTopoLayers =  settings.value( "/GRASS/listTopoLayers", false ).toBool();
+  if ( listTopoLayers )
   {
-    list.append( "topo_point" );
-  }
-  if ( Vect_get_num_primitives( &map, GV_LINES ) > 0 )
-  {
-    list.append( "topo_line" );
-  }
-  if ( Vect_get_num_nodes( &map ) > 0 )
-  {
-    list.append( "topo_node" );
+    // add topology layers
+    if ( Vect_get_num_primitives( &map, GV_POINTS ) > 0 )
+    {
+#if GRASS_VERSION_MAJOR < 7 /* no more point in GRASS 7 topo */
+      list.append( "topo_point" );
+#endif
+    }
+    if ( Vect_get_num_primitives( &map, GV_LINES ) > 0 )
+    {
+      list.append( "topo_line" );
+    }
+    if ( Vect_get_num_nodes( &map ) > 0 )
+    {
+      list.append( "topo_node" );
+    }
   }
 
   Vect_close( &map );

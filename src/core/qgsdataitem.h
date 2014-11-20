@@ -56,16 +56,23 @@ class CORE_EXPORT QgsDataItem : public QObject
 
     int rowCount();
 
-    //
-
     virtual void refresh();
+    virtual void refresh( QVector<QgsDataItem*> children );
 
     // Create vector of children
     virtual QVector<QgsDataItem*> createChildren();
 
     // Populate children using children vector created by createChildren()
     virtual void populate();
+    virtual void populate( QVector<QgsDataItem*> children );
+
+    /** Remove children recursively and set as not populated. This is used when refreshing collapsed items. */
+    virtual void depopulate();
+
     bool isPopulated() { return mPopulated; }
+
+    /** Set as populated without populating. */
+    void setPopulated() { mPopulated = true; }
 
     // Insert new child using alphabetical order based on mName, emits necessary signal to model before and after, sets parent and connects signals
     // refresh - refresh populated item, emit signals to model
@@ -80,7 +87,7 @@ class CORE_EXPORT QgsDataItem : public QObject
 
     virtual bool equal( const QgsDataItem *other );
 
-    virtual QWidget * paramWidget() { return 0; }
+    virtual QWidget *paramWidget() { return 0; }
 
     // list of actions provided by this item - usually used for popup menu on right-click
     virtual QList<QAction*> actions() { return QList<QAction*>(); }
@@ -91,19 +98,25 @@ class CORE_EXPORT QgsDataItem : public QObject
     // try to process the data dropped on this item
     virtual bool handleDrop( const QMimeData * /*data*/, Qt::DropAction /*action*/ ) { return false; }
 
-    //
-
     enum Capability
     {
-      NoCapabilities =          0,
-      SetCrs         =          1 //Can set CRS on layer or group of layers
+      NoCapabilities = 0,
+      SetCrs         = 1 << 0, //!< Can set CRS on layer or group of layers
+      Fertile        = 1 << 1, //!< Can create children. Even items without this capability may have children, but cannot create them, it means that children are created by item ancestors.
+      Fast           = 1 << 2  //!< createChildren() is fast enough to be run in main thread when refreshing items, most root items (wms,wfs,wcs,postgres...) are considered fast because they are reading data only from QSettings
     };
+    Q_DECLARE_FLAGS( Capabilities, Capability )
 
     // This will _write_ selected crs in data source
     virtual bool setCrs( QgsCoordinateReferenceSystem crs )
     { Q_UNUSED( crs ); return false; }
 
-    virtual Capability capabilities() { return NoCapabilities; }
+    //! @deprecated since 2.8, returned type this will changed to Capabilities
+    Q_DECL_DEPRECATED virtual Capability capabilities() { return NoCapabilities; }
+
+    virtual Capabilities capabilities2() const { return mCapabilities; }
+
+    virtual void setCapabilities( Capabilities capabilities ) { mCapabilities = capabilities; }
 
     // static methods
 
@@ -116,11 +129,16 @@ class CORE_EXPORT QgsDataItem : public QObject
     QgsDataItem* parent() const { return mParent; }
     void setParent( QgsDataItem* parent ) { mParent = parent; }
     QVector<QgsDataItem*> children() const { return mChildren; }
-    QIcon icon() const { return mIcon; }
+    virtual QIcon icon();
     QString name() const { return mName; }
     QString path() const { return mPath; }
+    void setPath( const QString &path ) { mPath = path; }
 
+    // Because QIcon (QPixmap) must not be used in outside the GUI thread, it is
+    // not possible to set mIcon in constructor. Either use mIconName/setIconName()
+    // or implement icon().
     void setIcon( QIcon icon ) { mIcon = icon; }
+    void setIconName( const QString & iconName ) { mIconName = iconName; }
 
     void setToolTip( QString msg ) { mToolTip = msg; }
     QString toolTip() const { return mToolTip; }
@@ -128,13 +146,20 @@ class CORE_EXPORT QgsDataItem : public QObject
   protected:
 
     Type mType;
+    Capabilities mCapabilities;
     QgsDataItem* mParent;
     QVector<QgsDataItem*> mChildren; // easier to have it always
     bool mPopulated;
     QString mName;
-    QString mPath; // it is also used to identify item in tree
+    // Path is slash ('/') separated chain of item identifiers which are usually item names, but may be differen if it is
+    // necessary to distinguish paths of two providers to the same source (e.g GRASS location and standard directory have the same
+    // name but different paths). Identifiers in path must not contain '/' characters.
+    // The path is used to identify item in tree.
+    QString mPath;
     QString mToolTip;
+    QString mIconName;
     QIcon mIcon;
+    static QMap<QString, QIcon> mIconMap;
 
   public slots:
     void emitBeginInsertItems( QgsDataItem* parent, int first, int last );
@@ -148,6 +173,8 @@ class CORE_EXPORT QgsDataItem : public QObject
     void beginRemoveItems( QgsDataItem* parent, int first, int last );
     void endRemoveItems();
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS( QgsDataItem::Capabilities )
 
 /** Item that represents a layer that can be opened with one of the providers */
 class CORE_EXPORT QgsLayerItem : public QgsDataItem
@@ -210,7 +237,6 @@ class CORE_EXPORT QgsDataCollectionItem : public QgsDataItem
     QgsDataCollectionItem( QgsDataItem* parent, QString name, QString path = QString::null );
     ~QgsDataCollectionItem();
 
-    void setPopulated() { mPopulated = true; }
     void addChild( QgsDataItem *item ) { mChildren.append( item ); }
 
     static const QIcon &iconDir(); // shared icon: open/closed directory
@@ -232,18 +258,30 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
       Group,
       Type
     };
+
     QgsDirectoryItem( QgsDataItem* parent, QString name, QString path );
+
+    /** Constructor.
+     * @param parent
+     * @param name directory name
+     * @param dirPath path to directory in file system
+     * @param path item path in the tree, it may be dirPath or dirPath with some prefix, e.g. favourites: */
+    QgsDirectoryItem( QgsDataItem* parent, QString name, QString dirPath, QString path );
     ~QgsDirectoryItem();
 
     QVector<QgsDataItem*> createChildren();
 
     virtual bool equal( const QgsDataItem *other );
-
+    virtual QIcon icon();
     virtual QWidget *paramWidget();
 
     /* static QVector<QgsDataProvider*> mProviders; */
     //! @note not available via python bindings
     static QVector<QLibrary*> mLibraries;
+
+  protected:
+    void init();
+    QString mDirPath;
 };
 
 /**
@@ -298,11 +336,13 @@ class CORE_EXPORT QgsZipItem : public QgsDataCollectionItem
     Q_OBJECT
 
   protected:
+    QString mDirPath;
     QString mVsiPrefix;
     QStringList mZipFileList;
 
   public:
     QgsZipItem( QgsDataItem* parent, QString name, QString path );
+    QgsZipItem( QgsDataItem* parent, QString name, QString dirPath, QString path );
     ~QgsZipItem();
 
     QVector<QgsDataItem*> createChildren();
@@ -315,9 +355,12 @@ class CORE_EXPORT QgsZipItem : public QgsDataCollectionItem
     static QString vsiPrefix( QString uri ) { return qgsVsiPrefix( uri ); }
 
     static QgsDataItem* itemFromPath( QgsDataItem* parent, QString path, QString name );
+    static QgsDataItem* itemFromPath( QgsDataItem* parent, QString dirPath, QString name, QString path );
 
     static const QIcon &iconZip();
 
+  private:
+    void init();
 };
 
 #endif // QGSDATAITEM_H

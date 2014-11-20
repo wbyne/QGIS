@@ -54,7 +54,6 @@ class TestQgsComposerRotation: public QObject
     QgsComposition* mComposition;
     QgsComposerShape* mComposerRect;
     QgsComposerLabel* mComposerLabel;
-    QgsMapRenderer* mMapRenderer;
     QgsComposerMap* mComposerMap;
     QgsMapSettings mMapSettings;
     QgsRasterLayer* mRasterLayer;
@@ -224,4 +223,4 @@ void TestQgsComposerRotation::oldMapRotationApi()
 #endif
 
 QTEST_MAIN( TestQgsComposerRotation )
-#include "moc_testqgscomposerrotation.cxx"
+#include "testqgscomposerrotation.moc"

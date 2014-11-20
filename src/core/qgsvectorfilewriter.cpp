@@ -1523,9 +1523,9 @@ QMap<QString, QgsVectorFileWriter::MetaData> QgsVectorFileWriter::initMetaData()
                          )
                        );
   return driverMetadata;
-}
+       }
 
-bool QgsVectorFileWriter::driverMetadata( const QString& driverName, QgsVectorFileWriter::MetaData& driverMetadata )
+       bool QgsVectorFileWriter::driverMetadata( const QString& driverName, QgsVectorFileWriter::MetaData& driverMetadata )
 {
   static const QMap<QString, MetaData> sDriverMetadata = initMetaData();
 
@@ -1869,7 +1869,20 @@ QgsVectorFileWriter::WriterError QgsVectorFileWriter::writeAsVectorFormat( QgsVe
     // Shapefiles might contain multi types although wkbType() only reports singles
     if ( layer->storageType() == "ESRI Shapefile" )
     {
-      wkbType = QGis::multiType( wkbType );
+      const QgsFeatureIds &ids = layer->selectedFeaturesIds();
+      QgsFeatureIterator fit = layer->getFeatures();
+      QgsFeature fet;
+      while ( fit.nextFeature( fet ) )
+      {
+        if ( onlySelected && !ids.contains( fet.id() ) )
+          continue;
+
+        if ( fet.geometry() && fet.geometry()->wkbType() == QGis::multiType( wkbType ) )
+        {
+          wkbType = QGis::multiType( wkbType );
+          break;
+        }
+      }
     }
   }
 

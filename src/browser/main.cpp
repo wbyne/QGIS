@@ -28,6 +28,8 @@
 #include "qgsconfig.h"
 #include <qmainwindow.h>
 
+#include "qgseditorwidgetregistry.h"
+
 int main( int argc, char ** argv )
 {
   QSettings settings;
@@ -57,6 +59,8 @@ int main( int argc, char ** argv )
   w.show();
 
   a.connect( &a, SIGNAL( lastWindowClosed() ), &a, SLOT( quit() ) );
+
+  QgsEditorWidgetRegistry::initEditors();
 
   return a.exec();
 }

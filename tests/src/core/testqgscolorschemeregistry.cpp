@@ -31,8 +31,8 @@ class DummyColorScheme : public QgsColorScheme
 
     virtual QString schemeName() const { return QString( "Dummy scheme" ); }
 
-    virtual QgsNamedColorList fetchColors( const QString context = QString(),
-                                           const QColor baseColor = QColor() )
+    virtual QgsNamedColorList fetchColors( const QString &context = QString(),
+                                           const QColor &baseColor = QColor() )
     {
       QList< QPair< QColor, QString> > colors;
       if ( context == QString( "testscheme" ) )
@@ -195,4 +195,4 @@ void TestQgsColorSchemeRegistry::matchingSchemes()
 }
 
 QTEST_MAIN( TestQgsColorSchemeRegistry )
-#include "moc_testqgscolorschemeregistry.cxx"
+#include "testqgscolorschemeregistry.moc"

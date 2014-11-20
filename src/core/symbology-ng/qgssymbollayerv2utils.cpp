@@ -347,6 +347,8 @@ QString QgsSymbolLayerV2Utils::encodeOutputUnit( QgsSymbolV2::OutputUnit unit )
       return "MM";
     case QgsSymbolV2::MapUnit:
       return "MapUnit";
+    case QgsSymbolV2::Pixel:
+      return "Pixel";
     default:
       return "MM";
   }
@@ -361,6 +363,10 @@ QgsSymbolV2::OutputUnit QgsSymbolLayerV2Utils::decodeOutputUnit( QString str )
   else if ( str == "MapUnit" )
   {
     return QgsSymbolV2::MapUnit;
+  }
+  else if ( str == "Pixel" )
+  {
+    return QgsSymbolV2::Pixel;
   }
 
   // millimeters are default
@@ -579,7 +585,7 @@ QPixmap QgsSymbolLayerV2Utils::colorRampPreviewPixmap( QgsVectorColorRampV2* ram
   painter.begin( &pixmap );
 
   //draw stippled background, for transparent images
-  drawStippledBackround( &painter, QRect( 0, 0, size.width(), size.height() ) );
+  drawStippledBackground( &painter, QRect( 0, 0, size.width(), size.height() ) );
 
   // antialising makes the colors duller, and no point in antialiasing a color ramp
   // painter.setRenderHint( QPainter::Antialiasing );
@@ -593,7 +599,7 @@ QPixmap QgsSymbolLayerV2Utils::colorRampPreviewPixmap( QgsVectorColorRampV2* ram
   return pixmap;
 }
 
-void QgsSymbolLayerV2Utils::drawStippledBackround( QPainter* painter, QRect rect )
+void QgsSymbolLayerV2Utils::drawStippledBackground( QPainter* painter, QRect rect )
 {
   // create a 2x2 checker-board image
   uchar pixDataRGB[] = { 255, 255, 255, 255,
@@ -2438,13 +2444,8 @@ bool QgsSymbolLayerV2Utils::createFunctionElement( QDomDocument &doc, QDomElemen
 
 bool QgsSymbolLayerV2Utils::functionFromSldElement( QDomElement &element, QString &function )
 {
-  QgsDebugMsg( "Entered." );
-  QDomElement elem;
-  if ( element.tagName() == "Filter" )
-  {
-    elem = element;
-  }
-  else
+  QDomElement elem = element;
+  if ( element.tagName() != "Filter" )
   {
     QDomNodeList filterNodes = element.elementsByTagName( "Filter" );
     if ( filterNodes.size() > 0 )
@@ -2816,7 +2817,7 @@ QList<QColor> QgsSymbolLayerV2Utils::parseColorList( const QString colorStr )
   return colors;
 }
 
-QMimeData * QgsSymbolLayerV2Utils::colorToMimeData( const QColor color )
+QMimeData * QgsSymbolLayerV2Utils::colorToMimeData( const QColor &color )
 {
   //set both the mime color data (which includes alpha channel), and the text (which is the color's hex
   //value, and can be used when pasting colors outside of QGIS).
@@ -3265,6 +3266,10 @@ double QgsSymbolLayerV2Utils::pixelSizeScaleFactor( const QgsRenderContext& c, Q
   if ( u == QgsSymbolV2::MM )
   {
     return ( c.scaleFactor() * c.rasterScaleFactor() );
+  }
+  else if ( u == QgsSymbolV2::Pixel )
+  {
+    return 1.0;
   }
   else //QgsSymbol::MapUnit
   {

@@ -179,7 +179,7 @@ void TestQgsComposerLabel::page_evaluation()
 void TestQgsComposerLabel::marginMethods()
 {
   QgsComposerLabel label( mComposition );
-  //test setting margins seperately
+  //test setting margins separately
   label.setMarginX( 3.0 );
   label.setMarginY( 4.0 );
   QCOMPARE( label.marginX(), 3.0 );
@@ -209,4 +209,4 @@ void TestQgsComposerLabel::marginMethods()
 }
 
 QTEST_MAIN( TestQgsComposerLabel )
-#include "moc_testqgscomposerlabel.cxx"
+#include "testqgscomposerlabel.moc"

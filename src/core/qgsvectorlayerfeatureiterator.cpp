@@ -410,7 +410,7 @@ void QgsVectorLayerFeatureIterator::useChangedAttributeFeature( QgsFeatureId fid
     QgsFeatureIterator fi = mSource->mProviderFeatureSource->getFeatures( request );
     if ( fi.nextFeature( tmp ) )
     {
-      if ( mHasVirtualAttributes )
+      if ( mHasVirtualAttributes || mSource->mHasEditBuffer )
         updateChangedAttributes( tmp );
       f.setAttributes( tmp.attributes() );
     }
