@@ -24,6 +24,7 @@
 #include <QApplication>
 #include <QBitmap>
 #include <QCheckBox>
+#include <QSpinBox>
 #include <QClipboard>
 #include <QColor>
 #include <QCursor>
@@ -104,6 +105,7 @@
 #include "qgsattributetabledialog.h"
 #include "qgsbookmarks.h"
 #include "qgsbrowserdockwidget.h"
+#include "qgsadvanceddigitizingdockwidget.h"
 #include "qgsclipboard.h"
 #include "qgscomposer.h"
 #include "qgscomposermanager.h"
@@ -158,6 +160,7 @@
 #include "qgsmessagelog.h"
 #include "qgsmultibandcolorrenderer.h"
 #include "qgsnewvectorlayerdialog.h"
+#include "qgsnewmemorylayerdialog.h"
 #include "qgsoptions.h"
 #include "qgspluginlayer.h"
 #include "qgspluginlayerregistry.h"
@@ -582,6 +585,10 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   mUndoWidget = new QgsUndoWidget( NULL, mMapCanvas );
   mUndoWidget->setObjectName( "Undo" );
 
+  // Advanced Digitizing dock
+  mAdvancedDigitizingDockWidget = new QgsAdvancedDigitizingDockWidget( mMapCanvas, this );
+  mAdvancedDigitizingDockWidget->setObjectName( "AdvancedDigitizingTools" );
+
   createActions();
   createActionGroups();
   createMenus();
@@ -617,6 +624,9 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   mBrowserWidget2->setObjectName( "Browser2" );
   addDockWidget( Qt::LeftDockWidgetArea, mBrowserWidget2 );
   mBrowserWidget2->hide();
+
+  addDockWidget( Qt::LeftDockWidgetArea, mAdvancedDigitizingDockWidget );
+  mAdvancedDigitizingDockWidget->hide();
 
   // create the GPS tool on starting QGIS - this is like the browser
   mpGpsWidget = new QgsGPSInformationWidget( mMapCanvas );
@@ -1102,6 +1112,7 @@ void QgisApp::createActions()
 
   connect( mActionNewVectorLayer, SIGNAL( triggered() ), this, SLOT( newVectorLayer() ) );
   connect( mActionNewSpatiaLiteLayer, SIGNAL( triggered() ), this, SLOT( newSpatialiteLayer() ) );
+  connect( mActionNewMemoryLayer, SIGNAL( triggered() ), this, SLOT( newMemoryLayer() ) );
   connect( mActionShowRasterCalculator, SIGNAL( triggered() ), this, SLOT( showRasterCalculator() ) );
   connect( mActionEmbedLayers, SIGNAL( triggered() ), this, SLOT( embedLayers() ) );
   connect( mActionAddLayerDefinition, SIGNAL( triggered() ), this, SLOT( addLayerDefinition() ) );
@@ -1608,12 +1619,14 @@ void QgisApp::createToolBars()
   bt->setPopupMode( QToolButton::MenuButtonPopup );
   bt->addAction( mActionNewSpatiaLiteLayer );
   bt->addAction( mActionNewVectorLayer );
+  bt->addAction( mActionNewMemoryLayer );
 
   QAction* defNewLayerAction = mActionNewVectorLayer;
   switch ( settings.value( "/UI/defaultNewLayer", 1 ).toInt() )
   {
     case 0: defNewLayerAction = mActionNewSpatiaLiteLayer; break;
     case 1: defNewLayerAction = mActionNewVectorLayer; break;
+    case 2: defNewLayerAction = mActionNewMemoryLayer; break;
   }
   bt->setDefaultAction( defNewLayerAction );
   QAction* newLayerAction = mLayerToolBar->addWidget( bt );
@@ -1627,6 +1640,8 @@ void QgisApp::createToolBars()
   actionWhatsThis->setIcon( QgsApplication::getThemeIcon( "/mActionWhatsThis.svg" ) );
   mHelpToolBar->addAction( actionWhatsThis );
 
+  // Cad toolbar
+  mAdvancedDigitizeToolBar->insertAction( mActionUndo, mAdvancedDigitizingDockWidget->enableAction() );
 }
 
 void QgisApp::createStatusBar()
@@ -1727,6 +1742,40 @@ void QgisApp::createStatusBar()
 
   statusBar()->addPermanentWidget( mScaleEdit, 0 );
   connect( mScaleEdit, SIGNAL( scaleChanged() ), this, SLOT( userScale() ) );
+
+  // add a widget to show/set current rotation
+  mRotationLabel = new QLabel( QString(), statusBar() );
+  mRotationLabel->setObjectName( "mRotationLabel" );
+  mRotationLabel->setFont( myFont );
+  mRotationLabel->setMinimumWidth( 10 );
+  mRotationLabel->setMaximumHeight( 20 );
+  mRotationLabel->setMargin( 3 );
+  mRotationLabel->setAlignment( Qt::AlignCenter );
+  mRotationLabel->setFrameStyle( QFrame::NoFrame );
+  mRotationLabel->setText( tr( "Rotation:" ) );
+  mRotationLabel->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
+  statusBar()->addPermanentWidget( mRotationLabel, 0 );
+
+  mRotationEdit = new QgsDoubleSpinBox( statusBar() );
+  mRotationEdit->setObjectName( "mRotationEdit" );
+  mRotationEdit->setClearValue( 0.0 );
+  mRotationEdit->setKeyboardTracking( false );
+  mRotationEdit->setMaximumWidth( 120 );
+  mRotationEdit->setDecimals( 1 );
+  mRotationEdit->setMaximumHeight( 20 );
+  mRotationEdit->setRange( -180.0, 180.0 );
+  mRotationEdit->setWrapping( true );
+  mRotationEdit->setSingleStep( 5.0 );
+  mRotationEdit->setFont( myFont );
+  mRotationEdit->setWhatsThis( tr( "Shows the current map clockwise rotation "
+                                   "in degrees. It also allows editing to set "
+                                   "the rotation" ) );
+  mRotationEdit->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
+  statusBar()->addPermanentWidget( mRotationEdit, 0 );
+  connect( mRotationEdit, SIGNAL( valueChanged( double ) ), this, SLOT( userRotation() ) );
+
+  showRotation();
+
 
   // render suppression status bar widget
   mRenderSuppressionCBox = new QCheckBox( tr( "Render" ), statusBar() );
@@ -1839,6 +1888,7 @@ void QgisApp::setTheme( QString theThemeName )
   mActionSetLayerCRS->setIcon( QgsApplication::getThemeIcon( "/mActionSetLayerCRS.png" ) );
   mActionSetProjectCRSFromLayer->setIcon( QgsApplication::getThemeIcon( "/mActionSetProjectCRSFromLayer.png" ) );
   mActionNewVectorLayer->setIcon( QgsApplication::getThemeIcon( "/mActionNewVectorLayer.svg" ) );
+  mActionNewMemoryLayer->setIcon( QgsApplication::getThemeIcon( "/mActionCreateMemory.png" ) );
   mActionAddAllToOverview->setIcon( QgsApplication::getThemeIcon( "/mActionAddAllToOverview.svg" ) );
   mActionHideAllLayers->setIcon( QgsApplication::getThemeIcon( "/mActionHideAllLayers.png" ) );
   mActionShowAllLayers->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
@@ -1970,6 +2020,8 @@ void QgisApp::setupConnections()
            this, SLOT( showExtents() ) );
   connect( mMapCanvas, SIGNAL( scaleChanged( double ) ),
            this, SLOT( showScale( double ) ) );
+  connect( mMapCanvas, SIGNAL( rotationChanged( double ) ),
+           this, SLOT( showRotation() ) );
   connect( mMapCanvas, SIGNAL( scaleChanged( double ) ),
            this, SLOT( updateMouseCoordinatePrecision() ) );
   connect( mMapCanvas, SIGNAL( mapToolSet( QgsMapTool *, QgsMapTool * ) ),
@@ -3708,6 +3760,20 @@ void QgisApp::newVectorLayer()
   }
 }
 
+void QgisApp::newMemoryLayer()
+{
+  QgsVectorLayer* newLayer = QgsNewMemoryLayerDialog::runAndCreateLayer( this );
+
+  if ( newLayer )
+  {
+    //then add the layer to the view
+    QList< QgsMapLayer* > layers;
+    layers << newLayer;
+
+    QgsMapLayerRegistry::instance()->addMapLayers( layers );
+  }
+}
+
 void QgisApp::newSpatialiteLayer()
 {
   QgsNewSpatialiteLayerDialog spatialiteDialog( this );
@@ -4025,6 +4091,7 @@ void QgisApp::dxfExport()
     if ( !fileName.endsWith( ".dxf", Qt::CaseInsensitive ) )
       fileName += ".dxf";
     QFile dxfFile( fileName );
+    QApplication::setOverrideCursor( Qt::BusyCursor );
     if ( dxfExport.writeToFile( &dxfFile ) == 0 )
     {
       messageBar()->pushMessage( tr( "DXF export completed" ), QgsMessageBar::INFO, 4 );
@@ -4033,6 +4100,7 @@ void QgisApp::dxfExport()
     {
       messageBar()->pushMessage( tr( "DXF export failed" ), QgsMessageBar::CRITICAL, 4 );
     }
+    QApplication::restoreOverrideCursor();
   }
 }
 
@@ -4061,7 +4129,18 @@ void QgisApp::openProject( QAction *action )
   int myProjectionEnabledFlag =
     QgsProject::instance()->readNumEntry( "SpatialRefSys", "/ProjectionsEnabled", 0 );
   mMapCanvas->setCrsTransformEnabled( myProjectionEnabledFlag );
-} // QgisApp::openProject
+}
+
+void QgisApp::runScript( const QString &filePath )
+{
+  if ( !mPythonUtils || !mPythonUtils->isEnabled() )
+    return;
+
+  mPythonUtils->runString(
+    QString( "import sys\n"
+             "execfile(\"%1\".replace(\"\\\\\", \"/\").encode(sys.getfilesystemencoding()))\n" ).arg( filePath )
+    , tr( "Failed to run Python script:" ), false );
+}
 
 
 /**
@@ -4153,6 +4232,10 @@ void QgisApp::openFile( const QString & fileName )
   else if ( fi.completeSuffix() == "qlr" )
   {
     openLayerDefinition( fileName );
+  }
+  else if ( fi.completeSuffix() == "py" )
+  {
+    runScript( fileName );
   }
   else
   {
@@ -4774,6 +4857,11 @@ void QgisApp::labeling()
   activateDeactivateLayerRelatedActions( vlayer );
 }
 
+void QgisApp::setCadDockVisible( bool visible )
+{
+  mAdvancedDigitizingDockWidget->setVisible( visible );
+}
+
 void QgisApp::fieldCalculator()
 {
   QgsVectorLayer *myLayer = qobject_cast<QgsVectorLayer *>( activeLayer() );
@@ -5156,7 +5244,7 @@ void QgisApp::deleteSelected( QgsMapLayer *layer, QWidget* parent, bool promptCo
   if ( numberOfDeletedFeatures == 0 )
   {
     messageBar()->pushMessage( tr( "No Features Selected" ),
-                               tr( "The current layer has not selected features" ),
+                               tr( "The current layer has no selected features" ),
                                QgsMessageBar::INFO, messageTimeout() );
     return;
   }
@@ -6823,14 +6911,14 @@ void QgisApp::userCenter()
   if ( !yOk )
     return;
 
-  QgsRectangle r = mMapCanvas->extent();
+  mMapCanvas->setCenter( QgsPoint( x, y ) );
+  mMapCanvas->refresh();
+}
 
-  mMapCanvas->setExtent(
-    QgsRectangle(
-      x - r.width() / 2.0, y - r.height() / 2.0,
-      x + r.width() / 2.0, y + r.height() / 2.0
-    )
-  );
+void QgisApp::userRotation()
+{
+  double degrees = mRotationEdit->value();
+  mMapCanvas->setRotation( degrees );
   mMapCanvas->refresh();
 }
 
@@ -7048,7 +7136,7 @@ void QgisApp::setLayerScaleVisibility()
     mMapCanvas->freeze();
     foreach ( QgsMapLayer* layer, layers )
     {
-      layer->toggleScaleBasedVisibility( dlg->hasScaleVisibility() );
+      layer->setScaleBasedVisibility( dlg->hasScaleVisibility() );
       layer->setMinimumScale( 1.0 / dlg->maximumScale() );
       layer->setMaximumScale( 1.0 / dlg->minimumScale() );
     }
@@ -8718,6 +8806,13 @@ void QgisApp::showExtents()
   }
 } // QgisApp::showExtents
 
+void QgisApp::showRotation()
+{
+  // update the statusbar with the current rotation.
+  double myrotation = mMapCanvas->rotation();
+  mRotationEdit->setValue( myrotation );
+} // QgisApp::showRotation
+
 
 void QgisApp::updateMouseCoordinatePrecision()
 {
@@ -10140,6 +10235,8 @@ void QgisApp::toolButtonActionTriggered( QAction *action )
     settings.setValue( "/UI/defaultNewLayer", 0 );
   else if ( action == mActionNewVectorLayer )
     settings.setValue( "/UI/defaultNewLayer", 1 );
+  else if ( action == mActionNewMemoryLayer )
+    settings.setValue( "/UI/defaultNewLayer", 2 );
   bt->setDefaultAction( action );
 }
 

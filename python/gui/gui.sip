@@ -86,6 +86,7 @@
 %Include qgsmessagelogviewer.sip
 %Include qgsmessageviewer.sip
 %Include qgsnewhttpconnection.sip
+%Include qgsnewmemorylayerdialog.sip
 %Include qgsnewvectorlayerdialog.sip
 %Include qgsnumericsortlistviewitem.sip
 %Include qgsowssourceselect.sip
@@ -148,6 +149,7 @@
 %Include symbology-ng/qgsellipsesymbollayerv2widget.sip
 %Include symbology-ng/qgsgraduatedsymbolrendererv2widget.sip
 %Include symbology-ng/qgsinvertedpolygonrendererwidget.sip
+%Include symbology-ng/qgsheatmaprendererwidget.sip
 %Include symbology-ng/qgslayerpropertieswidget.sip
 %Include symbology-ng/qgspenstylecombobox.sip
 %Include symbology-ng/qgspointdisplacementrendererwidget.sip

@@ -12,7 +12,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#include <QtTest>
+#include <QtTest/QtTest>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -40,7 +40,7 @@
  */
 class TestQgsGeometry: public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -320,6 +320,7 @@ void TestQgsGeometry::cleanupTestCase()
     //QDesktopServices::openUrl( "file:///" + myReportFile );
   }
 
+  QgsApplication::exitQgis();
 }
 
 // MK, Disabled 14.11.2014
@@ -419,7 +420,7 @@ void TestQgsGeometry::bufferCheck()
   QVERIFY( myPolygon.size() > 0 ); //check that the buffer created a feature
   dumpPolygon( myPolygon );
   delete mypBufferGeometry;
-  QVERIFY( renderCheck( "geometry_bufferCheck", "Checking buffer(10,10) of B" ) );
+  QVERIFY( renderCheck( "geometry_bufferCheck", "Checking buffer(10,10) of B", 10 ) );
 }
 bool TestQgsGeometry::renderCheck( QString theTestName, QString theComment , int mismatchCount )
 {

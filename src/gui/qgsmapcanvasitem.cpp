@@ -27,9 +27,13 @@
 #include "qgslogger.h"
 
 QgsMapCanvasItem::QgsMapCanvasItem( QgsMapCanvas* mapCanvas )
-    : QGraphicsItem( 0, mapCanvas->scene() ), mMapCanvas( mapCanvas ),
-    mPanningOffset( 0, 0 ), mItemSize( 0, 0 )
+    : QGraphicsItem()
+    , mMapCanvas( mapCanvas )
+    , mPanningOffset( 0, 0 )
+    , mItemSize( 0, 0 )
 {
+  Q_ASSERT( mapCanvas && mapCanvas->scene() );
+  mapCanvas->scene()->addItem( this );
 }
 
 QgsMapCanvasItem::~QgsMapCanvasItem()
@@ -63,6 +67,20 @@ QPointF QgsMapCanvasItem::toCanvasCoordinates( const QgsPoint& point )
   return QPointF( x, y ) + mPanningOffset;
 }
 
+// private
+QRectF QgsMapCanvasItem::toCanvasCoordinates( const QRectF& rect )
+{
+  QPointF tl( toCanvasCoordinates( rect.topLeft() ) );
+  QPointF bl( toCanvasCoordinates( rect.bottomLeft() ) );
+  QPointF br( toCanvasCoordinates( rect.bottomRight() ) );
+  QPointF tr( toCanvasCoordinates( rect.topRight() ) );
+  double xmin = std::min( tl.x(), std::min( bl.x(), std::min( br.x(), tr.x() ) ) );
+  double ymin = std::min( tl.y(), std::min( bl.y(), std::min( br.y(), tr.y() ) ) );
+  double xmax = std::max( tl.x(), std::max( bl.x(), std::max( br.x(), tr.x() ) ) );
+  double ymax = std::max( tl.y(), std::max( bl.y(), std::max( br.y(), tr.y() ) ) );
+  return QRectF( QPointF( xmin, ymin ), QPointF( xmax, ymax ) );
+}
+
 
 QgsRectangle QgsMapCanvasItem::rect() const
 {
@@ -78,14 +96,13 @@ void QgsMapCanvasItem::setRect( const QgsRectangle& rect )
   QRectF r; // empty rect by default
   if ( !mRect.isEmpty() )
   {
-    r.setTopLeft( toCanvasCoordinates( QgsPoint( mRect.xMinimum(), mRect.yMinimum() ) ) );
-    r.setBottomRight( toCanvasCoordinates( QgsPoint( mRect.xMaximum(), mRect.yMaximum() ) ) );
+    r = toCanvasCoordinates( mRect.toRectF() );
     r = r.normalized();
   }
 
   // set position in canvas where the item will have coordinate (0,0)
   prepareGeometryChange();
-  setPos( r.topLeft() );
+  setPos( r.topLeft() ); // TODO: compute from (0,0) using toMapCoordinates ?
   mItemSize = QSizeF( r.width() + 2, r.height() + 2 );
 
   // QgsDebugMsg(QString("[%1,%2]-[%3x%4]").arg((int) r.left()).arg((int) r.top()).arg((int) r.width()).arg((int) r.height()));

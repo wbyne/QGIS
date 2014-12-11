@@ -14,12 +14,13 @@
  ***************************************************************************/
 
 #include "qgsapplication.h"
-#include "qgslogger.h"
-#include "qgsmaplayerregistry.h"
-#include "qgsproviderregistry.h"
-#include "qgsnetworkaccessmanager.h"
+#include "qgscrscache.h"
 #include "qgsexception.h"
 #include "qgsgeometry.h"
+#include "qgslogger.h"
+#include "qgsmaplayerregistry.h"
+#include "qgsnetworkaccessmanager.h"
+#include "qgsproviderregistry.h"
 
 #include <QDir>
 #include <QFile>
@@ -92,7 +93,14 @@ void QgsApplication::init( QString customConfigPath )
 {
   if ( customConfigPath.isEmpty() )
   {
-    customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( QGis::QGIS_VERSION_INT / 10000 );
+    if ( getenv( "QGIS_CUSTOM_CONFIG_PATH" ) )
+    {
+      customConfigPath = getenv( "QGIS_CUSTOM_CONFIG_PATH" );
+    }
+    else
+    {
+      customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( QGis::QGIS_VERSION_INT / 10000 );
+    }
   }
 
   qRegisterMetaType<QgsGeometry::Error>( "QgsGeometry::Error" );
@@ -607,11 +615,13 @@ void QgsApplication::initQgis()
 
 void QgsApplication::exitQgis()
 {
-  delete QgsMapLayerRegistry::instance();
+  // Cleanup known singletons
+  QgsMapLayerRegistry::cleanup();
+  QgsNetworkAccessManager::cleanup();
+  QgsCoordinateTransformCache::cleanup();
 
+  // Cleanup providers
   delete QgsProviderRegistry::instance();
-
-  delete QgsNetworkAccessManager::instance();
 }
 
 QString QgsApplication::showSettings()

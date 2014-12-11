@@ -32,6 +32,7 @@
 #include "qgscomposerview.h"
 #include "qgsmaplayer.h"
 #include "qgsmaplayerregistry.h"
+#include "qgsmaptooladvanceddigitizing.h"
 #include "qgsmapcanvas.h"
 #include "qgsproject.h"
 #include "qgslayertreeview.h"
@@ -635,6 +636,10 @@ QgsAttributeDialog* QgisAppInterface::getFeatureForm( QgsVectorLayer *l, QgsFeat
   context.setDistanceArea( myDa );
   context.setVectorLayerTools( qgis->vectorLayerTools() );
   QgsAttributeDialog *dialog = new QgsAttributeDialog( l, &feature, false, NULL, true, context );
+  if ( !feature.isValid() )
+  {
+    dialog->setIsAddDialog( true );
+  }
   return dialog;
 }
 

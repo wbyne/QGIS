@@ -107,25 +107,47 @@ class GeoAlgorithm:
 
     def help(self):
         """Returns the help with the description of this algorithm.
-        It returns a tuple boolean, string. IF the boolean value is true, it means that
-        the string contains the actual description. If false, it is an url or path to a file
-        where the description is stored. In both cases, the string or the content of the file
-        have to be HTML, ready to be set into the help display component.
+        It returns a tuple boolean, string. IF the boolean value is True,
+        it means that the string contains the actual description. If False,
+        it is an url or path to a file where the description is stored.
+        In both cases, the string or the content of the file have to be HTML,
+        ready to be set into the help display component.
 
         Returns None if there is no help file available.
 
-        The default implementation looks for an rst file in a help folder under the folder
-        where the algorithm is located.
-        The name of the file is the name console name of the algorithm, without the namespace part
+        The default implementation looks for an HTML page in the QGIS
+        documentation site taking into account QGIS version.
         """
-        name = self.commandLineName().split(':')[1].lower()
-        filename = os.path.join(os.path.dirname(inspect.getfile(self.__class__)), 'help', name + '.rst')
-        try:
-            html = getHtmlFromRstFile(filename)
-            return True, html
-        except:
-            return False, None
 
+        qgsVersion = QGis.QGIS_VERSION_INT
+        major = qgsVersion / 10000
+        minor = minor = (qgsVersion - major * 10000) / 100
+        if minor % 2 == 1:
+            qgsVersion = 'testing'
+        else:
+            qgsVersion = '{}.{}'.format(major, minor)
+
+        providerName = self.provider.getName().lower()
+        groupName = self.group.lower()
+        groupName = groupName.replace('[', '').replace(']', '').replace(' - ', '_')
+        groupName = groupName.replace(' ', '_')
+        cmdLineName = self.commandLineName()
+        algName = cmdLineName[cmdLineName.find(':') + 1:].lower()
+        validChars = \
+                'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'
+        safeGroupName = ''.join(c for c in groupName if c in validChars)
+        safeAlgName = ''.join(c for c in algName if c in validChars)
+
+        helpUrl = 'http://docs.qgis.org/{}/en/docs/user_manual/processing_algs/{}/{}/{}.html'.format(qgsVersion, providerName, safeGroupName, safeAlgName)
+        return False, helpUrl
+
+        #name = self.commandLineName().split(':')[1].lower()
+        #filename = os.path.join(os.path.dirname(inspect.getfile(self.__class__)), 'help', name + '.rst')
+        #try:
+            #html = getHtmlFromRstFile(filename)
+            #return True, html
+        #except:
+            #return False, None
 
     def processAlgorithm(self):
         """Here goes the algorithm itself.
@@ -350,7 +372,10 @@ class GeoAlgorithm:
             if isinstance(param, (ParameterRaster, ParameterVector,
                           ParameterMultipleInput)):
                 if param.value:
-                    inputlayers = param.value.split(';')
+                    if isinstance(param, ParameterMultipleInput):
+                        inputlayers = param.value.split(';')
+                    else:
+                        inputlayers = [param.value]
                     for inputlayer in inputlayers:
                         for layer in layers:
                             if layer.source() == inputlayer:
@@ -377,7 +402,10 @@ class GeoAlgorithm:
             if isinstance(param, (ParameterRaster, ParameterVector,
                           ParameterMultipleInput)):
                 if param.value:
-                    layers = param.value.split(';')
+                    if isinstance(param, ParameterMultipleInput):
+                        layers = param.value.split(';')
+                    else:
+                        layers = [param.value]
                     for item in layers:
                         crs = dataobjects.getObject(item).crs()
                         if crs not in crsList:

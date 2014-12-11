@@ -12,7 +12,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#include <QtTest>
+#include <QtTest/QtTest>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -31,14 +31,14 @@
 #include <qgsproviderregistry.h>
 #include <qgsmaplayerregistry.h>
 //qgis test includes
-#include "qgsrenderchecker.h"
+#include "qgsmultirenderchecker.h"
 
 /** \ingroup UnitTests
  * This is a unit test for the different renderers for vector layers.
  */
 class TestQgsRenderers: public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -119,6 +119,8 @@ void TestQgsRenderers::initTestCase()
 }
 void TestQgsRenderers::cleanupTestCase()
 {
+  QgsApplication::exitQgis();
+
   QString myReportFile = QDir::tempPath() + QDir::separator() + "qgistest.html";
   QFile myFile( myReportFile );
   if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
@@ -128,7 +130,6 @@ void TestQgsRenderers::cleanupTestCase()
     myFile.close();
     //QDesktopServices::openUrl( "file:///" + myReportFile );
   }
-
 }
 
 void TestQgsRenderers::singleSymbol()
@@ -212,7 +213,7 @@ bool TestQgsRenderers::imageCheck( QString theTestType )
   QgsRectangle extent( -118.8888888888887720, 22.8002070393376783, -83.3333333333331581, 46.8719806763287536 );
   mMapSettings.setExtent( extent );
   mMapSettings.setFlag( QgsMapSettings::ForceVectorOutput );
-  QgsRenderChecker myChecker;
+  QgsMultiRenderChecker myChecker;
   myChecker.setControlName( "expected_" + theTestType );
   myChecker.setMapSettings( mMapSettings );
   myChecker.setColorTolerance( 15 );

@@ -198,11 +198,11 @@ class ModelerParametersDialog(QDialog):
         opts = []
         for alg in self.model.algs.values():
             if alg.name not in dependent:
-                opts.append(alg.algorithm.name)
+                opts.append(alg)
         return opts
 
     def getDependenciesPanel(self):
-        return MultipleInputPanel(self.getAvailableDependencies())
+        return MultipleInputPanel([alg.algorithm.name for alg in self.getAvailableDependencies()])
 
     def showAdvancedParametersClicked(self):
         self.showAdvanced = not self.showAdvanced
@@ -261,10 +261,12 @@ class ModelerParametersDialog(QDialog):
                 item.addItem(self.resolveValueDescription(layer), layer)
         elif isinstance(param, ParameterTable):
             item = QComboBox()
-            item.setEditable(True)
-            layers = self.getAvailableValuesOfType(ParameterTable, OutputTable)
+            tables = self.getAvailableValuesOfType(ParameterTable, OutputTable)
+            layers = self.getAvailableValuesOfType(ParameterVector, OutputVector)
             if param.optional:
                 item.addItem(self.NOT_SELECTED, None)
+            for table in tables:
+                item.addItem(self.resolveValueDescription(table), table)
             for layer in layers:
                 item.addItem(self.resolveValueDescription(layer), layer)
         elif isinstance(param, ParameterBoolean):
@@ -466,10 +468,8 @@ class ModelerParametersDialog(QDialog):
 
         selectedOptions = self.dependenciesPanel.selectedoptions
         availableDependencies = self.getAvailableDependencies()
-        self.dependencies = []
         for selected in selectedOptions:
-            s = availableDependencies[selected]
-            alg.dependencies.append(s)
+            alg.dependencies.append(availableDependencies[selected].name)
 
         return alg
 

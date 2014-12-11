@@ -30,12 +30,12 @@
 #include "qgssinglesymbolrendererv2.h"
 #include "qgsfontutils.h"
 #include <QObject>
-#include <QSignalSpy>
-#include <QtTest>
+#include <QtTest/QSignalSpy>
+#include <QtTest/QtTest>
 
 class TestQgsAtlasComposition: public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -106,6 +106,7 @@ void TestQgsAtlasComposition::initTestCase()
 
 void TestQgsAtlasComposition::cleanupTestCase()
 {
+  delete mComposition;
   QgsApplication::exitQgis();
 
   QString myReportFile = QDir::tempPath() + QDir::separator() + "qgistest.html";
@@ -188,6 +189,7 @@ void TestQgsAtlasComposition::init()
 void TestQgsAtlasComposition::cleanup()
 {
   delete mComposition;
+  mComposition = 0;
 }
 
 void TestQgsAtlasComposition::filename()

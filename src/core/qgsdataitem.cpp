@@ -792,7 +792,9 @@ QVector<QgsDataItem*> QgsFavouritesItem::createChildren()
 
   foreach ( QString favDir, favDirs )
   {
-    QgsDataItem *item = new QgsDirectoryItem( this, favDir, favDir, mPath + favDir );
+    QString pathName = favDir;
+    pathName.replace( QRegExp( "[\\\\/]" ), "|" );
+    QgsDataItem *item = new QgsDirectoryItem( this, favDir, favDir, mPath + "/" + pathName );
     if ( item )
     {
       children.append( item );
@@ -820,7 +822,7 @@ void QgsFavouritesItem::removeDirectory( QgsDirectoryItem *item )
 
   QSettings settings;
   QStringList favDirs = settings.value( "/browser/favourites" ).toStringList();
-  favDirs.removeAll( item->path() );
+  favDirs.removeAll( item->dirPath() );
   settings.setValue( "/browser/favourites", favDirs );
 
   int idx = findItem( mChildren, item );

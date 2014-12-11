@@ -12,7 +12,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#include <QtTest>
+#include <QtTest/QtTest>
 #include <QObject>
 #include <QStringList>
 #include <QObject>
@@ -33,7 +33,7 @@
  */
 class TestStyleV2: public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
 
   private:
 
@@ -95,6 +95,7 @@ void TestStyleV2::cleanupTestCase()
   // don't save
   // mStyle->save();
   delete mStyle;
+  QgsApplication::exitQgis();
 }
 
 bool TestStyleV2::testValidColor( QgsVectorColorRampV2 *ramp, double value, QColor expected )

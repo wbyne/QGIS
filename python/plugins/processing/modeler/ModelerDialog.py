@@ -215,8 +215,10 @@ class ModelerDialog(QDialog, Ui_DlgModeler):
             evt.accept()
 
     def editHelp(self):
-        dlg = HelpEditionDialog(self.alg.getCopy())
+        dlg = HelpEditionDialog(self.alg)
         dlg.exec_()
+        if dlg.descriptions:
+            self.hasChanged = True
 
     def runModel(self):
         if len(self.alg.algs) == 0:
@@ -411,7 +413,6 @@ class ModelerDialog(QDialog, Ui_DlgModeler):
                             * ModelerGraphicItem.BOX_HEIGHT)
                 self.alg.addAlgorithm(dlg.alg)
                 self.repaintModel()
-                #self.view.ensureVisible(self.scene.getLastAlgorithmItem())
                 self.hasChanged = True
 
     def getPositionForAlgorithmItem(self):

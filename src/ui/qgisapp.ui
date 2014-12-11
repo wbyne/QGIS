@@ -17,7 +17,7 @@
      <x>0</x>
      <y>0</y>
      <width>1050</width>
-     <height>20</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="mProjectMenu">
@@ -131,6 +131,7 @@
      </property>
      <addaction name="mActionNewVectorLayer"/>
      <addaction name="mActionNewSpatiaLiteLayer"/>
+     <addaction name="mActionNewMemoryLayer"/>
     </widget>
     <widget class="QMenu" name="mAddLayerMenu">
      <property name="title">
@@ -423,6 +424,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="mActionShowPythonDialog"/>
   </widget>
   <widget class="QToolBar" name="mHelpToolBar">
    <property name="windowTitle">
@@ -1598,8 +1600,15 @@ Ctl (Cmd) increments by 15 deg.</string>
    </property>
   </action>
   <action name="mActionShowPythonDialog">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/console/iconRunConsole.png</normaloff>:/images/themes/default/console/iconRunConsole.png</iconset>
+   </property>
    <property name="text">
     <string>Python Console</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+P</string>
    </property>
   </action>
   <action name="mActionFullHistogramStretch">
@@ -2260,6 +2269,18 @@ Acts on currently active editable layer</string>
    </property>
    <property name="text">
     <string>Hide Selected Layers</string>
+   </property>
+  </action>
+  <action name="mActionNewMemoryLayer">
+   <property name="icon">
+    <iconset resource="../../images/images.qrc">
+     <normaloff>:/images/themes/default/mActionCreateMemory.png</normaloff>:/images/themes/default/mActionCreateMemory.png</iconset>
+   </property>
+   <property name="text">
+    <string>New Temporary Scratch Layer...</string>
+   </property>
+   <property name="toolTip">
+    <string>New temporary scratch layer</string>
    </property>
   </action>
  </widget>

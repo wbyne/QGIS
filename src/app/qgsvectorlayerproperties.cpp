@@ -319,7 +319,7 @@ void QgsVectorLayerProperties::insertExpression()
     selText = selText.mid( 2, selText.size() - 4 );
 
   // display the expression builder
-  QgsExpressionBuilderDialog dlg( layer, selText, this );
+  QgsExpressionBuilderDialog dlg( layer, selText.replace( QChar::ParagraphSeparator, '\n' ), this );
   dlg.setWindowTitle( tr( "Insert expression" ) );
   if ( dlg.exec() == QDialog::Accepted )
   {
@@ -495,7 +495,7 @@ void QgsVectorLayerProperties::apply()
   }
 
   // set up the scale based layer visibility stuff....
-  layer->toggleScaleBasedVisibility( mScaleVisibilityGroupBox->isChecked() );
+  layer->setScaleBasedVisibility( mScaleVisibilityGroupBox->isChecked() );
   // caution: layer uses scale denoms, widget uses true scales
   layer->setMaximumScale( 1.0 / mScaleRangeWidget->minimumScale() );
   layer->setMinimumScale( 1.0 / mScaleRangeWidget->maximumScale() );

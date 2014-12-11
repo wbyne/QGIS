@@ -245,9 +245,8 @@ QgsBrowserDockWidget::QgsBrowserDockWidget( QString name, QWidget * parent ) :
   mBtnCollapse->setIcon( QgsApplication::getThemeIcon( "mActionCollapseTree.png" ) );
 
   mWidgetFilter->hide();
+  mLeFilter->setPlaceholderText( tr( "Type here to filter current item..." ) );
   // icons from http://www.fatcow.com/free-icons License: CC Attribution 3.0
-  mBtnFilterShow->setIcon( QgsApplication::getThemeIcon( "mActionFilter.png" ) );
-  mBtnFilter->setIcon( QgsApplication::getThemeIcon( "mActionFilter.png" ) );
 
   QMenu* menu = new QMenu( this );
   menu->setSeparatorsCollapsible( false );
@@ -280,10 +279,9 @@ QgsBrowserDockWidget::QgsBrowserDockWidget( QString name, QWidget * parent ) :
   connect( mBtnAddLayers, SIGNAL( clicked() ), this, SLOT( addSelectedLayers() ) );
   connect( mBtnCollapse, SIGNAL( clicked() ), mBrowserView, SLOT( collapseAll() ) );
   connect( mBtnFilterShow, SIGNAL( toggled( bool ) ), this, SLOT( showFilterWidget( bool ) ) );
-  connect( mBtnFilter, SIGNAL( clicked() ), this, SLOT( setFilter() ) );
   connect( mLeFilter, SIGNAL( returnPressed() ), this, SLOT( setFilter() ) );
   connect( mLeFilter, SIGNAL( cleared() ), this, SLOT( setFilter() ) );
-  // connect( mLeFilter, SIGNAL( textChanged( const QString & ) ), this, SLOT( setFilter() ) );
+  connect( mLeFilter, SIGNAL( textChanged( const QString & ) ), this, SLOT( setFilter() ) );
   connect( group, SIGNAL( triggered( QAction * ) ), this, SLOT( setFilterSyntax( QAction * ) ) );
 
   connect( mBrowserView, SIGNAL( customContextMenuRequested( const QPoint & ) ), this, SLOT( showContextMenu( const QPoint & ) ) );
@@ -318,7 +316,9 @@ void QgsBrowserDockWidget::showEvent( QShowEvent * e )
 void QgsBrowserDockWidget::hideEvent( QHideEvent * e )
 {
   QgsDebugMsg( "Entered" );
-  saveState();
+  // hideEvent() may be called (Mac) before showEvent
+  if ( mModel )
+    saveState();
   QDockWidget::hideEvent( e );
 }
 
@@ -335,7 +335,7 @@ void QgsBrowserDockWidget::showContextMenu( const QPoint & pt )
   {
     QSettings settings;
     QStringList favDirs = settings.value( "/browser/favourites" ).toStringList();
-    bool inFavDirs = favDirs.contains( item->path() );
+    bool inFavDirs = item->parent() && item->parent()->type() == QgsDataItem::Favourites;
 
     if ( item->parent() && !inFavDirs )
     {
@@ -390,10 +390,11 @@ void QgsBrowserDockWidget::addFavourite()
   if ( !item )
     return;
 
-  if ( item->type() != QgsDataItem::Directory )
+  QgsDirectoryItem * dirItem = dynamic_cast<QgsDirectoryItem *>( item );
+  if ( !dirItem )
     return;
 
-  addFavouriteDirectory( item->path() );
+  addFavouriteDirectory( dirItem->dirPath() );
 }
 
 void QgsBrowserDockWidget::addFavouriteDirectory()
@@ -811,6 +812,9 @@ QString QgsBrowserDockWidget::expandedPathsKey() const
 QStringList QgsBrowserDockWidget::expandedPathsList( const QModelIndex & proxyIndex )
 {
   QStringList paths;
+
+  if ( !mModel || !mProxyModel || !mBrowserView )
+    return paths;
 
   for ( int i = 0; i < mProxyModel->rowCount( proxyIndex ); i++ )
   {

@@ -17,7 +17,6 @@
 
 #include <QtDebug>
 #include <QDomDocument>
-#include <QSettings>
 #include <QDate>
 #include <QRegExp>
 #include <QColor>
@@ -162,13 +161,20 @@ static QVariant tvl2variant( TVL v )
 inline bool isIntSafe( const QVariant& v )
 {
   if ( v.type() == QVariant::Int ) return true;
+  if ( v.type() == QVariant::UInt ) return true;
+  if ( v.type() == QVariant::LongLong ) return true;
+  if ( v.type() == QVariant::ULongLong ) return true;
   if ( v.type() == QVariant::Double ) return false;
   if ( v.type() == QVariant::String ) { bool ok; v.toString().toInt( &ok ); return ok; }
   return false;
 }
 inline bool isDoubleSafe( const QVariant& v )
 {
-  if ( v.type() == QVariant::Double || v.type() == QVariant::Int ) return true;
+  if ( v.type() == QVariant::Double ) return true;
+  if ( v.type() == QVariant::Int ) return true;
+  if ( v.type() == QVariant::UInt ) return true;
+  if ( v.type() == QVariant::LongLong ) return true;
+  if ( v.type() == QVariant::ULongLong ) return true;
   if ( v.type() == QVariant::String ) { bool ok; v.toString().toDouble( &ok ); return ok; }
   return false;
 }
@@ -1891,7 +1897,7 @@ QgsExpression::~QgsExpression()
   delete mRootNode;
 }
 
-QStringList QgsExpression::referencedColumns()
+QStringList QgsExpression::referencedColumns() const
 {
   if ( !mRootNode )
     return QStringList();
@@ -1915,7 +1921,7 @@ QStringList QgsExpression::referencedColumns()
   return columns;
 }
 
-bool QgsExpression::needsGeometry()
+bool QgsExpression::needsGeometry() const
 {
   if ( !mRootNode )
     return false;
@@ -2067,6 +2073,27 @@ QString QgsExpression::replaceExpressionText( const QString &action, const QgsFe
   return expr_action;
 }
 
+double QgsExpression::evaluateToDouble( const QString &text, const double fallbackValue )
+{
+  bool ok;
+  //first test if text is directly convertible to double
+  double convertedValue = text.toDouble( &ok );
+  if ( ok )
+  {
+    return convertedValue;
+  }
+
+  //otherwise try to evalute as expression
+  QgsExpression expr( text );
+  QVariant result = expr.evaluate();
+  convertedValue = result.toDouble( &ok );
+  if ( expr.hasEvalError() || !ok )
+  {
+    return fallbackValue;
+  }
+  return convertedValue;
+}
+
 
 ///////////////////////////////////////////////
 // nodes
@@ -2145,14 +2172,14 @@ QVariant QgsExpression::NodeBinaryOperator::eval( QgsExpression* parent, const Q
     case boMul:
     case boDiv:
     case boMod:
+    {
       if ( isNull( vL ) || isNull( vR ) )
         return QVariant();
-      else if ( isIntSafe( vL ) && isIntSafe( vR ) )
+      else if ( mOp != boDiv && isIntSafe( vL ) && isIntSafe( vR ) )
       {
         // both are integers - let's use integer arithmetics
         int iL = getIntValue( vL, parent ); ENSURE_NO_EVAL_ERROR;
         int iR = getIntValue( vR, parent ); ENSURE_NO_EVAL_ERROR;
-        if ( mOp == boDiv && iR == 0 ) return QVariant(); // silently handle division by zero and return NULL
         return QVariant( computeInt( iL, iR ) );
       }
       else if ( isDateTimeSafe( vL ) && isIntervalSafe( vR ) )
@@ -2175,7 +2202,16 @@ QVariant QgsExpression::NodeBinaryOperator::eval( QgsExpression* parent, const Q
           return QVariant(); // silently handle division by zero and return NULL
         return QVariant( computeDouble( fL, fR ) );
       }
-
+    }
+    case boIntDiv:
+    {
+      //integer division
+      double fL = getDoubleValue( vL, parent ); ENSURE_NO_EVAL_ERROR;
+      double fR = getDoubleValue( vR, parent ); ENSURE_NO_EVAL_ERROR;
+      if ( fR == 0 )
+        return QVariant(); // silently handle division by zero and return NULL
+      return QVariant( qFloor( fL / fR ) );
+    }
     case boPow:
       if ( isNull( vL ) || isNull( vR ) )
         return QVariant();
@@ -2393,6 +2429,7 @@ int QgsExpression::NodeBinaryOperator::precedence() const
 
     case boMul:
     case boDiv:
+    case boIntDiv:
     case boMod:
       return 5;
 

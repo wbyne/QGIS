@@ -40,11 +40,16 @@ ENDIF (WITH_GRASS)
 
 SET (WITH_DESKTOP TRUE CACHE BOOL "Determines whether QGIS desktop should be built")
 
-# mapserver by us disabled default because it needs FastCGI (which is optional dependency)
-SET (WITH_MAPSERVER FALSE CACHE BOOL "Determines whether QGIS mapserver should be built")
-IF(WITH_MAPSERVER)
-  SET (MAPSERVER_SKIP_ECW FALSE CACHE BOOL "Determines whether QGIS mapserver should disable ECW (ECW in server apps requires a special license)")
-ENDIF(WITH_MAPSERVER)
+# server disabled default because it needs FastCGI (which is optional dependency)
+SET (WITH_SERVER FALSE CACHE BOOL "Determines whether QGIS server should be built")
+IF(WITH_SERVER)
+  SET (SERVER_SKIP_ECW FALSE CACHE BOOL "Determines whether QGIS server should disable ECW (ECW in server apps requires a special license)")
+
+  SET (WITH_SERVER_PLUGINS TRUE CACHE BOOL "Determines whether QGIS server support for python plugins should be built")
+  IF(WITH_SERVER_PLUGINS)
+    SET(HAVE_SERVER_PYTHON_PLUGINS TRUE)
+  ENDIF(WITH_SERVER_PLUGINS)
+ENDIF(WITH_SERVER)
 
 # Custom widgets
 SET (WITH_CUSTOM_WIDGETS FALSE CACHE BOOL "Determines whether QGIS custom widgets for Qt Designer should be built")
@@ -75,6 +80,7 @@ SET (WITH_ORACLE FALSE CACHE BOOL "Determines whether Oracle support should be b
 IF(WITH_ORACLE)
   SET(HAVE_ORACLE TRUE)
 ENDIF(WITH_ORACLE)
+
 
 # try to configure and build python bindings by default
 SET (WITH_BINDINGS TRUE CACHE BOOL "Determines whether python bindings should be built")
@@ -119,6 +125,12 @@ SET (PEDANTIC TRUE CACHE BOOL "Determines if we should compile in pedantic mode.
 
 # whether unit tests should be build
 SET (ENABLE_TESTS TRUE CACHE BOOL "Build unit tests?")
+
+# whether coverage tests should be performed
+SET (ENABLE_COVERAGE FALSE CACHE BOOL "Perform coverage tests?")
+
+# whether coverage documentation should be generated
+SET (GENERATE_COVERAGE_DOCS FALSE CACHE BOOL "Generate coverage docs (requires lcov)?")
 
 # hide this variable because building of python bindings might fail
 # if set to other directory than expected
@@ -219,20 +231,44 @@ SET (HAVE_MSSQL TRUE)
 #############################################################
 # search for Qt4
 SET(QT_MIN_VERSION 4.7.0)
-FIND_PACKAGE(Qt4 ${QT_MIN_VERSION} REQUIRED)
-MESSAGE(STATUS "Found Qt version: ${QTVERSION}")
-SET(QT_USE_QTXML 1)
-SET(QT_USE_QTNETWORK 1)
-SET(QT_USE_QTSVG 1)
-SET(QT_USE_QTSQL 1)
-SET(QT_USE_QTWEBKIT 1)
-IF (WITH_CUSTOM_WIDGETS)
-  SET(QT_USE_QTDESIGNER 1)
-ENDIF (WITH_CUSTOM_WIDGETS)
+SET (ENABLE_QT5 FALSE CACHE BOOL "If enabled will try to find Qt5 before looking for Qt4")
+IF (ENABLE_QT5)
+  FIND_PACKAGE(Qt5Core QUIET)
+  FIND_PACKAGE(Qt5Gui REQUIRED)
+  FIND_PACKAGE(Qt5Widgets REQUIRED)
+  FIND_PACKAGE(Qt5Network REQUIRED)
+  FIND_PACKAGE(Qt5Xml REQUIRED)
+  FIND_PACKAGE(Qt5Svg REQUIRED)
+  FIND_PACKAGE(Qt5Concurrent REQUIRED)
+  FIND_PACKAGE(Qt5PrintSupport REQUIRED)
+  FIND_PACKAGE(Qt5WebKit REQUIRED)
+  FIND_PACKAGE(Qt5WebKitWidgets REQUIRED)
+  FIND_PACKAGE(Qt5Test REQUIRED)
+  FIND_PACKAGE(Qt5UiTools REQUIRED)
+  FIND_PACKAGE(Qt5Script REQUIRED)
+  FIND_PACKAGE(Qt5Sql REQUIRED)
+  SET(QT5_BUILD TRUE)
 
-IF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
-  MESSAGE(SEND_ERROR "Some Qt4 modules haven't been found!")
-ENDIF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
+  INCLUDE("cmake/modules/ECMQt4To5Porting.cmake")
+ELSE()
+  FIND_PACKAGE(Qt4 ${QT_MIN_VERSION} REQUIRED)
+  SET(QT_USE_QTXML 1)
+  SET(QT_USE_QTNETWORK 1)
+  SET(QT_USE_QTSVG 1)
+  SET(QT_USE_QTSQL 1)
+  SET(QT_USE_QTWEBKIT 1)
+  IF (WITH_CUSTOM_WIDGETS)
+    SET(QT_USE_QTDESIGNER 1)
+  ENDIF (WITH_CUSTOM_WIDGETS)
+
+  IF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
+    MESSAGE(SEND_ERROR "Some Qt4 modules haven't been found!")
+  ENDIF (NOT QT_QTXML_FOUND OR NOT QT_QTNETWORK_FOUND OR NOT QT_QTSVG_FOUND OR NOT QT_QTSQL_FOUND OR NOT QT_QTWEBKIT_FOUND OR (WITH_CUSTOM_WIDGETS AND NOT QT_QTDESIGNER_FOUND))
+
+  INCLUDE( ${QT_USE_FILE} )
+ENDIF()
+
+MESSAGE(STATUS "Found Qt version: ${QTVERSION}")
 
 IF (WITH_QTMOBILITY)
     FIND_PACKAGE(QtMobility 1.1.0)
@@ -281,8 +317,6 @@ IF (SUPPRESS_QT_WARNINGS)
   # Can be removed as soon as Travis-CI updates from precise
   INCLUDE_DIRECTORIES(SYSTEM ${QT_INCLUDE_DIR})
 ENDIF (SUPPRESS_QT_WARNINGS)
-
-INCLUDE( ${QT_USE_FILE} )
 
 # Disable automatic conversion from QString to ASCII 8-bit strings (char *)
 # (Keeps code compatible with Qt/Mac/64bit)
@@ -370,6 +404,16 @@ IF(MSVC)
   # disable macros that offend std::numeric_limits<T>::min()/max()
   ADD_DEFINITIONS(-DNOMINMAX)
 ENDIF(MSVC)
+
+IF(ENABLE_COVERAGE)
+  INCLUDE("cmake/modules/coverage/CodeCoverage.cmake")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  SETUP_TARGET_FOR_COVERAGE(qgis_coverage ctest coverage)
+ENDIF(ENABLE_COVERAGE)
 
 #############################################################
 # platform specific stuff
@@ -512,6 +556,7 @@ ADD_DEFINITIONS("-DPYTHON_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DANALYSIS_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DAPP_EXPORT=${DLLIMPORT}")
 ADD_DEFINITIONS("-DCUSTOMWIDGETS_EXPORT=${DLLIMPORT}")
+ADD_DEFINITIONS("-DSERVER_EXPORT=${DLLIMPORT}")
 
 #############################################################
 # user-changeable settings which can be used to customize

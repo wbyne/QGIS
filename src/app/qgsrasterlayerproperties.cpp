@@ -702,14 +702,16 @@ void QgsRasterLayerProperties::sync()
   // TODO fix legend + palette pixmap
 
   //update the legend pixmap on this dialog
-  //pixmapLegend->setPixmap( mRasterLayer->legendAsPixmap() );
-  // pixmapLegend->setScaledContents( true );
-  // pixmapLegend->repaint();
+#if 0
+  pixmapLegend->setPixmap( mRasterLayer->legendAsPixmap() );
+  pixmapLegend->setScaledContents( true );
+  pixmapLegend->repaint();
 
   //set the palette pixmap
-  // pixmapPalette->setPixmap( mRasterLayer->paletteAsPixmap( mRasterLayer->bandNumber( mRasterLayer->grayBandName() ) ) );
-  // pixmapPalette->setScaledContents( true );
-  // pixmapPalette->repaint();
+  pixmapPalette->setPixmap( mRasterLayer->paletteAsPixmap( mRasterLayer->bandNumber( mRasterLayer->grayBandName() ) ) );
+  pixmapPalette->setScaledContents( true );
+  pixmapPalette->repaint();
+#endif
 
   QgsDebugMsg( "populate metadata tab" );
   /*
@@ -847,7 +849,7 @@ void QgsRasterLayerProperties::apply()
   mRasterLayer->setLayerName( mLayerOrigNameLineEd->text() );
 
   // set up the scale based layer visibility stuff....
-  mRasterLayer->toggleScaleBasedVisibility( chkUseScaleDependentRendering->isChecked() );
+  mRasterLayer->setScaleBasedVisibility( chkUseScaleDependentRendering->isChecked() );
   // caution: layer uses scale denoms, widget uses true scales
   mRasterLayer->setMaximumScale( 1.0 / mScaleRangeWidget->minimumScale() );
   mRasterLayer->setMinimumScale( 1.0 / mScaleRangeWidget->maximumScale() );

@@ -30,6 +30,7 @@ class QProgressBar;
 class QPushButton;
 class QRect;
 class QSettings;
+class QSpinBox;
 class QSplashScreen;
 class QStringList;
 class QToolButton;
@@ -53,6 +54,7 @@ class QgsMapCanvas;
 class QgsMapLayer;
 class QgsMapTip;
 class QgsMapTool;
+class QgsMapToolAdvancedDigitizing;
 class QgsPoint;
 class QgsProviderRegistry;
 class QgsPythonUtils;
@@ -60,6 +62,7 @@ class QgsRectangle;
 class QgsUndoWidget;
 class QgsVectorLayer;
 class QgsVectorLayerTools;
+class QgsDoubleSpinBox;
 
 class QDomDocument;
 class QNetworkReply;
@@ -67,6 +70,7 @@ class QNetworkProxy;
 class QAuthenticator;
 
 class QgsBrowserDockWidget;
+class QgsAdvancedDigitizingDockWidget;
 class QgsSnappingDialog;
 class QgsGPSInformationWidget;
 
@@ -419,6 +423,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QToolBar *databaseToolBar() { return mDatabaseToolBar; }
     QToolBar *webToolBar() { return mWebToolBar; }
 
+    //! return CAD dock widget
+    QgsAdvancedDigitizingDockWidget* cadDockWidget() { return mAdvancedDigitizingDockWidget; }
+
     //! show layer properties
     void showLayerProperties( QgsMapLayer *ml );
 
@@ -687,6 +694,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void userScale();
     //! Slot to handle user center input;
     void userCenter();
+    //! Slot to handle user rotation input;
+    //! @note added in 2.8
+    void userRotation();
     //! Remove a layer from the map and legend
     void removeLayer();
     /** Duplicate map layer(s) in legend */
@@ -853,6 +863,11 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! Open the project file corresponding to the
     //! text)= of the given action.
     void openProject( QAction *action );
+    /** Attempts to run a python script
+     * @param filePath full path to python script
+     * @note added in QGIS 2.7
+     */
+    void runScript( const QString& filePath );
     //! Save the map view as an image - user is prompted for image name using a dialog
     void saveMapAsImage();
     //! Open a project
@@ -877,6 +892,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! Create a new empty vector layer
     void newVectorLayer();
+    //! Create a new memory layer
+    void newMemoryLayer();
     //! Create a new empty spatialite layer
     void newSpatialiteLayer();
     //! Print the current map view frame
@@ -1014,6 +1031,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void showProgress( int theProgress, int theTotalSteps );
     void extentsViewToggled( bool theFlag );
     void showExtents();
+    void showRotation();
     void showStatusMessage( QString theMessage );
     void displayMapToolMessage( QString message, QgsMessageBar::MessageLevel level = QgsMessageBar::INFO );
     void removeMapToolMessage();
@@ -1077,6 +1095,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! shows label settings dialog (for labeling-ng)
     void labeling();
+
+    //! set the CAD dock widget visible
+    void setCadDockVisible( bool visible );
 
     /** Check if deprecated labels are used in project, and flag projects that use them */
     void checkForDeprecatedLabelsInProject();
@@ -1423,6 +1444,12 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QLineEdit * mCoordsEdit;
     //! The validator for the mCoordsEdit
     QValidator * mCoordsEditValidator;
+    //! Widget that will live on the statusbar to display "Rotation"
+    QLabel * mRotationLabel;
+    //! Widget that will live in the statusbar to display and edit rotation
+    QgsDoubleSpinBox * mRotationEdit;
+    //! The validator for the mCoordsEdit
+    QValidator * mRotationEditValidator;
     //! Widget that will live in the statusbar to show progress of operations
     QProgressBar * mProgressBar;
     //! Widget used to suppress rendering
@@ -1524,6 +1551,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     QgsBrowserDockWidget* mBrowserWidget;
     QgsBrowserDockWidget* mBrowserWidget2;
+
+    QgsAdvancedDigitizingDockWidget* mAdvancedDigitizingDockWidget;
 
     QgsSnappingDialog* mSnappingDialog;
 

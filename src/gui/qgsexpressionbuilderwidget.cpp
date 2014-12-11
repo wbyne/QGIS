@@ -18,6 +18,7 @@
 #include "qgsexpression.h"
 #include "qgsmessageviewer.h"
 #include "qgsapplication.h"
+#include "qgspythonrunner.h"
 
 #include <QSettings>
 #include <QMenu>
@@ -109,9 +110,15 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
 
   QSettings settings;
   splitter->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter" ).toByteArray() );
-  splitter_2->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter2" ).toByteArray() );
+//  splitter_2->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter2" ).toByteArray() );
 
   txtExpressionString->setFoldingVisible( false );
+//  customFunctionBotton->setVisible( QgsPythonRunner::isValid() );
+  txtPython->setVisible( false );
+  cgbCustomFunction->setCollapsed( true );
+  txtPython->setText( "@qgsfunction(args=-1, group='Custom')\n"
+                      "def func(values, feature, parent):\n"
+                      "    return str(values)" );
 }
 
 
@@ -119,7 +126,7 @@ QgsExpressionBuilderWidget::~QgsExpressionBuilderWidget()
 {
   QSettings settings;
   settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter", splitter->saveState() );
-  settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter2", splitter_2->saveState() );
+//  settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter2", splitter_2->saveState() );
 }
 
 void QgsExpressionBuilderWidget::setLayer( QgsVectorLayer *layer )
@@ -292,6 +299,11 @@ void QgsExpressionBuilderWidget::setGeomCalculator( const QgsDistanceArea & da )
 
 QString QgsExpressionBuilderWidget::expressionText()
 {
+  if ( QgsPythonRunner::isValid() )
+  {
+    QString pythontext = txtPython->text();
+    QgsPythonRunner::run( pythontext );
+  }
   return txtExpressionString->text();
 }
 
@@ -302,7 +314,7 @@ void QgsExpressionBuilderWidget::setExpressionText( const QString& expression )
 
 void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
 {
-  QString text = txtExpressionString->text();
+  QString text = expressionText();
 
   // If the string is empty the expression will still "fail" although
   // we don't show the user an error as it will be confusing.
@@ -315,8 +327,6 @@ void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
     emit expressionParsed( false );
     return;
   }
-
-
 
   QgsExpression exp( text );
 

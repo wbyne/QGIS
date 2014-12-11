@@ -84,6 +84,8 @@ void QgsDualView::init( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, const Qg
     mFeatureList->setDisplayExpression( mDisplayExpression );
   else
     columnBoxInit();
+
+  mFeatureList->setEditSelection( QgsFeatureIds() << mFeatureListModel->idxToFid( mFeatureListModel->index( 0, 0 ) ) );
 }
 
 void QgsDualView::columnBoxInit()

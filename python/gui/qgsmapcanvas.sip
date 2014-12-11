@@ -132,6 +132,22 @@ class QgsMapCanvas : QGraphicsView
     //! Set the extent of the map canvas
     void setExtent( const QgsRectangle &r );
 
+    //! Get the current map canvas rotation in clockwise degrees
+    //! @note added in 2.8
+    double rotation() const;
+
+    //! Set the rotation of the map canvas in clockwise degrees
+    //! @note added in 2.8
+    void setRotation( double degrees );
+
+    //! Set the center of the map canvas, in geographical coordinates
+    //! @note added in 2.8
+    void setCenter( const QgsPoint& center );
+
+    //! Get map center, in geographical coordinates
+    //! @note added in 2.8
+    QgsPoint center() const;
+
     //! Zoom to the full extent of all layers
     void zoomToFullExtent();
 
@@ -148,8 +164,7 @@ class QgsMapCanvas : QGraphicsView
       Added in version 1.2: optionally specify different than current layer */
     void zoomToSelected( QgsVectorLayer* layer = NULL );
 
-    /** Pan to the selected features of current (vector) layer keeping same extent.
-      @note added in 2.0 */
+    /** Pan to the selected features of current (vector) layer keeping same extent. */
     void panToSelected( QgsVectorLayer* layer = NULL );
 
     /** \brief Sets the map tool currently being used on the canvas */
@@ -234,7 +249,6 @@ class QgsMapCanvas : QGraphicsView
     void zoomOut();
 
     //! Zoom to a specific scale
-    // added in 1.5
     void zoomScale( double scale );
 
     //! Zoom with the factor supplied. Factor > 1 zooms out, interval (0,1) zooms in
@@ -365,8 +379,7 @@ class QgsMapCanvas : QGraphicsView
     void renderComplete( QPainter * );
 
     // ### QGIS 3: renamte to mapRefreshFinished()
-    /** Emitted when canvas finished a refresh request.
-    \note Added in 2.0 */
+    /** Emitted when canvas finished a refresh request. */
     void mapCanvasRefreshed();
 
     // ### QGIS 3: rename to mapRefreshStarted()
@@ -396,11 +409,9 @@ class QgsMapCanvas : QGraphicsView
     void selectionChanged( QgsMapLayer * layer );
 
     //! Emitted when zoom last status changed
-    //! @note: this signal was added in version 1.4
     void zoomLastStatusChanged( bool );
 
     //! Emitted when zoom next status changed
-    //! @note: this signal was added in version 1.4
     void zoomNextStatusChanged( bool );
 
     //! Emitted when on-the-fly projection has been turned on/off

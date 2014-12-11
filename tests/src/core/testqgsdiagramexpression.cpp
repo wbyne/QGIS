@@ -12,7 +12,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#include <QtTest>
+#include <QtTest/QtTest>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -49,7 +49,7 @@
  */
 class TestQgsDiagramExpression: public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
   private:
     bool mTestHasError;
     QgsMapSettings * mMapSettings;
@@ -126,6 +126,7 @@ class TestQgsDiagramExpression: public QObject
       delete mComposerMap;
       delete mComposition;
       // delete mPointsLayer;
+      QgsApplication::exitQgis();
     }
 
     void init() {} // will be called before each testfunction is executed.
