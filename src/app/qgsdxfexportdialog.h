@@ -56,16 +56,15 @@ class QgsVectorLayerAndAttributeModel : public QgsLayerTreeModel
     QList< QPair<QgsVectorLayer *, int> > layers() const;
 
     QgsVectorLayer *vectorLayer( const QModelIndex &index ) const;
+    int attributeIndex( const QgsVectorLayer *vl ) const;
 
     void applyVisibilityPreset( const QString &name );
 
   private:
-    QHash<QgsVectorLayer *, int> mAttributeIdx;
-    QModelIndexList mCheckedIndexes;
+    QHash<const QgsVectorLayer *, int> mAttributeIdx;
+    QSet<QModelIndex> mCheckedLeafs;
 
     void applyVisibility( QSet<QString> &visibleLayers, QgsLayerTreeNode *node );
-
-    friend FieldSelectorDelegate;
 };
 
 
