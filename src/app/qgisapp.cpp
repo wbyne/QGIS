@@ -151,6 +151,7 @@
 #include "qgsmaplayerregistry.h"
 #include "qgsmapoverviewcanvas.h"
 #include "qgsmaprenderer.h"
+#include "qgsmapsettings.h"
 #include "qgsmaptip.h"
 #include "qgsmergeattributesdialog.h"
 #include "qgsmessageviewer.h"
@@ -955,13 +956,15 @@ void QgisApp::dropEvent( QDropEvent *event )
     QgsMimeDataUtils::UriList lst = QgsMimeDataUtils::decodeUriList( event->mimeData() );
     foreach ( const QgsMimeDataUtils::Uri& u, lst )
     {
+      QString uri = crsAndFormatAdjustedLayerUri( u.uri, u.supportedCrs, u.supportedFormats );
+
       if ( u.layerType == "vector" )
       {
-        addVectorLayer( u.uri, u.name, u.providerKey );
+        addVectorLayer( uri, u.name, u.providerKey );
       }
       else if ( u.layerType == "raster" )
       {
-        addRasterLayer( u.uri, u.name, u.providerKey );
+        addRasterLayer( uri, u.name, u.providerKey );
       }
     }
   }
@@ -1747,38 +1750,40 @@ void QgisApp::createStatusBar()
   statusBar()->addPermanentWidget( mScaleEdit, 0 );
   connect( mScaleEdit, SIGNAL( scaleChanged() ), this, SLOT( userScale() ) );
 
-  // add a widget to show/set current rotation
-  mRotationLabel = new QLabel( QString(), statusBar() );
-  mRotationLabel->setObjectName( "mRotationLabel" );
-  mRotationLabel->setFont( myFont );
-  mRotationLabel->setMinimumWidth( 10 );
-  mRotationLabel->setMaximumHeight( 20 );
-  mRotationLabel->setMargin( 3 );
-  mRotationLabel->setAlignment( Qt::AlignCenter );
-  mRotationLabel->setFrameStyle( QFrame::NoFrame );
-  mRotationLabel->setText( tr( "Rotation:" ) );
-  mRotationLabel->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
-  statusBar()->addPermanentWidget( mRotationLabel, 0 );
+  if ( getenv( "QGIS_ENABLE_CANVAS_ROTATION" ) ) {
+    // add a widget to show/set current rotation
+    mRotationLabel = new QLabel( QString(), statusBar() );
+    mRotationLabel->setObjectName( "mRotationLabel" );
+    mRotationLabel->setFont( myFont );
+    mRotationLabel->setMinimumWidth( 10 );
+    mRotationLabel->setMaximumHeight( 20 );
+    mRotationLabel->setMargin( 3 );
+    mRotationLabel->setAlignment( Qt::AlignCenter );
+    mRotationLabel->setFrameStyle( QFrame::NoFrame );
+    mRotationLabel->setText( tr( "Rotation:" ) );
+    mRotationLabel->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
+    statusBar()->addPermanentWidget( mRotationLabel, 0 );
 
-  mRotationEdit = new QgsDoubleSpinBox( statusBar() );
-  mRotationEdit->setObjectName( "mRotationEdit" );
-  mRotationEdit->setClearValue( 0.0 );
-  mRotationEdit->setKeyboardTracking( false );
-  mRotationEdit->setMaximumWidth( 120 );
-  mRotationEdit->setDecimals( 1 );
-  mRotationEdit->setMaximumHeight( 20 );
-  mRotationEdit->setRange( -180.0, 180.0 );
-  mRotationEdit->setWrapping( true );
-  mRotationEdit->setSingleStep( 5.0 );
-  mRotationEdit->setFont( myFont );
-  mRotationEdit->setWhatsThis( tr( "Shows the current map clockwise rotation "
-                                   "in degrees. It also allows editing to set "
-                                   "the rotation" ) );
-  mRotationEdit->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
-  statusBar()->addPermanentWidget( mRotationEdit, 0 );
-  connect( mRotationEdit, SIGNAL( valueChanged( double ) ), this, SLOT( userRotation() ) );
+    mRotationEdit = new QgsDoubleSpinBox( statusBar() );
+    mRotationEdit->setObjectName( "mRotationEdit" );
+    mRotationEdit->setClearValue( 0.0 );
+    mRotationEdit->setKeyboardTracking( false );
+    mRotationEdit->setMaximumWidth( 120 );
+    mRotationEdit->setDecimals( 1 );
+    mRotationEdit->setMaximumHeight( 20 );
+    mRotationEdit->setRange( -180.0, 180.0 );
+    mRotationEdit->setWrapping( true );
+    mRotationEdit->setSingleStep( 5.0 );
+    mRotationEdit->setFont( myFont );
+    mRotationEdit->setWhatsThis( tr( "Shows the current map clockwise rotation "
+                                     "in degrees. It also allows editing to set "
+                                     "the rotation" ) );
+    mRotationEdit->setToolTip( tr( "Current clockwise map rotation in degrees" ) );
+    statusBar()->addPermanentWidget( mRotationEdit, 0 );
+    connect( mRotationEdit, SIGNAL( valueChanged( double ) ), this, SLOT( userRotation() ) );
 
-  showRotation();
+    showRotation();
+  }
 
 
   // render suppression status bar widget
@@ -2115,6 +2120,10 @@ void QgisApp::setupConnections()
            this, SLOT( checkForDeprecatedLabelsInProject() ) );
   connect( this, SIGNAL( projectRead() ),
            this, SLOT( checkForDeprecatedLabelsInProject() ) );
+
+  // reset rotation on new project
+  connect( this, SIGNAL( newProject() ),
+           this, SLOT( resetMapSettings() ) );
 
   // setup undo/redo actions
   connect( mUndoWidget, SIGNAL( undoStackChanged() ), this, SLOT( updateUndoActions() ) );
@@ -2731,6 +2740,36 @@ void QgisApp::addLayerDefinition()
   openLayerDefinition( path );
 }
 
+QString QgisApp::crsAndFormatAdjustedLayerUri( const QString &uri , const QStringList &supportedCrs, const QStringList &supportedFormats ) const
+{
+  QString newuri = uri;
+
+  // Adjust layer CRS to project CRS
+  QgsCoordinateReferenceSystem testCrs;
+  foreach ( QString c, supportedCrs )
+  {
+    testCrs.createFromOgcWmsCrs( c );
+    if ( testCrs == mMapCanvas->mapRenderer()->destinationCrs() )
+    {
+      newuri.replace( QRegExp( "crs=[^&]+" ), "crs=" + c );
+      QgsDebugMsg( QString( "Changing layer crs to %1, new uri: %2" ).arg( c, uri ) );
+      break;
+    }
+  }
+
+  // Use the last used image format
+  QString lastImageEncoding = QSettings().value( "/qgis/lastWmsImageEncoding", "image/png" ).toString();
+  foreach ( QString fmt, supportedFormats )
+  {
+    if ( fmt == lastImageEncoding )
+    {
+      newuri.replace( QRegExp( "format=[^&]+" ), "format=" + fmt );
+      QgsDebugMsg( QString( "Changing layer format to %1, new uri: %2" ).arg( fmt, uri ) );
+      break;
+    }
+  }
+  return newuri;
+}
 
 /**
   This method prompts the user for a list of vector file names  with a dialog.
@@ -3520,6 +3559,7 @@ void QgisApp::fileNew( bool thePromptToSaveFlag, bool forceBlank )
   mMapCanvas->freeze( false );
   mMapCanvas->refresh();
   mMapCanvas->clearExtentHistory();
+  mMapCanvas->setRotation(0.0);
   mScaleEdit->updateScales();
 
   // set project CRS
@@ -5000,6 +5040,10 @@ void QgisApp::saveAsRasterFile()
                             QMessageBox::Ok );
 
     }
+    else
+    {
+      emit layerSavedAs( rasterLayer, d.outputFileName() );
+    }
     delete pipe;
   }
 }
@@ -5146,6 +5190,7 @@ void QgisApp::saveAsVectorFileGeneral( QgsVectorLayer* vlayer, bool symbologyOpt
       {
         addVectorLayers( QStringList( newFilename ), encoding, "file" );
       }
+      emit layerSavedAs( vlayer, vectorFilename );
       messageBar()->pushMessage( tr( "Saving done" ),
                                  tr( "Export to vector file has been completed" ),
                                  QgsMessageBar::INFO, messageTimeout() );
