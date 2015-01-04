@@ -1298,8 +1298,14 @@ static QVariant fcnCombine( const QVariantList& values, const QgsFeature*, QgsEx
 }
 static QVariant fcnGeomToWKT( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
 {
+  if ( values.length() < 1 || values.length() > 2 )
+    return QVariant();
+
   QgsGeometry fGeom = getGeometry( values.at( 0 ), parent );
-  QString wkt = fGeom.exportToWkt();
+  int prec = 8;
+  if ( values.length() == 2 )
+    prec = getIntValue( values.at( 1 ), parent );
+  QString wkt = fGeom.exportToWkt( prec );
   return QVariant( wkt );
 }
 
@@ -1370,13 +1376,15 @@ static QVariant fcnIf( const QVariantList &values, const QgsFeature *f, QgsExpre
   ENSURE_NO_EVAL_ERROR;
   QVariant value = node->eval( parent, f );
   ENSURE_NO_EVAL_ERROR;
-  if ( value.toBool() ) {
+  if ( value.toBool() )
+  {
     node = getNode( values.at( 1 ), parent );
     ENSURE_NO_EVAL_ERROR;
     value = node->eval( parent, f );
     ENSURE_NO_EVAL_ERROR;
   }
-  else {
+  else
+  {
     node = getNode( values.at( 2 ), parent );
     ENSURE_NO_EVAL_ERROR;
     value = node->eval( parent, f );
@@ -1542,6 +1550,34 @@ static QVariant fcnSpecialColumn( const QVariantList& values, const QgsFeature* 
 {
   QString varName = getStringValue( values.at( 0 ), parent );
   return QgsExpression::specialColumn( varName );
+}
+
+static QVariant fcnGetGeometry( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QgsFeature feat = getFeature( values.at( 0 ), parent );
+  QgsGeometry* geom = feat.geometry();
+  if ( geom )
+    return QVariant::fromValue( *geom );
+  return QVariant();
+}
+
+static QVariant fcnTransformGeometry( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QgsGeometry fGeom = getGeometry( values.at( 0 ), parent );
+  QString sAuthId = getStringValue( values.at( 1 ), parent );
+  QString dAuthId = getStringValue( values.at( 2 ), parent );
+
+  QgsCoordinateReferenceSystem s;
+  if ( ! s.createFromOgcWmsCrs( sAuthId ) )
+    return QVariant::fromValue( fGeom );
+  QgsCoordinateReferenceSystem d;
+  if ( ! d.createFromOgcWmsCrs( dAuthId ) )
+    return QVariant::fromValue( fGeom );
+
+  QgsCoordinateTransform t( s, d );
+  if ( fGeom.transform( t ) == 0 )
+    return QVariant::fromValue( fGeom );
+  return QVariant();
 }
 
 static QVariant fcnGetFeature( const QVariantList& values, const QgsFeature *, QgsExpression* parent )
@@ -1763,7 +1799,9 @@ const QList<QgsExpression::Function*> &QgsExpression::Functions()
     << new StaticFunction( "symDifference", 2, fcnSymDifference, "Geometry" )
     << new StaticFunction( "combine", 2, fcnCombine, "Geometry" )
     << new StaticFunction( "union", 2, fcnCombine, "Geometry" )
-    << new StaticFunction( "geomToWKT", 1, fcnGeomToWKT, "Geometry" )
+    << new StaticFunction( "geomToWKT", -1, fcnGeomToWKT, "Geometry" )
+    << new StaticFunction( "geometry", 1, fcnGetGeometry, "Geometry" )
+    << new StaticFunction( "transform", 3, fcnTransformGeometry, "Geometry" )
     << new StaticFunction( "$rownum", 0, fcnRowNumber, "Record" )
     << new StaticFunction( "$id", 0, fcnFeatureId, "Record" )
     << new StaticFunction( "$currentfeature", 0, fcnFeature, "Record" )
@@ -2565,15 +2603,17 @@ QVariant QgsExpression::NodeFunction::eval( QgsExpression* parent, const QgsFeat
     foreach ( Node* n, mArgs->list() )
     {
       QVariant v;
-      if ( fd->lazyEval() ) {
+      if ( fd->lazyEval() )
+      {
         // Pass in the node for the function to eval as it needs.
         v = QVariant::fromValue( n );
       }
-      else {
+      else
+      {
         v = n->eval( parent, f );
         ENSURE_NO_EVAL_ERROR;
         if ( isNull( v ) && fd->name() != "coalesce" )
-                return QVariant(); // all "normal" functions return NULL, when any parameter is NULL (so coalesce is abnormal)
+          return QVariant(); // all "normal" functions return NULL, when any parameter is NULL (so coalesce is abnormal)
       }
       argValues.append( v );
     }

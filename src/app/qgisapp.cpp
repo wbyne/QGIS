@@ -383,36 +383,6 @@ void QgisApp::emitCustomSrsValidation( QgsCoordinateReferenceSystem &srs )
 
 void QgisApp::layerTreeViewDoubleClicked( const QModelIndex& index )
 {
-  // temporary solution for WMS legend
-  if ( mLayerTreeView->layerTreeModel()->index2legendNode( index ) )
-  {
-    QModelIndex parent = mLayerTreeView->layerTreeModel()->parent( index );
-    QgsLayerTreeNode* node = mLayerTreeView->layerTreeModel()->index2node( parent );
-    if ( QgsLayerTree::isLayer( node ) )
-    {
-      QgsMapLayer* layer = QgsLayerTree::toLayer( node )->layer();
-      QgsRasterLayer* rlayer = qobject_cast<QgsRasterLayer*>( layer );
-      if ( rlayer && rlayer->providerType() == "wms" )
-      {
-        QImage img = rlayer->dataProvider()->getLegendGraphic( mMapCanvas->scale() );
-
-        QFrame* popup = new QFrame();
-        popup->setAttribute( Qt::WA_DeleteOnClose );
-        popup->setFrameStyle( QFrame::Box | QFrame::Raised );
-        popup->setLineWidth( 2 );
-        popup->setAutoFillBackground( true );
-        QVBoxLayout *layout = new QVBoxLayout;
-        QLabel *label = new QLabel( popup );
-        label->setPixmap( QPixmap::fromImage( img ) );
-        layout->addWidget( label );
-        popup->setLayout( layout );
-        popup->move( mLayerTreeView->visualRect( index ).bottomLeft() );
-        popup->show();
-        return;
-      }
-    }
-  }
-
   QSettings settings;
   switch ( settings.value( "/qgis/legendDoubleClickAction", 0 ).toInt() )
   {
@@ -656,6 +626,8 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   addDockWidget( Qt::BottomDockWidgetArea, mLogDock );
   mLogDock->setWidget( mLogViewer );
   mLogDock->hide();
+  connect( mMessageButton, SIGNAL( toggled( bool ) ), mLogDock, SLOT( setVisible( bool ) ) );
+  connect( mLogDock, SIGNAL( visibilityChanged( bool ) ), mMessageButton, SLOT( setChecked( bool ) ) );
   mVectorLayerTools = new QgsGuiVectorLayerTools();
 
   // Init the editor widget types
@@ -1750,7 +1722,8 @@ void QgisApp::createStatusBar()
   statusBar()->addPermanentWidget( mScaleEdit, 0 );
   connect( mScaleEdit, SIGNAL( scaleChanged() ), this, SLOT( userScale() ) );
 
-  if ( getenv( "QGIS_ENABLE_CANVAS_ROTATION" ) ) {
+  if ( QSettings().value( "/qgis/canvasRotation", false ).toBool() )
+  {
     // add a widget to show/set current rotation
     mRotationLabel = new QLabel( QString(), statusBar() );
     mRotationLabel->setObjectName( "mRotationLabel" );
@@ -1785,7 +1758,6 @@ void QgisApp::createStatusBar()
     showRotation();
   }
 
-
   // render suppression status bar widget
   mRenderSuppressionCBox = new QCheckBox( tr( "Render" ), statusBar() );
   mRenderSuppressionCBox->setObjectName( "mRenderSuppressionCBox" );
@@ -1797,22 +1769,13 @@ void QgisApp::createStatusBar()
                                         "to add a large number of layers and symbolize them before rendering." ) );
   mRenderSuppressionCBox->setToolTip( tr( "Toggle map rendering" ) );
   statusBar()->addPermanentWidget( mRenderSuppressionCBox, 0 );
-  // On the fly projection active CRS label
-  mOnTheFlyProjectionStatusLabel = new QLabel( QString(), statusBar() );
-  mOnTheFlyProjectionStatusLabel->setObjectName( "mOnTheFlyProjectionStatusLabel" );
-  mOnTheFlyProjectionStatusLabel->setFont( myFont );
-  mOnTheFlyProjectionStatusLabel->setMinimumWidth( 10 );
-  mOnTheFlyProjectionStatusLabel->setMaximumHeight( 20 );
-  mOnTheFlyProjectionStatusLabel->setMargin( 3 );
-  mOnTheFlyProjectionStatusLabel->setAlignment( Qt::AlignCenter );
-  mOnTheFlyProjectionStatusLabel->setFrameStyle( QFrame::NoFrame );
-  statusBar()->addPermanentWidget( mOnTheFlyProjectionStatusLabel, 0 );
   // On the fly projection status bar icon
   // Changed this to a tool button since a QPushButton is
   // sculpted on OS X and the icon is never displayed [gsherman]
   mOnTheFlyProjectionStatusButton = new QToolButton( statusBar() );
+  mOnTheFlyProjectionStatusButton->setAutoRaise( true );
+  mOnTheFlyProjectionStatusButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
   mOnTheFlyProjectionStatusButton->setObjectName( "mOntheFlyProjectionStatusButton" );
-  mOnTheFlyProjectionStatusButton->setMaximumWidth( 20 );
   // Maintain uniform widget height in status bar by setting button height same as labels
   // For Qt/Mac 3.3, the default toolbutton height is 30 and labels were expanding to match
   mOnTheFlyProjectionStatusButton->setMaximumHeight( mScaleLabel->height() );
@@ -1827,6 +1790,16 @@ void QgisApp::createStatusBar()
            this, SLOT( projectPropertiesProjections() ) );//bring up the project props dialog when clicked
   statusBar()->addPermanentWidget( mOnTheFlyProjectionStatusButton, 0 );
   statusBar()->showMessage( tr( "Ready" ) );
+
+  mMessageButton = new QToolButton( statusBar() );
+  mMessageButton->setAutoRaise( true );
+  mMessageButton->setIcon( QgsApplication::getThemeIcon( "bubble.svg" ) );
+  mMessageButton->setText( tr( "Messages" ) );
+  mMessageButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
+  mMessageButton->setObjectName( "mMessageLogViewerButton" );
+  mMessageButton->setMaximumHeight( mScaleLabel->height() );
+  mMessageButton->setCheckable( true );
+  statusBar()->addPermanentWidget( mMessageButton, 0 );
 }
 
 void QgisApp::setIconSizes( int size )
@@ -2749,7 +2722,7 @@ QString QgisApp::crsAndFormatAdjustedLayerUri( const QString &uri , const QStrin
   foreach ( QString c, supportedCrs )
   {
     testCrs.createFromOgcWmsCrs( c );
-    if ( testCrs == mMapCanvas->mapRenderer()->destinationCrs() )
+    if ( testCrs == mMapCanvas->mapSettings().destinationCrs() )
     {
       newuri.replace( QRegExp( "crs=[^&]+" ), "crs=" + c );
       QgsDebugMsg( QString( "Changing layer crs to %1, new uri: %2" ).arg( c, uri ) );
@@ -3559,7 +3532,7 @@ void QgisApp::fileNew( bool thePromptToSaveFlag, bool forceBlank )
   mMapCanvas->freeze( false );
   mMapCanvas->refresh();
   mMapCanvas->clearExtentHistory();
-  mMapCanvas->setRotation(0.0);
+  mMapCanvas->setRotation( 0.0 );
   mScaleEdit->updateScales();
 
   // set project CRS
@@ -8679,19 +8652,18 @@ void QgisApp::removeWebToolBarIcon( QAction *qAction )
 
 void QgisApp::updateCRSStatusBar()
 {
-  mOnTheFlyProjectionStatusLabel->setText( mMapCanvas->mapSettings().destinationCrs().authid() );
+  mOnTheFlyProjectionStatusButton->setText( mMapCanvas->mapSettings().destinationCrs().authid() );
 
   if ( mMapCanvas->mapSettings().hasCrsTransformEnabled() )
   {
-    mOnTheFlyProjectionStatusLabel->setEnabled( true );
-    mOnTheFlyProjectionStatusLabel->setToolTip(
+    mOnTheFlyProjectionStatusButton->setText( tr( "%1 (OTF)" ).arg( mOnTheFlyProjectionStatusButton->text() ) );
+    mOnTheFlyProjectionStatusButton->setToolTip(
       tr( "Current CRS: %1 (OTFR enabled)" ).arg( mMapCanvas->mapSettings().destinationCrs().description() ) );
     mOnTheFlyProjectionStatusButton->setIcon( QgsApplication::getThemeIcon( "mIconProjectionEnabled.png" ) );
   }
   else
   {
-    mOnTheFlyProjectionStatusLabel->setEnabled( false );
-    mOnTheFlyProjectionStatusLabel->setToolTip(
+    mOnTheFlyProjectionStatusButton->setToolTip(
       tr( "Current CRS: %1 (OTFR disabled)" ).arg( mMapCanvas->mapSettings().destinationCrs().description() ) );
     mOnTheFlyProjectionStatusButton->setIcon( QgsApplication::getThemeIcon( "mIconProjectionDisabled.png" ) );
   }
@@ -9775,7 +9747,7 @@ void QgisApp::keyPressEvent( QKeyEvent * e )
   // The following statement causes a crash on WIN32 and should be
   // enclosed in an #ifdef QGISDEBUG if its really necessary. Its
   // commented out for now. [gsherman]
-  // QgsDebugMsg(QString("%1 (keypress recevied)").arg(e->text()));
+  // QgsDebugMsg( QString( "%1 (keypress received)" ).arg( e->text() ) );
   emit keyPressed( e );
 
   //cancel rendering progress with esc key
