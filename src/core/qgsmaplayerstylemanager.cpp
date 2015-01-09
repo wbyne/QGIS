@@ -131,6 +131,7 @@ bool QgsMapLayerStyleManager::setCurrentStyle( const QString& name )
   syncCurrentStyle(); // sync before unloading it
   mCurrentStyle = name;
   mStyles[mCurrentStyle].writeToLayer( mLayer );
+  mLayer->triggerRepaint();
   return true;
 }
 
@@ -166,6 +167,7 @@ void QgsMapLayerStyle::readFromLayer( QgsMapLayer* layer )
     return;
   }
 
+  mXmlData.clear();
   QTextStream stream( &mXmlData );
   doc.save( stream, 0 );
 }
@@ -186,6 +188,7 @@ void QgsMapLayerStyle::writeToLayer( QgsMapLayer* layer ) const
 
 void QgsMapLayerStyle::readXml( const QDomElement& styleElement )
 {
+  mXmlData.clear();
   QTextStream stream( &mXmlData );
   styleElement.firstChildElement().save( stream, 0 );
 }
