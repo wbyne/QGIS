@@ -37,11 +37,11 @@ class QgsPalGeometry : public PalGeometry
 
     // getGeosGeometry + releaseGeosGeometry is called twice: once when adding, second time when labeling
 
-    const GEOSGeometry* getGeosGeometry()
+    const GEOSGeometry* getGeosGeometry() override
     {
       return mG;
     }
-    void releaseGeosGeometry( const GEOSGeometry* /*geom*/ )
+    void releaseGeosGeometry( const GEOSGeometry* /*geom*/ ) override
     {
       // nothing here - we'll delete the geometry in destructor
     }

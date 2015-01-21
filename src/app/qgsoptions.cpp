@@ -383,6 +383,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   QString myDefaultCrs = settings.value( "/Projections/projectDefaultCrs", GEO_EPSG_CRS_AUTHID ).toString();
   mDefaultCrs.createFromOgcWmsCrs( myDefaultCrs );
   leProjectGlobalCrs->setCrs( mDefaultCrs );
+  leProjectGlobalCrs->setOptionVisible( QgsProjectionSelectionWidget::DefaultCrs, false );
 
   //default datum transformations
   settings.beginGroup( "/Projections" );
@@ -583,7 +584,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl ) :
   cbxCopyWKTGeomFromTable->setChecked( settings.value( "/qgis/copyGeometryAsWKT", true ).toBool() );
   leNullValue->setText( settings.value( "qgis/nullValue", "NULL" ).toString() );
   cbxIgnoreShapeEncoding->setChecked( settings.value( "/qgis/ignoreShapeEncoding", true ).toBool() );
-  cbxCanvasRotation->setChecked( settings.value( "/qgis/canvasRotation", false ).toBool() );
+  cbxCanvasRotation->setChecked( QgsMapCanvas::rotationEnabled() );
 
   cmbLegendDoubleClickAction->setCurrentIndex( settings.value( "/qgis/legendDoubleClickAction", 0 ).toInt() );
 
@@ -889,10 +890,7 @@ void QgsOptions::setCurrentPage( QString pageWidgetName )
 
 void QgsOptions::on_mProxyTypeComboBox_currentIndexChanged( int idx )
 {
-  leProxyHost->setEnabled( idx != 0 );
-  leProxyPort->setEnabled( idx != 0 );
-  leProxyUser->setEnabled( idx != 0 );
-  leProxyPassword->setEnabled( idx != 0 );
+  frameManualProxy->setEnabled( idx != 0 );
 }
 
 void QgsOptions::on_cbxProjectDefaultNew_toggled( bool checked )
@@ -1111,7 +1109,7 @@ void QgsOptions::saveOptions()
   settings.setValue( "/qgis/legendDoubleClickAction", cmbLegendDoubleClickAction->currentIndex() );
   bool legendLayersCapitalise = settings.value( "/qgis/capitaliseLayerName", false ).toBool();
   settings.setValue( "/qgis/capitaliseLayerName", capitaliseCheckBox->isChecked() );
-  settings.setValue( "/qgis/canvasRotation", cbxCanvasRotation->isChecked() );
+  QgsMapCanvas::enableRotation( cbxCanvasRotation->isChecked() );
 
   // Default simplify drawing configuration
   QgsVectorSimplifyMethod::SimplifyHints simplifyHints = QgsVectorSimplifyMethod::NoSimplification;

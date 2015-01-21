@@ -12,6 +12,7 @@
 
 %Include qgis.sip
 
+%Include qgstransaction.sip
 %Include qgsapplication.sip
 %Include qgsattributeaction.sip
 %Include qgsbrowsermodel.sip
@@ -78,6 +79,7 @@
 %Include qgspluginlayer.sip
 %Include qgspluginlayerregistry.sip
 %Include qgspoint.sip
+%Include qgspointlocator.sip
 %Include qgsproject.sip
 %Include qgsprojectproperty.sip
 %Include qgsprojectversion.sip
@@ -96,6 +98,7 @@
 %Include qgsscaleutils.sip
 %Include qgssimplifymethod.sip
 %Include qgssnapper.sip
+%Include qgssnappingutils.sip
 %Include qgsspatialindex.sip
 %Include qgstolerance.sip
 %Include qgsvectordataprovider.sip
@@ -166,6 +169,8 @@
 %Include diagram/qgshistogramdiagram.sip
 %Include diagram/qgspiediagram.sip
 %Include diagram/qgstextdiagram.sip
+
+%Include effects/qgsimageoperation.sip
 
 %Include gps/qgsgpsconnection.sip
 %Include gps/qgsgpsconnectionregistry.sip

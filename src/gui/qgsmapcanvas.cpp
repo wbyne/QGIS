@@ -44,6 +44,7 @@ email                : sherman at mrcc.com
 #include "qgslogger.h"
 #include "qgsmapcanvas.h"
 #include "qgsmapcanvasmap.h"
+#include "qgsmapcanvassnappingutils.h"
 #include "qgsmaplayer.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsmaptoolpan.h"
@@ -190,6 +191,7 @@ QgsMapCanvas::QgsMapCanvas( QWidget * parent, const char *name )
     , mDrawRenderingStats( false )
     , mCache( 0 )
     , mPreviewEffect( 0 )
+    , mSnappingUtils( 0 )
 {
   setObjectName( name );
   mScene = new QGraphicsScene();
@@ -288,7 +290,7 @@ QgsMapCanvas::~QgsMapCanvas()
   mScene->deleteLater();  // crashes in python tests on windows
 
   delete mMapRenderer;
-  // mCanvasProperties auto-deleted via std::auto_ptr
+  // mCanvasProperties auto-deleted via QScopedPointer
   // CanvasProperties struct has its own dtor for freeing resources
 
   if ( mJob )
@@ -340,6 +342,7 @@ QgsMapLayer* QgsMapCanvas::layer( int index )
 void QgsMapCanvas::setCurrentLayer( QgsMapLayer* layer )
 {
   mCurrentLayer = layer;
+  emit currentLayerChanged( layer );
 }
 
 double QgsMapCanvas::scale()
@@ -904,7 +907,7 @@ double QgsMapCanvas::rotation() const
 
 void QgsMapCanvas::setRotation( double degrees )
 {
-  if ( !QSettings().value( "/qgis/canvasRotation", false ).toBool() )
+  if ( !rotationEnabled() )
     return;
 
   double current = rotation();
@@ -1743,6 +1746,22 @@ QgsPreviewEffect::PreviewMode QgsMapCanvas::previewMode() const
   return mPreviewEffect->mode();
 }
 
+QgsSnappingUtils* QgsMapCanvas::snappingUtils() const
+{
+  if ( !mSnappingUtils )
+  {
+    // associate a dummy instance, but better than null pointer
+    QgsMapCanvas* c = const_cast<QgsMapCanvas*>( this );
+    c->mSnappingUtils = new QgsMapCanvasSnappingUtils( c, c );
+  }
+  return mSnappingUtils;
+}
+
+void QgsMapCanvas::setSnappingUtils( QgsSnappingUtils* utils )
+{
+  mSnappingUtils = utils;
+}
+
 void QgsMapCanvas::readProject( const QDomDocument & doc )
 {
   QDomNodeList nodes = doc.elementsByTagName( "mapcanvas" );
@@ -1905,3 +1924,13 @@ bool QgsMapCanvas::event( QEvent * e )
   return done;
 }
 #endif
+
+bool QgsMapCanvas::rotationEnabled()
+{
+  return QSettings().value( "/qgis/canvasRotation", true ).toBool();
+}
+
+void QgsMapCanvas::enableRotation( bool enable )
+{
+  QSettings().setValue( "/qgis/canvasRotation", enable );
+}

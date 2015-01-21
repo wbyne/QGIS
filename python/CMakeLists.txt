@@ -81,6 +81,7 @@ INCLUDE_DIRECTORIES(
   ../src/core/pal
   ../src/core/composer
   ../src/core/diagram
+  ../src/core/effects
   ../src/core/dxf
   ../src/core/gps
   ../src/core/layertree
@@ -256,7 +257,8 @@ ENDIF(WITH_CUSTOM_WIDGETS)
 # Plugin utilities files to copy to staging or install
 SET(PY_FILES
   __init__.py
-  utils.py  
+  utils.py
+  user.py
 )
 
 ADD_CUSTOM_TARGET(pyutils ALL)

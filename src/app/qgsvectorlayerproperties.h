@@ -137,6 +137,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     /** called when is possible to choice if load the style from filesystem or from db */
     void loadStyleMenuTriggered( QAction * );
 
+    void aboutToShowStyleMenu();
 
   protected:
 
@@ -153,6 +154,9 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
 
     QMenu *mSaveAsMenu;
     QMenu *mLoadStyleMenu;
+
+    QAction* mActionLoadStyle;
+    QAction* mActionSaveStyleAs;
 
     /**Renderer dialog which is shown*/
     QDialog* mRendererDialog;

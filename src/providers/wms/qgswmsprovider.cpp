@@ -3004,7 +3004,8 @@ QUrl QgsWmsProvider::getLegendGraphicFullURL( double scale, const QgsRectangle& 
 
   if ( useContextualWMSLegend )
   {
-    setQueryItem( url, "BBOX", toParamValue( visibleExtent ) );
+    bool changeXY = mCaps.shouldInvertAxisOrientation( mImageCrs );
+    setQueryItem( url, "BBOX", toParamValue( visibleExtent, changeXY ) );
     setSRSQueryItem( url );
   }
 
@@ -3064,7 +3065,7 @@ QgsImageFetcher* QgsWmsProvider::getLegendGraphicFetcher( const QgsMapSettings* 
   if ( mapSettings && mSettings.mEnableContextualLegend )
   {
     scale = mapSettings->scale();
-    mapExtent = mapSettings->extent();
+    mapExtent = mapSettings->visibleExtent();
   }
   else
   {

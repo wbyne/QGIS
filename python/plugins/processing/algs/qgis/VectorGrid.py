@@ -54,15 +54,16 @@ class VectorGrid(GeoAlgorithm):
     def defineCharacteristics(self):
         self.name = 'Vector grid'
         self.group = 'Vector creation tools'
-        self.addParameter(ParameterExtent(self.EXTENT, 'Grid extent'))
+        self.addParameter(ParameterExtent(self.EXTENT,
+            self.tr('Grid extent')))
         self.addParameter(ParameterNumber(self.STEP_X,
-            'X spacing', 0.0, 1000000000.0, 0.0001))
+            self.tr('X spacing'), 0.0, 1000000000.0, 0.0001))
         self.addParameter(ParameterNumber(self.STEP_Y,
-            'Y spacing', 0.0, 1000000000.0, 0.0001))
+            self.tr('Y spacing'), 0.0, 1000000000.0, 0.0001))
         self.addParameter(ParameterSelection(self.TYPE,
-            'Grid type', self.TYPES))
+            self.tr('Grid type'), self.TYPES))
 
-        self.addOutput(OutputVector(self.OUTPUT, 'Grid'))
+        self.addOutput(OutputVector(self.OUTPUT, self.tr('Grid')))
 
     def processAlgorithm(self, progress):
         extent = self.getParameterValue(self.EXTENT).split(',')
@@ -115,9 +116,9 @@ class VectorGrid(GeoAlgorithm):
                 idVar += 1
                 count += 1
                 if int(math.fmod(count, count_update)) == 0:
-                    progress.setPersentage(int(count / count_max * 50))
+                    progress.setPercentage(int(count / count_max * 50))
 
-            progress.setPersentage( 50 )
+            progress.setPercentage( 50 )
             # counters for progressbar - update every 5%
             count = 0
             count_max = (bbox.xMaximum() - bbox.xMinimum()) / xSpace

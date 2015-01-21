@@ -158,23 +158,23 @@ class GUI_EXPORT QgsComposerView: public QGraphicsView
     void setPreviewMode( QgsPreviewEffect::PreviewMode mode );
 
   protected:
-    void mousePressEvent( QMouseEvent* );
-    void mouseReleaseEvent( QMouseEvent* );
-    void mouseMoveEvent( QMouseEvent* );
-    void mouseDoubleClickEvent( QMouseEvent* e );
+    void mousePressEvent( QMouseEvent* ) override;
+    void mouseReleaseEvent( QMouseEvent* ) override;
+    void mouseMoveEvent( QMouseEvent* ) override;
+    void mouseDoubleClickEvent( QMouseEvent* e ) override;
 
-    void keyPressEvent( QKeyEvent * e );
-    void keyReleaseEvent( QKeyEvent * e );
+    void keyPressEvent( QKeyEvent * e ) override;
+    void keyReleaseEvent( QKeyEvent * e ) override;
 
-    void wheelEvent( QWheelEvent* event );
+    void wheelEvent( QWheelEvent* event ) override;
 
-    void paintEvent( QPaintEvent* event );
+    void paintEvent( QPaintEvent* event ) override;
 
-    void hideEvent( QHideEvent* e );
-    void showEvent( QShowEvent* e );
+    void hideEvent( QHideEvent* e ) override;
+    void showEvent( QShowEvent* e ) override;
 
-    void resizeEvent( QResizeEvent* event );
-    void scrollContentsBy( int dx, int dy );
+    void resizeEvent( QResizeEvent* event ) override;
+    void scrollContentsBy( int dx, int dy ) override;
 
   private:
     /**Current composer tool*/

@@ -19,11 +19,11 @@
 #include "qgsmaplayer.h"
 
 #include <QDomElement>
-#include <QTemporaryFile>
 #include <QTextStream>
 
 QgsMapLayerStyleManager::QgsMapLayerStyleManager( QgsMapLayer* layer )
     : mLayer( layer )
+    , mOverriddenOriginalStyle( 0 )
 {
   reset();
 }
@@ -91,6 +91,7 @@ bool QgsMapLayerStyleManager::addStyle( const QString& name, const QgsMapLayerSt
     return false;
 
   mStyles.insert( name, style );
+  emit styleAdded( name );
   return true;
 }
 
@@ -119,6 +120,7 @@ bool QgsMapLayerStyleManager::removeStyle( const QString& name )
   }
 
   mStyles.remove( name );
+  emit styleRemoved( name );
   return true;
 }
 
@@ -132,6 +134,7 @@ bool QgsMapLayerStyleManager::renameStyle( const QString& name, const QString& n
 
   mStyles[newName] = mStyles[name];
   mStyles.remove( name );
+  emit styleRenamed( name, newName );
   return true;
 }
 
@@ -152,7 +155,46 @@ bool QgsMapLayerStyleManager::setCurrentStyle( const QString& name )
   mCurrentStyle = name;
   mStyles[mCurrentStyle].writeToLayer( mLayer );
   mStyles[mCurrentStyle].clear(); // current style does not keep any stored data
+  emit currentStyleChanged( mCurrentStyle );
+
   mLayer->triggerRepaint();
+  return true;
+}
+
+bool QgsMapLayerStyleManager::setOverrideStyle( const QString& styleDef )
+{
+  if ( mOverriddenOriginalStyle )
+    return false; // cannot override the style more than once!
+
+  if ( mStyles.contains( styleDef ) )
+  {
+    mOverriddenOriginalStyle = new QgsMapLayerStyle;
+    mOverriddenOriginalStyle->readFromLayer( mLayer );
+
+    // apply style name
+    mStyles[styleDef].writeToLayer( mLayer );
+  }
+  else if ( styleDef.startsWith( '<' ) )
+  {
+    mOverriddenOriginalStyle = new QgsMapLayerStyle;
+    mOverriddenOriginalStyle->readFromLayer( mLayer );
+
+    // apply style XML
+    QgsMapLayerStyle overrideStyle( styleDef );
+    overrideStyle.writeToLayer( mLayer );
+  }
+
+  return false;
+}
+
+bool QgsMapLayerStyleManager::restoreOverrideStyle()
+{
+  if ( !mOverriddenOriginalStyle )
+    return false;
+
+  mOverriddenOriginalStyle->writeToLayer( mLayer );
+  delete mOverriddenOriginalStyle;
+  mOverriddenOriginalStyle = 0;
   return true;
 }
 
@@ -160,6 +202,11 @@ bool QgsMapLayerStyleManager::setCurrentStyle( const QString& name )
 // -----
 
 QgsMapLayerStyle::QgsMapLayerStyle()
+{
+}
+
+QgsMapLayerStyle::QgsMapLayerStyle( const QString& xmlData )
+    : mXmlData( xmlData )
 {
 }
 
@@ -173,7 +220,7 @@ void QgsMapLayerStyle::clear()
   mXmlData.clear();
 }
 
-QString QgsMapLayerStyle::dump() const
+QString QgsMapLayerStyle::xmlData() const
 {
   return mXmlData;
 }
@@ -191,21 +238,23 @@ void QgsMapLayerStyle::readFromLayer( QgsMapLayer* layer )
 
   mXmlData.clear();
   QTextStream stream( &mXmlData );
-  doc.save( stream, 0 );
+  doc.documentElement().save( stream, 0 );
 }
 
 void QgsMapLayerStyle::writeToLayer( QgsMapLayer* layer ) const
 {
-  // QgsMapLayer does not have a importNamedStyle() method - working it around like this
-  QTemporaryFile f;
-  f.open();
-  f.write( mXmlData );
-  f.flush();
+  QDomDocument doc( "qgis" );
+  if ( !doc.setContent( mXmlData ) )
+  {
+    QgsDebugMsg( "Failed to parse XML of previously stored XML data - this should not happen!" );
+    return;
+  }
 
-  bool res;
-  QString status = layer->loadNamedStyle( f.fileName(), res );
-  if ( !res )
-    QgsDebugMsg( "Failed to import style to layer: " + status );
+  QString errorMsg;
+  if ( !layer->importNamedStyle( doc, errorMsg ) )
+  {
+    QgsDebugMsg( "Failed to import style to layer: " + errorMsg );
+  }
 }
 
 void QgsMapLayerStyle::readXml( const QDomElement& styleElement )

@@ -400,7 +400,7 @@ class CORE_EXPORT QgsProject : public QObject
     struct Imp;
 
     /// implementation handle
-    std::auto_ptr<Imp> imp_;
+    QScopedPointer<Imp> imp_;
 
     static QgsProject * theProject_;
 
@@ -440,7 +440,7 @@ class CORE_EXPORT QgsProjectBadLayerHandler
 class CORE_EXPORT QgsProjectBadLayerDefaultHandler : public QgsProjectBadLayerHandler
 {
   public:
-    virtual void handleBadLayers( QList<QDomNode> layers, QDomDocument projectDom );
+    virtual void handleBadLayers( QList<QDomNode> layers, QDomDocument projectDom ) override;
 
 };
 

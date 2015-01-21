@@ -86,8 +86,8 @@ class QgsVisibilityPresets : public QObject
     //! Convenience menu that lists available presets and actions for management
     QMenu* menu();
 
-    //! Create preset record given a list of visible layers (needs to store per-layer checked legend symbols)
-    PresetRecord currentStateFromLayerList( const QStringList& layerIDs, const QMap<QString, QString>& layerStyleOverrides );
+    //! Get layer style overrides (for QgsMapSettings) of the visible layers for given preset
+    QMap<QString, QString> presetStyleOverrides( const QString& presetName );
 
   signals:
     void presetsChanged();
@@ -103,6 +103,9 @@ class QgsVisibilityPresets : public QObject
 
     void registryLayersRemoved( QStringList layerIDs );
 
+    //! Update style name if a stored style gets renamed
+    void layerStyleRenamed( const QString& oldName, const QString& newName );
+
   protected:
     QgsVisibilityPresets(); // singleton
 
@@ -115,6 +118,8 @@ class QgsVisibilityPresets : public QObject
 
     PresetRecord currentState();
     void applyState( const QString& presetName );
+
+    void reconnectToLayersStyleManager();
 
     static QgsVisibilityPresets* sInstance;
 

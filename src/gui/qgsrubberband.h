@@ -242,10 +242,10 @@ class GUI_EXPORT QgsRubberBand: public QgsMapCanvasItem
      */
     QgsGeometry* asGeometry();
 
-    virtual void updatePosition();
+    virtual void updatePosition() override;
 
   protected:
-    virtual void paint( QPainter* p );
+    virtual void paint( QPainter* p ) override;
 
     //! recalculates needed rectangle
     void updateRect();

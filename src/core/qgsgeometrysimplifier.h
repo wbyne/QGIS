@@ -59,9 +59,9 @@ class CORE_EXPORT QgsTopologyPreservingSimplifier : public QgsAbstractGeometrySi
 
   public:
     //! Returns a simplified version the specified geometry
-    virtual QgsGeometry* simplify( QgsGeometry* geometry ) const;
+    virtual QgsGeometry* simplify( QgsGeometry* geometry ) const override;
     //! Simplifies the specified geometry
-    virtual bool simplifyGeometry( QgsGeometry* geometry ) const;
+    virtual bool simplifyGeometry( QgsGeometry* geometry ) const override;
 };
 
 #endif // QGSGEOMETRYSIMPLIFIER_H

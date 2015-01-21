@@ -25,38 +25,63 @@
 #include "qgsmaplayerstylemanager.h"
 
 
-QMenu* QgsMapLayerStyleGuiUtils::createStyleManagerMenu( QgsMapLayer* layer )
+QAction* QgsMapLayerStyleGuiUtils::actionAddStyle( QgsMapLayer* layer, QObject* parent )
 {
-  QMenu* m = new QMenu( tr( "Styles" ) );
-  QAction* actionAdd = m->addAction( tr( "Add" ), this, SLOT( addStyle() ) );
-  actionAdd->setData( QVariant::fromValue<QObject*>( layer ) );
+  QAction* a = new QAction( tr( "Add" ), parent );
+  a->setData( QVariant::fromValue<QObject*>( layer ) );
+  connect( a, SIGNAL( triggered() ), this, SLOT( addStyle() ) );
+  return a;
+}
 
+QAction* QgsMapLayerStyleGuiUtils::actionRemoveStyle( QgsMapLayer* layer, QObject* parent )
+{
+  QAction* a = new QAction( tr( "Remove Current" ), parent );
+  a->connect( a, SIGNAL( triggered() ), this, SLOT( removeStyle() ) );
+  a->setData( QVariant::fromValue<QObject*>( layer ) );
+  a->setEnabled( layer->styleManager()->styles().count() > 1 );
+  return a;
+}
+
+QAction* QgsMapLayerStyleGuiUtils::actionRenameStyle( QgsMapLayer* layer, QObject* parent )
+{
+  QAction* a = new QAction( tr( "Rename Current" ), parent );
+  a->connect( a, SIGNAL( triggered() ), this, SLOT( renameStyle() ) );
+  a->setData( QVariant::fromValue<QObject*>( layer ) );
+  return a;
+}
+
+QList<QAction*> QgsMapLayerStyleGuiUtils::actionsUseStyle( QgsMapLayer* layer, QObject* parent )
+{
   QgsMapLayerStyleManager* mgr = layer->styleManager();
   bool onlyOneStyle = mgr->styles().count() == 1;
 
-  QAction* actionRemove = m->addAction( tr( "Remove Current" ), this, SLOT( removeStyle() ) );
-  actionRemove->setData( QVariant::fromValue<QObject*>( layer ) );
-  actionRemove->setEnabled( !onlyOneStyle );
-
-  QAction* actionRename = m->addAction( tr( "Rename Current" ), this, SLOT( renameStyle() ) );
-  actionRename->setData( QVariant::fromValue<QObject*>( layer ) );
-
-  m->addSeparator();
-
+  QList<QAction*> actions;
   foreach ( QString name, mgr->styles() )
   {
     bool active = name == mgr->currentStyle();
     if ( name.isEmpty() )
       name = defaultStyleName();
-    QAction* actionUse = m->addAction( name, this, SLOT( useStyle() ) );
+    QAction* actionUse = new QAction( name, parent );
+    connect( actionUse, SIGNAL( triggered() ), this, SLOT( useStyle() ) );
     actionUse->setCheckable( true );
     actionUse->setChecked( active );
     actionUse->setEnabled( !onlyOneStyle );
 
     actionUse->setData( QVariant::fromValue<QObject*>( layer ) );
+    actions << actionUse;
   }
+  return actions;
+}
 
-  return m;
+void QgsMapLayerStyleGuiUtils::addStyleManagerActions( QMenu* m, QgsMapLayer* layer )
+{
+  m->addAction( actionAddStyle( layer ) );
+  if ( layer->styleManager()->styles().count() > 1 )
+    m->addAction( actionRemoveStyle( layer ) );
+  m->addAction( actionRenameStyle( layer ) );
+  m->addSeparator();
+  foreach ( QAction* a, actionsUseStyle( layer ) )
+    m->addAction( a );
 }
 
 QString QgsMapLayerStyleGuiUtils::defaultStyleName()
@@ -84,9 +109,13 @@ void QgsMapLayerStyleGuiUtils::addStyle()
   bool res = layer->styleManager()->addStyleFromLayer( text );
 
   if ( res ) // make it active!
+  {
     layer->styleManager()->setCurrentStyle( text );
+  }
   else
+  {
     QgsDebugMsg( "Failed to add style: " + text );
+  }
 }
 
 void QgsMapLayerStyleGuiUtils::useStyle()
@@ -103,7 +132,9 @@ void QgsMapLayerStyleGuiUtils::useStyle()
 
   bool res = layer->styleManager()->setCurrentStyle( name );
   if ( !res )
+  {
     QgsDebugMsg( "Failed to set current style: " + name );
+  }
 }
 
 
@@ -118,7 +149,9 @@ void QgsMapLayerStyleGuiUtils::removeStyle()
 
   bool res = layer->styleManager()->removeStyle( layer->styleManager()->currentStyle() );
   if ( !res )
+  {
     QgsDebugMsg( "Failed to remove current style" );
+  }
 }
 
 
@@ -142,5 +175,7 @@ void QgsMapLayerStyleGuiUtils::renameStyle()
 
   bool res = layer->styleManager()->renameStyle( name, text );
   if ( !res )
+  {
     QgsDebugMsg( "Failed to rename style: " + name );
+  }
 }

@@ -65,6 +65,7 @@ class QgsMapSettings;
 class QgsMapCanvasMap;
 class QgsMapOverviewCanvas;
 class QgsMapTool;
+class QgsSnappingUtils;
 
 /** \ingroup gui
   * A class that stores visibility and presence in overview flags together
@@ -378,6 +379,23 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
      * @note added in 2.3 */
     QgsPreviewEffect::PreviewMode previewMode() const;
 
+    /** Return snapping utility class that is associated with map canvas.
+     *  If no snapping utils instance has been associated previously, an internal will be created for convenience
+     *  (so map tools do not need to test for existence of the instance).
+     *
+     * Main canvas in QGIS returns an instance which is always up-to-date with the project's snapping configuration.
+     *  @note added in 2.8
+     */
+    QgsSnappingUtils* snappingUtils() const;
+    /** Assign an instance of snapping utils to the map canvas.
+     * The instance is not owned by the canvas, so it is possible to use one instance in multiple canvases.
+     *
+     * For main canvas in QGIS, do not associate a different instance from the existing one (it is updated from
+     * the project's snapping configuration).
+     * @note added in 2.8
+     */
+    void setSnappingUtils( QgsSnappingUtils* utils );
+
   public slots:
 
     /**Repaints the canvas map*/
@@ -418,6 +436,14 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
 
     //! ask user about datum transformation
     void getDatumTransformInfo( const QgsMapLayer* ml, const QString& srcAuthId, const QString& destAuthId );
+
+    //! return if canvas rotation is enabled
+    //! @note added in 2.8
+    static bool rotationEnabled();
+
+    //! change canvas rotation support
+    //! @note added in 2.8
+    static void enableRotation( bool enabled );
 
   private slots:
     //! called when current maptool is destroyed
@@ -509,41 +535,45 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
     //! @note added in 2.4
     void mapUnitsChanged();
 
+    //! Emitted when the current layer is changed
+    //! @note added in 2.8
+    void currentLayerChanged( QgsMapLayer* layer );
+
   protected:
 #ifdef HAVE_TOUCH
     //! Overridden standard event to be gestures aware
-    bool event( QEvent * e );
+    bool event( QEvent * e ) override;
 #endif
 
     //! Overridden key press event
-    void keyPressEvent( QKeyEvent * e );
+    void keyPressEvent( QKeyEvent * e ) override;
 
     //! Overridden key release event
-    void keyReleaseEvent( QKeyEvent * e );
+    void keyReleaseEvent( QKeyEvent * e ) override;
 
     //! Overridden mouse double click event
-    void mouseDoubleClickEvent( QMouseEvent * e );
+    void mouseDoubleClickEvent( QMouseEvent * e ) override;
 
     //! Overridden mouse move event
-    void mouseMoveEvent( QMouseEvent * e );
+    void mouseMoveEvent( QMouseEvent * e ) override;
 
     //! Overridden mouse press event
-    void mousePressEvent( QMouseEvent * e );
+    void mousePressEvent( QMouseEvent * e ) override;
 
     //! Overridden mouse release event
-    void mouseReleaseEvent( QMouseEvent * e );
+    void mouseReleaseEvent( QMouseEvent * e ) override;
 
     //! Overridden mouse wheel event
-    void wheelEvent( QWheelEvent * e );
+    void wheelEvent( QWheelEvent * e ) override;
 
     //! Overridden resize event
-    void resizeEvent( QResizeEvent * e );
+    void resizeEvent( QResizeEvent * e ) override;
 
     //! Overridden paint event
-    void paintEvent( QPaintEvent * e );
+    void paintEvent( QPaintEvent * e ) override;
 
     //! Overridden drag enter event
-    void dragEnterEvent( QDragEnterEvent * e );
+    void dragEnterEvent( QDragEnterEvent * e ) override;
 
     //! called when panning is in action, reset indicates end of panning
     void moveCanvasContents( bool reset = false );
@@ -555,12 +585,12 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
     class CanvasProperties;
 
     /// Handle pattern for implementation object
-    std::auto_ptr<CanvasProperties> mCanvasProperties;
+    QScopedPointer<CanvasProperties> mCanvasProperties;
 
     /**debugging member
        invoked when a connect() is made to this object
     */
-    void connectNotify( const char * signal );
+    void connectNotify( const char * signal ) override;
 
     //! Make sure the datum transform store is properly populated
     void updateDatumTransformEntries();
@@ -570,7 +600,7 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
     /**
        @note
 
-       Otherwise std::auto_ptr would pass the object responsiblity on to the
+       Otherwise QScopedPointer would pass the object responsiblity on to the
        copy like a hot potato leaving the copyer in a weird state.
      */
     QgsMapCanvas( QgsMapCanvas const & );
@@ -644,6 +674,8 @@ class GUI_EXPORT QgsMapCanvas : public QGraphicsView
     QgsPreviewEffect* mPreviewEffect;
 
     QgsRectangle imageRect( const QImage& img );
+
+    QgsSnappingUtils* mSnappingUtils;
 
 }; // class QgsMapCanvas
 

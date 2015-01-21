@@ -46,6 +46,8 @@ SET(QGIS_CORE_SRCS
   diagram/qgspiediagram.cpp
   diagram/qgstextdiagram.cpp
   diagram/qgshistogramdiagram.cpp
+  
+  effects/qgsimageoperation.cpp
 
   layertree/qgslayertreegroup.cpp
   layertree/qgslayertreelayer.cpp
@@ -95,6 +97,7 @@ SET(QGIS_CORE_SRCS
   qgsgeometryvalidator.cpp
   qgsgml.cpp
   qgsgmlschema.cpp
+  qgslayerdefinition.cpp
   qgslabel.cpp
   qgslabelattributes.cpp
   qgslabelsearchtree.cpp
@@ -132,6 +135,7 @@ SET(QGIS_CORE_SRCS
   qgspluginlayer.cpp
   qgspluginlayerregistry.cpp
   qgspoint.cpp
+  qgspointlocator.cpp
   qgsproject.cpp
   qgsprojectfiletransform.cpp
   qgsprojectproperty.cpp
@@ -151,13 +155,16 @@ SET(QGIS_CORE_SRCS
   qgsscaleutils.cpp
   qgssimplifymethod.cpp
   qgssnapper.cpp
+  qgssnappingutils.cpp
   qgsspatialindex.cpp
+  qgstransaction.cpp
   qgstolerance.cpp
   qgsvectordataprovider.cpp
   qgsvectorfilewriter.cpp
   qgsvectorlayer.cpp
   qgsvectorlayercache.cpp
   qgsvectorlayereditbuffer.cpp
+  qgsvectorlayereditpassthrough.cpp
   qgsvectorlayereditutils.cpp
   qgsvectorlayerfeatureiterator.cpp
   qgsvectorlayerimport.cpp
@@ -187,7 +194,7 @@ SET(QGIS_CORE_SRCS
   composer/qgscomposermapoverview.cpp
   composer/qgscomposertable.cpp
   composer/qgscomposertablev2.cpp
-  composer/qgscomposertablecolumn.cpp  
+  composer/qgscomposertablecolumn.cpp
   composer/qgscomposerattributetable.cpp
   composer/qgscomposerattributetablev2.cpp
   composer/qgscomposerattributetablemodel.cpp
@@ -210,7 +217,7 @@ SET(QGIS_CORE_SRCS
   composer/qgscomposermultiframe.cpp
   composer/qgscomposermodel.cpp
   composer/qgscomposition.cpp
-  
+
   dxf/qgsdxfexport.cpp
   dxf/qgsdxfpaintdevice.cpp
   dxf/qgsdxfpaintengine.cpp
@@ -268,7 +275,7 @@ SET(QGIS_CORE_SRCS
   raster/qgssinglebandgrayrenderer.cpp
   raster/qgssinglebandpseudocolorrenderer.cpp
   raster/qgsbrightnesscontrastfilter.cpp
-  raster/qgshuesaturationfilter.cpp  
+  raster/qgshuesaturationfilter.cpp
 )
 
 IF(ENABLE_MODELTEST)
@@ -341,6 +348,7 @@ SET(QGIS_CORE_MOC_HDRS
   qgsmaplayer.h
   qgsmaplayerlegend.h
   qgsmaplayerregistry.h
+  qgsmaplayerstylemanager.h
   qgsmaprenderer.h
   qgsmaprenderercache.h
   qgsmaprenderercustompainterjob.h
@@ -354,10 +362,13 @@ SET(QGIS_CORE_MOC_HDRS
   qgsofflineediting.h
   qgscredentials.h
   qgspluginlayer.h
+  qgspointlocator.h
   qgsproject.h
   qgsrunprocess.h
   qgsrelationmanager.h
+  qgssnappingutils.h
   qgsvectorlayer.h
+  qgsvectorlayereditpassthrough.h
   qgsvectorlayereditbuffer.h
   qgsnetworkaccessmanager.h
   qgsvectordataprovider.h
@@ -376,14 +387,14 @@ SET(QGIS_CORE_MOC_HDRS
   composer/qgscomposerobject.h
   composer/qgscomposeritem.h
   composer/qgscomposeritemgroup.h
-  composer/qgscomposermousehandles.h  
+  composer/qgscomposermousehandles.h
   composer/qgscomposerlabel.h
   composer/qgscomposershape.h
   composer/qgscomposerattributetable.h
   composer/qgscomposerattributetablev2.h
   composer/qgscomposerattributetablemodel.h
-  composer/qgscomposerattributetablemodelv2.h    
-  composer/qgscomposertable.h  
+  composer/qgscomposerattributetablemodelv2.h
+  composer/qgscomposertable.h
   composer/qgscomposertablev2.h
   composer/qgscomposertablecolumn.h
   composer/qgscomposerhtml.h
@@ -392,8 +403,8 @@ SET(QGIS_CORE_MOC_HDRS
   composer/qgsatlascomposition.h
   composer/qgscomposermodel.h
   composer/qgscomposition.h
-
   composer/qgslegendmodel.h
+
   raster/qgsrasterlayer.h
   raster/qgsrasterdataprovider.h
 
@@ -448,8 +459,8 @@ ENDIF(MSVC)
 SET(QGIS_CORE_HDRS
   ${CMAKE_BINARY_DIR}/qgsconfig.h
   ../plugins/qgisplugin.h
+
   qgis.h
-  qgsapplication.h
   qgsattributeaction.h
   qgscachedfeatureiterator.h
   qgscacheindex.h
@@ -457,18 +468,17 @@ SET(QGIS_CORE_HDRS
   qgsclipper.h
   qgscolorscheme.h
   qgscolorschemeregistry.h
+  qgsconnectionpool.h
   qgscontexthelp.h
   qgscoordinatereferencesystem.h
-  qgscoordinatetransform.h
-  qgscredentials.h
   qgscrscache.h
   qgscsexception.h
   qgsdartmeasurement.h
   qgsdatadefined.h
   qgsdatasourceuri.h
-  qgsdataitem.h
   qgsdatumtransformstore.h
   qgsdbfilterproxymodel.h
+  qgsdiagramrendererv2.h
   qgsdistancearea.h
   qgseditorwidgetconfig.h
   qgserror.h
@@ -482,9 +492,8 @@ SET(QGIS_CORE_HDRS
   qgsfield.h
   qgsfontutils.h
   qgsgeometry.h
-  qgsgml.h
-  qgsgmlschema.h
   qgsgeometrycache.h
+  qgslayerdefinition.h
   qgslabel.h
   qgslabelattributes.h
   qgslabelsearchtree.h
@@ -493,33 +502,23 @@ SET(QGIS_CORE_HDRS
   qgslegendsettings.h
   qgslogger.h
   qgsmaphittest.h
-  qgsmaplayer.h
-  qgsmaplayerlegend.h
-  qgsmaplayerregistry.h
+  qgsmaplayerrenderer.h
   qgsmaplayerstylemanager.h
-  qgsmaprenderer.h
-  qgsmaprenderercache.h
-  qgsmaprenderercustompainterjob.h
-  qgsmaprendererjob.h
-  qgsmaprendererparalleljob.h
-  qgsmaprenderersequentialjob.h
   qgsmapsettings.h
   qgsmaptopixel.h
+  qgsmaptopixelgeometrysimplifier.h
   qgsmapunitscale.h
-  qgsmessageoutput.h
   qgsmimedatautils.h
   qgsmultirenderchecker.h
-  qgsnetworkcontentfetcher.h
-  qgsnetworkreplyparser.h
   qgsobjectcustomproperties.h
-  qgsofflineediting.h
   qgsogcutils.h
   qgsowsconnection.h
   qgspaintenginehack.h
+  qgspalgeometry.h
   qgspallabeling.h
-  qgspluginlayer.h
   qgspluginlayerregistry.h
   qgspoint.h
+  qgspointlocator.h
   qgsproject.h
   qgsprojectfiletransform.h
   qgsprojectproperty.h
@@ -531,96 +530,89 @@ SET(QGIS_CORE_HDRS
   qgspythonrunner.h
   qgsrectangle.h
   qgsrelation.h
-  qgsrelationmanager.h
   qgsrenderchecker.h
   qgsrendercontext.h
-  qgsrunprocess.h
   qgsscalecalculator.h
   qgsscaleutils.h
   qgssimplifymethod.h
-  qgssnapper.h
-  qgsspatialindex.h
   qgssingleton.h
+  qgssnapper.h
+  qgssnappingutils.h
+  qgsspatialindex.h
   qgstolerance.h
+  qgstransaction.h
   qgsvectordataprovider.h
   qgsvectorlayercache.h
   qgsvectorfilewriter.h
-  qgsvectorlayer.h
-  qgsvectorlayercache.h
-  qgsvectorlayereditbuffer.h
   qgsvectorlayereditutils.h
   qgsvectorlayerfeatureiterator.h
   qgsvectorlayerimport.h
+  qgsvectorlayerrenderer.h
   qgsvectorlayerundocommand.h
-  qgsvectorlayerjoinbuffer.h
   qgsvectorsimplifymethod.h
+  qgsxmlutils.h
 
-  qgsdiagramrendererv2.h
   diagram/qgsdiagram.h
   diagram/qgspiediagram.h
   diagram/qgstextdiagram.h
   diagram/qgshistogramdiagram.h
+  
+  effects/qgsimageoperation.h
 
-  composer/qgslegendmodel.h
-  composer/qgscomposerlegenditem.h
-  composer/qgscomposermultiframecommand.h
-  composer/qgsscalebarstyle.h
-  composer/qgsnumericscalebarstyle.h
   composer/qgsaddremovemultiframecommand.h
-  composer/qgsdoubleboxscalebarstyle.h
-  composer/qgscomposertable.h
-  composer/qgscomposertablev2.h
-  composer/qgscomposertablecolumn.h
-  composer/qgspaperitem.h
-  composer/qgsticksscalebarstyle.h
-  composer/qgscomposerlegendstyle.h
-  composer/qgssingleboxscalebarstyle.h
-  composer/qgscomposerframe.h
   composer/qgscomposerarrow.h
-  composer/qgscomposertexttable.h
+  composer/qgscomposerframe.h
   composer/qgscomposeritemcommand.h
+  composer/qgscomposerlegenditem.h
+  composer/qgscomposerlegendstyle.h
+  composer/qgscomposermultiframecommand.h
+  composer/qgscomposertable.h
+  composer/qgscomposertexttable.h
+  composer/qgsdoubleboxscalebarstyle.h
+  composer/qgsnumericscalebarstyle.h
+  composer/qgspaperitem.h
+  composer/qgsscalebarstyle.h
+  composer/qgssingleboxscalebarstyle.h
+  composer/qgsticksscalebarstyle.h
 
-  raster/qgsraster.h
-  raster/qgsrasterblock.h
-  raster/qgsrasterdataprovider.h
-  raster/qgsrasterresamplefilter.h
+  raster/qgsbilinearrasterresampler.h
+  raster/qgsbrightnesscontrastfilter.h
   raster/qgscliptominmaxenhancement.h
-  raster/qgscolorrampshader.h
   raster/qgscolorrampshader.h
   raster/qgscontrastenhancement.h
   raster/qgscontrastenhancementfunction.h
+  raster/qgscubicrasterresampler.h
+  raster/qgshuesaturationfilter.h
   raster/qgslinearminmaxenhancement.h
   raster/qgslinearminmaxenhancementwithclip.h
+  raster/qgsmultibandcolorrenderer.h
+  raster/qgspalettedrasterrenderer.h
   raster/qgspseudocolorshader.h
-  raster/qgsrasterchecker.h
-  raster/qgsrasterpyramid.h
+  raster/qgsraster.h
   raster/qgsrasterbandstats.h
+  raster/qgsrasterblock.h
+  raster/qgsrasterchecker.h
+  raster/qgsrasterdrawer.h
+  raster/qgsrasterfilewriter.h
   raster/qgsrasterhistogram.h
   raster/qgsrasteridentifyresult.h
   raster/qgsrasterinterface.h
-  raster/qgsrasterlayer.h
-  raster/qgsrastertransparency.h
+  raster/qgsrasteriterator.h
+  raster/qgsrasternuller.h
   raster/qgsrasterpipe.h
   raster/qgsrasterprojector.h
+  raster/qgsrasterpyramid.h
   raster/qgsrasterrange.h
+  raster/qgsrasterrenderer.h
+  raster/qgsrasterresamplefilter.h
+  raster/qgsrasterresampler.h
   raster/qgsrastershader.h
   raster/qgsrastershaderfunction.h
+  raster/qgsrastertransparency.h
   raster/qgsrasterviewport.h
-  raster/qgsbilinearrasterresampler.h
-  raster/qgsbrightnesscontrastfilter.h
   raster/qgssinglebandcolordatarenderer.h
-  raster/qgssinglebandpseudocolorrenderer.h
-  raster/qgsrasterresampler.h
   raster/qgssinglebandgrayrenderer.h
-  raster/qgspalettedrasterrenderer.h
-  raster/qgsrasternuller.h
-  raster/qgsrasterfilewriter.h
-  raster/qgsrasterrenderer.h
-  raster/qgscubicrasterresampler.h
-  raster/qgsrasteriterator.h
-  raster/qgsrasterdrawer.h
-  raster/qgshuesaturationfilter.h
-  raster/qgsmultibandcolorrenderer.h
+  raster/qgssinglebandpseudocolorrenderer.h
 
   symbology-ng/qgscategorizedsymbolrendererv2.h
   symbology-ng/qgscolorbrewerpalette.h
@@ -637,36 +629,20 @@ SET(QGIS_CORE_HDRS
   symbology-ng/qgssinglesymbolrendererv2.h
   symbology-ng/qgsheatmaprenderer.h
   symbology-ng/qgsinvertedpolygonrenderer.h
-  symbology-ng/qgsstylev2.h
-  symbology-ng/qgssvgcache.h
   symbology-ng/qgssymbollayerv2.h
   symbology-ng/qgssymbollayerv2registry.h
   symbology-ng/qgssymbollayerv2utils.h
   symbology-ng/qgssymbologyv2conversion.h
   symbology-ng/qgssymbolv2.h
   symbology-ng/qgsvectorcolorrampv2.h
-  symbology-ng/qgscptcityarchive.h
   symbology-ng/qgsvectorfieldsymbollayer.h
 
   layertree/qgslayertree.h
-  layertree/qgslayertreegroup.h
-  layertree/qgslayertreelayer.h
-  layertree/qgslayertreemodel.h
-  layertree/qgslayertreemodellegendnode.h
-  layertree/qgslayertreenode.h
-  layertree/qgslayertreeregistrybridge.h
   layertree/qgslayertreeutils.h
 )
 
-IF (NOT QT5_BUILD)
-  SET(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
-    qgshttptransaction.h
-  )
-ENDIF (NOT QT5_BUILD)
-
 IF (QT_MOBILITY_LOCATION_FOUND)
   SET(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
-    gps/qgsqtlocationconnection.h
     gps/qgsgpsconnectionregistry.h
   )
 ENDIF (QT_MOBILITY_LOCATION_FOUND)
@@ -675,6 +651,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
   composer
   dxf
+  effects
   layertree
   pal
   raster

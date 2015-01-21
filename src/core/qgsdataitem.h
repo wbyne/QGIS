@@ -144,8 +144,11 @@ class CORE_EXPORT QgsDataItem : public QObject
     QVector<QgsDataItem*> children() const { return mChildren; }
     virtual QIcon icon();
     QString name() const { return mName; }
+    void setName( const QString &name ) { mName = name; }
     QString path() const { return mPath; }
     void setPath( const QString &path ) { mPath = path; }
+    //! Create path component replacing path separators
+    static QString pathComponent( const QString &component );
 
     // Because QIcon (QPixmap) must not be used in outside the GUI thread, it is
     // not possible to set mIcon in constructor. Either use mIconName/setIconName()
@@ -264,7 +267,7 @@ class CORE_EXPORT QgsLayerItem : public QgsDataItem
 
     // --- reimplemented from QgsDataItem ---
 
-    virtual bool equal( const QgsDataItem *other );
+    virtual bool equal( const QgsDataItem *other ) override;
 
     // --- New virtual methods for layer item derived classes ---
 
@@ -347,21 +350,21 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
     QgsDirectoryItem( QgsDataItem* parent, QString name, QString dirPath, QString path );
     ~QgsDirectoryItem();
 
-    virtual void setState( State state );
+    virtual void setState( State state ) override;
 
-    QVector<QgsDataItem*> createChildren();
+    QVector<QgsDataItem*> createChildren() override;
 
     QString dirPath() const { return mDirPath; }
-    virtual bool equal( const QgsDataItem *other );
-    virtual QIcon icon();
-    virtual QWidget *paramWidget();
+    virtual bool equal( const QgsDataItem *other ) override;
+    virtual QIcon icon() override;
+    virtual QWidget *paramWidget() override;
 
     /* static QVector<QgsDataProvider*> mProviders; */
     //! @note not available via python bindings
     static QVector<QLibrary*> mLibraries;
 
   public slots:
-    virtual void childrenCreated();
+    virtual void childrenCreated() override;
     void directoryChanged();
 
   protected:
@@ -397,7 +400,7 @@ class CORE_EXPORT QgsDirectoryParamWidget : public QTreeWidget
     QgsDirectoryParamWidget( QString path, QWidget* parent = NULL );
 
   protected:
-    void mousePressEvent( QMouseEvent* event );
+    void mousePressEvent( QMouseEvent* event ) override;
 
   public slots:
     void showHideColumn();
@@ -411,7 +414,7 @@ class CORE_EXPORT QgsFavouritesItem : public QgsDataCollectionItem
     QgsFavouritesItem( QgsDataItem* parent, QString name, QString path = QString() );
     ~QgsFavouritesItem();
 
-    QVector<QgsDataItem*> createChildren();
+    QVector<QgsDataItem*> createChildren() override;
 
     void addDirectory( QString favIcon );
     void removeDirectory( QgsDirectoryItem *item );
@@ -431,10 +434,10 @@ class CORE_EXPORT QgsZipItem : public QgsDataCollectionItem
 
   public:
     QgsZipItem( QgsDataItem* parent, QString name, QString path );
-    QgsZipItem( QgsDataItem* parent, QString name, QString dirPath, QString path );
+    QgsZipItem( QgsDataItem* parent, QString name, QString filePath, QString path );
     ~QgsZipItem();
 
-    QVector<QgsDataItem*> createChildren();
+    QVector<QgsDataItem*> createChildren() override;
     const QStringList & getZipFileList();
 
     //! @note not available via python bindings
@@ -444,7 +447,7 @@ class CORE_EXPORT QgsZipItem : public QgsDataCollectionItem
     static QString vsiPrefix( QString uri ) { return qgsVsiPrefix( uri ); }
 
     static QgsDataItem* itemFromPath( QgsDataItem* parent, QString path, QString name );
-    static QgsDataItem* itemFromPath( QgsDataItem* parent, QString dirPath, QString name, QString path );
+    static QgsDataItem* itemFromPath( QgsDataItem* parent, QString filePath, QString name, QString path );
 
     static const QIcon &iconZip();
 

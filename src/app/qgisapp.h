@@ -59,6 +59,7 @@ class QgsPoint;
 class QgsProviderRegistry;
 class QgsPythonUtils;
 class QgsRectangle;
+class QgsSnappingUtils;
 class QgsUndoWidget;
 class QgsVectorLayer;
 class QgsVectorLayerTools;
@@ -151,7 +152,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsRasterLayer *addRasterLayer( const QString &rasterFile, const QString &baseName, bool guiWarning = true );
 
     /** Returns and adjusted uri for the layer based on current and available CRS as well as the last selected image format
-     * @note added in 2.4
+     * @note added in 2.8
      */
     QString crsAndFormatAdjustedLayerUri( const QString& uri, const QStringList& supportedCrs, const QStringList& supportedFormats ) const;
 
@@ -254,7 +255,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsComposer* duplicateComposer( QgsComposer* currentComposer, QString title = QString( "" ) );
 
     /** overloaded function used to sort menu entries alphabetically */
-    QMenu* createPopupMenu();
+    QMenu* createPopupMenu() override;
 
     /**
      * Access the vector layer tools. This will be an instance of {@see QgsGuiVectorLayerTools}
@@ -613,7 +614,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void legendLayerSelectionChanged( void );
 
     //! Watch for QFileOpenEvent.
-    virtual bool event( QEvent * event );
+    virtual bool event( QEvent * event ) override;
 
     /** Open a raster layer using the Raster Data Provider. */
     QgsRasterLayer* addRasterLayer( QString const & uri, QString const & baseName, QString const & providerKey );
@@ -639,15 +640,15 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
   protected:
 
     //! Handle state changes (WindowTitleChange)
-    virtual void changeEvent( QEvent * event );
+    virtual void changeEvent( QEvent * event ) override;
     //! Have some control over closing of the application
-    virtual void closeEvent( QCloseEvent * event );
+    virtual void closeEvent( QCloseEvent * event ) override;
 
-    virtual void dragEnterEvent( QDragEnterEvent * event );
-    virtual void dropEvent( QDropEvent * event );
+    virtual void dragEnterEvent( QDragEnterEvent * event ) override;
+    virtual void dropEvent( QDropEvent * event ) override;
 
     //! reimplements widget keyPress event so we can check if cancel was pressed
-    virtual void keyPressEvent( QKeyEvent * event );
+    virtual void keyPressEvent( QKeyEvent * event ) override;
 
 #ifdef ANDROID
     //! reimplements widget keyReleaseEvent event so we can check if back was pressed
@@ -1604,6 +1605,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsVectorLayerTools* mVectorLayerTools;
 
     QToolButton* mBtnFilterLegend;
+
+    QgsSnappingUtils* mSnappingUtils;
 
 #ifdef HAVE_TOUCH
     bool gestureEvent( QGestureEvent *event );

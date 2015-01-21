@@ -138,6 +138,7 @@
 #include "qgsgpsinformationwidget.h"
 #include "qgsguivectorlayertools.h"
 #include "qgslabelinggui.h"
+#include "qgslayerdefinition.h"
 #include "qgslayertree.h"
 #include "qgslayertreemapcanvasbridge.h"
 #include "qgslayertreemodel.h"
@@ -147,6 +148,7 @@
 #include "qgslayertreeviewdefaultactions.h"
 #include "qgslogger.h"
 #include "qgsmapcanvas.h"
+#include "qgsmapcanvassnappingutils.h"
 #include "qgsmaplayer.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsmaplayerstyleguiutils.h"
@@ -265,7 +267,6 @@
 #include "qgsmaptoolsplitfeatures.h"
 #include "qgsmaptoolsplitparts.h"
 #include "qgsmaptooltextannotation.h"
-#include "qgsmaptoolvertexedit.h"
 #include "qgsmaptoolzoom.h"
 #include "qgsmaptoolsimplify.h"
 #include "qgsmeasuretool.h"
@@ -487,6 +488,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
 #endif
     , mComposerManager( 0 )
     , mpGpsWidget( 0 )
+    , mSnappingUtils( 0 )
 {
   if ( smInstance )
   {
@@ -565,6 +567,11 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   // Advanced Digitizing dock
   mAdvancedDigitizingDockWidget = new QgsAdvancedDigitizingDockWidget( mMapCanvas, this );
   mAdvancedDigitizingDockWidget->setObjectName( "AdvancedDigitizingTools" );
+
+  mSnappingUtils = new QgsMapCanvasSnappingUtils( mMapCanvas, this );
+  mMapCanvas->setSnappingUtils( mSnappingUtils );
+  connect( QgsProject::instance(), SIGNAL( snapSettingsChanged() ), mSnappingUtils, SLOT( readConfigFromProject() ) );
+  connect( this, SIGNAL( projectRead() ), mSnappingUtils, SLOT( readConfigFromProject() ) );
 
   createActions();
   createActionGroups();
@@ -816,6 +823,7 @@ QgisApp::QgisApp()
     , mPythonUtils( 0 )
     , mComposerManager( 0 )
     , mpGpsWidget( 0 )
+    , mSnappingUtils( 0 )
 {
   smInstance = this;
   setupUi( this );
@@ -1684,7 +1692,6 @@ void QgisApp::createStatusBar()
   mCoordsEdit->setMaximumHeight( 20 );
   mCoordsEdit->setContentsMargins( 0, 0, 0, 0 );
   mCoordsEdit->setAlignment( Qt::AlignCenter );
-  mCoordsEdit->setAlignment( Qt::AlignCenter );
   QRegExp coordValidator( "[+-]?\\d+\\.?\\d*\\s*,\\s*[+-]?\\d+\\.?\\d*" );
   mCoordsEditValidator = new QRegExpValidator( coordValidator, mCoordsEdit );
   mCoordsEdit->setWhatsThis( tr( "Shows the map coordinates at the "
@@ -1726,7 +1733,7 @@ void QgisApp::createStatusBar()
   statusBar()->addPermanentWidget( mScaleEdit, 0 );
   connect( mScaleEdit, SIGNAL( scaleChanged() ), this, SLOT( userScale() ) );
 
-  if ( QSettings().value( "/qgis/canvasRotation", false ).toBool() )
+  if ( QgsMapCanvas::rotationEnabled() )
   {
     // add a widget to show/set current rotation
     mRotationLabel = new QLabel( QString(), statusBar() );
@@ -1747,7 +1754,6 @@ void QgisApp::createStatusBar()
     mRotationEdit->setKeyboardTracking( false );
     mRotationEdit->setMaximumWidth( 120 );
     mRotationEdit->setDecimals( 1 );
-    mRotationEdit->setMaximumHeight( 20 );
     mRotationEdit->setRange( -180.0, 180.0 );
     mRotationEdit->setWrapping( true );
     mRotationEdit->setSingleStep( 5.0 );
@@ -2097,10 +2103,6 @@ void QgisApp::setupConnections()
            this, SLOT( checkForDeprecatedLabelsInProject() ) );
   connect( this, SIGNAL( projectRead() ),
            this, SLOT( checkForDeprecatedLabelsInProject() ) );
-
-  // reset rotation on new project
-  connect( this, SIGNAL( newProject() ),
-           this, SLOT( resetMapSettings() ) );
 
   // setup undo/redo actions
   connect( mUndoWidget, SIGNAL( undoStackChanged() ), this, SLOT( updateUndoActions() ) );
@@ -3530,7 +3532,7 @@ void QgisApp::fileNew( bool thePromptToSaveFlag, bool forceBlank )
 
   //QgsDebugMsg("emiting new project signal");
 
-  //emit signal so QgsComposer knows we have a new project
+  // emit signal so listeners know we have a new project
   emit newProject();
 
   mMapCanvas->freeze( false );
@@ -4130,8 +4132,13 @@ void QgisApp::dxfExport()
 
 void QgisApp::openLayerDefinition( const QString & path )
 {
-  QList<QgsMapLayer*> layers = QgsMapLayer::fromLayerDefinitionFile( path );
-  QgsMapLayerRegistry::instance()->addMapLayers( layers );
+  QString errorMessage;
+  bool loaded = QgsLayerDefinition::loadLayerDefinition( path, QgsProject::instance()->layerTreeRoot(), errorMessage );
+  if ( !loaded )
+  {
+    QgsDebugMsg( errorMessage );
+    messageBar()->pushMessage( tr( "Error loading layer definition" ), errorMessage, QgsMessageBar::WARNING );
+  }
 }
 
 // Open the project file corresponding to the
@@ -5044,26 +5051,17 @@ void QgisApp::saveAsFile()
 
 void QgisApp::saveAsLayerDefinition()
 {
-  QList<QgsMapLayer*> layers = mLayerTreeView->selectedLayers();
-
-  if ( layers.isEmpty() )
-    return;
 
   QString path = QFileDialog::getSaveFileName( this, "Save as Layer Definition File", QDir::home().path(), "*.qlr" );
   QgsDebugMsg( path );
   if ( path.isEmpty() )
     return;
 
-  if ( !path.endsWith( ".qlr" ) )
-    path = path.append( ".qlr" );
-
-  QFile file( path );
-  QFileInfo fileinfo( file );
-  QDomDocument doc = QgsMapLayer::asLayerDefinition( layers, fileinfo.canonicalFilePath() );
-  if ( file.open( QFile::WriteOnly | QFile::Truncate ) )
+  QString errorMessage;
+  bool saved = QgsLayerDefinition::exportLayerDefinition( path, mLayerTreeView->selectedNodes(), errorMessage );
+  if ( !saved )
   {
-    QTextStream qlayerstream( &file );
-    doc.save( qlayerstream, 2 );
+    messageBar()->pushMessage( tr( "Error saving layer definintion file" ), errorMessage, QgsMessageBar::WARNING );
   }
 }
 
@@ -5097,21 +5095,7 @@ void QgisApp::saveAsVectorFileGeneral( QgsVectorLayer* vlayer, bool symbologyOpt
     QStringList datasourceOptions = dialog->datasourceOptions();
 
     QgsCoordinateTransform* ct = 0;
-
-    switch ( dialog->crs() )
-    {
-      case -2: // Project CRS
-        destCRS = mMapCanvas->mapSettings().destinationCrs();
-
-        break;
-      case -1: // Layer CRS
-        destCRS = vlayer->crs();
-        break;
-
-      default: // Selected CRS
-        destCRS = QgsCoordinateReferenceSystem( dialog->crs(), QgsCoordinateReferenceSystem::InternalCrsId );
-        break;
-    }
+    destCRS = QgsCoordinateReferenceSystem( dialog->crs(), QgsCoordinateReferenceSystem::InternalCrsId );
 
     if ( destCRS.isValid() && destCRS != vlayer->crs() )
     {
@@ -5269,8 +5253,8 @@ void QgisApp::deleteSelected( QgsMapLayer *layer, QWidget* parent, bool promptCo
   }
 
   //validate selection
-  int numberOfDeletedFeatures = vlayer->selectedFeaturesIds().size();
-  if ( numberOfDeletedFeatures == 0 )
+  int numberOfSelectedFeatures = vlayer->selectedFeaturesIds().size();
+  if ( numberOfSelectedFeatures == 0 )
   {
     messageBar()->pushMessage( tr( "No Features Selected" ),
                                tr( "The current layer has no selected features" ),
@@ -5278,21 +5262,22 @@ void QgisApp::deleteSelected( QgsMapLayer *layer, QWidget* parent, bool promptCo
     return;
   }
   //display a warning
-  if ( promptConfirmation && QMessageBox::warning( parent, tr( "Delete features" ), tr( "Delete %n feature(s)?", "number of features to delete", numberOfDeletedFeatures ), QMessageBox::Ok | QMessageBox::Cancel ) == QMessageBox::Cancel )
+  if ( promptConfirmation && QMessageBox::warning( parent, tr( "Delete features" ), tr( "Delete %n feature(s)?", "number of features to delete", numberOfSelectedFeatures ), QMessageBox::Ok | QMessageBox::Cancel ) == QMessageBox::Cancel )
   {
     return;
   }
 
   vlayer->beginEditCommand( tr( "Features deleted" ) );
-  if ( !vlayer->deleteSelectedFeatures() )
+  int deletedCount = 0;
+  if ( !vlayer->deleteSelectedFeatures( &deletedCount ) )
   {
     messageBar()->pushMessage( tr( "Problem deleting features" ),
-                               tr( "A problem occured during deletion of features" ),
+                               tr( "A problem occured during deletion of %1 feature(s)" ).arg( numberOfSelectedFeatures - deletedCount ),
                                QgsMessageBar::WARNING );
   }
   else
   {
-    showStatusMessage( tr( "%n feature(s) deleted.", "number of features deleted", numberOfDeletedFeatures ) );
+    showStatusMessage( tr( "%n feature(s) deleted.", "number of features deleted", numberOfSelectedFeatures ) );
   }
 
   vlayer->endEditCommand();
@@ -7360,7 +7345,7 @@ class QgsPythonRunnerImpl : public QgsPythonRunner
   public:
     QgsPythonRunnerImpl( QgsPythonUtils* pythonUtils ) : mPythonUtils( pythonUtils ) {}
 
-    virtual bool runCommand( QString command, QString messageOnError = QString() )
+    virtual bool runCommand( QString command, QString messageOnError = QString() ) override
     {
       if ( mPythonUtils && mPythonUtils->isEnabled() )
       {
@@ -7369,7 +7354,7 @@ class QgsPythonRunnerImpl : public QgsPythonRunner
       return false;
     }
 
-    virtual bool evalCommand( QString command, QString &result )
+    virtual bool evalCommand( QString command, QString &result ) override
     {
       if ( mPythonUtils && mPythonUtils->isEnabled() )
       {

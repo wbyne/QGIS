@@ -29,9 +29,9 @@ class CORE_EXPORT QgsCubicRasterResampler: public QgsRasterResampler
   public:
     QgsCubicRasterResampler();
     ~QgsCubicRasterResampler();
-    QgsRasterResampler * clone() const;
-    void resample( const QImage& srcImage, QImage& dstImage );
-    QString type() const { return "cubic"; }
+    QgsRasterResampler * clone() const override;
+    void resample( const QImage& srcImage, QImage& dstImage ) override;
+    QString type() const override { return "cubic"; }
 
   private:
     static void xDerivativeMatrix( int nCols, int nRows, double* matrix, const int* colorMatrix );

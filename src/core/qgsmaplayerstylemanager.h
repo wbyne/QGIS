@@ -39,14 +39,17 @@ class CORE_EXPORT QgsMapLayerStyle
     //! construct invalid style
     QgsMapLayerStyle();
 
+    //! construct style from QML definition (XML)
+    explicit QgsMapLayerStyle( const QString& xmlData );
+
     //! Tell whether the style is valid (i.e. there is something stored in it)
     bool isValid() const;
 
     //! Remove any stored style data (will get invalid)
     void clear();
 
-    //! Return information about the style - for debugging purposes only
-    QString dump() const;
+    //! Return XML content of the style
+    QString xmlData() const;
 
     //! Store layer's active style information in the instance
     void readFromLayer( QgsMapLayer* layer );
@@ -59,7 +62,7 @@ class CORE_EXPORT QgsMapLayerStyle
     void writeXml( QDomElement& styleElement ) const;
 
   private:
-    QByteArray mXmlData;
+    QString mXmlData;
 };
 
 
@@ -79,13 +82,20 @@ class CORE_EXPORT QgsMapLayerStyle
  * of data as all data is stored in map layer and can be retrieved easily. Also when saving, the entry for
  * the current style will be saved with no data because everything is already saved by the map layer itself.
  *
+ * The class also features support for temporary change of the layer's style, ideal for short-term use of a custom
+ * style followed by restoration of the original style (for example, when rendering a map with a different than current style).
+ *
  * @note added in 2.8
  */
-class CORE_EXPORT QgsMapLayerStyleManager
+class CORE_EXPORT QgsMapLayerStyleManager : public QObject
 {
+    Q_OBJECT
   public:
     //! Construct a style manager associated with a map layer (must not be null)
     QgsMapLayerStyleManager( QgsMapLayer* layer );
+
+    //! Get pointer to the associated map layer
+    QgsMapLayer* layer() const { return mLayer; }
 
     //! Reset the style manager to a basic state - with one default style which is set as current
     void reset();
@@ -119,10 +129,28 @@ class CORE_EXPORT QgsMapLayerStyleManager
     //! @return true on success
     bool setCurrentStyle( const QString& name );
 
+    //! Temporarily apply a different style to the layer. The argument
+    //! can be either a style name or a full QML style definition.
+    //! Each call must be paired with restoreOverrideStyle()
+    bool setOverrideStyle( const QString& styleDef );
+    //! Restore the original store after a call to setOverrideStyle()
+    bool restoreOverrideStyle();
+
+  signals:
+    //! Emitted when a new style has been added
+    void styleAdded( const QString& name );
+    //! Emitted when a style has been removed
+    void styleRemoved( const QString& name );
+    //! Emitted when a style has been renamed
+    void styleRenamed( const QString& oldName, const QString& newName );
+    //! Emitted when the current style has been changed
+    void currentStyleChanged( const QString& currentName );
+
   private:
     QgsMapLayer* mLayer;
     QMap<QString, QgsMapLayerStyle> mStyles;
     QString mCurrentStyle;
+    QgsMapLayerStyle* mOverriddenOriginalStyle;
 };
 
 #endif // QGSMAPLAYERSTYLEMANAGER_H
