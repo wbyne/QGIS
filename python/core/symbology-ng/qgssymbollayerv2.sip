@@ -44,16 +44,16 @@ class QgsSymbolLayerV2
 	else if (dynamic_cast<QgsSVGFillSymbolLayer*>(sipCpp) != NULL)
 	  sipClass = sipClass_QgsSVGFillSymbolLayer;
 	else if (dynamic_cast<QgsRasterFillSymbolLayer*>(sipCpp) != NULL)
-	  sipClass = sipClass_QgsRasterFillSymbolLayer;	  
+	  sipClass = sipClass_QgsRasterFillSymbolLayer;
 	else
 	  sipClass = sipClass_QgsImageFillSymbolLayer;
       }
       else if (dynamic_cast<QgsCentroidFillSymbolLayerV2*>(sipCpp) != NULL)
 	sipClass = sipClass_QgsCentroidFillSymbolLayerV2;
       else if (dynamic_cast<QgsGradientFillSymbolLayerV2*>(sipCpp) != NULL)
-	sipClass = sipClass_QgsGradientFillSymbolLayerV2;	
+	sipClass = sipClass_QgsGradientFillSymbolLayerV2;
       else if (dynamic_cast<QgsShapeburstFillSymbolLayerV2*>(sipCpp) != NULL)
-	sipClass = sipClass_QgsShapeburstFillSymbolLayerV2;	
+	sipClass = sipClass_QgsShapeburstFillSymbolLayerV2;
       else
 	sipClass = sipClass_QgsFillSymbolLayerV2;
       break;
@@ -142,6 +142,7 @@ class QgsSymbolLayerV2
                            const QPointF& shift = QPointF( 0.0, 0.0 ) ) const;
 
     virtual double dxfWidth( const QgsDxfExport& e, const QgsSymbolV2RenderContext& context ) const;
+    virtual double dxfOffset( const QgsDxfExport& e, const QgsSymbolV2RenderContext& context ) const;
 
     virtual QColor dxfColor( const QgsSymbolV2RenderContext& context ) const;
 
@@ -276,6 +277,7 @@ class QgsLineSymbolLayerV2 : QgsSymbolLayerV2
     void drawPreviewIcon( QgsSymbolV2RenderContext& context, QSize size );
 
     virtual double dxfWidth( const QgsDxfExport& e, const QgsSymbolV2RenderContext& context ) const;
+    virtual double dxfOffset( const QgsDxfExport& e, const QgsSymbolV2RenderContext& context ) const;
 
   protected:
     QgsLineSymbolLayerV2( bool locked = false );

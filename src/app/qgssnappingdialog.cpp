@@ -130,16 +130,16 @@ void QgsSnappingDialog::reload()
   else if ( snapType == "to vertex" )
     idx = 0;
   else // off
-    idx = 4;
+    idx = 3;
   mDefaultSnapToComboBox->setCurrentIndex( idx );
 
   double tolerance = settings.value( "/qgis/digitizing/default_snapping_tolerance", 0 ).toDouble();
   tolerance = QgsProject::instance()->readDoubleEntry( "Digitizing", "/DefaultSnapTolerance", tolerance );
   mDefaultSnappingToleranceSpinBox->setValue( tolerance );
 
-  int unit = settings.value( "/qgis/digitizing/default_snapping_tolerance_unit", 0 ).toInt();
+  int unit = settings.value( "/qgis/digitizing/default_snapping_tolerance_unit", QgsTolerance::ProjectUnits ).toInt();
   unit = QgsProject::instance()->readNumEntry( "Digitizing", "/DefaultSnapToleranceUnit", unit );
-  mDefaultSnappingToleranceComboBox->setCurrentIndex( unit );
+  mDefaultSnappingToleranceComboBox->setCurrentIndex( unit == QgsTolerance::Pixels ? 1 : 0 );
 
   mLayerTreeWidget->clear();
 
@@ -167,7 +167,7 @@ void QgsSnappingDialog::on_cbxEnableIntersectionSnappingCheckBox_stateChanged( i
 
 void QgsSnappingDialog::onSnappingModeIndexChanged( int index )
 {
-  if ( index == 0 )
+  if ( index == 0 || index == 1 )
     mStackedWidget->setCurrentIndex( 0 );
   else
     mStackedWidget->setCurrentIndex( 1 );
@@ -182,7 +182,7 @@ void QgsSnappingDialog::initNewProject()
   QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapType", snapType );
   double tolerance = settings.value( "/qgis/digitizing/default_snapping_tolerance", 0 ).toDouble();
   QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapTolerance", tolerance );
-  int unit = settings.value( "/qgis/digitizing/default_snapping_tolerance_unit", 0 ).toInt();
+  int unit = settings.value( "/qgis/digitizing/default_snapping_tolerance_unit", QgsTolerance::ProjectUnits ).toInt();
   QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapToleranceUnit", unit );
 
   reload();
@@ -203,13 +203,19 @@ void QgsSnappingDialog::closeEvent( QCloseEvent* event )
 
 void QgsSnappingDialog::apply()
 {
-  QString snapMode = mSnapModeComboBox->currentIndex() == 0 ? "current_layer" : "advanced";
+  QString snapMode;
+  switch ( mSnapModeComboBox->currentIndex() )
+  {
+    case 0: snapMode = "current_layer"; break;
+    case 1: snapMode = "all_layers"; break;
+    default: snapMode = "advanced"; break;
+  }
   QgsProject::instance()->writeEntry( "Digitizing", "/SnappingMode", snapMode );
 
   QString snapType = mDefaultSnapToComboBox->itemData( mDefaultSnapToComboBox->currentIndex() ).toString();
   QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapType", snapType );
   QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapTolerance", mDefaultSnappingToleranceSpinBox->value() );
-  QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapToleranceUnit", mDefaultSnappingToleranceComboBox->currentIndex() );
+  QgsProject::instance()->writeEntry( "Digitizing", "/DefaultSnapToleranceUnit", mDefaultSnappingToleranceComboBox->currentIndex() == 1 ? QgsTolerance::Pixels : QgsTolerance::ProjectUnits );
 
 
   QStringList layerIdList;
@@ -308,7 +314,7 @@ void QgsSnappingDialog::addLayer( QgsMapLayer *theMapLayer )
   QSettings myQsettings;
   bool myDockFlag = myQsettings.value( "/qgis/dockSnapping", false ).toBool();
   double defaultSnappingTolerance = myQsettings.value( "/qgis/digitizing/default_snapping_tolerance", 0 ).toDouble();
-  int defaultSnappingUnit = myQsettings.value( "/qgis/digitizing/default_snapping_tolerance_unit", 0 ).toInt();
+  int defaultSnappingUnit = myQsettings.value( "/qgis/digitizing/default_snapping_tolerance_unit", QgsTolerance::ProjectUnits ).toInt();
   QString defaultSnappingString = myQsettings.value( "/qgis/digitizing/default_snap_mode", "to vertex" ).toString();
 
   int defaultSnappingStringIdx = 0;
@@ -360,8 +366,9 @@ void QgsSnappingDialog::addLayer( QgsMapLayer *theMapLayer )
 
   //snap to vertex/ snap to segment
   QComboBox *cbxUnits = new QComboBox( mLayerTreeWidget );
-  cbxUnits->insertItem( 0, tr( "map units" ) );
+  cbxUnits->insertItem( 0, tr( "layer units" ) );
   cbxUnits->insertItem( 1, tr( "pixels" ) );
+  cbxUnits->insertItem( 2, tr( "map units" ) );
   cbxUnits->setCurrentIndex( defaultSnappingUnit );
   mLayerTreeWidget->setItemWidget( item, 4, cbxUnits );
 
@@ -486,7 +493,9 @@ void QgsSnappingDialog::setSnappingMode()
   QString snapMode = QgsProject::instance()->readEntry( "Digitizing", "/SnappingMode" );
   if ( snapMode == "current_layer" )
     mSnapModeComboBox->setCurrentIndex( 0 );
-  else // "advanced" or empty (backward compatibility)
+  else if ( snapMode == "all_layers" )
     mSnapModeComboBox->setCurrentIndex( 1 );
+  else // "advanced" or empty (backward compatibility)
+    mSnapModeComboBox->setCurrentIndex( 2 );
 }
 

@@ -17,15 +17,18 @@
  ***************************************************************************/
 
 
-#include <qgsapplication.h>
-#include <qgsdatasourceuri.h>
-#include <qgsgeometry.h>
-#include <qgsmaplayer.h>
-#include <qgsmaplayerregistry.h>
-#include <qgsofflineediting.h>
-#include <qgsproject.h>
-#include <qgsvectordataprovider.h>
-#include <qgsvectorlayereditbuffer.h>
+#include "qgsapplication.h"
+#include "qgsdatasourceuri.h"
+#include "qgsgeometry.h"
+#include "qgslayertreegroup.h"
+#include "qgslayertreelayer.h"
+#include "qgsmaplayer.h"
+#include "qgsmaplayerregistry.h"
+#include "qgsofflineediting.h"
+#include "qgsproject.h"
+#include "qgsvectordataprovider.h"
+#include "qgsvectorlayereditbuffer.h"
+#include "qgsvectorlayerjoinbuffer.h"
 
 #include <QDir>
 #include <QDomDocument>
@@ -85,14 +88,71 @@ bool QgsOfflineEditing::convertToOfflineProject( const QString& offlineDataPath,
 
       emit progressStarted();
 
+      QMap<QString, QgsVectorJoinList > joinInfoBuffer;
+      QMap<QString, QgsVectorLayer*> layerIdMapping;
+
+      for ( int i = 0; i < layerIds.count(); i++ )
+      {
+        QgsMapLayer* layer = QgsMapLayerRegistry::instance()->mapLayer( layerIds.at( i ) );
+        QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( layer );
+        QgsVectorJoinList joins = vl->vectorJoins();
+
+        // Layer names will be appended an _offline suffix
+        // Join fields are prefixed with the layer name and we do not want the
+        // field name to change so we stabilize the field name by defining a
+        // custom prefix with the layername without _offline suffix.
+        QgsVectorJoinList::iterator it = joins.begin();
+        while ( it != joins.end() )
+        {
+          if (( *it ).prefix.isNull() )
+          {
+            QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer(( *it ).joinLayerId ) );
+
+            if ( vl )
+              ( *it ).prefix = vl->name() + "_";
+          }
+          ++it;
+        }
+        joinInfoBuffer.insert( vl->id(), joins );
+      }
+
       // copy selected vector layers to SpatiaLite
       for ( int i = 0; i < layerIds.count(); i++ )
       {
         emit layerProgressUpdated( i + 1, layerIds.count() );
 
         QgsMapLayer* layer = QgsMapLayerRegistry::instance()->mapLayer( layerIds.at( i ) );
-        copyVectorLayer( qobject_cast<QgsVectorLayer*>( layer ), db, dbPath );
+        QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( layer );
+        QString origLayerId = vl->id();
+        QgsVectorLayer* newLayer = copyVectorLayer( vl, db, dbPath );
+
+        if ( newLayer )
+        {
+          layerIdMapping.insert( origLayerId, newLayer );
+        }
       }
+
+      // restore join info on new spatialite layer
+      QMap<QString, QgsVectorJoinList >::ConstIterator it;
+      for ( it = joinInfoBuffer.constBegin(); it != joinInfoBuffer.constEnd(); ++it )
+      {
+        QgsVectorLayer* newLayer = layerIdMapping.value( it.key() );
+
+        if ( newLayer )
+        {
+          Q_FOREACH ( QgsVectorJoinInfo join, it.value() )
+          {
+            QgsVectorLayer* newJoinedLayer = layerIdMapping.value( join.joinLayerId );
+            if ( newJoinedLayer )
+            {
+              // If the layer has been offline'd, update join information
+              join.joinLayerId = newJoinedLayer->id();
+            }
+            newLayer->addJoin( join );
+          }
+        }
+      }
+
 
       emit progressStopped();
 
@@ -394,14 +454,14 @@ void QgsOfflineEditing::createLoggingTables( sqlite3* db )
   */
 }
 
-void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, const QString& offlineDbPath )
+QgsVectorLayer* QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, const QString& offlineDbPath )
 {
-  if ( layer == NULL )
+  if ( layer == 0 )
   {
-    return;
+    return 0;
   }
 
-  QString tableName = layer->name();
+  QString tableName = layer->id();
 
   // create table
   QString sql = QString( "CREATE TABLE '%1' (" ).arg( tableName );
@@ -425,7 +485,7 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
     }
     else
     {
-      showWarning( tr( "Unknown data type %1" ).arg( type ) );
+      showWarning( tr( "%1: Unknown data type %2. Not using type affinity for thie field." ).arg( fields[idx].name() ).arg( QVariant::typeToName( type ) ) );
     }
 
     sql += delim + QString( "'%1' %2" ).arg( fields[idx].name() ).arg( dataType );
@@ -487,7 +547,7 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
     QgsVectorLayer* newLayer = new QgsVectorLayer( QString( "dbname='%1' table='%2'%3 sql=" )
         .arg( offlineDbPath )
         .arg( tableName ).arg( layer->hasGeometryType() ? "(Geometry)" : "" ),
-        tableName + " (offline)", "spatialite" );
+        layer->name() + " (offline)", "spatialite" );
     if ( newLayer->isValid() )
     {
       // mark as offline layer
@@ -509,13 +569,27 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
       QgsMapLayerRegistry::instance()->addMapLayers(
         QList<QgsMapLayer *>() << newLayer );
 
+      QgsLayerTreeGroup* layerTreeRoot = QgsProject::instance()->layerTreeRoot();
+      // Find the parent group of the original layer
+      QgsLayerTreeLayer* layerTreeLayer = layerTreeRoot->findLayer( layer->id() );
+      QgsLayerTreeGroup* parentTreeGroup = qobject_cast<QgsLayerTreeGroup*>( layerTreeLayer->parent() );
+      if ( parentTreeGroup )
+      {
+        int index = parentTreeGroup->children().indexOf( layerTreeLayer );
+        // Move the new layer from the root group to the new group
+        QgsLayerTreeLayer* newLayerTreeLayer = layerTreeRoot->findLayer( newLayer->id() );
+        QgsLayerTreeNode* newLayerTreeLayerClone = newLayerTreeLayer->clone();
+        QgsLayerTreeGroup* grp = qobject_cast<QgsLayerTreeGroup*>( newLayerTreeLayer->parent() );
+        parentTreeGroup->insertChildNode( index, newLayerTreeLayerClone );
+        if ( grp )
+          grp->removeChildNode( newLayerTreeLayer );
+      }
+
       if ( hasLabels )
       {
         // NOTE: copy symbology of layers with labels enabled after adding to project, as it will crash otherwise (WORKAROUND)
         copySymbology( layer, newLayer );
       }
-
-      // TODO: layer order
 
       // copy features
       newLayer->startEditing();
@@ -524,9 +598,9 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
       // NOTE: force feature recount for PostGIS layer, else only visible features are counted, before iterating over all features (WORKAROUND)
       layer->setSubsetString( "" );
 
-      QgsFeatureIterator fit = layer->getFeatures();
+      QgsFeatureIterator fit = layer->dataProvider()->getFeatures();
 
-      emit progressModeSet( QgsOfflineEditing::CopyFeatures, layer->featureCount() );
+      emit progressModeSet( QgsOfflineEditing::CopyFeatures, layer->dataProvider()->featureCount() );
       int featureCount = 1;
 
       QList<QgsFeatureId> remoteFeatureIds;
@@ -551,7 +625,7 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
       }
       if ( newLayer->commitChanges() )
       {
-        emit progressModeSet( QgsOfflineEditing::ProcessFeatures, layer->featureCount() );
+        emit progressModeSet( QgsOfflineEditing::ProcessFeatures, layer->dataProvider()->featureCount() );
         featureCount = 1;
 
         // update feature id lookup
@@ -583,7 +657,9 @@ void QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlite3* db, con
       QgsMapLayerRegistry::instance()->removeMapLayers(
         QStringList() << layer->id() );
     }
+    return newLayer;
   }
+  return 0;
 }
 
 void QgsOfflineEditing::applyAttributesAdded( QgsVectorLayer* remoteLayer, sqlite3* db, int layerId, int commitNo )
@@ -781,17 +857,15 @@ void QgsOfflineEditing::updateFidLookup( QgsVectorLayer* remoteLayer, sqlite3* d
   }
 }
 
-void QgsOfflineEditing::copySymbology( const QgsVectorLayer* sourceLayer, QgsVectorLayer* targetLayer )
+void QgsOfflineEditing::copySymbology( QgsVectorLayer* sourceLayer, QgsVectorLayer* targetLayer )
 {
   QString error;
   QDomDocument doc;
-  QDomElement node = doc.createElement( "symbology" );
-  doc.appendChild( node );
-  sourceLayer->writeSymbology( node, doc, error );
+  sourceLayer->exportNamedStyle( doc, error );
 
   if ( error.isEmpty() )
   {
-    targetLayer->readSymbology( node, error );
+    targetLayer->importNamedStyle( doc, error );
   }
   if ( !error.isEmpty() )
   {
@@ -817,7 +891,7 @@ QMap<int, int> QgsOfflineEditing::attributeLookup( QgsVectorLayer* offlineLayer,
 
 void QgsOfflineEditing::showWarning( const QString& message )
 {
-  QMessageBox::warning( NULL, tr( "Offline Editing Plugin" ), message );
+  emit warning( tr( "Offline Editing Plugin" ), message );
 }
 
 sqlite3* QgsOfflineEditing::openLoggingDb()

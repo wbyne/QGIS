@@ -5,22 +5,29 @@
 
 class QgsMapCanvas;
 
+class QProgressDialog;
+
 /** Snapping utils instance that is connected to a canvas and updates the configuration
  *  (map settings + current layer) whenever that is changed in the canvas.
  *  @note added in 2.8
  */
 class GUI_EXPORT QgsMapCanvasSnappingUtils : public QgsSnappingUtils
 {
-  Q_OBJECT
-public:
-  QgsMapCanvasSnappingUtils( QgsMapCanvas* canvas, QObject* parent = 0 );
+    Q_OBJECT
+  public:
+    QgsMapCanvasSnappingUtils( QgsMapCanvas* canvas, QObject* parent = 0 );
 
-private slots:
-  void canvasMapSettingsChanged();
-  void canvasCurrentLayerChanged();
+  protected:
+    virtual void prepareIndexStarting( int count ) override;
+    virtual void prepareIndexProgress( int index ) override;
 
-private:
-  QgsMapCanvas* mCanvas;
+  private slots:
+    void canvasMapSettingsChanged();
+    void canvasCurrentLayerChanged();
+
+  private:
+    QgsMapCanvas* mCanvas;
+    QProgressDialog* mProgress;
 };
 
 

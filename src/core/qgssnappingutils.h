@@ -73,8 +73,9 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     //! modes for "snap to background"
     enum SnapToMapMode
     {
-      SnapCurrentLayer,    //!< snap just to current layer (tolerance+type from QSettings)
-      SnapPerLayerConfig,  //!< snap according to the configuration set in setLayers()
+      SnapCurrentLayer,    //!< snap just to current layer (tolerance and type from defaultSettings())
+      SnapAllLayers,       //!< snap to all rendered layers (tolerance and type from defaultSettings())
+      SnapAdvanced,        //!< snap according to the configuration set in setLayers()
     };
 
     /** Set how the snapping to map is done */
@@ -123,6 +124,12 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     /** Read snapping configuration from the project */
     void readConfigFromProject();
 
+  protected:
+    //! Called when starting to index - can be overridden and e.g. progress dialog can be provided
+    virtual void prepareIndexStarting( int count ) { Q_UNUSED( count ); }
+    //! Called when finished indexing a layer. When index == count the indexing is complete
+    virtual void prepareIndexProgress( int index ) { Q_UNUSED( index ); }
+
   private slots:
     void onLayersWillBeRemoved( QStringList layerIds );
 
@@ -137,6 +144,11 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     QgsPointLocator* locatorForLayerUsingStrategy( QgsVectorLayer* vl, const QgsPoint& pointMap, double tolerance );
     //! return a temporary locator with index only for a small area (will be replaced by another one on next request)
     QgsPointLocator* temporaryLocatorForLayer( QgsVectorLayer* vl, const QgsPoint& pointMap, double tolerance );
+
+    //! find out whether the strategy would index such layer or just use a temporary locator
+    bool willUseIndex( QgsVectorLayer* vl ) const;
+    //! initialize index for layers where it makes sense (according to the indexing strategy)
+    void prepareIndex( const QList<QgsVectorLayer*>& layers );
 
   private:
     // environment
@@ -158,6 +170,8 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     LocatorsMap mLocators;
     //! temporary locators (indexing just a part of layers). owned by the instance
     LocatorsMap mTemporaryLocators;
+    //! list of layer IDs that are too large to be indexed (hybrid strategy will use temporary locators for those)
+    QSet<QString> mHybridNonindexableLayers;
 };
 
 

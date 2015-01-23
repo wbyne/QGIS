@@ -876,11 +876,13 @@ bool QgsProject::read()
     emit oldProjectVersionWarning( fileVersion.text() );
     QgsDebugMsg( "Emitting oldProjectVersionWarning(oldVersion)." );
 
-    projectFile.dump();
+    // Commented out by Tim  - overly verbose on console
+    // projectFile.dump();
 
     projectFile.updateRevision( thisVersion );
 
-    projectFile.dump();
+    // Commented out by Tim  - overly verbose on console
+    // projectFile.dump();
 
   }
 
@@ -1929,7 +1931,7 @@ void QgsProject::setSnapSettingsForLayer( const QString& layerId, bool enabled, 
   snapTypeList.append( typeString );
 
   //units
-  toleranceUnitList.append( unit == QgsTolerance::Pixels ? "1" : "0" );
+  toleranceUnitList.append( QString::number( unit ) );
 
   //tolerance
   toleranceList.append( QString::number( tolerance ) );
@@ -1991,9 +1993,13 @@ bool QgsProject::snapSettingsForLayer( const QString& layerId, bool& enabled, Qg
   {
     units = QgsTolerance::Pixels;
   }
+  else if ( toleranceUnitList.at( idx ) == "2" )
+  {
+    units = QgsTolerance::ProjectUnits;
+  }
   else
   {
-    units = QgsTolerance::MapUnits;
+    units = QgsTolerance::LayerUnits;
   }
 
   //tolerance

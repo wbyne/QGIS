@@ -11,8 +11,22 @@ class QgsSymbolLayerV2Widget : QWidget
     virtual void setSymbolLayer( QgsSymbolLayerV2* layer ) = 0;
     virtual QgsSymbolLayerV2* symbolLayer() = 0;
 
+  protected:
+
+    void registerDataDefinedButton( QgsDataDefinedButton * button, const QString & propertyName, QgsDataDefinedButton::DataType type, const QString & description );
+
+    /** Get label for data defined entry.
+     * Implemented only for 'size' of marker symbols
+     * @note added in 2.1
+     */
+    virtual QString dataDefinedPropertyLabel( const QString &entryName );
+
   signals:
     void changed();
+
+  protected slots:
+    void updateDataDefinedProperty();
+
 };
 
 ///////////
@@ -42,7 +56,6 @@ class QgsSimpleLineSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void on_mPenWidthUnitWidget_changed();
     void on_mOffsetUnitWidget_changed();
     void on_mDashPatternUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
     void on_mDrawInsideCheckBox_stateChanged( int state );
 
   protected:
@@ -77,7 +90,6 @@ class QgsSimpleMarkerSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void on_mSizeUnitWidget_changed();
     void on_mOffsetUnitWidget_changed();
     void on_mOutlineWidthUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
     void on_mOutlineStyleComboBox_currentIndexChanged( int index );
     void on_mOutlineWidthSpinBox_valueChanged( double d );
     void on_mHorizontalAnchorComboBox_currentIndexChanged( int index );
@@ -110,7 +122,6 @@ class QgsSimpleFillSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void offsetChanged();
     void on_mBorderWidthUnitWidget_changed();
     void on_mOffsetUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
 };
 
 
@@ -141,7 +152,6 @@ class QgsGradientFillSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void offsetChanged();
     void referencePointChanged();
     void on_mOffsetUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
     void colorModeChanged();
     void on_mSpinAngle_valueChanged( double value );
 };
@@ -174,7 +184,6 @@ class QgsShapeburstFillSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void on_mButtonEditRamp_clicked();
     void offsetChanged();
     void on_mOffsetUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
     void on_mIgnoreRingsCheckBox_stateChanged( int state );
 };
 
@@ -204,8 +213,6 @@ class QgsMarkerLineSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void on_mIntervalUnitWidget_changed();
     void on_mOffsetUnitWidget_changed();
     void on_mOffsetAlongLineUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
-
 };
 
 
@@ -241,10 +248,8 @@ class QgsSvgMarkerSymbolLayerV2Widget : QgsSymbolLayerV2Widget
     void on_mSizeUnitWidget_changed();
     void on_mBorderWidthUnitWidget_changed();
     void on_mOffsetUnitWidget_changed();
-    void on_mDataDefinedPropertiesButton_clicked();
     void on_mHorizontalAnchorComboBox_currentIndexChanged( int index );
     void on_mVerticalAnchorComboBox_currentIndexChanged( int index );
-
 
   protected:
 

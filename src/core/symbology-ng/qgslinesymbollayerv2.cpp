@@ -187,6 +187,8 @@ QgsSymbolLayerV2* QgsSimpleLineSymbolLayerV2::create( const QgsStringMap& props 
     l->setDataDefinedProperty( "joinstyle", props["joinstyle_expression"] );
   if ( props.contains( "capstyle_expression" ) )
     l->setDataDefinedProperty( "capstyle", props["capstyle_expression"] );
+  if ( props.contains( "line_style_expression" ) )
+    l->setDataDefinedProperty( "line_style", props["line_style_expression"] );
 
   return l;
 }
@@ -534,6 +536,14 @@ void QgsSimpleLineSymbolLayerV2::applyDataDefinedSymbology( QgsSymbolV2RenderCon
     pen.setDashPattern( dashVector );
   }
 
+  //line style
+  QgsExpression* lineStyleExpression = expression( "line_style" );
+  if ( lineStyleExpression )
+  {
+    QString lineStyleString = lineStyleExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toString();
+    pen.setStyle( QgsSymbolLayerV2Utils::decodePenStyle( lineStyleString ) );
+  }
+
   //join style
   QgsExpression* joinStyleExpression = expression( "joinstyle" );
   if ( joinStyleExpression )
@@ -599,6 +609,17 @@ QColor QgsSimpleLineSymbolLayerV2::dxfColor( const QgsSymbolV2RenderContext& con
     return ( QgsSymbolLayerV2Utils::decodeColor( strokeColorExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toString() ) );
   }
   return mColor;
+}
+
+double QgsSimpleLineSymbolLayerV2::dxfOffset( const QgsDxfExport& e, const QgsSymbolV2RenderContext& context ) const
+{
+  double offset = mOffset;
+  QgsExpression* offsetExpression = expression( "offset" );
+  if ( offsetExpression )
+  {
+    offset = offsetExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toDouble();
+  }
+  return offset;
 }
 
 /////////
