@@ -20,6 +20,7 @@
 #include <QObject>
 #include <QtTest/QtTest>
 #include "qgsrenderchecker.h"
+#include "qgssymbollayerv2utils.h"
 
 class TestQgsImageOperation : public QObject
 {
@@ -63,14 +64,17 @@ class TestQgsImageOperation : public QObject
     void distanceTransformMaxDist();
     void distanceTransformSetSpread();
     void distanceTransformInterior();
+    void distanceTransformMisc();
 
     //stack blur
     void stackBlur();
+    void stackBlurPremultiplied();
     void alphaOnlyBlur();
 
     //gaussian blur
     void gaussianBlur();
     void gaussianBlurSmall();
+    void gaussianBlurNoChange();
 
     //flip
     void flipHorizontal();
@@ -320,6 +324,31 @@ void TestQgsImageOperation::distanceTransformInterior()
   QVERIFY( result );
 }
 
+void TestQgsImageOperation::distanceTransformMisc()
+{
+  //no ramp
+  QImage image( mSampleImage );
+  QgsImageOperation::DistanceTransformProperties props;
+  props.useMaxDistance = true;
+  props.ramp = NULL;
+  props.shadeExterior = false;
+  QgsImageOperation::distanceTransform( image, props );
+  bool result = imageCheck( QString( "imageop_nochange" ), image, 0 );
+  QVERIFY( result );
+
+  //zero spread
+  QImage image2( mSampleImage );
+  QgsImageOperation::DistanceTransformProperties props2;
+  QgsVectorGradientColorRampV2 ramp;
+  props2.useMaxDistance = false;
+  props2.spread = 0;
+  props2.ramp = &ramp;
+  props2.shadeExterior = false;
+  QgsImageOperation::distanceTransform( image2, props2 );
+  result = imageCheck( QString( "imageop_zerospread" ), image2, 0 );
+  QVERIFY( result );
+}
+
 void TestQgsImageOperation::stackBlur()
 {
   QImage image( mSampleImage );
@@ -327,6 +356,18 @@ void TestQgsImageOperation::stackBlur()
 
   bool result = imageCheck( QString( "imageop_stackblur" ), image, 0 );
   QVERIFY( result );
+  QCOMPARE( image.format(), QImage::Format_ARGB32 );
+}
+
+void TestQgsImageOperation::stackBlurPremultiplied()
+{
+  QImage image( mSampleImage );
+  image = image.convertToFormat( QImage::Format_ARGB32_Premultiplied );
+  QgsImageOperation::stackBlur( image, 10 );
+
+  bool result = imageCheck( QString( "imageop_stackblur" ), image, 0 );
+  QVERIFY( result );
+  QCOMPARE( image.format(), QImage::Format_ARGB32_Premultiplied );
 }
 
 void TestQgsImageOperation::alphaOnlyBlur()
@@ -336,6 +377,15 @@ void TestQgsImageOperation::alphaOnlyBlur()
 
   bool result = imageCheck( QString( "imageop_stackblur_alphaonly" ), image, 0 );
   QVERIFY( result );
+  QCOMPARE( image.format(), QImage::Format_ARGB32 );
+
+  QImage premultImage( QString( TEST_DATA_DIR ) + QDir::separator() +  "small_sample_image.png" );
+  premultImage = premultImage.convertToFormat( QImage::Format_ARGB32_Premultiplied );
+  QgsImageOperation::stackBlur( premultImage, 10, true );
+
+  result = imageCheck( QString( "imageop_stackblur_alphaonly" ), premultImage, 0 );
+  QVERIFY( result );
+  QCOMPARE( premultImage.format(), QImage::Format_ARGB32_Premultiplied );
 }
 
 void TestQgsImageOperation::gaussianBlur()
@@ -344,6 +394,7 @@ void TestQgsImageOperation::gaussianBlur()
   QImage* blurredImage = QgsImageOperation::gaussianBlur( image, 30 );
 
   bool result = imageCheck( QString( "imageop_gaussianblur" ), *blurredImage, 0 );
+  QCOMPARE( blurredImage->format(), QImage::Format_ARGB32 );
   delete blurredImage;
   QVERIFY( result );
 }
@@ -352,9 +403,22 @@ void TestQgsImageOperation::gaussianBlur()
 void TestQgsImageOperation::gaussianBlurSmall()
 {
   QImage image( QString( TEST_DATA_DIR ) + QDir::separator() +  "small_sample_image.png" );
+  image = image.convertToFormat( QImage::Format_ARGB32_Premultiplied );
+
   QImage* blurredImage = QgsImageOperation::gaussianBlur( image, 10 );
 
+  QCOMPARE( blurredImage->format(), QImage::Format_ARGB32_Premultiplied );
   bool result = imageCheck( QString( "imageop_gaussianblur_small" ), *blurredImage, 0 );
+  delete blurredImage;
+  QVERIFY( result );
+}
+
+void TestQgsImageOperation::gaussianBlurNoChange()
+{
+  QImage image( mSampleImage );
+  QImage* blurredImage = QgsImageOperation::gaussianBlur( image, 0 );
+
+  bool result = imageCheck( QString( "imageop_nochange" ), *blurredImage, 0 );
   delete blurredImage;
   QVERIFY( result );
 }
@@ -397,7 +461,7 @@ bool TestQgsImageOperation::imageCheck( QString testName, QImage &image, int mis
   QgsRenderChecker checker;
   checker.setControlName( "expected_" + testName );
   checker.setRenderedImage( fileName );
-  checker.setColorTolerance( 1 );
+  checker.setColorTolerance( 2 );
   bool resultFlag = checker.compareImages( testName, mismatchCount );
   mReport += checker.report();
   return resultFlag;

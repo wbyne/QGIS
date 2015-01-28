@@ -90,7 +90,16 @@ namespace QgisGui
     call.  The regular express, glob, will have both all lower and upper
     case versions added.
   */
-  QString createFileFilter_( QString const &longName, QString const &glob );
+  QString GUI_EXPORT createFileFilter_( QString const &longName, QString const &glob );
+
+  /**
+   * Create file filters suitable for use with QFileDialog
+   *
+   * @param format extension e.g. "png"
+   * @return QString e.g. "PNG format (*.png, *.PNG)"
+   */
+  QString GUI_EXPORT createFileFilter_( QString const &format );
+
 }
 
 #endif
