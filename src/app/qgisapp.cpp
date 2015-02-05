@@ -715,6 +715,10 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     // enable Python in the Plugin Manager and pass the PythonUtils to it
     mPluginManager -> setPythonUtils( mPythonUtils );
   }
+  else
+  {
+    mActionShowPythonDialog->setVisible( false );
+  }
 
   mSplash->showMessage( tr( "Initializing file filters" ), Qt::AlignHCenter | Qt::AlignBottom );
   qApp->processEvents();
@@ -4953,13 +4957,13 @@ void QgisApp::saveAsRasterFile()
     // TODO: show error dialogs
     // TODO: this code should go somewhere else, but probably not into QgsRasterFileWriter
     // clone pipe/provider is not really necessary, ready for threads
-    QgsRasterPipe* pipe = 0;
+    QScopedPointer<QgsRasterPipe> pipe( 0 );
 
     if ( d.mode() == QgsRasterLayerSaveAsDialog::RawDataMode )
     {
       QgsDebugMsg( "Writing raw data" );
       //QgsDebugMsg( QString( "Writing raw data" ).arg( pos ) );
-      pipe = new QgsRasterPipe();
+      pipe.reset( new QgsRasterPipe() );
       if ( !pipe->set( rasterLayer->dataProvider()->clone() ) )
       {
         QgsDebugMsg( "Cannot set pipe provider" );
@@ -4993,12 +4997,11 @@ void QgisApp::saveAsRasterFile()
     {
       // clone the whole pipe
       QgsDebugMsg( "Writing rendered image" );
-      pipe = new QgsRasterPipe( *rasterLayer->pipe() );
+      pipe.reset( new QgsRasterPipe( *rasterLayer->pipe() ) );
       QgsRasterProjector *projector = pipe->projector();
       if ( !projector )
       {
         QgsDebugMsg( "Cannot get pipe projector" );
-        delete pipe;
         return;
       }
       projector->setCRS( rasterLayer->crs(), d.outputCrs() );
@@ -5006,7 +5009,6 @@ void QgisApp::saveAsRasterFile()
 
     if ( !pipe->last() )
     {
-      delete pipe;
       return;
     }
     fileWriter.setCreateOptions( d.createOptions() );
@@ -5017,7 +5019,7 @@ void QgisApp::saveAsRasterFile()
     fileWriter.setPyramidsFormat( d.pyramidsFormat() );
     fileWriter.setPyramidsConfigOptions( d.pyramidsConfigOptions() );
 
-    QgsRasterFileWriter::WriterError err = fileWriter.writeRaster( pipe, d.nColumns(), d.nRows(), d.outputRectangle(), d.outputCrs(), &pd );
+    QgsRasterFileWriter::WriterError err = fileWriter.writeRaster( pipe.data(), d.nColumns(), d.nRows(), d.outputRectangle(), d.outputCrs(), &pd );
     if ( err != QgsRasterFileWriter::NoError )
     {
       QMessageBox::warning( this, tr( "Error" ),
@@ -5029,7 +5031,6 @@ void QgisApp::saveAsRasterFile()
     {
       emit layerSavedAs( rasterLayer, d.outputFileName() );
     }
-    delete pipe;
   }
 }
 

@@ -31,7 +31,7 @@ from processing.core.parameters import ParameterString
 from processing.core.parameters import ParameterSelection
 from processing.core.parameters import ParameterNumber
 from processing.core.outputs import OutputRaster
-from processing.tools.system import *
+from processing.tools.system import isWindows
 from processing.algs.gdal.GdalUtils import GdalUtils
 
 
@@ -46,8 +46,7 @@ class proximity(GdalAlgorithm):
     OUTPUT = 'OUTPUT'
     RTYPE = 'RTYPE'
 
-    TYPE = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64',
-            'CInt16', 'CInt32', 'CFloat32', 'CFloat64']
+    TYPE = ['Byte', 'Int16', 'UInt16', 'UInt32', 'Int32', 'Float32', 'Float64']
 
     DISTUNITS = ['GEO', 'PIXEL']
 

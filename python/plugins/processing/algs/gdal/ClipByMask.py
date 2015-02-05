@@ -25,10 +25,7 @@ __copyright__ = '(C) 2013, Alexander Bruy'
 
 __revision__ = '$Format:%H$'
 
-import os
-from PyQt4 import QtGui
 from osgeo import gdal
-from qgis.core import *
 
 from processing.algs.gdal.GdalAlgorithm import GdalAlgorithm
 
@@ -59,8 +56,8 @@ class ClipByMask(GdalAlgorithm):
         self.addParameter(ParameterVector(self.MASK, self.tr('Mask layer'),
                           [ParameterVector.VECTOR_TYPE_POLYGON]))
         self.addParameter(ParameterString(self.NO_DATA,
-            self.tr("Nodata value, leave as 'none' to take the nodata value from input"),
-            'none'))
+            self.tr("Nodata value, leave blank to take the nodata value from input"),
+            '-9999'))
         self.addParameter(ParameterBoolean(self.ALPHA_BAND,
             self.tr('Create and output alpha band'), False))
         self.addParameter(ParameterBoolean(self.KEEP_RESOLUTION,
@@ -81,8 +78,9 @@ class ClipByMask(GdalAlgorithm):
         arguments.append('-q')
         arguments.append('-of')
         arguments.append(GdalUtils.getFormatShortNameFromFilename(out))
-        arguments.append('-dstnodata')
-        arguments.append(noData)
+        if len(noData) > 0:
+            arguments.append('-dstnodata')
+            arguments.append(noData)
 
         if keepResolution:
             r = gdal.Open(self.getParameterValue(self.INPUT))

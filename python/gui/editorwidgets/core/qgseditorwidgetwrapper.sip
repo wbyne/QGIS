@@ -71,6 +71,14 @@ class QgsEditorWidgetWrapper : QObject
      */
     static QgsEditorWidgetWrapper* fromWidget( QWidget* widget );
 
+    /**
+     * Is used to enable or disable the edit functionality of the managed widget.
+     * By default this will enable or disable the whole widget
+     *
+     * @param enabled  Enable or Disable?
+     */
+    void setEnabled( bool enabled );
+
   protected:
     virtual QWidget* createWidget( QWidget* parent ) = 0;
 
@@ -101,8 +109,6 @@ class QgsEditorWidgetWrapper : QObject
      * @param value The new value of the attribute
      */
     virtual void setValue( const QVariant& value ) = 0;
-
-    virtual void setEnabled( bool enabled );
 
   protected slots:
     /**

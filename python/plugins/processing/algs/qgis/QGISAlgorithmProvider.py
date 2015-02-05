@@ -33,7 +33,7 @@ try:
 except:
     hasMatplotlib = False
 
-from PyQt4.QtGui import *
+from PyQt4.QtGui import QIcon
 
 from processing.core.AlgorithmProvider import AlgorithmProvider
 from processing.script.ScriptUtils import ScriptUtils
@@ -171,7 +171,7 @@ class QGISAlgorithmProvider(AlgorithmProvider):
                         SetVectorStyle(), SetRasterStyle(),
                         SelectByExpression(), HypsometricCurves(),
                         SplitLinesWithLines(), CreateConstantRaster(),
-                       ]
+                        ]
 
         if hasMatplotlib:
             from VectorLayerHistogram import VectorLayerHistogram
@@ -181,10 +181,11 @@ class QGISAlgorithmProvider(AlgorithmProvider):
             from BarPlot import BarPlot
             from PolarPlot import PolarPlot
 
-            self.alglist.extend([VectorLayerHistogram(), RasterLayerHistogram(),
+            self.alglist.extend([
+                VectorLayerHistogram(), RasterLayerHistogram(),
                 VectorLayerScatterplot(), MeanAndStdDevPlot(), BarPlot(),
                 PolarPlot(),
-                ])
+            ])
 
         folder = os.path.join(os.path.dirname(__file__), 'scripts')
         scripts = ScriptUtils.loadFromFolder(folder)

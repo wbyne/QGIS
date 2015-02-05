@@ -194,10 +194,14 @@ void QgsMapToolNodeTool::createTopologyRubberBands( QgsVectorLayer* vlayer, cons
 
       int movingPointIndex = 0;
       Vertexes* movingPoints = new Vertexes();
-      Vertexes* addedPoints = new Vertexes();
+      Vertexes* addedPoints = 0;
       if ( mTopologyMovingVertexes.contains( resultIt.value().snappedAtGeometry ) )
       {
         addedPoints = mTopologyMovingVertexes[ resultIt.value().snappedAtGeometry ];
+      }
+      else
+      {
+        addedPoints = new Vertexes();
       }
       if ( tVertex == -1 ) // adding first point if needed
       {
@@ -392,9 +396,7 @@ void QgsMapToolNodeTool::canvasPressEvent( QMouseEvent * e )
     // remove previous warning
     emit messageDiscarded();
 
-    QgsVectorLayer *vlayer = mSelectedFeature->vlayer();
-    Q_ASSERT( vlayer );
-    Q_UNUSED( vlayer );
+    Q_ASSERT( mSelectedFeature->vlayer() );
 
     // try to find a piece of currently selected geometry
     QgsFeatureIdFilter filterFid( mSelectedFeature->featureId() );
