@@ -51,6 +51,14 @@
 class TestQgsRasterLayer : public QObject
 {
     Q_OBJECT
+  public:
+    TestQgsRasterLayer()
+        : mpRasterLayer( 0 )
+        , mpLandsatRasterLayer( 0 )
+        , mpFloat32RasterLayer( 0 )
+
+    {}
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -369,6 +377,7 @@ void TestQgsRasterLayer::checkScaleOffset()
     mReport += QString( "raster layer %1 invalid" ).arg( myRasterFileInfo.filePath() );
     delete myRasterLayer;
     QVERIFY( false );
+    return;
   }
 
   QFile::remove( myRasterFileInfo.filePath() + ".aux.xml" ); // remove cached stats

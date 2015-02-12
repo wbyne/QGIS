@@ -28,11 +28,13 @@
 #include <QDomDocument>
 #include <QFileInfo>
 #include <QStringList>
+#include <QTextStream>
 #include <QUrl>
 
 QgsServerProjectParser::QgsServerProjectParser( QDomDocument* xmlDoc, const QString& filePath )
     : mXMLDoc( xmlDoc )
     , mProjectPath( filePath )
+    , mUseLayerIDs( false )
 {
   //accelerate the search for layers, groups and the creation of annotation items
   if ( mXMLDoc )
@@ -148,8 +150,9 @@ QgsMapLayer* QgsServerProjectParser::createLayerFromElement( const QDomElement& 
     return 0;
   }
 
-  addJoinLayersForElement( elem, useCache );
-  addValueRelationLayersForElement( elem, useCache );
+  addJoinLayersForElement( elem );
+  addValueRelationLayersForElement( elem );
+  addGetFeatureLayers( elem );
 
   QDomElement dataSourceElem = elem.firstChildElement( "datasource" );
   QString uri = dataSourceElem.text();
@@ -1366,7 +1369,7 @@ QStringList QgsServerProjectParser::wcsLayers() const
   return wcsList;
 }
 
-void QgsServerProjectParser::addJoinLayersForElement( const QDomElement& layerElem, bool useCache ) const
+void QgsServerProjectParser::addJoinLayersForElement( const QDomElement& layerElem ) const
 {
   QDomElement vectorJoinsElem = layerElem.firstChildElement( "vectorjoins" );
   if ( vectorJoinsElem.isNull() )
@@ -1383,7 +1386,7 @@ void QgsServerProjectParser::addJoinLayersForElement( const QDomElement& layerEl
   for ( int i = 0; i < joinNodeList.size(); ++i )
   {
     QString id = joinNodeList.at( i ).toElement().attribute( "joinLayerId" );
-    QgsMapLayer* layer = mapLayerFromLayerId( id, useCache );
+    QgsMapLayer* layer = mapLayerFromLayerId( id );
     if ( layer )
     {
       QgsMapLayerRegistry::instance()->addMapLayer( layer, false, false );
@@ -1391,7 +1394,7 @@ void QgsServerProjectParser::addJoinLayersForElement( const QDomElement& layerEl
   }
 }
 
-void QgsServerProjectParser::addValueRelationLayersForElement( const QDomElement& layerElem, bool useCache ) const
+void QgsServerProjectParser::addValueRelationLayersForElement( const QDomElement& layerElem ) const
 {
   QDomElement editTypesElem = layerElem.firstChildElement( "edittypes" );
   if ( editTypesElem.isNull() )
@@ -1413,7 +1416,7 @@ void QgsServerProjectParser::addValueRelationLayersForElement( const QDomElement
       QString relationAttribute = editTypeElem.attribute( "name" );
 #endif
 
-      QgsMapLayer* layer = mapLayerFromLayerId( layerId, useCache );
+      QgsMapLayer* layer = mapLayerFromLayerId( layerId );
       if ( layer )
       {
         QgsMapLayerRegistry::instance()->addMapLayer( layer, false, false );
@@ -1421,3 +1424,39 @@ void QgsServerProjectParser::addValueRelationLayersForElement( const QDomElement
     }
   }
 }
+
+void QgsServerProjectParser::addGetFeatureLayers( const QDomElement& layerElem ) const
+{
+  QString str;
+  QTextStream stream( &str );
+  layerElem.save( stream, 2 );
+
+  QRegExp rx( "getFeature\\('([^']*)'" );
+  int idx = 0;
+  while (( idx = rx.indexIn( str, idx ) ) != -1 )
+  {
+    QString name = rx.cap( 1 );
+    QgsMapLayer* ml = 0;
+    QHash< QString, QDomElement >::const_iterator layerElemIt = mProjectLayerElementsById.find( name );
+    if ( layerElemIt != mProjectLayerElementsById.constEnd() )
+    {
+      ml = createLayerFromElement( layerElemIt.value() );
+    }
+    else
+    {
+      layerElemIt = mProjectLayerElementsByName.find( name );
+      if ( layerElemIt != mProjectLayerElementsByName.constEnd() )
+      {
+        ml = createLayerFromElement( layerElemIt.value() );
+      }
+    }
+
+    if ( ml )
+    {
+      QgsMapLayerRegistry::instance()->addMapLayer( ml, false, false );
+    }
+    idx += rx.matchedLength();
+  }
+}
+
+

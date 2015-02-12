@@ -74,7 +74,14 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
     : QgsOptionsDialogBase( "VectorLayerProperties", parent, fl )
     , layer( lyr )
     , mMetadataFilled( false )
+    , mSaveAsMenu( 0 )
+    , mLoadStyleMenu( 0 )
     , mRendererDialog( 0 )
+    , labelingDialog( 0 )
+    , labelDialog( 0 )
+    , actionDialog( 0 )
+    , diagramPropertiesDialog( 0 )
+    , mFieldsPropertiesDialog( 0 )
 {
   setupUi( this );
   // QgsOptionsDialogBase handles saving/restoring of geometry, splitter and current tab states,
@@ -110,6 +117,9 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
   connect( htmlRadio, SIGNAL( toggled( bool ) ), fieldComboBox, SLOT( setEnabled( bool ) ) );
   connect( htmlRadio, SIGNAL( toggled( bool ) ), insertExpressionButton, SLOT( setEnabled( bool ) ) );
   connect( fieldComboRadio, SIGNAL( toggled( bool ) ), displayFieldComboBox, SLOT( setEnabled( bool ) ) );
+
+  if ( !layer )
+    return;
 
   QVBoxLayout *layout;
 
@@ -236,38 +246,35 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
   mDiagramFrame->layout()->addWidget( diagramPropertiesDialog );
 
   //layer title and abstract
-  if ( layer )
-  {
-    mLayerTitleLineEdit->setText( layer->title() );
-    mLayerAbstractTextEdit->setPlainText( layer->abstract() );
-    mLayerKeywordListLineEdit->setText( layer->keywordList() );
-    mLayerDataUrlLineEdit->setText( layer->dataUrl() );
-    mLayerDataUrlFormatComboBox->setCurrentIndex(
-      mLayerDataUrlFormatComboBox->findText(
-        layer->dataUrlFormat()
-      )
-    );
-    //layer attribution and metadataUrl
-    mLayerAttributionLineEdit->setText( layer->attribution() );
-    mLayerAttributionUrlLineEdit->setText( layer->attributionUrl() );
-    mLayerMetadataUrlLineEdit->setText( layer->metadataUrl() );
-    mLayerMetadataUrlTypeComboBox->setCurrentIndex(
-      mLayerMetadataUrlTypeComboBox->findText(
-        layer->metadataUrlType()
-      )
-    );
-    mLayerMetadataUrlFormatComboBox->setCurrentIndex(
-      mLayerMetadataUrlFormatComboBox->findText(
-        layer->metadataUrlFormat()
-      )
-    );
-    mLayerLegendUrlLineEdit->setText( layer->legendUrl() );
-    mLayerLegendUrlFormatComboBox->setCurrentIndex(
-      mLayerLegendUrlFormatComboBox->findText(
-        layer->legendUrlFormat()
-      )
-    );
-  }
+  mLayerTitleLineEdit->setText( layer->title() );
+  mLayerAbstractTextEdit->setPlainText( layer->abstract() );
+  mLayerKeywordListLineEdit->setText( layer->keywordList() );
+  mLayerDataUrlLineEdit->setText( layer->dataUrl() );
+  mLayerDataUrlFormatComboBox->setCurrentIndex(
+    mLayerDataUrlFormatComboBox->findText(
+      layer->dataUrlFormat()
+    )
+  );
+  //layer attribution and metadataUrl
+  mLayerAttributionLineEdit->setText( layer->attribution() );
+  mLayerAttributionUrlLineEdit->setText( layer->attributionUrl() );
+  mLayerMetadataUrlLineEdit->setText( layer->metadataUrl() );
+  mLayerMetadataUrlTypeComboBox->setCurrentIndex(
+    mLayerMetadataUrlTypeComboBox->findText(
+      layer->metadataUrlType()
+    )
+  );
+  mLayerMetadataUrlFormatComboBox->setCurrentIndex(
+    mLayerMetadataUrlFormatComboBox->findText(
+      layer->metadataUrlFormat()
+    )
+  );
+  mLayerLegendUrlLineEdit->setText( layer->legendUrl() );
+  mLayerLegendUrlFormatComboBox->setCurrentIndex(
+    mLayerLegendUrlFormatComboBox->findText(
+      layer->legendUrlFormat()
+    )
+  );
 
   QSettings settings;
   // if dialog hasn't been opened/closed yet, default to Styles tab, which is used most often
@@ -293,9 +300,12 @@ QgsVectorLayerProperties::~QgsVectorLayerProperties()
 
 void QgsVectorLayerProperties::toggleEditing()
 {
+  if ( !layer )
+    return;
+
   emit toggleEditing( layer );
 
-  pbnQueryBuilder->setEnabled( layer && layer->dataProvider() && layer->dataProvider()->supportsSubsetString() &&
+  pbnQueryBuilder->setEnabled( layer->dataProvider() && layer->dataProvider()->supportsSubsetString() &&
                                !layer->isEditable() && layer->vectorJoins().size() < 1 );
   if ( layer->isEditable() )
   {
@@ -381,7 +391,7 @@ void QgsVectorLayerProperties::syncToLayer( void )
   // on the builder. If the ability to enter a query directly into the box is required,
   // a mechanism to check it must be implemented.
   txtSubsetSQL->setEnabled( false );
-  pbnQueryBuilder->setEnabled( layer && layer->dataProvider() && layer->dataProvider()->supportsSubsetString() &&
+  pbnQueryBuilder->setEnabled( layer->dataProvider() && layer->dataProvider()->supportsSubsetString() &&
                                !layer->isEditable() && layer->vectorJoins().size() < 1 );
   if ( layer->isEditable() )
   {
@@ -396,7 +406,7 @@ void QgsVectorLayerProperties::syncToLayer( void )
     fieldComboBox->addItem( myFields[idx].name() );
   }
 
-  setDisplayField( layer-> displayField() );
+  setDisplayField( layer->displayField() );
 
   // set up the scale based layer visibility stuff....
   mScaleRangeWidget->setScaleRange( 1.0 / layer->maximumScale(), 1.0 / layer->minimumScale() ); // caution: layer uses scale denoms, widget uses true scales

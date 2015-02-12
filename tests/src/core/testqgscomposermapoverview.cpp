@@ -31,6 +31,14 @@
 class TestQgsComposerMapOverview : public QObject
 {
     Q_OBJECT
+
+  public:
+    TestQgsComposerMapOverview()
+        : mComposition( 0 )
+        , mComposerMap( 0 )
+        , mRasterLayer( 0 )
+    {}
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -127,7 +135,7 @@ void TestQgsComposerMapOverview::overviewMapRotated()
   overviewMap->overview()->setFrameMap( mComposerMap->id() );
   QgsCompositionChecker checker( "composermap_overview_rotated", mComposition );
 
-  bool testResult = checker.testComposition( mReport, 0, 0 );
+  bool testResult = checker.testComposition( mReport, 0, 600 );
   mComposition->removeComposerItem( overviewMap );
   mComposerMap->setMapRotation( 0 );
   QVERIFY( testResult );
@@ -144,7 +152,7 @@ void TestQgsComposerMapOverview::overviewMapRotated2()
   overviewMap->overview()->setFrameMap( mComposerMap->id() );
   QgsCompositionChecker checker( "composermap_overview_rotated2", mComposition );
 
-  bool testResult = checker.testComposition( mReport, 0, 0 );
+  bool testResult = checker.testComposition( mReport, 0, 600 );
   mComposition->removeComposerItem( overviewMap );
   QVERIFY( testResult );
 }

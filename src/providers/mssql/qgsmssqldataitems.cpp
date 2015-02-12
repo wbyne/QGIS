@@ -35,6 +35,9 @@
 // ---------------------------------------------------------------------------
 QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
+    , mUseGeometryColumns( false )
+    , mUseEstimatedMetadata( false )
+    , mAllowGeometrylessTables( true )
 {
   mCapabilities |= Fast;
   mIconName = "mIconConnect.png";
@@ -133,7 +136,7 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
   // issue the sql query
   QSqlQuery q = QSqlQuery( db );
   q.setForwardOnly( true );
-  q.exec( query );
+  ( void )q.exec( query );
 
   if ( q.isActive() )
   {
@@ -147,6 +150,7 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
       layer.srid = q.value( 3 ).toString();
       layer.type = q.value( 4 ).toString();
       layer.pkCols = QStringList(); //TODO
+      layer.isGeography = false;
 
       // skip layers which are added already
       bool skip = false;

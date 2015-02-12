@@ -74,6 +74,7 @@ QgsRelationReferenceWidget::QgsRelationReferenceWidget( QWidget* parent )
     , mEmbedForm( false )
     , mReadOnlySelector( false )
     , mAllowMapIdentification( false )
+    , mOrderByValue( false )
     , mOpenFormButtonVisible( true )
 {
   mTopLayout = new QVBoxLayout( this );
@@ -438,7 +439,7 @@ void QgsRelationReferenceWidget::init()
 
       qSort( cache.begin(), cache.end(), orderByLessThan );
 
-      Q_FOREACH( const ValueRelationItem& item, cache )
+      Q_FOREACH ( const ValueRelationItem& item, cache )
       {
         mComboBox->addItem( item.first.toString(), item.second );
 

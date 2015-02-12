@@ -233,12 +233,12 @@ void QgsOfflineEditing::synchronize()
 
       QgsVectorLayer* offlineLayer = qobject_cast<QgsVectorLayer*>( layer );
 
-      // copy style
-      copySymbology( offlineLayer, remoteLayer );
-
       // register this layer with the central layers registry
       QgsMapLayerRegistry::instance()->addMapLayers(
         QList<QgsMapLayer *>() << remoteLayer, true );
+
+      // copy style
+      copySymbology( offlineLayer, remoteLayer );
 
       // apply layer edit log
       QString qgisLayerId = layer->id();
@@ -557,6 +557,10 @@ QgsVectorLayer* QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlit
       newLayer->setCustomProperty( CUSTOM_PROPERTY_REMOTE_SOURCE, layer->source() );
       newLayer->setCustomProperty( CUSTOM_PROPERTY_REMOTE_PROVIDER, layer->providerType() );
 
+      // register this layer with the central layers registry
+      QgsMapLayerRegistry::instance()->addMapLayers(
+        QList<QgsMapLayer *>() << newLayer );
+
       // copy style
       bool hasLabels = layer->hasLabelsEnabled();
       if ( !hasLabels )
@@ -565,24 +569,23 @@ QgsVectorLayer* QgsOfflineEditing::copyVectorLayer( QgsVectorLayer* layer, sqlit
         copySymbology( layer, newLayer );
       }
 
-      // register this layer with the central layers registry
-      QgsMapLayerRegistry::instance()->addMapLayers(
-        QList<QgsMapLayer *>() << newLayer );
-
       QgsLayerTreeGroup* layerTreeRoot = QgsProject::instance()->layerTreeRoot();
       // Find the parent group of the original layer
       QgsLayerTreeLayer* layerTreeLayer = layerTreeRoot->findLayer( layer->id() );
-      QgsLayerTreeGroup* parentTreeGroup = qobject_cast<QgsLayerTreeGroup*>( layerTreeLayer->parent() );
-      if ( parentTreeGroup )
+      if ( layerTreeLayer )
       {
-        int index = parentTreeGroup->children().indexOf( layerTreeLayer );
-        // Move the new layer from the root group to the new group
-        QgsLayerTreeLayer* newLayerTreeLayer = layerTreeRoot->findLayer( newLayer->id() );
-        QgsLayerTreeNode* newLayerTreeLayerClone = newLayerTreeLayer->clone();
-        QgsLayerTreeGroup* grp = qobject_cast<QgsLayerTreeGroup*>( newLayerTreeLayer->parent() );
-        parentTreeGroup->insertChildNode( index, newLayerTreeLayerClone );
-        if ( grp )
-          grp->removeChildNode( newLayerTreeLayer );
+        QgsLayerTreeGroup* parentTreeGroup = qobject_cast<QgsLayerTreeGroup*>( layerTreeLayer->parent() );
+        if ( parentTreeGroup )
+        {
+          int index = parentTreeGroup->children().indexOf( layerTreeLayer );
+          // Move the new layer from the root group to the new group
+          QgsLayerTreeLayer* newLayerTreeLayer = layerTreeRoot->findLayer( newLayer->id() );
+          QgsLayerTreeNode* newLayerTreeLayerClone = newLayerTreeLayer->clone();
+          QgsLayerTreeGroup* grp = qobject_cast<QgsLayerTreeGroup*>( newLayerTreeLayer->parent() );
+          parentTreeGroup->insertChildNode( index, newLayerTreeLayerClone );
+          if ( grp )
+            grp->removeChildNode( newLayerTreeLayer );
+        }
       }
 
       if ( hasLabels )

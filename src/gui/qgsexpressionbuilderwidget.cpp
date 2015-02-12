@@ -30,6 +30,9 @@
 
 QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
     : QWidget( parent )
+    , mLayer( NULL )
+    , highlighter( NULL )
+    , mExpressionValid( false )
 {
   setupUi( this );
 
@@ -60,6 +63,7 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
 
   QSettings settings;
   splitter->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter" ).toByteArray() );
+  functionsplit->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/functionsplitter" ).toByteArray() );
 
   txtExpressionString->setFoldingVisible( false );
 
@@ -84,7 +88,7 @@ QgsExpressionBuilderWidget::~QgsExpressionBuilderWidget()
 {
   QSettings settings;
   settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter", splitter->saveState() );
-//  settings.setValue( "/windows/QgsExpressionBuilderWidget/splitter2", splitter_2->saveState() );
+  settings.setValue( "/windows/QgsExpressionBuilderWidget/functionsplitter", functionsplit->saveState() );
 }
 
 void QgsExpressionBuilderWidget::setLayer( QgsVectorLayer *layer )
@@ -270,6 +274,10 @@ void QgsExpressionBuilderWidget::fillFieldValues( int fieldIndex, int countLimit
 
   // TODO We should thread this so that we don't hold the user up if the layer is massive.
   mValueListWidget->clear();
+
+  if ( fieldIndex < 0 )
+    return;
+
   mValueListWidget->setUpdatesEnabled( false );
   mValueListWidget->blockSignals( true );
 
@@ -557,11 +565,12 @@ void QgsExpressionBuilderWidget::loadSampleValues()
   QgsExpressionItem* item = dynamic_cast<QgsExpressionItem*>( mModel->itemFromIndex( idx ) );
   // TODO We should really return a error the user of the widget that
   // the there is no layer set.
-  if ( !mLayer )
+  if ( !mLayer || !item )
     return;
 
   mValueGroupBox->show();
   int fieldIndex = mLayer->fieldNameIndex( item->text() );
+
   fillFieldValues( fieldIndex, 10 );
 }
 
@@ -571,7 +580,7 @@ void QgsExpressionBuilderWidget::loadAllValues()
   QgsExpressionItem* item = dynamic_cast<QgsExpressionItem*>( mModel->itemFromIndex( idx ) );
   // TODO We should really return a error the user of the widget that
   // the there is no layer set.
-  if ( !mLayer )
+  if ( !mLayer || !item )
     return;
 
   mValueGroupBox->show();

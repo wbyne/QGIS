@@ -524,15 +524,7 @@ QPolygonF canvasPolygon()
 
   const QgsMapCanvas& mapCanvas = canvas();
   const QgsMapSettings& mapSettings = mapCanvas.mapSettings();
-  const QSize& sz = mapSettings.outputSize();
-  const QgsMapToPixel& m2p = mapSettings.mapToPixel();
-
-  poly << m2p.toMapCoordinatesF( 0,          0 ).toQPointF();
-  poly << m2p.toMapCoordinatesF( sz.width(), 0 ).toQPointF();
-  poly << m2p.toMapCoordinatesF( sz.width(), sz.height() ).toQPointF();
-  poly << m2p.toMapCoordinatesF( 0,          sz.height() ).toQPointF();
-
-  return poly;
+  return mapSettings.visiblePolygon();
 }
 
 bool clipByRect( QLineF& line, const QPolygonF& rect )
@@ -836,7 +828,7 @@ bool QgsDecorationGrid::getIntervalFromCurrentLayer( double* values )
     return false;
   }
   QgsRasterLayer* rlayer = dynamic_cast<QgsRasterLayer*>( layer );
-  if ( !rlayer )
+  if ( !rlayer || rlayer->width() == 0 || rlayer->height() == 0 )
   {
     QMessageBox::warning( 0, tr( "Error" ), tr( "Invalid raster layer" ) );
     return false;

@@ -41,6 +41,9 @@
 QgsFieldsProperties::QgsFieldsProperties( QgsVectorLayer *layer, QWidget* parent )
     : QWidget( parent )
     , mLayer( layer )
+    , mDesignerTree( NULL )
+    , mFieldsList( NULL )
+    , mRelationsList( NULL )
 {
   if ( !layer )
     return;
@@ -162,6 +165,10 @@ QTreeWidgetItem *QgsFieldsProperties::loadAttributeEditorTreeItem( QgsAttributeE
       newWidget = mDesignerTree->addItem( parent, DesignerTreeItemData( DesignerTreeItemData::Container, widgetDef->name() ) );
 
       const QgsAttributeEditorContainer* container = dynamic_cast<const QgsAttributeEditorContainer*>( widgetDef );
+      if ( !container )
+      {
+        break;
+      }
 
       Q_FOREACH ( QgsAttributeEditorElement* wdg, container->children() )
       {
@@ -547,6 +554,9 @@ void QgsFieldsProperties::on_mDeleteAttributeButton_clicked()
     if ( item->column() == 0 )
     {
       int idx = mIndexedWidgets.indexOf( item );
+      if ( idx < 0 )
+        continue;
+
       if ( mLayer->pendingFields().fieldOrigin( idx ) == QgsFields::OriginExpression )
         expressionFields << idx;
       else
@@ -804,10 +814,15 @@ void QgsFieldsProperties::apply()
  */
 
 QgsFieldsProperties::FieldConfig::FieldConfig()
+    : mEditable( true )
+    , mEditableEnabled( true )
+    , mLabelOnTop( false )
+    , mButton( 0 )
 {
 }
 
 QgsFieldsProperties::FieldConfig::FieldConfig( QgsVectorLayer* layer, int idx )
+    : mButton( 0 )
 {
   mEditable = layer->fieldEditable( idx );
   mEditableEnabled = layer->pendingFields().fieldOrigin( idx ) != QgsFields::OriginJoin
@@ -815,6 +830,7 @@ QgsFieldsProperties::FieldConfig::FieldConfig( QgsVectorLayer* layer, int idx )
   mLabelOnTop = layer->labelOnTop( idx );
   mEditorWidgetV2Type = layer->editorWidgetV2( idx );
   mEditorWidgetV2Config = layer->editorWidgetV2Config( idx );
+
 }
 
 /*

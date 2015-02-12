@@ -534,7 +534,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
 
     struct ValueRelationData
     {
-      ValueRelationData() {}
+      ValueRelationData() : mAllowNull( false ), mOrderByValue( false ), mAllowMulti( false ) {}
       ValueRelationData( QString layer, QString key, QString value, bool allowNull, bool orderByValue,
                          bool allowMulti = false,
                          QString filterExpression = QString::null )
@@ -1773,12 +1773,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
 
     /** Layer transparency */
     int mLayerTransparency;
-
-    /**The current type of editing marker*/
-    QgsVectorLayer::VertexMarkerType mCurrentVertexMarkerType;
-
-    /** The current size of editing marker */
-    int mCurrentVertexMarkerSize;
 
     /** Flag if the vertex markers should be drawn only for selection (true) or for all features (false) */
     bool mVertexMarkerOnlyForSelection;

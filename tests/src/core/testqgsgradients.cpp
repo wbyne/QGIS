@@ -43,6 +43,16 @@
 class TestQgsGradients : public QObject
 {
     Q_OBJECT
+
+  public:
+    TestQgsGradients()
+        : mTestHasError( false )
+        , mpPolysLayer( 0 )
+        , mGradientFill( 0 )
+        , mFillSymbol( 0 )
+        , mSymbolRenderer( 0 )
+    {}
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.

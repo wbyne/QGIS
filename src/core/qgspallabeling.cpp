@@ -78,17 +78,21 @@ using namespace pal;
 // -------------
 
 QgsPalLayerSettings::QgsPalLayerSettings()
-    : palLayer( NULL )
+    : upsidedownLabels( Upright )
+    , palLayer( NULL )
     , mCurFeat( 0 )
     , mCurFields( 0 )
+    , xform( NULL )
     , ct( NULL )
     , extentGeom( NULL )
     , mFeaturesToLabel( 0 )
     , mFeatsSendingToPal( 0 )
     , mFeatsRegPal( 0 )
-    , expression( NULL )
+    , expression( 0 )
 {
   enabled = false;
+  isExpression = false;
+  fieldIndex = 0;
 
   // text style
   textFont = QApplication::font();
@@ -311,6 +315,18 @@ QgsPalLayerSettings::QgsPalLayerSettings()
 }
 
 QgsPalLayerSettings::QgsPalLayerSettings( const QgsPalLayerSettings& s )
+    : palLayer( NULL )
+    , mCurFeat( NULL )
+    , mCurFields( NULL )
+    , fieldIndex( 0 )
+    , xform( NULL )
+    , ct( NULL )
+    , extentGeom( NULL )
+    , mFeaturesToLabel( 0 )
+    , mFeatsSendingToPal( 0 )
+    , mFeatsRegPal( 0 )
+    , showingShadowRects( false )
+    , expression( NULL )
 {
   // copy only permanent stuff
 
@@ -443,10 +459,6 @@ QgsPalLayerSettings::QgsPalLayerSettings( const QgsPalLayerSettings& s )
   // scale factors
   vectorScaleFactor = s.vectorScaleFactor;
   rasterCompressFactor = s.rasterCompressFactor;
-
-  ct = NULL;
-  extentGeom = NULL;
-  expression = NULL;
 }
 
 
@@ -1437,10 +1449,12 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, const QgsRenderContext
   dataDefinedValues.clear();
 
   // data defined show label? defaults to show label if not 0
-  if ( dataDefinedEvaluate( QgsPalLayerSettings::Show, exprVal ) )
+  if ( dataDefinedIsActive( QgsPalLayerSettings::Show ) )
   {
-    QgsDebugMsgLevel( QString( "exprVal Show:%1" ).arg( exprVal.toBool() ? "true" : "false" ), 4 );
-    if ( !exprVal.toBool() )
+    bool showLabel = dataDefinedEvaluate( QgsPalLayerSettings::Show, exprVal );
+    showLabel = exprVal.toBool();
+    QgsDebugMsgLevel( QString( "exprVal Show:%1" ).arg( showLabel ? "true" : "false" ), 4 );
+    if ( !showLabel )
     {
       return;
     }

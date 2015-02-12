@@ -172,7 +172,7 @@ QgsDataItem::QgsDataItem( QgsDataItem::Type type, QgsDataItem* parent, QString n
 
 QgsDataItem::~QgsDataItem()
 {
-  QgsDebugMsgLevel( QString( "mName = %1 mPath = %2 mChildren.size() = %3" ).arg( mName ).arg( mPath ).arg( mChildren.size() ) , 2 );
+  QgsDebugMsgLevel( QString( "mName = %1 mPath = %2 mChildren.size() = %3" ).arg( mName ).arg( mPath ).arg( mChildren.size() ), 2 );
   foreach ( QgsDataItem *child, mChildren )
   {
     if ( !child ) // should not happen
@@ -659,6 +659,9 @@ bool QgsLayerItem::equal( const QgsDataItem *other )
   }
   //const QgsLayerItem *o = qobject_cast<const QgsLayerItem *> ( other );
   const QgsLayerItem *o = dynamic_cast<const QgsLayerItem *>( other );
+  if ( !o )
+    return false;
+
   return ( mPath == o->mPath && mName == o->mName && mUri == o->mUri && mProviderKey == o->mProviderKey );
 }
 

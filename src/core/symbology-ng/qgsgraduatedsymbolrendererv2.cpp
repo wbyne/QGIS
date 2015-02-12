@@ -38,6 +38,7 @@ QgsRendererRangeV2::QgsRendererRangeV2()
     , mUpperValue( 0 )
     , mSymbol( 0 )
     , mLabel()
+    , mRender( true )
 {
 }
 
@@ -284,6 +285,9 @@ QgsGraduatedSymbolRendererV2::QgsGraduatedSymbolRendererV2( QString attrName, Qg
     , mMode( Custom )
     , mInvertedColorRamp( false )
     , mScaleMethod( DEFAULT_SCALE_METHOD )
+    , mAttrNum( -1 )
+    , mCounting( false )
+
 {
   // TODO: check ranges for sanity (NULL symbols, invalid ranges)
 }
@@ -835,8 +839,6 @@ static QList<double> _calcJenksBreaks( QList<double> values, int classes,
     // for now, sample at least maximumSize values or a 10% sample, whichever
     // is larger. This will produce a more representative sample for very large
     // layers, but could end up being computationally intensive...
-
-    qsrand( time( 0 ) );
 
     sample.resize( qMax( maximumSize, values.size() / 10 ) );
 
@@ -1573,12 +1575,14 @@ QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::convertFromRenderer(
   if ( renderer->type() == "pointDisplacement" )
   {
     const QgsPointDisplacementRenderer* pointDisplacementRenderer = dynamic_cast<const QgsPointDisplacementRenderer*>( renderer );
-    return convertFromRenderer( pointDisplacementRenderer->embeddedRenderer() );
+    if ( pointDisplacementRenderer )
+      return convertFromRenderer( pointDisplacementRenderer->embeddedRenderer() );
   }
   if ( renderer->type() == "invertedPolygonRenderer" )
   {
     const QgsInvertedPolygonRenderer* invertedPolygonRenderer = dynamic_cast<const QgsInvertedPolygonRenderer*>( renderer );
-    return convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
+    if ( invertedPolygonRenderer )
+      return convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
   }
 
   // If not one of the specifically handled renderers, then just grab the symbol from the renderer

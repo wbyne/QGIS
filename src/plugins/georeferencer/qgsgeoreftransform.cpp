@@ -35,7 +35,7 @@ using std::pow;
 class QgsLinearGeorefTransform : public QgsGeorefTransformInterface
 {
   public:
-    QgsLinearGeorefTransform() {}
+    QgsLinearGeorefTransform() : mParameters() {}
     ~QgsLinearGeorefTransform() {}
 
     bool getOriginScale( QgsPoint &origin, double &scaleX, double &scaleY ) const;
@@ -62,7 +62,7 @@ class QgsLinearGeorefTransform : public QgsGeorefTransformInterface
 class QgsHelmertGeorefTransform : public QgsGeorefTransformInterface
 {
   public:
-    QgsHelmertGeorefTransform() {}
+    QgsHelmertGeorefTransform() : mHelmertParameters() {}
     struct HelmertParameters
     {
       QgsPoint origin;
@@ -115,7 +115,7 @@ class QgsGDALGeorefTransform : public QgsGeorefTransformInterface
 class QgsProjectiveGeorefTransform : public QgsGeorefTransformInterface
 {
   public:
-    QgsProjectiveGeorefTransform() {}
+    QgsProjectiveGeorefTransform() : mParameters() {}
     ~QgsProjectiveGeorefTransform() {}
 
     bool updateParametersFromGCPs( const std::vector<QgsPoint> &mapCoords, const std::vector<QgsPoint> &pixelCoords ) override;
@@ -294,7 +294,8 @@ bool QgsGeorefTransform::getLinearOriginScale( QgsPoint &origin, double &scaleX,
   {
     return false;
   }
-  return dynamic_cast<QgsLinearGeorefTransform *>( mGeorefTransformImplementation )->getOriginScale( origin, scaleX, scaleY );
+  QgsLinearGeorefTransform* transform = dynamic_cast<QgsLinearGeorefTransform *>( mGeorefTransformImplementation );
+  return transform && transform->getOriginScale( origin, scaleX, scaleY );
 }
 
 bool QgsGeorefTransform::getOriginScaleRotation( QgsPoint &origin, double &scaleX, double &scaleY, double& rotation ) const
@@ -303,12 +304,14 @@ bool QgsGeorefTransform::getOriginScaleRotation( QgsPoint &origin, double &scale
   if ( mTransformParametrisation == Linear )
   {
     rotation = 0.0;
-    return dynamic_cast<QgsLinearGeorefTransform *>( mGeorefTransformImplementation )->getOriginScale( origin, scaleX, scaleY );
+    QgsLinearGeorefTransform* transform = dynamic_cast<QgsLinearGeorefTransform *>( mGeorefTransformImplementation );
+    return transform && transform->getOriginScale( origin, scaleX, scaleY );
   }
   else if ( mTransformParametrisation == Helmert )
   {
     double scale;
-    if ( ! dynamic_cast<QgsHelmertGeorefTransform*>( mGeorefTransformImplementation )->getOriginScaleRotation( origin, scale, rotation ) )
+    QgsHelmertGeorefTransform* transform = dynamic_cast<QgsHelmertGeorefTransform*>( mGeorefTransformImplementation );
+    if ( !transform || ! transform->getOriginScaleRotation( origin, scale, rotation ) )
     {
       return false;
     }

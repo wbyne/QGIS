@@ -19,7 +19,9 @@
 #include "qgsvectorlayer.h"
 #include <QColorDialog>
 
-QgsEllipseSymbolLayerV2Widget::QgsEllipseSymbolLayerV2Widget( const QgsVectorLayer* vl, QWidget* parent ): QgsSymbolLayerV2Widget( parent, vl )
+QgsEllipseSymbolLayerV2Widget::QgsEllipseSymbolLayerV2Widget( const QgsVectorLayer* vl, QWidget* parent )
+    : QgsSymbolLayerV2Widget( parent, vl )
+    , mLayer( NULL )
 {
   setupUi( this );
 
@@ -69,7 +71,7 @@ QgsEllipseSymbolLayerV2Widget::QgsEllipseSymbolLayerV2Widget( const QgsVectorLay
 
 void QgsEllipseSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
 {
-  if ( layer->layerType() != "EllipseMarker" )
+  if ( layer && layer->layerType() != "EllipseMarker" )
   {
     return;
   }
@@ -91,18 +93,14 @@ void QgsEllipseSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
 
   //set combo entries to current values
   blockComboSignals( true );
-  if ( mLayer )
-  {
-    mSymbolWidthUnitWidget->setUnit( mLayer->symbolWidthUnit() );
-    mSymbolWidthUnitWidget->setMapUnitScale( mLayer->symbolWidthMapUnitScale() );
-    mOutlineWidthUnitWidget->setUnit( mLayer->outlineWidthUnit() );
-    mOutlineWidthUnitWidget->setMapUnitScale( mLayer->outlineWidthMapUnitScale() );
-    mSymbolHeightUnitWidget->setUnit( mLayer->symbolHeightUnit() );
-    mSymbolHeightUnitWidget->setMapUnitScale( mLayer->symbolHeightMapUnitScale() );
-    mOffsetUnitWidget->setUnit( mLayer->offsetUnit() );
-    mOffsetUnitWidget->setMapUnitScale( mLayer->offsetMapUnitScale() );
-  }
-
+  mSymbolWidthUnitWidget->setUnit( mLayer->symbolWidthUnit() );
+  mSymbolWidthUnitWidget->setMapUnitScale( mLayer->symbolWidthMapUnitScale() );
+  mOutlineWidthUnitWidget->setUnit( mLayer->outlineWidthUnit() );
+  mOutlineWidthUnitWidget->setMapUnitScale( mLayer->outlineWidthMapUnitScale() );
+  mSymbolHeightUnitWidget->setUnit( mLayer->symbolHeightUnit() );
+  mSymbolHeightUnitWidget->setMapUnitScale( mLayer->symbolHeightMapUnitScale() );
+  mOffsetUnitWidget->setUnit( mLayer->offsetUnit() );
+  mOffsetUnitWidget->setMapUnitScale( mLayer->offsetMapUnitScale() );
   QPointF offsetPt = mLayer->offset();
   spinOffsetX->setValue( offsetPt.x() );
   spinOffsetY->setValue( offsetPt.y() );

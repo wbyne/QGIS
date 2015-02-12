@@ -17,34 +17,34 @@
 
 
 #include <QDateTime>
-#include <QDomNode>
-#include <QFileInfo>
-#include <QSettings> // TODO: get rid of it [MD]
 #include <QDir>
-#include <QFile>
 #include <QDomDocument>
 #include <QDomElement>
 #include <QDomImplementation>
+#include <QDomNode>
+#include <QFile>
+#include <QFileInfo>
+#include <QSettings> // TODO: get rid of it [MD]
 #include <QTextStream>
 #include <QUrl>
 
 #include <sqlite3.h>
 
-#include "qgslogger.h"
-#include "qgsrectangle.h"
-#include "qgsmaplayer.h"
-#include "qgscoordinatereferencesystem.h"
 #include "qgsapplication.h"
+#include "qgscoordinatereferencesystem.h"
+#include "qgsdatasourceuri.h"
+#include "qgslogger.h"
+#include "qgsmaplayer.h"
 #include "qgsmaplayerlegend.h"
 #include "qgsmaplayerstylemanager.h"
-#include "qgsproject.h"
+#include "qgspluginlayer.h"
 #include "qgspluginlayerregistry.h"
 #include "qgsprojectfiletransform.h"
-#include "qgsdatasourceuri.h"
-#include "qgsvectorlayer.h"
-#include "qgsrasterlayer.h"
-#include "qgspluginlayer.h"
+#include "qgsproject.h"
 #include "qgsproviderregistry.h"
+#include "qgsrasterlayer.h"
+#include "qgsrectangle.h"
+#include "qgsvectorlayer.h"
 
 QgsMapLayer::QgsMapLayer( QgsMapLayer::LayerType type,
                           QString lyrname,
@@ -641,7 +641,7 @@ QList<QgsMapLayer*> QgsMapLayer::fromLayerDefinition( QDomDocument& document )
 
     QString type = layerElem.attribute( "type" );
     QgsDebugMsg( type );
-    QgsMapLayer *layer = NULL;
+    QgsMapLayer *layer = 0;
 
     if ( type == "vector" )
     {
@@ -656,6 +656,9 @@ QList<QgsMapLayer*> QgsMapLayer::fromLayerDefinition( QDomDocument& document )
       QString typeName = layerElem.attribute( "name" );
       layer = QgsPluginLayerRegistry::instance()->createLayer( typeName );
     }
+
+    if ( !layer )
+      continue;
 
     bool ok = layer->readLayerXML( layerElem );
     if ( ok )
@@ -751,12 +754,13 @@ QString QgsMapLayer::lastError()
   return QString();
 }
 
+#if 0
 void QgsMapLayer::connectNotify( const char * signal )
 {
   Q_UNUSED( signal );
   QgsDebugMsgLevel( "QgsMapLayer connected to " + QString( signal ), 3 );
 } //  QgsMapLayer::connectNotify
-
+#endif
 
 
 void QgsMapLayer::toggleScaleBasedVisibility( bool theVisibilityFlag )

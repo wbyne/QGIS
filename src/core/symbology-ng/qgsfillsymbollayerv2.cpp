@@ -1437,7 +1437,14 @@ void QgsShapeburstFillSymbolLayerV2::dtArrayToQImage( double * array, QImage *im
       squaredVal = array[idx];
 
       //scale result to fit in the range [0, 1]
-      pixVal = squaredVal > 0 ? qMin(( sqrt( squaredVal ) / maxDistanceValue ), 1.0 ) : 0;
+      if ( maxDistanceValue > 0 )
+      {
+        pixVal = squaredVal > 0 ? qMin(( sqrt( squaredVal ) / maxDistanceValue ), 1.0 ) : 0;
+      }
+      else
+      {
+        pixVal = 1.0;
+      }
 
       //convert value to color from ramp
       pixColor = ramp->color( pixVal );
@@ -1539,7 +1546,11 @@ QgsMapUnitScale QgsShapeburstFillSymbolLayerV2::mapUnitScale() const
 
 //QgsImageFillSymbolLayer
 
-QgsImageFillSymbolLayer::QgsImageFillSymbolLayer(): mOutlineWidth( 0.0 ), mOutlineWidthUnit( QgsSymbolV2::MM ), mOutline( 0 )
+QgsImageFillSymbolLayer::QgsImageFillSymbolLayer()
+    : mNextAngle( 0.0 )
+    , mOutlineWidth( 0.0 )
+    , mOutlineWidthUnit( QgsSymbolV2::MM )
+    , mOutline( 0 )
 {
   setSubSymbol( new QgsLineSymbolV2() );
 }
@@ -2244,8 +2255,16 @@ void QgsSVGFillSymbolLayer::setDefaultSvgParams()
 }
 
 
-QgsLinePatternFillSymbolLayer::QgsLinePatternFillSymbolLayer(): QgsImageFillSymbolLayer(), mDistanceUnit( QgsSymbolV2::MM ), mLineWidthUnit( QgsSymbolV2::MM ),
-    mOffsetUnit( QgsSymbolV2::MM ), mFillLineSymbol( 0 )
+QgsLinePatternFillSymbolLayer::QgsLinePatternFillSymbolLayer()
+    : QgsImageFillSymbolLayer()
+    , mDistance( 5.0 )
+    , mDistanceUnit( QgsSymbolV2::MM )
+    , mLineWidth( 0 )
+    , mLineWidthUnit( QgsSymbolV2::MM )
+    , mLineAngle( 45.0 )
+    , mOffset( 0.0 )
+    , mOffsetUnit( QgsSymbolV2::MM )
+    , mFillLineSymbol( 0 )
 {
   setSubSymbol( new QgsLineSymbolV2() );
   QgsImageFillSymbolLayer::setSubSymbol( 0 ); //no outline

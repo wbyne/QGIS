@@ -126,6 +126,7 @@ QgsVectorLayer::QgsVectorLayer( QString vectorLayerPath,
     , mDataProvider( NULL )
     , mProviderKey( providerKey )
     , mReadOnly( false )
+    , mWkbType( QGis::WKBUnknown )
     , mRendererV2( NULL )
     , mLabel( 0 )
     , mLabelOn( false )
@@ -144,7 +145,6 @@ QgsVectorLayer::QgsVectorLayer( QString vectorLayerPath,
     , mValidExtent( false )
     , mLazyExtent( true )
     , mSymbolFeatureCounted( false )
-
 {
   mActions = new QgsAttributeAction( this );
 
@@ -190,7 +190,6 @@ QgsVectorLayer::QgsVectorLayer( QString vectorLayerPath,
   mSimplifyMethod.setThreshold( settings.value( "/qgis/simplifyDrawingTol", mSimplifyMethod.threshold() ).toFloat() );
   mSimplifyMethod.setForceLocalOptimization( settings.value( "/qgis/simplifyLocal", mSimplifyMethod.forceLocalOptimization() ).toBool() );
   mSimplifyMethod.setMaximumScale( settings.value( "/qgis/simplifyMaxScale", mSimplifyMethod.maximumScale() ).toFloat() );
-
 } // QgsVectorLayer ctor
 
 
@@ -843,7 +842,7 @@ QgsRectangle QgsVectorLayer::extent()
     QgsDebugMsg( "invoked with null mDataProvider" );
   }
 
-  if ( mEditBuffer && mEditBuffer->mDeletedFeatureIds.isEmpty() && mEditBuffer->mChangedGeometries.isEmpty() )
+  if ( mDataProvider && mEditBuffer && mEditBuffer->mDeletedFeatureIds.isEmpty() && mEditBuffer->mChangedGeometries.isEmpty() )
   {
     mDataProvider->updateExtents();
 
@@ -2092,6 +2091,9 @@ void QgsVectorLayer::addAttributeEditorWidget( QgsAttributeEditorElement* data )
 
 const QString QgsVectorLayer::editorWidgetV2( int fieldIdx ) const
 {
+  if ( fieldIdx < 0 || fieldIdx >= mUpdatedFields.count() )
+    return "TextEdit";
+
   return mEditorWidgetV2Types.value( mUpdatedFields[fieldIdx].name(), "TextEdit" );
 }
 
@@ -2816,7 +2818,7 @@ void QgsVectorLayer::addExpressionField( const QString& exp, const QgsField& fld
   mExpressionFieldBuffer->addExpression( exp, fld );
   updateFields();
   int idx = mUpdatedFields.indexFromName( fld.name() );
-  emit( attributeAdded( idx ) );
+  emit attributeAdded( idx );
 }
 
 void QgsVectorLayer::removeExpressionField( int index )
@@ -2824,7 +2826,7 @@ void QgsVectorLayer::removeExpressionField( int index )
   int oi = mUpdatedFields.fieldOriginIndex( index );
   mExpressionFieldBuffer->removeExpression( oi );
   updateFields();
-  emit( attributeDeleted( index ) );
+  emit attributeDeleted( index );
 }
 
 void QgsVectorLayer::updateFields()
@@ -2907,17 +2909,20 @@ void QgsVectorLayer::uniqueValues( int index, QList<QVariant> &uniqueValues, int
     const QgsVectorJoinInfo* join = mJoinBuffer->joinForFieldIndex( index, mUpdatedFields, sourceLayerIndex );
     Q_ASSERT( join );
 
-    QgsVectorLayer* vl = dynamic_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( join->joinLayerId ) );
-    Q_ASSERT( vl );
+    QgsVectorLayer *vl = dynamic_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( join->joinLayerId ) );
 
-    return vl->dataProvider()->uniqueValues( sourceLayerIndex, uniqueValues, limit );
+    if ( vl )
+      vl->dataProvider()->uniqueValues( sourceLayerIndex, uniqueValues, limit );
+
+    return;
   }
   else if ( origin == QgsFields::OriginEdit || origin == QgsFields::OriginExpression )
   {
     // the layer is editable, but in certain cases it can still be avoided going through all features
     if ( origin == QgsFields::OriginEdit && mEditBuffer->mDeletedFeatureIds.isEmpty() && mEditBuffer->mAddedFeatures.isEmpty() && !mEditBuffer->mDeletedAttributeIds.contains( index ) && mEditBuffer->mChangedAttributeValues.isEmpty() )
     {
-      return mDataProvider->uniqueValues( index, uniqueValues, limit );
+      mDataProvider->uniqueValues( index, uniqueValues, limit );
+      return;
     }
 
     // we need to go through each feature
@@ -3608,10 +3613,16 @@ void QgsVectorLayer::onRelationsLoaded()
     if ( elem->type() == QgsAttributeEditorElement::AeTypeContainer )
     {
       QgsAttributeEditorContainer* cont = dynamic_cast< QgsAttributeEditorContainer* >( elem );
+      if ( !cont )
+        continue;
+
       QList<QgsAttributeEditorElement*> relations = cont->findElements( QgsAttributeEditorElement::AeTypeRelation );
       Q_FOREACH ( QgsAttributeEditorElement* relElem, relations )
       {
         QgsAttributeEditorRelation* rel = dynamic_cast< QgsAttributeEditorRelation* >( relElem );
+        if ( !rel )
+          continue;
+
         rel->init( QgsProject::instance()->relationManager() );
       }
     }
@@ -3691,7 +3702,8 @@ QList<QgsAttributeEditorElement*> QgsAttributeEditorContainer::findElements( Qgs
     if ( elem->type() == AeTypeContainer )
     {
       QgsAttributeEditorContainer* cont = dynamic_cast<QgsAttributeEditorContainer*>( elem );
-      results += cont->findElements( type );
+      if ( cont )
+        results += cont->findElements( type );
     }
   }
 

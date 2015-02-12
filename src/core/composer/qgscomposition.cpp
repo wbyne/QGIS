@@ -240,8 +240,11 @@ void QgsComposition::refreshItems()
 void QgsComposition::setSelectedItem( QgsComposerItem *item )
 {
   setAllUnselected();
-  item->setSelected( true );
-  emit selectedItemChanged( item );
+  if ( item )
+  {
+    item->setSelected( true );
+    emit selectedItemChanged( item );
+  }
 }
 
 void QgsComposition::setAllUnselected()
@@ -1066,11 +1069,11 @@ void QgsComposition::addItemsFromXML( const QDomElement& elem, const QDomDocumen
 
     //since we are pasting items, clear the existing selection
     setAllUnselected();
-  }
 
-  if ( pasteInPlace )
-  {
-    pasteInPlacePt = new QPointF( 0, pageNumberAt( *pos ) * ( mPageHeight + mSpaceBetweenPages ) );
+    if ( pasteInPlace )
+    {
+      pasteInPlacePt = new QPointF( 0, pageNumberAt( *pos ) * ( mPageHeight + mSpaceBetweenPages ) );
+    }
   }
   QDomNodeList composerLabelList = elem.elementsByTagName( "ComposerLabel" );
   for ( int i = 0; i < composerLabelList.size(); ++i )

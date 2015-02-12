@@ -417,6 +417,8 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri )
     , spatialIndexRTree( false )
     , spatialIndexMbrCache( false )
     , mGotSpatialiteVersion( false )
+    , mSpatialiteVersionMajor( 0 )
+    , mSpatialiteVersionMinor( 0 )
 {
   nDims = GAIA_XY;
   QgsDataSourceURI anUri = QgsDataSourceURI( uri );
@@ -560,7 +562,6 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri )
   if ( sqliteHandle == NULL )
   {
     valid = false;
-
     QgsDebugMsg( "Invalid SpatiaLite layer" );
     return;
   }
@@ -5340,13 +5341,11 @@ QGISEXTERN bool saveStyle( const QString& uri, const QString& qmlStyle, const QS
     return false;
   }
 
-  bool saved = ( SQLITE_OK == ret ) ? true : false;
-
   if ( NULL != errMsg )
     sqlite3_free( errMsg );
 
   QgsSqliteHandle::closeDb( handle );
-  return saved;
+  return true;
 }
 
 

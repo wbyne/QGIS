@@ -40,10 +40,14 @@ QgsGml::QgsGml(
     : QObject()
     , mTypeName( typeName )
     , mGeometryAttribute( geometryAttribute )
+    , mWkbType( NULL )
     , mFinished( false )
     , mCurrentFeature( 0 )
     , mFeatureCount( 0 )
+    , mCurrentWKB( NULL )
     , mCurrentWKBSize( 0 )
+    , mDimension( 2 )
+    , mCoorMode( QgsGml::coordinate )
     , mEpsg( 0 )
 {
   mThematicAttributes.clear();
@@ -427,6 +431,7 @@ void QgsGml::endElement( const XML_Char* el )
       else
       {
         QgsDebugMsg( "No wkb fragments" );
+        delete [] wkb;
       }
     }
   }

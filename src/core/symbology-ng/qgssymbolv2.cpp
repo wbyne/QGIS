@@ -164,7 +164,7 @@ QgsSymbolV2* QgsSymbolV2::defaultSymbol( QGis::GeometryType geomType )
   if ( defaultSymbol == "" ||
        QgsProject::instance()->readBoolEntry( "DefaultStyles", "/RandomColors", true ) )
   {
-    s->setColor( QColor::fromHsv( rand() % 360, 64 + rand() % 192, 128 + rand() % 128 ) );
+    s->setColor( QColor::fromHsv( qrand() % 360, 64 + qrand() % 192, 128 + qrand() % 128 ) );
   }
 
   return s;
@@ -601,6 +601,7 @@ QgsSymbolV2* QgsMarkerSymbolV2::clone() const
 {
   QgsSymbolV2* cloneSymbol = new QgsMarkerSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
+  cloneSymbol->setLayer( mLayer );
   return cloneSymbol;
 }
 
@@ -671,6 +672,7 @@ QgsSymbolV2* QgsLineSymbolV2::clone() const
 {
   QgsSymbolV2* cloneSymbol = new QgsLineSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
+  cloneSymbol->setLayer( mLayer );
   return cloneSymbol;
 }
 
@@ -722,6 +724,7 @@ QgsSymbolV2* QgsFillSymbolV2::clone() const
 {
   QgsSymbolV2* cloneSymbol = new QgsFillSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
+  cloneSymbol->setLayer( mLayer );
   return cloneSymbol;
 }
 

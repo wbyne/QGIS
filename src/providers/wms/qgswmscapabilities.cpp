@@ -108,6 +108,7 @@ bool QgsWmsSettings::parseUri( QString uriString )
 QgsWmsCapabilities::QgsWmsCapabilities()
     : mValid( false )
     , mLayerCount( -1 )
+    , mCapabilities()
 {
 }
 
@@ -1844,6 +1845,7 @@ QgsWmsCapabilitiesDownload::QgsWmsCapabilitiesDownload( const QString& baseUrl, 
     : QObject( parent )
     , mBaseUrl( baseUrl )
     , mAuth( auth )
+    , mCapabilitiesReply( NULL )
 {
 }
 

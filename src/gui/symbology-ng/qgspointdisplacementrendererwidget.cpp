@@ -32,7 +32,9 @@ QgsRendererV2Widget* QgsPointDisplacementRendererWidget::create( QgsVectorLayer*
 }
 
 QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVectorLayer* layer, QgsStyleV2* style, QgsFeatureRendererV2* renderer )
-    : QgsRendererV2Widget( layer, style ), mEmbeddedRendererWidget( 0 )
+    : QgsRendererV2Widget( layer, style )
+    , mRenderer( NULL )
+    , mEmbeddedRendererWidget( 0 )
 {
   if ( !layer )
   {
@@ -122,7 +124,7 @@ QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVecto
   blockAllSignals( false );
 
   //set the appropriate renderer dialog
-  if ( mRenderer && mRenderer->embeddedRenderer() )
+  if ( mRenderer->embeddedRenderer() )
   {
     QString rendererName = mRenderer->embeddedRenderer()->type();
     int rendererIndex = mRendererComboBox->findData( rendererName );

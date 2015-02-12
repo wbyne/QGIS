@@ -91,7 +91,7 @@ QMenu* QgsAppLayerTreeViewMenuProvider::createContextMenu()
       menu->addAction( QgsApplication::getThemeIcon( "/mActionSetProjectCRS.png" ), tr( "Set &Project CRS from Layer" ), QgisApp::instance(), SLOT( setProjectCRSFromLayer() ) );
 
       // style-related actions
-      if ( mView->selectedLayerNodes().count() == 1 )
+      if ( layer && mView->selectedLayerNodes().count() == 1 )
       {
         QMenu* menuStyleManager = new QMenu( tr( "Styles" ) );
 
@@ -217,8 +217,11 @@ bool QgsAppLayerTreeViewMenuProvider::removeLegendLayerAction( QAction* action )
 
 void QgsAppLayerTreeViewMenuProvider::addLegendLayerActionForLayer( QAction* action, QgsMapLayer* layer )
 {
+  if ( !action || !layer )
+    return;
+
   legendLayerActions( layer->type() );
-  if ( !action || !layer || ! mLegendLayerActionMap.contains( layer->type() ) )
+  if ( !mLegendLayerActionMap.contains( layer->type() ) )
     return;
 
   QMap< QgsMapLayer::LayerType, QList< LegendLayerAction > >::iterator it

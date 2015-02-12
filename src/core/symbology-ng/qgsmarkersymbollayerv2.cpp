@@ -63,6 +63,7 @@ QgsSimpleMarkerSymbolLayerV2::QgsSimpleMarkerSymbolLayerV2( QString name, QColor
   mOffsetUnit = QgsSymbolV2::MM;
   mAngleExpression = NULL;
   mNameExpression = NULL;
+  mUsingCache = false;
 }
 
 QgsSymbolLayerV2* QgsSimpleMarkerSymbolLayerV2::create( const QgsStringMap& props )
@@ -540,6 +541,27 @@ void QgsSimpleMarkerSymbolLayerV2::renderPoint( const QPointF& point, QgsSymbolV
   {
     angle = mAngleExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toDouble();
   }
+
+  bool hasDataDefinedRotation = context.renderHints() & QgsSymbolV2::DataDefinedRotation || mAngleExpression;
+  if ( hasDataDefinedRotation )
+  {
+    // For non-point markers, "dataDefinedRotation" means following the
+    // shape (shape-data defined). For them, "field-data defined" does
+    // not work at all. TODO: if "field-data defined" ever gets implemented
+    // we'll need a way to distinguish here between the two, possibly
+    // using another flag in renderHints()
+    const QgsFeature* f = context.feature();
+    if ( f )
+    {
+      QgsGeometry *g = f->geometry();
+      if ( g && g->type() == QGis::Point )
+      {
+        const QgsMapToPixel& m2p = context.renderContext().mapToPixel();
+        angle += m2p.mapRotation();
+      }
+    }
+  }
+
   if ( angle )
     off = _rotatedOffset( off, angle );
 
@@ -557,6 +579,7 @@ void QgsSimpleMarkerSymbolLayerV2::renderPoint( const QPointF& point, QgsSymbolV
 
   if ( mUsingCache )
   {
+    //QgsDebugMsg( QString("XXX using cache") );
     // we will use cached image
     QImage &img = context.selected() ? mSelCache : mCache;
     double s = img.width() / context.renderContext().rasterScaleFactor();
@@ -579,7 +602,6 @@ void QgsSimpleMarkerSymbolLayerV2::renderPoint( const QPointF& point, QgsSymbolV
       transform.scale( half, half );
     }
 
-    bool hasDataDefinedRotation = context.renderHints() & QgsSymbolV2::DataDefinedRotation || mAngleExpression;
     if ( angle != 0 && ( hasDataDefinedRotation || createdNewPath ) )
       transform.rotate( angle );
 
@@ -843,7 +865,7 @@ bool QgsSimpleMarkerSymbolLayerV2::writeDxf( QgsDxfExport& e, double mmMapUnitSc
   //outlineWidth
   double outlineWidth = mOutlineWidth;
   QgsExpression* outlineWidthExpression = expression( "outline_width" );
-  if ( outlineWidthExpression )
+  if ( context && outlineWidthExpression )
   {
     outlineWidth = outlineWidthExpression->evaluate( const_cast<QgsFeature*>( context->feature() ) ).toDouble();
   }
@@ -871,13 +893,16 @@ bool QgsSimpleMarkerSymbolLayerV2::writeDxf( QgsDxfExport& e, double mmMapUnitSc
   //offset
   double offsetX = 0;
   double offsetY = 0;
-  markerOffset( *context, offsetX, offsetY );
+  if ( context )
+  {
+    markerOffset( *context, offsetX, offsetY );
+  }
   QPointF off( offsetX, offsetY );
 
   //angle
   double angle = mAngle;
   QgsExpression* angleExpression = expression( "angle" );
-  if ( angleExpression )
+  if ( context && angleExpression )
   {
     angle = angleExpression->evaluate( const_cast<QgsFeature*>( context->feature() ) ).toDouble();
   }
@@ -1255,7 +1280,6 @@ QString QgsSvgMarkerSymbolLayerV2::layerType() const
 void QgsSvgMarkerSymbolLayerV2::startRender( QgsSymbolV2RenderContext& context )
 {
   QgsMarkerSymbolLayerV2::startRender( context ); // get anchor point expressions
-  mOrigSize = mSize; // save in case the size would be data defined
   Q_UNUSED( context );
   prepareExpressions( context.fields(), context.renderContext().rendererScale() );
 }
@@ -1315,6 +1339,27 @@ void QgsSvgMarkerSymbolLayerV2::renderPoint( const QPointF& point, QgsSymbolV2Re
   {
     angle = angleExpression->evaluate( const_cast<QgsFeature*>( context.feature() ) ).toDouble();
   }
+
+  bool hasDataDefinedRotation = context.renderHints() & QgsSymbolV2::DataDefinedRotation || angleExpression;
+  if ( hasDataDefinedRotation )
+  {
+    // For non-point markers, "dataDefinedRotation" means following the
+    // shape (shape-data defined). For them, "field-data defined" does
+    // not work at all. TODO: if "field-data defined" ever gets implemented
+    // we'll need a way to distinguish here between the two, possibly
+    // using another flag in renderHints()
+    const QgsFeature* f = context.feature();
+    if ( f )
+    {
+      QgsGeometry *g = f->geometry();
+      if ( g && g->type() == QGis::Point )
+      {
+        const QgsMapToPixel& m2p = context.renderContext().mapToPixel();
+        angle += m2p.mapRotation();
+      }
+    }
+  }
+
   if ( angle )
     outputOffset = _rotatedOffset( outputOffset, angle );
   p->translate( point + outputOffset );
@@ -1654,6 +1699,7 @@ QgsFontMarkerSymbolLayerV2::QgsFontMarkerSymbolLayerV2( QString fontFamily, QCha
   mColor = color;
   mAngle = angle;
   mSize = pointSize;
+  mOrigSize = pointSize;
   mSizeUnit = QgsSymbolV2::MM;
   mOffset = QPointF( 0, 0 );
   mOffsetUnit = QgsSymbolV2::MM;

@@ -34,6 +34,15 @@
 class TestQgsComposerRotation : public QObject
 {
     Q_OBJECT
+
+  public:
+    TestQgsComposerRotation()
+        : mComposition( 0 )
+        , mComposerRect( 0 )
+        , mComposerLabel( 0 )
+        , mRasterLayer( 0 )
+    {}
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -187,7 +196,7 @@ void TestQgsComposerRotation::mapRotation()
   composerMap->setMapRotation( 90 );
 
   QgsCompositionChecker checker( "composerrotation_maprotation", mComposition );
-  QVERIFY( checker.testComposition( mReport, 0, 0 ) );
+  QVERIFY( checker.testComposition( mReport, 0, 200 ) );
 
   mComposition->removeItem( composerMap );
   delete composerMap;

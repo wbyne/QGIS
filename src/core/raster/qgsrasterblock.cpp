@@ -56,7 +56,7 @@ QgsRasterBlock::QgsRasterBlock( QGis::DataType theDataType, int theWidth, int th
     , mNoDataBitmapWidth( 0 )
     , mNoDataBitmapSize( 0 )
 {
-  reset( mDataType, mWidth, mHeight );
+  ( void )reset( mDataType, mWidth, mHeight );
 }
 
 QgsRasterBlock::QgsRasterBlock( QGis::DataType theDataType, int theWidth, int theHeight, double theNoDataValue )
@@ -73,7 +73,7 @@ QgsRasterBlock::QgsRasterBlock( QGis::DataType theDataType, int theWidth, int th
     , mNoDataBitmapWidth( 0 )
     , mNoDataBitmapSize( 0 )
 {
-  reset( mDataType, mWidth, mHeight, mNoDataValue );
+  ( void )reset( mDataType, mWidth, mHeight, mNoDataValue );
 }
 
 QgsRasterBlock::~QgsRasterBlock()
@@ -261,6 +261,7 @@ QGis::DataType QgsRasterBlock::typeWithNoDataValue( QGis::DataType dataType, dou
     case QGis::Float64:
       *noDataValue = std::numeric_limits<double>::max() * -1.0;
       newDataType = QGis::Float64;
+      break;
     default:
       QgsDebugMsg( QString( "Unknow data type %1" ).arg( dataType ) );
       return QGis::UnknownDataType;

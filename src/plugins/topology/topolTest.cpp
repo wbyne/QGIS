@@ -143,6 +143,7 @@ bool topolTest::testCancelled()
   return false;
 }
 
+#if 0 //unused and totally broken - index is set to null and then immediately dereferenced
 ErrorList topolTest::checkCloseFeature( double tolerance, QgsVectorLayer* layer1, QgsVectorLayer* layer2, bool isExtent )
 {
   Q_UNUSED( isExtent );
@@ -164,6 +165,12 @@ ErrorList topolTest::checkCloseFeature( double tolerance, QgsVectorLayer* layer1
       break;
 
     QgsGeometry* g1 = it->feature.geometry();
+    if ( !g1 || !g1->asGeos() )
+    {
+      badG1 = true;
+      continue;
+    }
+
     QgsRectangle bb = g1->boundingBox();
 
     // increase bounding box by tolerance
@@ -188,13 +195,6 @@ ErrorList topolTest::checkCloseFeature( double tolerance, QgsVectorLayer* layer1
       {
         badG2 = true;
         continue;
-      }
-
-      if ( !g1 || !g1->asGeos() )
-      {
-        badG1 = true;
-        continue;
-
       }
 
       if ( g1->distance( *g2 ) < tolerance )
@@ -224,6 +224,7 @@ ErrorList topolTest::checkCloseFeature( double tolerance, QgsVectorLayer* layer1
 
   return errorList;
 }
+#endif
 
 ErrorList topolTest::checkDanglingLines( double tolerance, QgsVectorLayer* layer1, QgsVectorLayer* layer2, bool isExtent )
 {
@@ -354,7 +355,6 @@ ErrorList topolTest::checkDuplicates( double tolerance, QgsVectorLayer *layer1, 
 
   QgsGeometry* canvasExtentPoly = QgsGeometry::fromWkt( theQgsInterface->mapCanvas()->extent().asWktPolygon() );
 
-
   QMap<QgsFeatureId, FeatureLayer>::Iterator it;
   QMap<QgsFeatureId, FeatureLayer>::ConstIterator FeatureListEnd = mFeatureMap2.end();
   for ( it = mFeatureMap2.begin(); it != FeatureListEnd; ++it )
@@ -457,14 +457,13 @@ ErrorList topolTest::checkOverlaps( double tolerance, QgsVectorLayer *layer1, Qg
     return errorList;
   }
 
-  QList<QgsFeatureId>* duplicateIds = new QList<QgsFeatureId>();
+  QList<QgsFeatureId> *duplicateIds = new QList<QgsFeatureId>();
 
-  QgsSpatialIndex* index;
-  index = mLayerIndexes[layer1->id()];
-
+  QgsSpatialIndex* index = mLayerIndexes[layer1->id()];
   if ( !index )
   {
     qDebug() << "no index present";
+    delete duplicateIds;
     return errorList;
   }
 
@@ -566,6 +565,8 @@ ErrorList topolTest::checkOverlaps( double tolerance, QgsVectorLayer *layer1, Qg
     }
     delete canvasExtentPoly;
   }
+
+  delete duplicateIds;
 
   return errorList;
 }

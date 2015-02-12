@@ -47,7 +47,7 @@ class TreeFilterProxyModel : public QSortFilterProxyModel
     {
       QgsCptCityDataItem* item = mModel->dataItem( mModel->index( sourceRow, 0, sourceParent ) );
       return ( item && !( item->type() == QgsCptCityDataItem::ColorRamp ) );
-  }
+    }
     // bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
 
   private:
@@ -58,7 +58,9 @@ class TreeFilterProxyModel : public QSortFilterProxyModel
 // ----------------------
 
 QgsCptCityColorRampV2Dialog::QgsCptCityColorRampV2Dialog( QgsCptCityColorRampV2* ramp, QWidget* parent )
-    : QDialog( parent ), mRamp( 0 )
+    : QDialog( parent )
+    , mRamp( 0 )
+    , mArchiveViewType( QgsCptCityBrowserModel::Selections )
 {
   setupUi( this );
 
@@ -314,7 +316,7 @@ void QgsCptCityColorRampV2Dialog::on_mListWidget_itemClicked( QListWidgetItem * 
   }
   else
   {
-    QgsDebugMsg( QString( "item %1 has invalid type %2" ).arg( rampItem->path() ).arg(( int )rampItem->type() ) );
+    QgsDebugMsg( "invalid item" );
   }
 }
 

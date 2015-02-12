@@ -478,15 +478,39 @@ QgisApp *QgisApp::smInstance = 0;
 // constructor starts here
 QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, Qt::WindowFlags fl )
     : QMainWindow( parent, fl )
+#ifdef Q_OS_WIN
+    , mSkipNextContextMenuEvent( 0 )
+#endif
+    , mNonEditMapTool( 0 )
+    , mScaleLabel( 0 )
+    , mScaleEdit( 0 )
+    , mScaleEditValidator( 0 )
+    , mCoordsLabel( 0 )
+    , mCoordsEdit( 0 )
+    , mCoordsEditValidator( 0 )
+    , mRotationLabel( 0 )
+    , mRotationEdit( 0 )
+    , mRotationEditValidator( 0 )
+    , mProgressBar( 0 )
+    , mRenderSuppressionCBox( 0 )
+    , mOnTheFlyProjectionStatusLabel( 0 )
+    , mOnTheFlyProjectionStatusButton( 0 )
+    , mMessageButton( 0 )
+    , mFeatureActionMenu( 0 )
+    , mPopupMenu( 0 )
+    , mDatabaseMenu( 0 )
+    , mWebMenu( 0 )
+    , mToolPopupOverviews( 0 )
+    , mToolPopupDisplay( 0 )
+    , mLayerTreeCanvasBridge( 0 )
+    , mPreviousNonZoomMapTool( 0 )
     , mSplash( splash )
     , mMousePrecisionDecimalPlaces( 0 )
     , mInternalClipboard( 0 )
     , mShowProjectionTab( false )
     , mPythonUtils( 0 )
-#ifdef Q_OS_WIN
-    , mSkipNextContextMenuEvent( 0 )
-#endif
     , mComposerManager( 0 )
+    , mpTileScaleWidget( 0 )
     , mpGpsWidget( 0 )
     , mSnappingUtils( 0 )
 {
@@ -713,7 +737,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     QgsPythonRunner::run( "import pyplugin_installer" );
     QgsPythonRunner::run( "pyplugin_installer.initPluginInstaller()" );
     // enable Python in the Plugin Manager and pass the PythonUtils to it
-    mPluginManager -> setPythonUtils( mPythonUtils );
+    mPluginManager->setPythonUtils( mPythonUtils );
   }
   else
   {
@@ -820,13 +844,36 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
 
 QgisApp::QgisApp()
     : QMainWindow( 0, 0 )
+    , mMapLayerOrder( 0 )
     , mOverviewMapCursor( 0 )
+    , mMapWindow( 0 )
     , mQgisInterface( 0 )
+    , mSplash( 0 )
+    , mMousePrecisionDecimalPlaces( 0 )
     , mInternalClipboard( 0 )
+    , mShowProjectionTab( false )
+    , mpMapTipsTimer( 0 )
+    , mDizzyTimer( 0 )
     , mpMaptip( 0 )
+    , mMapTipsVisible( false )
+    , mFullScreenMode( false )
+    , mPrevScreenModeMaximized( false )
+    , mSaveRollbackInProgress( false )
     , mPythonUtils( 0 )
+    , mBrowserWidget( 0 )
+    , mBrowserWidget2( 0 )
+    , mAdvancedDigitizingDockWidget( 0 )
+    , mSnappingDialog( 0 )
+    , mPluginManager( 0 )
     , mComposerManager( 0 )
+    , mLastComposerId( 0 )
     , mpGpsWidget( 0 )
+    , mLastMapToolMessage( 0 )
+    , mLogViewer( 0 )
+    , mTrustedMacros( false )
+    , mMacrosWarn( 0 )
+    , mVectorLayerTools( 0 )
+    , mBtnFilterLegend( 0 )
     , mSnappingUtils( 0 )
 {
   smInstance = this;
@@ -2469,6 +2516,10 @@ void QgisApp::autoSelectAddedLayer( QList<QgsMapLayer*> layers )
   if ( layers.count() )
   {
     QgsLayerTreeLayer* nodeLayer = QgsProject::instance()->layerTreeRoot()->findLayer( layers[0]->id() );
+
+    if ( !nodeLayer )
+      return;
+
     QModelIndex index = mLayerTreeView->layerTreeModel()->node2index( nodeLayer );
     mLayerTreeView->setCurrentIndex( index );
   }
@@ -2724,7 +2775,7 @@ void QgisApp::addLayerDefinition()
   openLayerDefinition( path );
 }
 
-QString QgisApp::crsAndFormatAdjustedLayerUri( const QString &uri , const QStringList &supportedCrs, const QStringList &supportedFormats ) const
+QString QgisApp::crsAndFormatAdjustedLayerUri( const QString &uri, const QStringList &supportedCrs, const QStringList &supportedFormats ) const
 {
   QString newuri = uri;
 
@@ -2956,7 +3007,10 @@ bool QgisApp::askUserForZipItemLayers( QString path )
     {
       QgsDataItem *item = zipItem->children()[i];
       QgsLayerItem *layerItem = dynamic_cast<QgsLayerItem *>( item );
-      QgsDebugMsgLevel( QString( "item path=%1 provider=%2" ).arg( item->path() ).arg( layerItem->providerKey() ), 2 );
+      if ( layerItem )
+      {
+        QgsDebugMsgLevel( QString( "item path=%1 provider=%2" ).arg( item->path() ).arg( layerItem->providerKey() ), 2 );
+      }
       if ( layerItem && layerItem->providerKey() == "gdal" )
       {
         layers << QString( "%1|%2|%3" ).arg( i ).arg( item->name() ).arg( "Raster" );
@@ -2988,13 +3042,16 @@ bool QgisApp::askUserForZipItemLayers( QString path )
   foreach ( QgsDataItem* item, childItems )
   {
     QgsLayerItem *layerItem = dynamic_cast<QgsLayerItem *>( item );
+    if ( !layerItem )
+      continue;
+
     QgsDebugMsg( QString( "item path=%1 provider=%2" ).arg( item->path() ).arg( layerItem->providerKey() ) );
-    if ( layerItem && layerItem->providerKey() == "gdal" )
+    if ( layerItem->providerKey() == "gdal" )
     {
       if ( addRasterLayer( item->path(), QFileInfo( item->name() ).completeBaseName() ) )
         ok = true;
     }
-    else if ( layerItem && layerItem->providerKey() == "ogr" )
+    else if ( layerItem->providerKey() == "ogr" )
     {
       if ( addVectorLayers( QStringList( item->path() ), "System", "file" ) )
         ok = true;
@@ -6886,10 +6943,10 @@ void QgisApp::dizzy()
   QRectF rect = mMapCanvas->sceneRect();
   if ( rect.x() < -d || rect.x() > d || rect.y() < -d || rect.y() > d )
     return; // do not affect panning
-  rect.moveTo(( rand() % ( 2 * d ) ) - d, ( rand() % ( 2 * d ) ) - d );
+  rect.moveTo(( qrand() % ( 2 * d ) ) - d, ( qrand() % ( 2 * d ) ) - d );
   mMapCanvas->setSceneRect( rect );
   QTransform matrix;
-  matrix.rotate(( rand() % ( 2 * r ) ) - r );
+  matrix.rotate(( qrand() % ( 2 * r ) ) - r );
   mMapCanvas->setTransform( matrix );
 }
 
@@ -7406,7 +7463,10 @@ void QgisApp::loadPythonSupport()
 
   //QgsDebugMsg("Python support library's instance() symbol resolved.");
   mPythonUtils = pythonlib_inst();
-  mPythonUtils->initPython( mQgisInterface );
+  if ( mPythonUtils )
+  {
+    mPythonUtils->initPython( mQgisInterface );
+  }
 
   if ( mPythonUtils && mPythonUtils->isEnabled() )
   {
@@ -9155,12 +9215,6 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer* layer )
     bool layerHasSelection = vlayer->selectedFeatureCount() > 0;
     bool layerHasActions = vlayer->actions()->size() + QgsMapLayerActionRegistry::instance()->mapLayerActions( vlayer ).size() > 0;
 
-    bool canChangeAttributes = dprovider->capabilities() & QgsVectorDataProvider::ChangeAttributeValues;
-    bool canDeleteFeatures = dprovider->capabilities() & QgsVectorDataProvider::DeleteFeatures;
-    bool canAddFeatures = dprovider->capabilities() & QgsVectorDataProvider::AddFeatures;
-    bool canSupportEditing = dprovider->capabilities() & QgsVectorDataProvider::EditingCapabilities;
-    bool canChangeGeometry = dprovider->capabilities() & QgsVectorDataProvider::ChangeGeometries;
-
     mActionLocalHistogramStretch->setEnabled( false );
     mActionFullHistogramStretch->setEnabled( false );
     mActionLocalCumulativeCutStretch->setEnabled( false );
@@ -9192,6 +9246,12 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer* layer )
 
     if ( dprovider )
     {
+      bool canChangeAttributes = dprovider->capabilities() & QgsVectorDataProvider::ChangeAttributeValues;
+      bool canDeleteFeatures = dprovider->capabilities() & QgsVectorDataProvider::DeleteFeatures;
+      bool canAddFeatures = dprovider->capabilities() & QgsVectorDataProvider::AddFeatures;
+      bool canSupportEditing = dprovider->capabilities() & QgsVectorDataProvider::EditingCapabilities;
+      bool canChangeGeometry = dprovider->capabilities() & QgsVectorDataProvider::ChangeGeometries;
+
       mActionLayerSubsetString->setEnabled( !isEditable && dprovider->supportsSubsetString() );
 
       mActionToggleEditing->setEnabled( canSupportEditing && !vlayer->isReadOnly() );
@@ -10072,7 +10132,7 @@ void QgisApp::namAuthenticationRequired( QNetworkReply *reply, QAuthenticator *a
   {
     QMutexLocker lock( QgsCredentials::instance()->mutex() );
 
-    do
+    for ( ;; )
     {
       bool ok = QgsCredentials::instance()->get(
                   QString( "%1 at %2" ).arg( auth->realm() ).arg( reply->url().host() ),
@@ -10084,27 +10144,20 @@ void QgisApp::namAuthenticationRequired( QNetworkReply *reply, QAuthenticator *a
       if ( reply->isFinished() )
         return;
 
-      if ( auth->user() == username && password == auth->password() )
-      {
-        if ( !password.isNull() )
-        {
-          // credentials didn't change - stored ones probably wrong? clear password and retry
-          QgsCredentials::instance()->put(
-            QString( "%1 at %2" ).arg( auth->realm() ).arg( reply->url().host() ),
-            username, QString::null );
-          continue;
-        }
-      }
-      else
-      {
-        // save credentials
-        QgsCredentials::instance()->put(
-          QString( "%1 at %2" ).arg( auth->realm() ).arg( reply->url().host() ),
-          username, password
-        );
-      }
+      if ( auth->user() != username || ( password != auth->password() && !password.isNull() ) )
+        break;
+
+      // credentials didn't change - stored ones probably wrong? clear password and retry
+      QgsCredentials::instance()->put(
+        QString( "%1 at %2" ).arg( auth->realm() ).arg( reply->url().host() ),
+        username, QString::null );
     }
-    while ( 0 );
+
+    // save credentials
+    QgsCredentials::instance()->put(
+      QString( "%1 at %2" ).arg( auth->realm() ).arg( reply->url().host() ),
+      username, password
+    );
   }
 
   auth->setUser( username );
@@ -10127,7 +10180,7 @@ void QgisApp::namProxyAuthenticationRequired( const QNetworkProxy &proxy, QAuthe
   {
     QMutexLocker lock( QgsCredentials::instance()->mutex() );
 
-    do
+    for ( ;; )
     {
       bool ok = QgsCredentials::instance()->get(
                   QString( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
@@ -10136,26 +10189,19 @@ void QgisApp::namProxyAuthenticationRequired( const QNetworkProxy &proxy, QAuthe
       if ( !ok )
         return;
 
-      if ( auth->user() == username && password == auth->password() )
-      {
-        if ( !password.isNull() )
-        {
-          // credentials didn't change - stored ones probably wrong? clear password and retry
-          QgsCredentials::instance()->put(
-            QString( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
-            username, QString::null );
-          continue;
-        }
-      }
-      else
-      {
-        QgsCredentials::instance()->put(
-          QString( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
-          username, password
-        );
-      }
+      if ( auth->user() != username || ( password != auth->password() && !password.isNull() ) )
+        break;
+
+      // credentials didn't change - stored ones probably wrong? clear password and retry
+      QgsCredentials::instance()->put(
+        QString( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
+        username, QString::null );
     }
-    while ( 0 );
+
+    QgsCredentials::instance()->put(
+      QString( "proxy %1:%2 [%3]" ).arg( proxy.hostName() ).arg( proxy.port() ).arg( auth->realm() ),
+      username, password
+    );
   }
 
   auth->setUser( username );

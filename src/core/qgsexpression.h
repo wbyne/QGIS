@@ -522,10 +522,10 @@ class CORE_EXPORT QgsExpression
 
         virtual QStringList referencedColumns() const override { QStringList lst( mNode->referencedColumns() ); foreach ( Node* n, mList->list() ) lst.append( n->referencedColumns() ); return lst; }
         virtual bool needsGeometry() const override { bool needs = false; foreach ( Node* n, mList->list() ) needs |= n->needsGeometry(); return needs; }
-          virtual void accept( Visitor& v ) const override { v.visit( *this ); }
+        virtual void accept( Visitor& v ) const override { v.visit( *this ); }
 
-          protected:
-            Node* mNode;
+      protected:
+        Node* mNode;
         NodeList* mList;
         bool mNotIn;
     };
@@ -656,7 +656,7 @@ class CORE_EXPORT QgsExpression
     /**
      * Used by QgsOgcUtils to create an empty
      */
-    QgsExpression() : mRootNode( 0 ), mRowNumber( 0 ), mCalc( 0 ) {}
+    QgsExpression() : mRootNode( 0 ), mRowNumber( 0 ), mScale( 0.0 ), mCalc( 0 ) {}
 
     void initGeomCalculator();
 

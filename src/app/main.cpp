@@ -207,12 +207,15 @@ static void dumpBacktrace( unsigned int depth )
     close( STDERR_FILENO );  // close stderr
 
     // stderr to pipe
-    if ( dup( fd[1] ) != STDERR_FILENO )
+    int stderr_new = dup( fd[1] );
+    if ( stderr_new != STDERR_FILENO )
     {
+      if ( stderr_new >= 0 )
+        close( stderr_new );
       QgsDebugMsg( "dup to stderr failed" );
     }
 
-    close( fd[1] );          // close duped pipe
+    close( fd[1] );  // close duped pipe
   }
 
   void **buffer = new void *[ depth ];
@@ -249,6 +252,8 @@ static void dumpBacktrace( unsigned int depth )
   }
 
   qgsFree( symbol );
+#else
+  Q_UNUSED( depth );
 #endif
 }
 
@@ -433,7 +438,7 @@ int main( int argc, char *argv[] )
 #endif
 
   // initialize random number seed
-  srand( time( NULL ) );
+  qsrand( time( NULL ) );
 
   /////////////////////////////////////////////////////////////////
   // Command line options 'behaviour' flag setup

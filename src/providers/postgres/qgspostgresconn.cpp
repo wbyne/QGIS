@@ -133,7 +133,7 @@ QMap<QString, QgsPostgresConn *> QgsPostgresConn::sConnectionsRO;
 QMap<QString, QgsPostgresConn *> QgsPostgresConn::sConnectionsRW;
 const int QgsPostgresConn::sGeomTypeSelectLimit = 100;
 
-QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bool shared , bool transaction )
+QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bool shared, bool transaction )
 {
   QMap<QString, QgsPostgresConn *> &connections =
     readonly ? QgsPostgresConn::sConnectionsRO : QgsPostgresConn::sConnectionsRW;
@@ -164,12 +164,29 @@ QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bo
   return conn;
 }
 
-QgsPostgresConn::QgsPostgresConn( QString conninfo, bool readOnly, bool shared , bool transaction )
+static void noticeProcessor( void *arg, const char *message )
+{
+  Q_UNUSED( arg );
+  QString msg( QString::fromUtf8( message ) );
+  msg.chop( 1 );
+  QgsMessageLog::logMessage( QObject::tr( "NOTICE: %1" ).arg( msg ), QObject::tr( "PostGIS" ) );
+}
+
+QgsPostgresConn::QgsPostgresConn( QString conninfo, bool readOnly, bool shared, bool transaction )
     : mRef( 1 )
     , mOpenCursors( 0 )
     , mConnInfo( conninfo )
+    , mGeosAvailable( false )
+    , mTopologyAvailable( false )
     , mGotPostgisVersion( false )
+    , mPostgresqlVersion( 0 )
+    , mPostgisVersionMajor( 0 )
+    , mPostgisVersionMinor( 0 )
+    , mGistAvailable( false )
+    , mProjAvailable( false )
+    , mUseWkbHex( false )
     , mReadOnly( readOnly )
+    , mSwapEndian( false )
     , mNextCursorId( 0 )
     , mShared( shared )
     , mTransaction( transaction )
@@ -268,6 +285,8 @@ QgsPostgresConn::QgsPostgresConn( QString conninfo, bool readOnly, bool shared ,
   {
     QgsDebugMsg( "Topology support available!" );
   }
+
+  PQsetNoticeProcessor( mConn, noticeProcessor, 0 );
 }
 
 QgsPostgresConn::~QgsPostgresConn()
@@ -901,8 +920,8 @@ bool QgsPostgresConn::openCursor( QString cursorName, QString sql )
       PQexecNR( "BEGIN" );
   }
   QgsDebugMsgLevel( QString( "Binary cursor %1 for %2" ).arg( cursorName ).arg( sql ), 3 );
-  return PQexecNR( QString( "DECLARE %1 BINARY CURSOR %2 FOR %3" ).
-                   arg( cursorName ).arg( !mTransaction ? "" : QString( "WITH HOLD" ) ).arg( sql ) );
+  return PQexecNR( QString( "DECLARE %1 BINARY CURSOR%2 FOR %3" ).
+                   arg( cursorName ).arg( !mTransaction ? "" : QString( " WITH HOLD" ) ).arg( sql ) );
 }
 
 bool QgsPostgresConn::closeCursor( QString cursorName )

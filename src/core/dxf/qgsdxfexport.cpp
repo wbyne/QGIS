@@ -311,10 +311,12 @@ QgsDxfExport::QgsDxfExport()
     , mSymbolLayerCounter( 0 )
     , mNextHandleId( DXF_HANDSEED )
     , mBlockCounter( 0 )
+    , mModelSpaceBR( 0 )
 {
 }
 
 QgsDxfExport::QgsDxfExport( const QgsDxfExport& dxfExport )
+    : mModelSpaceBR( 0 )
 {
   *this = dxfExport;
 }
@@ -837,6 +839,10 @@ void QgsDxfExport::writeEntities()
 
     QgsSymbolV2RenderContext sctx( ctx, QgsSymbolV2::MM, 1.0, false, 0, 0 );
     QgsFeatureRendererV2* renderer = vl->rendererV2();
+    if ( !renderer )
+    {
+      continue;
+    }
     renderer->startRender( ctx, vl->pendingFields() );
 
     QStringList attributes = renderer->usedAttributes();
@@ -877,10 +883,6 @@ void QgsDxfExport::writeEntities()
       }
       else
       {
-        if ( !renderer )
-        {
-          continue;
-        }
         QgsSymbolV2List symbolList = renderer->symbolsForFeature( fet );
         if ( symbolList.size() < 1 )
         {
@@ -934,7 +936,8 @@ void QgsDxfExport::writeEntitiesSymbolLevels( QgsVectorLayer* layer )
   QgsFeatureRendererV2* renderer = layer->rendererV2();
   if ( !renderer )
   {
-    //return error
+    //TODO return error
+    return;
   }
   QHash< QgsSymbolV2*, QList<QgsFeature> > features;
 
@@ -3221,7 +3224,7 @@ void QgsDxfExport::writePoint( const QgsPoint& pt, const QString& layer, QColor 
   {
     //write symbol directly here
     const QgsMarkerSymbolLayerV2* msl = dynamic_cast< const QgsMarkerSymbolLayerV2* >( symbolLayer );
-    if ( symbolLayer && symbol )
+    if ( msl && symbol )
     {
       QgsRenderContext ct;
       QgsSymbolV2RenderContext ctx( ct, QgsSymbolV2::MapUnit, symbol->alpha(), false, symbol->renderHints(), f );

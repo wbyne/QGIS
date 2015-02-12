@@ -82,20 +82,63 @@ QgsRasterProjector::QgsRasterProjector(
     , mSrcDatumTransform( -1 )
     , mDestDatumTransform( -1 )
     , mExtent( theExtent )
+    , mDestRows( 0 )
+    , mDestCols( 0 )
+    , mDestXRes( 0.0 )
+    , mDestYRes( 0.0 )
+    , mSrcRows( 0 )
+    , mSrcCols( 0 )
+    , mSrcXRes( 0.0 )
+    , mSrcYRes( 0.0 )
+    , mDestRowsPerMatrixRow( 0.0 )
+    , mDestColsPerMatrixCol( 0.0 )
     , pHelperTop( 0 ), pHelperBottom( 0 )
-    , mMaxSrcXRes( theMaxSrcXRes ), mMaxSrcYRes( theMaxSrcYRes )
+    , mCPCols( 0 )
+    , mCPRows( 0 )
+    , mSqrTolerance( 0.0 )
+    , mMaxSrcXRes( theMaxSrcXRes )
+    , mMaxSrcYRes( theMaxSrcYRes )
+    , mApproximate( false )
 {
   QgsDebugMsg( "Entered" );
 }
 
 QgsRasterProjector::QgsRasterProjector()
-    : QgsRasterInterface( 0 ), mSrcDatumTransform( -1 ), mDestDatumTransform( -1 ), pHelperTop( 0 ), pHelperBottom( 0 )
+    : QgsRasterInterface( 0 )
+    , mSrcDatumTransform( -1 )
+    , mDestDatumTransform( -1 )
+    , mDestRows( 0 )
+    , mDestCols( 0 )
+    , mDestXRes( 0.0 )
+    , mDestYRes( 0.0 )
+    , mSrcRows( 0 )
+    , mSrcCols( 0 )
+    , mSrcXRes( 0.0 )
+    , mSrcYRes( 0.0 )
+    , mDestRowsPerMatrixRow( 0.0 )
+    , mDestColsPerMatrixCol( 0.0 )
+    , pHelperTop( 0 )
+    , pHelperBottom( 0 )
+    , mHelperTopRow( 0 )
+    , mCPCols( 0 )
+    , mCPRows( 0 )
+    , mSqrTolerance( 0.0 )
+    , mMaxSrcXRes( 0 )
+    , mMaxSrcYRes( 0 )
+    , mApproximate( false )
 {
   QgsDebugMsg( "Entered" );
 }
 
 QgsRasterProjector::QgsRasterProjector( const QgsRasterProjector &projector )
     : QgsRasterInterface( 0 )
+    , pHelperTop( NULL )
+    , pHelperBottom( NULL )
+    , mHelperTopRow( 0 )
+    , mCPCols( 0 )
+    , mCPRows( 0 )
+    , mSqrTolerance( 0 )
+    , mApproximate( false )
 {
   mSrcCRS = projector.mSrcCRS;
   mDestCRS = projector.mDestCRS;
@@ -104,6 +147,17 @@ QgsRasterProjector::QgsRasterProjector( const QgsRasterProjector &projector )
   mMaxSrcXRes = projector.mMaxSrcXRes;
   mMaxSrcYRes = projector.mMaxSrcYRes;
   mExtent = projector.mExtent;
+  mDestRows = projector.mDestRows;
+  mDestCols = projector.mDestCols;
+  mDestXRes = projector.mDestXRes;
+  mDestYRes = projector.mDestYRes;
+  mSrcRows = projector.mSrcRows;
+  mSrcCols = projector.mSrcCols;
+  mSrcXRes = projector.mSrcXRes;
+  mSrcYRes = projector.mSrcYRes;
+  mDestRowsPerMatrixRow = projector.mDestRowsPerMatrixRow;
+  mDestColsPerMatrixCol = projector.mDestColsPerMatrixCol;
+
 }
 
 QgsRasterProjector & QgsRasterProjector::operator=( const QgsRasterProjector & projector )
@@ -174,15 +228,18 @@ void QgsRasterProjector::calc()
   if ( mInput )
   {
     QgsRasterDataProvider *provider = dynamic_cast<QgsRasterDataProvider*>( mInput->srcInput() );
-    if ( provider && ( provider->capabilities() & QgsRasterDataProvider::Size ) )
+    if ( provider )
     {
-      mMaxSrcXRes = provider->extent().width() / provider->xSize();
-      mMaxSrcYRes = provider->extent().height() / provider->ySize();
-    }
-    // Get source extent
-    if ( mExtent.isEmpty() )
-    {
-      mExtent = provider->extent();
+      if ( provider->capabilities() & QgsRasterDataProvider::Size )
+      {
+        mMaxSrcXRes = provider->extent().width() / provider->xSize();
+        mMaxSrcYRes = provider->extent().height() / provider->ySize();
+      }
+      // Get source extent
+      if ( mExtent.isEmpty() )
+      {
+        mExtent = provider->extent();
+      }
     }
   }
 
