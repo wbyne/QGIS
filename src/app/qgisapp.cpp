@@ -503,7 +503,6 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     , mToolPopupOverviews( 0 )
     , mToolPopupDisplay( 0 )
     , mLayerTreeCanvasBridge( 0 )
-    , mPreviousNonZoomMapTool( 0 )
     , mSplash( splash )
     , mMousePrecisionDecimalPlaces( 0 )
     , mInternalClipboard( 0 )
@@ -651,7 +650,6 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   mLastMapToolMessage = 0;
 
   mLogViewer = new QgsMessageLogViewer( statusBar(), this );
-  mLogViewer->setShowToolTips( false );
 
   mLogDock = new QDockWidget( tr( "Log Messages" ), this );
   mLogDock->setObjectName( "MessageLog" );
@@ -838,12 +836,35 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
 #ifdef ANDROID
   toggleFullScreen();
 #endif
-
-  mLogViewer->setShowToolTips( true );
 } // QgisApp ctor
 
 QgisApp::QgisApp()
     : QMainWindow( 0, 0 )
+    , mNonEditMapTool( 0 )
+    , mScaleLabel( 0 )
+    , mScaleEdit( 0 )
+    , mScaleEditValidator( 0 )
+    , mCoordsLabel( 0 )
+    , mCoordsEdit( 0 )
+    , mCoordsEditValidator( 0 )
+    , mRotationLabel( 0 )
+    , mRotationEdit( 0 )
+    , mRotationEditValidator( 0 )
+    , mProgressBar( 0 )
+    , mRenderSuppressionCBox( 0 )
+    , mToggleExtentsViewButton( 0 )
+    , mOnTheFlyProjectionStatusLabel( 0 )
+    , mOnTheFlyProjectionStatusButton( 0 )
+    , mMessageButton( 0 )
+    , mFeatureActionMenu( 0 )
+    , mPopupMenu( 0 )
+    , mDatabaseMenu( 0 )
+    , mWebMenu( 0 )
+    , mToolPopupOverviews( 0 )
+    , mToolPopupDisplay( 0 )
+    , mMapCanvas( 0 )
+    , mLayerTreeView( 0 )
+    , mLayerTreeCanvasBridge( 0 )
     , mMapLayerOrder( 0 )
     , mOverviewMapCursor( 0 )
     , mMapWindow( 0 )
@@ -866,6 +887,7 @@ QgisApp::QgisApp()
     , mSnappingDialog( 0 )
     , mPluginManager( 0 )
     , mComposerManager( 0 )
+    , mpTileScaleWidget( 0 )
     , mLastComposerId( 0 )
     , mpGpsWidget( 0 )
     , mLastMapToolMessage( 0 )
@@ -1855,7 +1877,8 @@ void QgisApp::createStatusBar()
   mMessageButton = new QToolButton( statusBar() );
   mMessageButton->setAutoRaise( true );
   mMessageButton->setIcon( QgsApplication::getThemeIcon( "bubble.svg" ) );
-  mMessageButton->setText( tr( "Messages" ) );
+  mMessageButton->setToolTip( tr( "Messages" ) );
+  mMessageButton->setWhatsThis( tr( "Messages" ) );
   mMessageButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
   mMessageButton->setObjectName( "mMessageLogViewerButton" );
   mMessageButton->setMaximumHeight( mScaleLabel->height() );
@@ -4180,7 +4203,7 @@ void QgisApp::dxfExport()
       fileName += ".dxf";
     QFile dxfFile( fileName );
     QApplication::setOverrideCursor( Qt::BusyCursor );
-    if ( dxfExport.writeToFile( &dxfFile ) == 0 )
+    if ( dxfExport.writeToFile( &dxfFile, d.encoding() ) == 0 )
     {
       messageBar()->pushMessage( tr( "DXF export completed" ), QgsMessageBar::INFO, 4 );
     }
