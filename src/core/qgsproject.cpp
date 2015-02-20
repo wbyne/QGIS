@@ -113,7 +113,7 @@ QgsProperty *findKey_( QString const &scope,
       {
         if ( nextProperty->isKey() )
         {
-          currentProperty = dynamic_cast<QgsPropertyKey*>( nextProperty );
+          currentProperty = static_cast<QgsPropertyKey*>( nextProperty );
         }
         else if ( nextProperty->isValue() && 1 == keySequence.count() )
         {
@@ -164,7 +164,8 @@ QgsProperty *addKey_( QString const &scope,
 
   // cursor through property key/value hierarchy
   QgsPropertyKey *currentProperty = rootProperty;
-  QgsProperty *newProperty; // link to next property down hiearchy
+  QgsProperty *nextProperty; // link to next property down hiearchy
+  QgsPropertyKey* newPropertyKey;
 
   while ( ! keySequence.isEmpty() )
   {
@@ -190,9 +191,9 @@ QgsProperty *addKey_( QString const &scope,
 
         return currentProperty;
       }
-      else if (( newProperty = currentProperty->find( keySequence.first() ) ) )
+      else if (( nextProperty = currentProperty->find( keySequence.first() ) ) )
       {
-        currentProperty = dynamic_cast<QgsPropertyKey*>( newProperty );
+        currentProperty = dynamic_cast<QgsPropertyKey*>( nextProperty );
 
         if ( currentProperty )
         {
@@ -205,11 +206,9 @@ QgsProperty *addKey_( QString const &scope,
       }
       else                // the next subkey doesn't exist, so add it
       {
-        newProperty = currentProperty->addKey( keySequence.first() );
-
-        if ( newProperty )
+        if (( newPropertyKey = currentProperty->addKey( keySequence.first() ) ) )
         {
-          currentProperty = dynamic_cast<QgsPropertyKey*>( newProperty );
+          currentProperty = newPropertyKey;
         }
         continue;
       }
@@ -681,6 +680,18 @@ QPair< bool, QList<QDomNode> > QgsProject::_getMapLayers( QDomDocument const &do
     vIt->first->updateFields();
   }
 
+  QSet<QgsVectorLayer *> notified;
+  for ( vIt = vLayerList.begin(); vIt != vLayerList.end(); ++vIt )
+  {
+    if ( notified.contains( vIt->first ) )
+      continue;
+
+    notified << vIt->first;
+    emit readMapLayer( vIt->first, vIt->second );
+  }
+
+
+
   return qMakePair( returnStatus, brokenNodes );
 } // _getMapLayers
 
@@ -716,16 +727,17 @@ bool QgsProject::addLayer( const QDomElement &layerElem, QList<QDomNode> &broken
   // have the layer restore state that is stored in Dom node
   if ( mapLayer->readLayerXML( layerElem ) && mapLayer->isValid() )
   {
-    emit readMapLayer( mapLayer, layerElem );
+    // postpone readMapLayer signal for vector layers with joins
+    QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer*>( mapLayer );
+    if ( !vLayer || vLayer->vectorJoins().size() == 0 )
+      emit readMapLayer( mapLayer, layerElem );
+    else
+      vectorLayerList.push_back( qMakePair( vLayer, layerElem ) );
 
     QList<QgsMapLayer *> myLayers;
     myLayers << mapLayer;
     QgsMapLayerRegistry::instance()->addMapLayers( myLayers );
-    QgsVectorLayer *vLayer = qobject_cast<QgsVectorLayer*>( mapLayer );
-    if ( vLayer && vLayer->vectorJoins().size() > 0 )
-    {
-      vectorLayerList.push_back( qMakePair( vLayer, layerElem ) );
-    }
+
     return true;
   }
   else

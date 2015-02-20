@@ -226,8 +226,10 @@ static void dumpBacktrace( unsigned int depth )
   {
     int status;
     close( STDERR_FILENO );
-    if ( dup( stderr_fd ) != STDERR_FILENO )
+    int dup_stderr = dup( stderr_fd );
+    if ( dup_stderr != STDERR_FILENO )
     {
+      close( dup_stderr );
       QgsDebugMsg( "dup to stderr failed" );
     }
     close( stderr_fd );
@@ -604,7 +606,7 @@ int main( int argc, char *argv[] )
   // Initialise the application and the translation stuff
   /////////////////////////////////////////////////////////////////////
 
-#ifdef Q_OS_UNIX
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
   bool myUseGuiFlag = getenv( "DISPLAY" ) != 0;
 #else
   bool myUseGuiFlag = true;

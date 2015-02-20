@@ -77,6 +77,15 @@ my $release = "$newmajor.$newminor";
 my $relbranch = "release-${newmajor}_${newminor}";
 my $reltag = "final-${newmajor}_${newminor}_0";
 
+print "Pulling transifex translations...\n";
+system( "scripts/pull_ts.sh" ) == 0 or die "pull_ts.sh failed";
+system( "git add i18n/*.ts" ) == 0 or die "adding translations failed";
+system( "git commit -a -m \"translation update to $release from transifex\"") == 0 or die "could not commit translation updates";
+
+print "Updating changelog...\n";
+system( "scripts/create_changelog.sh" ) == 0 or die "create_changelog.sh failed";
+system( "git commit -a -m \"changelog update for $release\"") == 0 or die "could not commit changelog update";
+
 print "Creating branch...\n";
 system( "git checkout -b $relbranch" ) == 0 or die "git checkout release branch failed";
 updateCMakeLists($newmajor,$newminor,$releasename);

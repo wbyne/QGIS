@@ -518,7 +518,14 @@ void QgsMapCanvas::setDestinationCrs( const QgsCoordinateReferenceSystem &crs )
     if ( !mSettings.visibleExtent().isEmpty() )
     {
       QgsCoordinateTransform transform( mSettings.destinationCrs(), crs );
-      rect = transform.transformBoundingBox( mSettings.visibleExtent() );
+      try
+      {
+        rect = transform.transformBoundingBox( mSettings.visibleExtent() );
+      }
+      catch ( QgsCsException &e )
+      {
+        QgsDebugMsg( QString( "Transform error caught: %1" ).arg( e.what() ) );
+      }
     }
     if ( !rect.isEmpty() )
     {
@@ -843,6 +850,14 @@ void QgsMapCanvas::setExtent( QgsRectangle const & r )
 
   if ( r.isEmpty() )
   {
+    if ( !mSettings.hasValidSettings() )
+    {
+      // we can't even just move the map center
+      QgsDebugMsg( "Empty extent - ignoring" );
+      return;
+    }
+
+    // ### QGIS 3: do not allow empty extent - require users to call setCenter() explicitly
     QgsDebugMsg( "Empty extent - keeping old scale with new center!" );
     setCenter( r.center() );
   }
