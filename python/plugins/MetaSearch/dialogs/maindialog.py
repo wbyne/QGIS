@@ -72,6 +72,9 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
         self.catalog_url = None
         self.context = StaticContext()
 
+        version = self.context.metadata.get('general', 'version')
+        self.setWindowTitle('MetaSearch %s' % version)
+
         self.rubber_band = QgsRubberBand(self.map, True)  # True = a polygon
         self.rubber_band.setColor(QColor(255, 0, 0, 75))
         self.rubber_band.setWidth(5)
@@ -518,7 +521,13 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             return
 
         identifier = get_item_data(item, 'identifier')
-        record = self.catalog.records[identifier]
+        try:
+            record = self.catalog.records[identifier]
+        except KeyError, err:
+            QMessageBox.warning(self,
+                                self.tr('Record parsing error'),
+                                'Unable to locate record identifier')
+            return
 
         # if the record has a bbox, show a footprint on the map
         if record.bbox is not None:
@@ -617,9 +626,20 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        self.catalog.getrecords2(constraints=self.constraints,
-                                 maxrecords=self.maxrecords,
-                                 startposition=self.startfrom, esn='full')
+        try:
+            self.catalog.getrecords2(constraints=self.constraints,
+                                     maxrecords=self.maxrecords,
+                                     startposition=self.startfrom, esn='full')
+        except ExceptionReport, err:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, self.tr('Search error'),
+                                self.tr('Search error: %s') % err)
+            return
+        except Exception, err:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, self.tr('Connection error'),
+                                self.tr('Connection error: %s') % err)
+            return
 
         QApplication.restoreOverrideCursor()
 
@@ -733,6 +753,12 @@ class MetaSearchDialog(QDialog, BASE_CLASS):
             QApplication.restoreOverrideCursor()
             QMessageBox.warning(self, self.tr('GetRecords error'),
                                 self.tr('Error getting response: %s') % err)
+            return
+        except KeyError, err:
+            QMessageBox.warning(self,
+                                self.tr('Record parsing error'),
+                                'Unable to locate record identifier')
+            QApplication.restoreOverrideCursor()
             return
 
         QApplication.restoreOverrideCursor()
