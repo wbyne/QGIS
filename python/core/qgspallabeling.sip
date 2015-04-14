@@ -742,6 +742,28 @@ class QgsPalLabeling : QgsLabelingEngineInterface
     bool isStoredWithProject() const /Deprecated/;
     //! @deprecated since 2.4 - settings are always stored in project
     void setStoredWithProject( bool store ) /Deprecated/;
+    
+    /** Prepares a geometry for registration with PAL. Handles reprojection, rotation, clipping, etc.
+     * @param geometry geometry to prepare
+     * @param context render context
+     * @param ct coordinate transform
+     * @param minSize minimum allowable size for feature for registration with PAL
+     * @param clipGeometry geometry to clip features to, if applicable
+     * @returns prepared geometry
+     * @note added in QGIS 2.9
+     */
+    static QgsGeometry* prepareGeometry( QgsGeometry *geometry, const QgsRenderContext &context, const QgsCoordinateTransform *ct, double minSize = 0, QgsGeometry *clipGeometry = 0 ) /Factory/;
+
+    /** Checks whether a geometry requires preparation before registration with PAL
+     * @param geometry geometry to prepare
+     * @param context render context
+     * @param ct coordinate transform
+     * @param clipGeometry geometry to clip features to, if applicable
+     * @returns true if geometry requires preparation
+     * @note added in QGIS 2.9
+     */
+    static bool geometryRequiresPreparation( QgsGeometry *geometry, const QgsRenderContext &context, const QgsCoordinateTransform *ct, QgsGeometry *clipGeometry = 0 );
+
 
   protected:
     // update temporary QgsPalLayerSettings with any data defined text style values
@@ -765,4 +787,13 @@ class QgsPalLabeling : QgsLabelingEngineInterface
                                 const QMap< QgsPalLayerSettings::DataDefinedProperties, QVariant >& ddValues );
 
     void deleteTemporaryData();
+    
+    /** Checks whether a geometry exceeds the minimum required size for a geometry to be labeled.
+     * @param context render context
+     * @param geom geometry
+     * @param minSize minimum size for geometry
+     * @returns true if geometry exceeds minimum size
+     * @note added in QGIS 2.9
+     */
+    static bool checkMinimumSizeMM( const QgsRenderContext &context, QgsGeometry *geom, double minSize );
 };

@@ -5320,11 +5320,13 @@ void QgisApp::checkForDeprecatedLabelsInProject()
         continue;
       }
 
+      Q_NOWARN_DEPRECATED_PUSH
       depLabelsUsed = vl->hasLabelsEnabled();
       if ( depLabelsUsed )
       {
         break;
       }
+      Q_NOWARN_DEPRECATED_POP
     }
     if ( depLabelsUsed )
     {
@@ -9157,7 +9159,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer* layer )
   {
     QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( it.value() );
     if ( !vlayer || !vlayer->isEditable() ||
-         ( !vlayer->diagramRenderer() && vlayer->customProperty( "labeling" ).toString() != QString( "pal" ) ) )
+         ( !vlayer->diagramsEnabled() && vlayer->customProperty( "labeling" ).toString() != QString( "pal" ) ) )
       continue;
 
     int colX, colY, colShow, colAng;

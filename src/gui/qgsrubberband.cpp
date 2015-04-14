@@ -182,6 +182,7 @@ void QgsRubberBand::addPoint( const QgsPoint & p, bool doUpdate /* = true */, in
 
   if ( doUpdate )
   {
+    setVisible( true );
     updateRect();
     update();
   }
@@ -418,6 +419,7 @@ void QgsRubberBand::addGeometry( QgsGeometry* geom, QgsVectorLayer* layer )
       return;
   }
 
+  setVisible( true );
   updateRect();
   update();
 }
@@ -536,7 +538,7 @@ void QgsRubberBand::updateRect()
   const QgsMapToPixel& m2p = *( mMapCanvas->getCoordinateTransform() );
 
   qreal res = m2p.mapUnitsPerPixel();
-  qreal w = ( ( mIconSize - 1 ) / 2 + mPen.width() ) / res;
+  qreal w = (( mIconSize - 1 ) / 2 + mPen.width() ) / res;
 
   QgsRectangle r;
   for ( int i = 0; i < mPoints.size(); ++i )
@@ -567,7 +569,6 @@ void QgsRubberBand::updateRect()
   QgsRectangle rect( topLeft.x(), topLeft.y(), topLeft.x() + r.width()*res, topLeft.y() - r.height()*res );
 
   setRect( rect );
-  setVisible( true );
 }
 
 void QgsRubberBand::updatePosition( )

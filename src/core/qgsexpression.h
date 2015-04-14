@@ -22,15 +22,14 @@
 #include <QList>
 #include <QDomDocument>
 
-#include "qgsfield.h"
-#include "qgsdistancearea.h"
-
 class QgsFeature;
 class QgsGeometry;
 class QgsOgcUtils;
 class QgsVectorLayer;
 class QgsVectorDataProvider;
-
+class QgsField;
+class QgsFields;
+class QgsDistanceArea;
 class QDomElement;
 
 /**

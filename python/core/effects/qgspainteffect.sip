@@ -230,6 +230,13 @@ class QgsPaintEffect
      */
     virtual QRectF boundingRect( const QRectF& rect, const QgsRenderContext& context ) const;
 
+    /** Applies a workaround to a QPainter to avoid an issue with incorrect scaling
+     * when drawing QPictures. This may need to be called by derived classes prior
+     * to rendering results onto a painter.
+     * @param painter destination painter
+     */
+    void fixQPictureDpi( QPainter* painter ) const;
+
 };
 
 /** \ingroup core
@@ -293,7 +300,7 @@ class QgsDrawSourceEffect : QgsPaintEffect
      * @see setBlendMode
      */
     QPainter::CompositionMode blendMode() const;
-  
+
   protected:
 
     virtual void draw( QgsRenderContext& context );

@@ -43,6 +43,10 @@
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
 
+#ifdef Q_OS_WIN
+#include "qgsgrassutils.h"
+#endif
+
 
 QgsGrassTools::QgsGrassTools( QgisInterface *iface,
                               QWidget * parent, const char * name, Qt::WindowFlags f )
@@ -212,7 +216,7 @@ void QgsGrassTools::runModule( QString name, bool direct )
   if ( name == "shell" )
   {
 #ifdef Q_OS_WIN
-    QgsGrass::putEnv( "GRASS_HTML_BROWSER", QgsApplication::libexecPath() + "grass/bin/qgis.g.browser" );
+    QgsGrass::putEnv( "GRASS_HTML_BROWSER", QgsGrassUtils::htmlBrowserPath() );
     if ( !QProcess::startDetached( getenv( "COMSPEC" ) ) )
     {
       QMessageBox::warning( 0, "Warning", tr( "Cannot start command shell (%1)" ).arg( getenv( "COMSPEC" ) ) );

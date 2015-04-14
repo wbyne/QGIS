@@ -14,6 +14,11 @@
  *                                                                         *
  ***************************************************************************/
 
+#ifdef _MSC_VER
+// to avoid conflicting SF_UNKNOWN
+#define _OLE2_H_
+#endif
+
 #include <setjmp.h>
 
 #include "qgsgrass.h"
@@ -1276,6 +1281,7 @@ QProcess GRASS_LIB_EXPORT *QgsGrass::startModule( QString gisdbase, QString loca
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
   QProcess *process = new QProcess();
 
+  module += QString::number( QgsGrass::versionMajor() );
 #ifdef Q_OS_WIN
   module += ".exe";
 #endif
