@@ -64,7 +64,7 @@ class CORE_EXPORT QgsDiagramLayerSettings
 
     //pal placement properties
     Placement placement;
-    LinePlacementFlags placementFlags;
+    unsigned int  placementFlags;
     int priority; // 0 = low, 10 = high
     bool obstacle; // whether it's an obstacle
     double dist; // distance from the feature (in mm)
@@ -120,6 +120,7 @@ class CORE_EXPORT QgsDiagramSettings
         , transparency( 0 )
         , scaleByArea( true )
         , angleOffset( 90 * 16 ) //top
+        , scaleBasedVisibility( false )
         , minScaleDenominator( -1 )
         , maxScaleDenominator( -1 )
         , minimumSize( 0.0 )
@@ -140,6 +141,7 @@ class CORE_EXPORT QgsDiagramSettings
     bool scaleByArea;
     int angleOffset;
 
+    bool scaleBasedVisibility;
     //scale range (-1 if no lower / upper bound )
     double minScaleDenominator;
     double maxScaleDenominator;
