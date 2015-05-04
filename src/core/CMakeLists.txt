@@ -162,11 +162,13 @@ SET(QGIS_CORE_SRCS
   qgsrectangle.cpp
   qgsrunprocess.cpp
   qgsscalecalculator.cpp
+  qgsscaleexpression.cpp
   qgsscaleutils.cpp
   qgssimplifymethod.cpp
   qgssnapper.cpp
   qgssnappingutils.cpp
   qgsspatialindex.cpp
+  qgsstatisticalsummary.cpp
   qgstransaction.cpp
   qgstolerance.cpp
   qgsvectordataprovider.cpp
@@ -503,6 +505,7 @@ SET(QGIS_CORE_HDRS
   qgsfeaturerequest.h
   qgsfeaturestore.h
   qgsfield.h
+  qgsfield_p.h
   qgsfontutils.h
   qgsgeometry.h
   qgsgeometrycache.h
@@ -546,12 +549,13 @@ SET(QGIS_CORE_HDRS
   qgsrenderchecker.h
   qgsrendercontext.h
   qgsscalecalculator.h
+  qgsscaleexpression.h
   qgsscaleutils.h
   qgssimplifymethod.h
-  qgssingleton.h
   qgssnapper.h
   qgssnappingutils.h
   qgsspatialindex.h
+  qgsstatisticalsummary.h
   qgstolerance.h
   qgstransaction.h
   qgsvectordataprovider.h

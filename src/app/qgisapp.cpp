@@ -199,6 +199,7 @@
 #include "qgstextannotationitem.h"
 #include "qgstipgui.h"
 #include "qgsundowidget.h"
+#include "qgsuserinputtoolbar.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorfilewriter.h"
 #include "qgsvectorlayer.h"
@@ -739,7 +740,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     // enable Python in the Plugin Manager and pass the PythonUtils to it
     mPluginManager->setPythonUtils( mPythonUtils );
   }
-  else
+  else if ( mActionShowPythonDialog )
   {
     // python is disabled so get rid of the action for python console
     delete mActionShowPythonDialog;
@@ -979,6 +980,8 @@ QgisApp::~QgisApp()
   delete mMapTools.mSvgAnnotation;
   delete mMapTools.mTextAnnotation;
 
+  delete mUserInputToolBar;
+
   delete mpMaptip;
 
   delete mpGpsWidget;
@@ -1000,8 +1003,6 @@ QgisApp::~QgisApp()
   delete QgsProject::instance();
 
   delete mPythonUtils;
-
-  QgsMapLayerStyleGuiUtils::cleanup();
 }
 
 void QgisApp::dragEnterEvent( QDragEnterEvent *event )
@@ -1724,13 +1725,16 @@ void QgisApp::createToolBars()
   connect( bt, SIGNAL( triggered( QAction * ) ), this, SLOT( toolButtonActionTriggered( QAction * ) ) );
 
   // Help Toolbar
-
   QAction* actionWhatsThis = QWhatsThis::createAction( this );
   actionWhatsThis->setIcon( QgsApplication::getThemeIcon( "/mActionWhatsThis.svg" ) );
   mHelpToolBar->addAction( actionWhatsThis );
 
   // Cad toolbar
   mAdvancedDigitizeToolBar->insertAction( mActionUndo, mAdvancedDigitizingDockWidget->enableAction() );
+
+  // User Input Tool Bar
+  mUserInputToolBar = new QgsUserInputToolBar();
+  addToolBar( mUserInputToolBar, Qt::BottomToolBarArea );
 }
 
 void QgisApp::createStatusBar()
@@ -1773,7 +1777,7 @@ void QgisApp::createStatusBar()
   mCoordsLabel->setObjectName( "mCoordsLabel" );
   mCoordsLabel->setFont( myFont );
   mCoordsLabel->setMinimumWidth( 10 );
-  mCoordsLabel->setMaximumHeight( 20 );
+  //mCoordsLabel->setMaximumHeight( 20 );
   mCoordsLabel->setMargin( 3 );
   mCoordsLabel->setAlignment( Qt::AlignCenter );
   mCoordsLabel->setFrameStyle( QFrame::NoFrame );
@@ -1787,7 +1791,7 @@ void QgisApp::createStatusBar()
   mCoordsEdit->setFont( myFont );
   mCoordsEdit->setMinimumWidth( 10 );
   mCoordsEdit->setMaximumWidth( 300 );
-  mCoordsEdit->setMaximumHeight( 20 );
+  //mCoordsEdit->setMaximumHeight( 20 );
   mCoordsEdit->setContentsMargins( 0, 0, 0, 0 );
   mCoordsEdit->setAlignment( Qt::AlignCenter );
   QRegExp coordValidator( "[+-]?\\d+\\.?\\d*\\s*,\\s*[+-]?\\d+\\.?\\d*" );
@@ -1807,7 +1811,7 @@ void QgisApp::createStatusBar()
   mScaleLabel->setObjectName( "mScaleLable" );
   mScaleLabel->setFont( myFont );
   mScaleLabel->setMinimumWidth( 10 );
-  mScaleLabel->setMaximumHeight( 20 );
+  //mScaleLabel->setMaximumHeight( 20 );
   mScaleLabel->setMargin( 3 );
   mScaleLabel->setAlignment( Qt::AlignCenter );
   mScaleLabel->setFrameStyle( QFrame::NoFrame );
@@ -1823,7 +1827,7 @@ void QgisApp::createStatusBar()
   mScaleEdit->lineEdit()->setFont( myFont );
   mScaleEdit->setMinimumWidth( 10 );
   mScaleEdit->setMaximumWidth( 100 );
-  mScaleEdit->setMaximumHeight( 20 );
+  //mScaleEdit->setMaximumHeight( 20 );
   mScaleEdit->setContentsMargins( 0, 0, 0, 0 );
   mScaleEdit->setWhatsThis( tr( "Displays the current map scale" ) );
   mScaleEdit->setToolTip( tr( "Current map scale (formatted as x:y)" ) );
@@ -1838,7 +1842,7 @@ void QgisApp::createStatusBar()
     mRotationLabel->setObjectName( "mRotationLabel" );
     mRotationLabel->setFont( myFont );
     mRotationLabel->setMinimumWidth( 10 );
-    mRotationLabel->setMaximumHeight( 20 );
+    //mRotationLabel->setMaximumHeight( 20 );
     mRotationLabel->setMargin( 3 );
     mRotationLabel->setAlignment( Qt::AlignCenter );
     mRotationLabel->setFrameStyle( QFrame::NoFrame );
@@ -2403,6 +2407,11 @@ QgsMessageBar* QgisApp::messageBar()
 {
   Q_ASSERT( mInfoBar );
   return mInfoBar;
+}
+
+void QgisApp::addUserInputWidget( QWidget *widget )
+{
+  mUserInputToolBar->addUserInputWidget( widget );
 }
 
 
@@ -9878,6 +9887,10 @@ void QgisApp::keyReleaseEvent( QKeyEvent *event )
     }
     event->setAccepted( accepted ); // don't close my Top Level Widget !
     accepted = false;// close the app next time when the user press back button
+  }
+  else
+  {
+    QMainWindow::keyReleaseEvent( event );
   }
 }
 #endif

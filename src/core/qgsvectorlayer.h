@@ -1493,14 +1493,33 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     /**Returns maximum value for an attribute column or invalid variant in case of error */
     QVariant maximumValue( int index );
 
-    /* Set the blending mode used for rendering each feature */
+    /** Fetches all values from a specified field name or expression.
+     * @param fieldOrExpression field name or an expression string
+     * @param ok will be set to false if field or expression is invalid, otherwise true
+     * @returns list of fetched values
+     * @note added in QGIS 2.9
+     * @see getDoubleValues
+     */
+    QList< QVariant > getValues( const QString &fieldOrExpression, bool &ok );
+
+    /** Fetches all double values from a specified field name or expression. Null values or
+     * invalid expression results are skipped.
+     * @param fieldOrExpression field name or an expression string evaluating to a double value
+     * @param ok will be set to false if field or expression is invalid, otherwise true
+     * @returns list of fetched values
+     * @note added in QGIS 2.9
+     * @see getValues
+     */
+    QList< double > getDoubleValues( const QString &fieldOrExpression, bool &ok );
+
+    /** Set the blending mode used for rendering each feature */
     void setFeatureBlendMode( const QPainter::CompositionMode &blendMode );
-    /* Returns the current blending mode for features */
+    /** Returns the current blending mode for features */
     QPainter::CompositionMode featureBlendMode() const;
 
-    /* Set the transparency for the vector layer */
+    /** Set the transparency for the vector layer */
     void setLayerTransparency( int layerTransparency );
-    /* Returns the current transparency for the vector layer */
+    /** Returns the current transparency for the vector layer */
     int layerTransparency() const;
 
     QString metadata() override;
