@@ -1,5 +1,5 @@
 /***************************************************************************
-    qgsuserinputtoolbar.h
+    qgsuserinputdockwidget.h
      --------------------------------------
     Date                 : 04.2015
     Copyright            : (C) 2015 Denis Rouzaud
@@ -15,30 +15,45 @@
 
 
 
-#ifndef QGSUSERINPUTTOOLBAR_H
-#define QGSUSERINPUTTOOLBAR_H
+#ifndef QGSUSERINPUTDOCKWIDGET_H
+#define QGSUSERINPUTDOCKWIDGET_H
 
-#include <QToolBar>
+#include <QDockWidget>
 #include <QMap>
 
-class GUI_EXPORT QgsUserInputToolBar : public QToolBar
+class QFrame;
+class QBoxLayout;
+
+class GUI_EXPORT QgsUserInputDockWidget : public QDockWidget
 {
     Q_OBJECT
   public:
-    QgsUserInputToolBar( QWidget* parent = 0 );
-    ~QgsUserInputToolBar();
+    QgsUserInputDockWidget( QWidget* parent = 0 );
+    ~QgsUserInputDockWidget();
 
+    //! add a widget to be displayed in the dock
     void addUserInputWidget( QWidget* widget );
 
   protected:
-    void paintEvent( QPaintEvent *event );
+    void paintEvent( QPaintEvent *event ) override;
 
   private slots:
     void widgetDestroyed( QObject* obj );
 
+    //! when area change, update the layout according to the new dock location
+    void areaChanged( Qt::DockWidgetArea area );
+    void floatingChanged( bool floating );
+
   private:
-    // list of widget with their corresponding separator
-    QMap<QWidget*, QAction*> mWidgetList;
+    void createLayout();
+
+    void updateLayoutDirection();
+
+    // list of widget with their corresponding line separator
+    QMap<QWidget*, QFrame*> mWidgetList;
+
+    bool mLayoutHorizontal;
+    QBoxLayout* mLayout;
 };
 
-#endif // QGSUSERINPUTTOOLBAR_H
+#endif // QGSUSERINPUTDOCKWIDGET_H

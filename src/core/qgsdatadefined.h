@@ -18,14 +18,19 @@
 #include <QStringList>
 #include <QDomElement>
 #include <QMap>
+#include <QExplicitlySharedDataPointer>
+#include "qgis.h"
+#include "qgsfield.h"
 
 class QgsExpression;
 class QgsVectorLayer;
-class QgsFields;
+class QgsDataDefinedPrivate;
+
 
 /** \ingroup core
  * \class QgsDataDefined
  * A container class for data source field mapping or expression.
+ * \note QgsDataDefined objects are implicitly shared.
  */
 
 class CORE_EXPORT QgsDataDefined
@@ -65,6 +70,15 @@ class CORE_EXPORT QgsDataDefined
      */
     QgsDataDefined( const QgsDataDefined& other );
 
+    /** Creates a QgsDataDefined from a decoded QgsStringMap.
+     * @param map string map encoding of QgsDataDefined
+     * @param baseName base name for values in the string map
+     * @returns new QgsDataDefined if string map was successfully interpreted
+     * @see toMap
+     * @note added in QGIS 2.9
+     */
+    static QgsDataDefined* fromMap( const QgsStringMap& map, const QString& baseName = QString() );
+
     virtual ~QgsDataDefined();
 
     /**Returns whether the data defined container is set to all the default
@@ -74,19 +88,19 @@ class CORE_EXPORT QgsDataDefined
      */
     bool hasDefaultValues() const;
 
-    bool isActive() const { return mActive; }
-    void setActive( bool active ) { mActive = active; }
+    bool isActive() const;
+    void setActive( bool active );
 
-    bool useExpression() const { return mUseExpression; }
-    void setUseExpression( bool use ) { mUseExpression = use; }
+    bool useExpression() const;
+    void setUseExpression( bool use );
 
-    QString expressionString() const { return mExpressionString; }
+    QString expressionString() const;
     void setExpressionString( const QString& expr );
 
     // @note not available in python bindings
-    QMap<QString, QVariant> expressionParams() const { return mExpressionParams; }
+    QMap<QString, QVariant> expressionParams() const;
     // @note not available in python bindings
-    void setExpressionParams( QMap<QString, QVariant> params ) { mExpressionParams = params; }
+    void setExpressionParams( QMap<QString, QVariant> params );
     void insertExpressionParam( QString key, QVariant param );
 
     /** Prepares the expression using a vector layer
@@ -100,21 +114,35 @@ class CORE_EXPORT QgsDataDefined
      * @returns true if expression was successfully prepared
      * @note added in QGIS 2.9
      */
-    bool prepareExpression( const QgsFields &fields );
+    bool prepareExpression( const QgsFields &fields = QgsFields() );
 
     /** Returns whether the data defined object's expression is prepared
      * @returns true if expression is prepared
      */
-    bool expressionIsPrepared() const { return mExpressionPrepared; }
+    bool expressionIsPrepared() const;
 
-    QgsExpression* expression() { return mExpression; }
+    QgsExpression* expression();
+
+    /** Returns the columns referenced by the QgsDataDefined
+     * @param layer vector layer, used for preparing the expression if required
+     */
     QStringList referencedColumns( QgsVectorLayer* layer );
 
-    QString field() const { return mField; }
-    void setField( const QString& field ) { mField = field; }
+    /** Returns the columns referenced by the QgsDataDefined
+     * @param fields vector layer, used for preparing the expression if required
+     * @note added in QGIS 2.9
+     */
+    QStringList referencedColumns( const QgsFields& fields = QgsFields() );
 
-    // @note not available in python bindings
-    QMap< QString, QString > toMap();
+    QString field() const;
+    void setField( const QString& field );
+
+    /** Encodes the QgsDataDefined into a string map.
+     * @param baseName optional base name for values in the string map. Can be used
+     * to differentiate multiple QgsDataDefineds encoded in the same string map.
+     * @see fromMap
+     */
+    QgsStringMap toMap( const QString& baseName = QString() ) const;
 
     /**Returns a DOM element containing the properties of the data defined container.
      * @param document DOM document
@@ -143,16 +171,8 @@ class CORE_EXPORT QgsDataDefined
     QgsDataDefined& operator=( QgsDataDefined const & rhs );
 
   private:
-    QgsExpression* mExpression;
 
-    bool mActive;
-    bool mUseExpression;
-    QString mExpressionString;
-    QString mField;
-
-    QMap<QString, QVariant> mExpressionParams;
-    bool mExpressionPrepared;
-    QStringList mExprRefColumns;
+    QExplicitlySharedDataPointer<QgsDataDefinedPrivate> d;
 
 };
 

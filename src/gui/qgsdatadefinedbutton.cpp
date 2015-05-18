@@ -193,6 +193,24 @@ void QgsDataDefinedButton::init( const QgsVectorLayer* vl,
   updateGui();
 }
 
+void QgsDataDefinedButton::updateDataDefined( QgsDataDefined *dd ) const
+{
+  if ( !dd )
+    return;
+
+  dd->setActive( isActive() );
+  dd->setUseExpression( useExpression() );
+  dd->setExpressionString( getExpression() );
+  dd->setField( getField() );
+}
+
+QgsDataDefined QgsDataDefinedButton::currentDataDefined() const
+{
+  QgsDataDefined dd;
+  updateDataDefined( &dd );
+  return dd;
+}
+
 void QgsDataDefinedButton::mouseReleaseEvent( QMouseEvent *event )
 {
   // Ctrl-click to toggle activated state
@@ -251,6 +269,7 @@ void QgsDataDefinedButton::aboutToShowMenu()
 
   mDefineMenu->addSeparator();
 
+  bool fieldActive = false;
   if ( !mDataTypesString.isEmpty() )
   {
     QAction* fieldTitleAct = mDefineMenu->addAction( tr( "Attribute field" ) );
@@ -273,6 +292,7 @@ void QgsDataDefinedButton::aboutToShowMenu()
         {
           act->setCheckable( true );
           act->setChecked( !useExpression() );
+          fieldActive = !useExpression();
         }
       }
     }
@@ -284,6 +304,9 @@ void QgsDataDefinedButton::aboutToShowMenu()
 
     mDefineMenu->addSeparator();
   }
+
+  mFieldsMenu->menuAction()->setCheckable( true );
+  mFieldsMenu->menuAction()->setChecked( fieldActive );
 
   QAction* exprTitleAct = mDefineMenu->addAction( tr( "Expression" ) );
   exprTitleAct->setFont( titlefont );

@@ -202,6 +202,7 @@ qgsmessagelogviewer.cpp
 qgsmessageviewer.cpp
 qgsnewhttpconnection.cpp
 qgsnewmemorylayerdialog.cpp
+qgsnewnamedialog.cpp
 qgsnewvectorlayerdialog.cpp
 qgsnumericsortlistviewitem.cpp
 qgsoptionsdialogbase.cpp
@@ -227,7 +228,7 @@ qgsslider.cpp
 qgssublayersdialog.cpp
 qgssvgannotationitem.cpp
 qgstextannotationitem.cpp
-qgsuserinputtoolbar.cpp
+qgsuserinputdockwidget.cpp
 qgsvertexmarker.cpp
 qgsunitselectionwidget.cpp
 )
@@ -309,6 +310,7 @@ SET(QGIS_GUI_MOC_HDRS
   qgsmessageviewer.h
   qgsnewhttpconnection.h
   qgsnewmemorylayerdialog.h
+  qgsnewnamedialog.h
   qgsnewvectorlayerdialog.h
   qgsoptionsdialogbase.h
   qgsowssourceselect.h
@@ -332,7 +334,7 @@ SET(QGIS_GUI_MOC_HDRS
   qgsslider.h
   qgssublayersdialog.h
   qgsunitselectionwidget.h
-  qgsuserinputtoolbar.h
+  qgsuserinputdockwidget.h
 
   raster/qgsrasterminmaxwidget.h
   raster/qgspalettedrendererwidget.h
@@ -466,7 +468,7 @@ SET(QGIS_GUI_HDRS
   qgsrubberband.h
   qgssvgannotationitem.h
   qgstextannotationitem.h
-  qgsuserinputtoolbar.h
+  qgsuserinputdockwidget.h
   qgsvectorlayertools.h
   qgsvertexmarker.h
 

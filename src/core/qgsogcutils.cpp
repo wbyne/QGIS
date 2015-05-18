@@ -1050,7 +1050,7 @@ QDomElement QgsOgcUtils::rectangleToGMLEnvelope( QgsRectangle* env, QDomDocument
   return envElem;
 }
 
-QDomElement QgsOgcUtils::geometryToGML( QgsGeometry* geometry, QDomDocument& doc, QString format, const int &precision )
+QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocument& doc, QString format, const int &precision )
 {
   if ( !geometry || !geometry->asWkb() )
     return QDomElement();
@@ -1344,7 +1344,7 @@ QDomElement QgsOgcUtils::geometryToGML( QgsGeometry* geometry, QDomDocument& doc
   }
 }
 
-QDomElement QgsOgcUtils::geometryToGML( QgsGeometry *geometry, QDomDocument &doc, const int &precision )
+QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry *geometry, QDomDocument &doc, const int &precision )
 {
   return geometryToGML( geometry, doc, "GML2", precision );
 }
@@ -1946,12 +1946,12 @@ QDomElement QgsOgcUtils::expressionUnaryOperatorToOgcFilter( const QgsExpression
         // operand expression already created a Literal node:
         // take the literal value, prepend - and remove old literal node
         uoElem.appendChild( doc.createTextNode( "-" + operandElem.text() ) );
-        doc.removeChild(operandElem);
+        doc.removeChild( operandElem );
       }
       else
       {
-          errorMessage = QString( "This use of unary operator not implemented yet" );
-          return QDomElement();
+        errorMessage = QString( "This use of unary operator not implemented yet" );
+        return QDomElement();
       }
       break;
     case QgsExpression::uoNot:

@@ -560,6 +560,8 @@ class QgsVectorLayer : QgsMapLayer
      */
     virtual long featureCount() const;
 
+    void setDataSource(QString dataSource, QString baseName, QString provider, bool loadDefaultStyleFlag = true);
+
     /**
      * Number of features rendered with specified symbol. Features must be first
      * calculated by countSymbolFeatures()
@@ -694,7 +696,7 @@ class QgsVectorLayer : QgsMapLayer
      * @note geom is not going to be modified by the function
      * @return 0 in case of success
      */
-    int addTopologicalPoints( QgsGeometry* geom );
+    int addTopologicalPoints( const QgsGeometry* geom );
 
     /** Adds a vertex to segments which intersect point p but don't
      * already have a vertex there. If a feature already has a vertex at position p,
@@ -1134,21 +1136,23 @@ class QgsVectorLayer : QgsMapLayer
     /** Fetches all values from a specified field name or expression.
      * @param fieldOrExpression field name or an expression string
      * @param ok will be set to false if field or expression is invalid, otherwise true
+     * @param selectedOnly set to true to get values from selected features only
      * @returns list of fetched values
      * @note added in QGIS 2.9
      * @see getDoubleValues
      */
-    QList< QVariant > getValues( const QString &fieldOrExpression, bool &ok );
+    QList< QVariant > getValues( const QString &fieldOrExpression, bool &ok, bool selectedOnly = false );
 
     /** Fetches all double values from a specified field name or expression. Null values or
      * invalid expression results are skipped.
      * @param fieldOrExpression field name or an expression string evaluating to a double value
      * @param ok will be set to false if field or expression is invalid, otherwise true
+     * @param selectedOnly set to true to get values from selected features only
      * @returns list of fetched values
      * @note added in QGIS 2.9
      * @see getValues
      */
-    QList< double > getDoubleValues( const QString &fieldOrExpression, bool &ok );
+    QList< double > getDoubleValues( const QString &fieldOrExpression, bool &ok, bool selectedOnly = false );
 
     /** Set the blending mode used for rendering each feature */
     void setFeatureBlendMode( const QPainter::CompositionMode &blendMode );

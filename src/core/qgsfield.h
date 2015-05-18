@@ -154,6 +154,8 @@ class CORE_EXPORT QgsField
 
 }; // class QgsField
 
+Q_DECLARE_METATYPE( QgsField );
+
 
 /** \class QgsFields
  * \ingroup core
@@ -161,7 +163,7 @@ class CORE_EXPORT QgsField
  *
  * In addition to storing a list of QgsField instances, it also:
  * - allows quick lookups of field names to index in the list
- *- keeps track of where the field definition comes from (vector data provider, joined layer or newly added from an editing operation)
+ * - keeps track of where the field definition comes from (vector data provider, joined layer or newly added from an editing operation)
  * \note QgsFields objects are implicitly shared.
  */
 class CORE_EXPORT QgsFields
@@ -269,5 +271,7 @@ class CORE_EXPORT QgsFields
     QSharedDataPointer<QgsFieldsPrivate> d;
 
 };
+
+Q_DECLARE_METATYPE( QgsFields );
 
 #endif

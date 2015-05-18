@@ -199,7 +199,7 @@
 #include "qgstextannotationitem.h"
 #include "qgstipgui.h"
 #include "qgsundowidget.h"
-#include "qgsuserinputtoolbar.h"
+#include "qgsuserinputdockwidget.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorfilewriter.h"
 #include "qgsvectorlayer.h"
@@ -580,6 +580,10 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   mInfoBar->setSizePolicy( QSizePolicy::Minimum, QSizePolicy::Fixed );
   centralLayout->addWidget( mInfoBar, 0, 0, 1, 1 );
 
+  // User Input Dock Widget
+  mUserInputDockWidget = new QgsUserInputDockWidget( this );
+  mUserInputDockWidget->setObjectName( "UserInputDockWidget" );
+
   //set the focus to the map canvas
   mMapCanvas->setFocus();
 
@@ -637,6 +641,9 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
 
   addDockWidget( Qt::LeftDockWidgetArea, mAdvancedDigitizingDockWidget );
   mAdvancedDigitizingDockWidget->hide();
+
+  QMainWindow::addDockWidget( Qt::BottomDockWidgetArea, mUserInputDockWidget );
+  mUserInputDockWidget->setFloating( true );
 
   // create the GPS tool on starting QGIS - this is like the browser
   mpGpsWidget = new QgsGPSInformationWidget( mMapCanvas );
@@ -979,8 +986,6 @@ QgisApp::~QgisApp()
   delete mMapTools.mSplitParts;
   delete mMapTools.mSvgAnnotation;
   delete mMapTools.mTextAnnotation;
-
-  delete mUserInputToolBar;
 
   delete mpMaptip;
 
@@ -1731,10 +1736,6 @@ void QgisApp::createToolBars()
 
   // Cad toolbar
   mAdvancedDigitizeToolBar->insertAction( mActionUndo, mAdvancedDigitizingDockWidget->enableAction() );
-
-  // User Input Tool Bar
-  mUserInputToolBar = new QgsUserInputToolBar();
-  addToolBar( mUserInputToolBar, Qt::BottomToolBarArea );
 }
 
 void QgisApp::createStatusBar()
@@ -2411,7 +2412,7 @@ QgsMessageBar* QgisApp::messageBar()
 
 void QgisApp::addUserInputWidget( QWidget *widget )
 {
-  mUserInputToolBar->addUserInputWidget( widget );
+  mUserInputDockWidget->addUserInputWidget( widget );
 }
 
 
@@ -5089,6 +5090,7 @@ void QgisApp::saveAsRasterFile()
     QProgressDialog pd( 0, tr( "Abort..." ), 0, 0 );
     // Show the dialo immediately because cloning pipe can take some time (WCS)
     pd.setLabelText( tr( "Reading raster" ) );
+    pd.setWindowTitle( tr( "Saving raster" ) );
     pd.show();
     pd.setWindowModality( Qt::WindowModal );
 
@@ -6256,7 +6258,7 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
 
     featureIt->setAttributes( dstAttr );
 
-    if ( featureIt->geometry() )
+    if ( featureIt->constGeometry() )
     {
       // convert geometry to match destination layer
       QGis::GeometryType destType = pasteVectorLayer->geometryType();
@@ -6269,7 +6271,7 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
       }
       if ( destType != QGis::UnknownGeometry )
       {
-        QgsGeometry* newGeometry = featureIt->geometry()->convertToType( destType, destIsMulti );
+        QgsGeometry* newGeometry = featureIt->constGeometry()->convertToType( destType, destIsMulti );
         if ( !newGeometry )
         {
           featureIt = features.erase( featureIt );
@@ -6368,10 +6370,10 @@ QgsVectorLayer *QgisApp::pasteToNewMemoryVector()
   for ( int i = 0; i < features.size(); i++ )
   {
     QgsFeature &feature = features[i];
-    if ( !feature.geometry() )
+    if ( !feature.constGeometry() )
       continue;
 
-    QGis::WkbType type = QGis::flatType( feature.geometry()->wkbType() );
+    QGis::WkbType type = QGis::flatType( feature.constGeometry()->wkbType() );
 
     if ( type == QGis::WKBUnknown || type == QGis::WKBNoGeometry )
       continue;
@@ -6457,10 +6459,10 @@ QgsVectorLayer *QgisApp::pasteToNewMemoryVector()
   for ( int i = 0; i < features.size(); i++ )
   {
     QgsFeature &feature = features[i];
-    if ( !feature.geometry() )
+    if ( !feature.constGeometry() )
       continue;
 
-    QGis::WkbType type = QGis::flatType( feature.geometry()->wkbType() );
+    QGis::WkbType type = QGis::flatType( feature.constGeometry()->wkbType() );
     if ( type == QGis::WKBUnknown || type == QGis::WKBNoGeometry )
       continue;
 
@@ -10065,11 +10067,15 @@ void QgisApp::projectChanged( const QDomDocument &doc )
 
   QString expr;
   if ( !prevProjectDir.isNull() )
-    expr = QString( "sys.path.remove('%1'); " ).arg( prevProjectDir );
+  {
+    QString prev = prevProjectDir;
+    expr = QString( "sys.path.remove('%1'); " ).arg( prev.replace( "'", "\\'" ) );
+  }
 
   prevProjectDir = fi.canonicalPath();
 
-  expr += QString( "sys.path.append('%1')" ).arg( prevProjectDir );
+  QString prev = prevProjectDir;
+  expr += QString( "sys.path.append('%1')" ).arg( prev.replace( "'", "\\'" ) );
 
   QgsPythonRunner::run( expr );
 }
