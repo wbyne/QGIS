@@ -1405,12 +1405,12 @@ void QgsPalLayerSettings::calculateLabelSize( const QFontMetricsF* fm, QString t
     }
     else
     {
-      text.prepend( dirSym + wrapchr ); // SymbolAbove or SymbolBelow
+      text.prepend( dirSym + QString( "\n" ) ); // SymbolAbove or SymbolBelow
     }
   }
 
   double w = 0.0, h = 0.0;
-  QStringList multiLineSplit = text.split( wrapchr );
+  QStringList multiLineSplit = QgsPalLabeling::splitToLines( text, wrapchr );
   int lines = multiLineSplit.size();
 
   double labelHeight = fm->ascent() + fm->descent(); // ignore +1 for baseline
@@ -2127,17 +2127,12 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, const QgsRenderContext
     }
   }
 
-  if ( repeatDist != 0 )
+  if ( !qgsDoubleNear( repeatDist, 0.0 ) )
   {
-    if ( repeatdistinmapunit ) //convert distance from mm/map units to pixels
+    if ( !repeatdistinmapunit )
     {
-      repeatDist /= repeatDistanceMapUnitScale.computeMapUnitsPerPixel( context ) * context.scaleFactor();
+      repeatDist *= mapUntsPerMM; //convert repeat distance from mm to map units
     }
-    else //mm
-    {
-      repeatDist *= vectorScaleFactor;
-    }
-    repeatDist *= qAbs( ptOne.x() - ptZero.x() );
   }
 
   //  feature to the layer
@@ -3393,6 +3388,39 @@ bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, c
   return false;
 }
 
+QStringList QgsPalLabeling::splitToLines( const QString &text, const QString &wrapCharacter )
+{
+  QStringList multiLineSplit;
+  if ( !wrapCharacter.isEmpty() && wrapCharacter != QString( "\n" ) )
+  {
+    //wrap on both the wrapchr and new line characters
+    foreach ( QString line, text.split( wrapCharacter ) )
+    {
+      multiLineSplit.append( line.split( QString( "\n" ) ) );
+    }
+  }
+  else
+  {
+    multiLineSplit = text.split( "\n" );
+  }
+
+  return multiLineSplit;
+}
+
+QStringList QgsPalLabeling::splitToGraphemes( const QString &text )
+{
+  QStringList graphemes;
+  QTextBoundaryFinder boundaryFinder( QTextBoundaryFinder::Grapheme, text );
+  int currentBoundary = -1;
+  int previousBoundary = 0;
+  while (( currentBoundary = boundaryFinder.toNextBoundary() ) > 0 )
+  {
+    graphemes << text.mid( previousBoundary, currentBoundary - previousBoundary );
+    previousBoundary = currentBoundary;
+  }
+  return graphemes;
+}
+
 QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const QgsRenderContext& context, const QgsCoordinateTransform* ct, double minSize, QgsGeometry* clipGeometry )
 {
   if ( !geometry )
@@ -4110,7 +4138,7 @@ void QgsPalLabeling::drawLabeling( QgsRenderContext& context )
       {
         if ( QString( dit.key() + "d" ) == layerName )
         {
-          feature.setFields( &dit.value().fields );
+          feature.setFields( dit.value().fields );
           palGeometry->feature( feature );
 
           //calculate top-left point for diagram
@@ -4432,11 +4460,8 @@ void QgsPalLabeling::drawLabel( pal::LabelPosition* label, QgsRenderContext& con
   {
 
     // TODO: optimize access :)
-    QString text = (( QgsPalGeometry* )label->getFeaturePart()->getUserGeometry() )->text();
-    QString txt = ( label->getPartId() == -1 ? text : QString( text[label->getPartId()] ) );
+    QString txt = (( QgsPalGeometry* )label->getFeaturePart()->getUserGeometry() )->text( label->getPartId() );
     QFontMetricsF* labelfm = (( QgsPalGeometry* )label->getFeaturePart()->getUserGeometry() )->getLabelFontMetrics();
-
-    QString wrapchr = !tmpLyr.wrapChar.isEmpty() ? tmpLyr.wrapChar : QString( "\n" );
 
     //add the direction symbol if needed
     if ( !txt.isEmpty() && tmpLyr.placement == QgsPalLayerSettings::Line &&
@@ -4468,12 +4493,12 @@ void QgsPalLabeling::drawLabel( pal::LabelPosition* label, QgsRenderContext& con
       if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolAbove )
       {
         prependSymb = true;
-        symb = symb + wrapchr;
+        symb = symb + QString( "\n" );
       }
       else if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolBelow )
       {
         prependSymb = false;
-        symb = wrapchr + symb;
+        symb = QString( "\n" ) + symb;
       }
 
       if ( prependSymb )
@@ -4487,8 +4512,7 @@ void QgsPalLabeling::drawLabel( pal::LabelPosition* label, QgsRenderContext& con
     }
 
     //QgsDebugMsgLevel( "drawLabel " + txt, 4 );
-
-    QStringList multiLineList = txt.split( wrapchr );
+    QStringList multiLineList = QgsPalLabeling::splitToLines( txt, tmpLyr.wrapChar );
     int lines = multiLineList.size();
 
     double labelWidest = 0.0;

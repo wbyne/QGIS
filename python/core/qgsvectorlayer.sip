@@ -1148,11 +1148,12 @@ class QgsVectorLayer : QgsMapLayer
      * @param fieldOrExpression field name or an expression string evaluating to a double value
      * @param ok will be set to false if field or expression is invalid, otherwise true
      * @param selectedOnly set to true to get values from selected features only
+     * @param nullCount optional pointer to integer to store number of null values encountered in
      * @returns list of fetched values
      * @note added in QGIS 2.9
      * @see getValues
      */
-    QList< double > getDoubleValues( const QString &fieldOrExpression, bool &ok, bool selectedOnly = false );
+    QList< double > getDoubleValues( const QString &fieldOrExpression, bool &ok, bool selectedOnly = false, int* nullCount = 0 );
 
     /** Set the blending mode used for rendering each feature */
     void setFeatureBlendMode( const QPainter::CompositionMode &blendMode );
@@ -1291,6 +1292,16 @@ class QgsVectorLayer : QgsMapLayer
     void attributeDeleted( int idx );
     void featureAdded( QgsFeatureId fid );
     void featureDeleted( QgsFeatureId fid );
+    /**
+     * Emitted when features have been deleted.
+     *
+     * If features are deleted within an edit command, this will only be emitted once at the end
+     * to allow connected slots to minimize the overhead.
+     * If features are delted outside of an edit command, this signal will be emitted once per feature.
+     *
+     * @param fids The feature ids that have been deleted.
+     */
+    void featuresDeleted( QgsFeatureIds fids );
     /**
      * Is emitted, whenever the fields available from this layer have been changed.
      * This can be due to manually adding attributes or due to a join.

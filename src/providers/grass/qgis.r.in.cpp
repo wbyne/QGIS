@@ -38,15 +38,11 @@ extern "C"
 #include <QDataStream>
 #include <QFile>
 #include <QIODevice>
+#include <QTextStream>
 
 #include "qgsrectangle.h"
 #include "qgsrasterblock.h"
 #include "qgsgrass.h"
-
-//#ifdef _MSC_VER
-//#define INFINITY (DBL_MAX+DBL_MAX)
-//#define NAN (INFINITY-INFINITY)
-//#endif
 
 #if GRASS_VERSION_MAJOR >= 7
 #define G_allocate_raster_buf Rast_allocate_buf
@@ -63,20 +59,75 @@ extern "C"
 #define G_set_raster_value_d Rast_set_d_value
 #define G_put_raster_row Rast_put_row
 #define G_raster_size Rast_cell_size
+#define G_unopen_cell Rast_unopen
 #endif
+
+// Bad, bad, bad
+// http://lists.qt-project.org/pipermail/interest/2012-May/002110.html
+// http://lists.qt-project.org/pipermail/interest/2012-May/002117.html
+// TODO: This is just test if it works on Windows
+QByteArray readData( QFile & file, qint32 size )
+{
+  QByteArray byteArray;
+  forever
+  {
+    byteArray += file.read( size - byteArray.size() );
+    if ( byteArray.size() == size )
+    {
+      break;
+    }
+  }
+  return byteArray;
+}
+
+bool readBool( QFile & file )
+{
+  QDataStream dataStream( readData( file, sizeof( bool ) ) );
+  bool value;
+  dataStream >> value;
+  return value;
+}
+
+qint32 readQint32( QFile & file )
+{
+  QDataStream dataStream( readData( file, sizeof( qint32 ) ) );
+  qint32 value;
+  dataStream >> value;
+  return value;
+}
+
+quint32 readQuint32( QFile & file )
+{
+  QDataStream dataStream( readData( file, sizeof( quint32 ) ) );
+  quint32 value;
+  dataStream >> value;
+  return value;
+}
+
+QgsRectangle readRectangle( QFile & file )
+{
+  QDataStream dataStream( readData( file, 4*sizeof( double ) ) );
+  QgsRectangle rectangle;
+  dataStream >> rectangle;
+  return rectangle;
+}
+
+QByteArray readByteArray( QFile & file )
+{
+  quint32 size = readQuint32( file );
+  return readData( file, size );
+}
 
 int main( int argc, char **argv )
 {
   char *name;
-  struct GModule *module;
   struct Option *map;
   struct Cell_head window;
   int cf;
 
   G_gisinit( argv[0] );
 
-  module = G_define_module();
-  module->description = ( "Output raster map layers in a format suitable for display in QGIS" );
+  G_define_module();
 
   map = G_define_standard_option( G_OPT_R_OUTPUT );
 
@@ -86,16 +137,19 @@ int main( int argc, char **argv )
   name = map->answer;
 
   QFile stdinFile;
-  stdinFile.open( 0, QIODevice::ReadOnly );
+  stdinFile.open( stdin, QIODevice::ReadOnly );
+  //QDataStream stdinStream( &stdinFile );
 
-  QDataStream stdinStream( &stdinFile );
+  QFile stdoutFile;
+  stdoutFile.open( stdout, QIODevice::WriteOnly );
+  QDataStream stdoutStream( &stdoutFile );
 
   QgsRectangle extent;
   qint32 rows, cols;
-  stdinStream >> extent >> cols >> rows;
-
-  //G_fatal_error("i = %d", i);
-  //G_fatal_error( extent.toString().toAscii().data() );
+  //stdinStream >> extent >> cols >> rows;
+  extent = readRectangle( stdinFile );
+  cols = readQint32( stdinFile );
+  rows = readQint32( stdinFile );
 
   QString err = QgsGrass::setRegion( &window, extent, rows, cols );
   if ( !err.isEmpty() )
@@ -107,8 +161,8 @@ int main( int argc, char **argv )
 
   QGis::DataType qgis_type;
   qint32 type;
-  //stdinStream >> grass_type;
-  stdinStream >> type;
+  //stdinStream >> type;
+  type = readQint32( stdinFile );
   qgis_type = ( QGis::DataType )type;
 
   RASTER_MAP_TYPE grass_type;
@@ -125,24 +179,34 @@ int main( int argc, char **argv )
       break;
     default:
       G_fatal_error( "QGIS data type %d not supported", qgis_type );
+      return 1;
   }
 
   cf = G_open_raster_new( name, grass_type );
   if ( cf < 0 )
   {
     G_fatal_error( "Unable to create raster map <%s>", name );
+    return 1;
   }
 
   void *buf = G_allocate_raster_buf( grass_type );
 
   int expectedSize = cols * QgsRasterBlock::typeSize( qgis_type );
+  bool isCanceled;
   QByteArray byteArray;
   for ( int row = 0; row < rows; row++ )
   {
-    stdinStream >> byteArray;
+    //stdinStream >> isCanceled;
+    isCanceled = readBool( stdinFile );
+    if ( isCanceled )
+    {
+      break;
+    }
+    byteArray = readByteArray( stdinFile );
     if ( byteArray.size() != expectedSize )
     {
-      G_fatal_error( "Wrong byte array size, expected %d bytes, got %d", expectedSize, byteArray.size() );
+      G_fatal_error( "Wrong byte array size, expected %d bytes, got %d, row %d / %d", expectedSize, byteArray.size(), row, rows );
+      return 1;
     }
 
     qint32 *cell;
@@ -168,13 +232,26 @@ int main( int argc, char **argv )
       ptr = G_incr_void_ptr( ptr, G_raster_size( grass_type ) );
     }
     G_put_raster_row( cf, buf, grass_type );
-  }
 
-  G_close_cell( cf );
-  struct History history;
-  G_short_history( name, "raster", &history );
-  G_command_history( &history );
-  G_write_history( name, &history );
+#ifndef Q_OS_WIN
+    stdoutStream << ( bool )true; // row written
+    stdoutFile.flush();
+#endif
+  }
+  //G_fatal_error( "%s", msg.toAscii().data() );
+
+  if ( isCanceled )
+  {
+    G_unopen_cell( cf );
+  }
+  else
+  {
+    G_close_cell( cf );
+    struct History history;
+    G_short_history( name, "raster", &history );
+    G_command_history( &history );
+    G_write_history( name, &history );
+  }
 
   exit( EXIT_SUCCESS );
 }
