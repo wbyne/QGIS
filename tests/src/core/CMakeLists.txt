@@ -82,7 +82,6 @@ ADD_QGIS_TEST(clippertest testqgsclipper.cpp)
 ADD_QGIS_TEST(distanceareatest testqgsdistancearea.cpp)
 ADD_QGIS_TEST(applicationtest testqgsapplication.cpp)
 ADD_QGIS_TEST(diagramtest testqgsdiagram.cpp)
-ADD_QGIS_TEST(diagramexpressiontest testqgsdiagramexpression.cpp)
 ADD_QGIS_TEST(expressiontest testqgsexpression.cpp)
 ADD_QGIS_TEST(fieldtest testqgsfield.cpp)
 ADD_QGIS_TEST(fieldstest testqgsfields.cpp)
@@ -161,6 +160,8 @@ ADD_QGIS_TEST(painteffectregistrytest testqgspainteffectregistry.cpp)
 ADD_QGIS_TEST(statisticalsummarytest testqgsstatisticalsummary.cpp)
 ADD_QGIS_TEST(histogramtest testqgshistogram.cpp)
 ADD_QGIS_TEST(pallabelingtest testqgspallabeling.cpp)
-
+ADD_QGIS_TEST(graduatedsymbolrenderertest testqgsgraduatedsymbolrenderer.cpp)
+ADD_QGIS_TEST(fontutils testqgsfontutils.cpp)
+ADD_QGIS_TEST(stringutilstest testqgsstringutils.cpp)
 
 

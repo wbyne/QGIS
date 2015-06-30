@@ -86,6 +86,10 @@ class DummyPaintEffect : public QgsPaintEffect
 class TestQgsPaintEffect: public QObject
 {
     Q_OBJECT
+
+  public:
+    TestQgsPaintEffect();
+
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
     void cleanupTestCase();// will be called after the last testfunction was executed.
@@ -120,6 +124,12 @@ class TestQgsPaintEffect: public QObject
     QPicture* mPicture;
 };
 
+
+TestQgsPaintEffect::TestQgsPaintEffect()
+    : mPicture( 0 )
+{
+
+}
 
 void TestQgsPaintEffect::initTestCase()
 {
@@ -318,7 +328,10 @@ void TestQgsPaintEffect::drawSource()
 
   //test render
   QImage image( 100, 100, QImage::Format_ARGB32 );
+  image.setDotsPerMeterX( 96 / 25.4 * 1000 );
+  image.setDotsPerMeterY( 96 / 25.4 * 1000 );
   image.fill( Qt::transparent );
+
   QPainter painter;
   painter.begin( &image );
   QgsRenderContext context = QgsSymbolLayerV2Utils::createRenderContext( &painter );
@@ -390,6 +403,8 @@ void TestQgsPaintEffect::blur()
   delete effect;
 
   QImage image( 100, 100, QImage::Format_ARGB32 );
+  image.setDotsPerMeterX( 96 / 25.4 * 1000 );
+  image.setDotsPerMeterY( 96 / 25.4 * 1000 );
   image.fill( Qt::transparent );
   QPainter painter;
   painter.begin( &image );
@@ -486,6 +501,8 @@ void TestQgsPaintEffect::dropShadow()
   delete effect;
 
   QImage image( 100, 100, QImage::Format_ARGB32 );
+  image.setDotsPerMeterX( 96 / 25.4 * 1000 );
+  image.setDotsPerMeterY( 96 / 25.4 * 1000 );
   image.fill( Qt::transparent );
   QPainter painter;
   painter.begin( &image );
@@ -587,6 +604,8 @@ void TestQgsPaintEffect::glow()
   delete effect;
 
   QImage image( 100, 100, QImage::Format_ARGB32 );
+  image.setDotsPerMeterX( 96 / 25.4 * 1000 );
+  image.setDotsPerMeterY( 96 / 25.4 * 1000 );
   image.fill( Qt::transparent );
   QPainter painter;
   painter.begin( &image );
@@ -647,6 +666,8 @@ void TestQgsPaintEffect::stack()
   //rendering
 
   QImage image( 100, 100, QImage::Format_ARGB32 );
+  image.setDotsPerMeterX( 96 / 25.4 * 1000 );
+  image.setDotsPerMeterY( 96 / 25.4 * 1000 );
   image.fill( Qt::transparent );
   QPainter painter;
   painter.begin( &image );
@@ -909,6 +930,7 @@ bool TestQgsPaintEffect::imageCheck( QString testName, QImage &image, int mismat
 bool TestQgsPaintEffect::mapRenderCheck( QString testName, QgsMapSettings& mapSettings, int mismatchCount )
 {
   QgsMultiRenderChecker checker;
+  mapSettings.setOutputDpi( 96 );
   checker.setControlName( "expected_" + testName );
   checker.setMapSettings( mapSettings );
   checker.setColorTolerance( 20 );

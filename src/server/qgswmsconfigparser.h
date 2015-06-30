@@ -28,7 +28,7 @@ class QgsComposition;
 class QgsMapLayer;
 
 
-class QgsWMSConfigParser
+class SERVER_EXPORT QgsWMSConfigParser
 {
   public:
 

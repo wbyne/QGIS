@@ -558,7 +558,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     /**Checks if a feature is larger than a minimum size (in mm)
     @return true if above size, false if below*/
-    bool checkMinimumSizeMM( const QgsRenderContext& ct, QgsGeometry* geom, double minSize ) const;
+    bool checkMinimumSizeMM( const QgsRenderContext& ct, const QgsGeometry* geom, double minSize ) const;
 
 
     QMap<DataDefinedProperties, QVariant> dataDefinedValues;
@@ -817,12 +817,11 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
      * @param geometry geometry to prepare
      * @param context render context
      * @param ct coordinate transform
-     * @param minSize minimum allowable size for feature for registration with PAL
      * @param clipGeometry geometry to clip features to, if applicable
-     * @returns prepared geometry
+     * @returns prepared geometry, the caller takes ownership
      * @note added in QGIS 2.9
      */
-    static QgsGeometry* prepareGeometry( const QgsGeometry *geometry, const QgsRenderContext &context, const QgsCoordinateTransform *ct, double minSize = 0, QgsGeometry *clipGeometry = 0 );
+    static QgsGeometry* prepareGeometry( const QgsGeometry *geometry, const QgsRenderContext &context, const QgsCoordinateTransform *ct, QgsGeometry *clipGeometry = 0 );
 
     /** Checks whether a geometry requires preparation before registration with PAL
      * @param geometry geometry to prepare
@@ -882,7 +881,7 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
      * @returns true if geometry exceeds minimum size
      * @note added in QGIS 2.9
      */
-    static bool checkMinimumSizeMM( const QgsRenderContext &context, QgsGeometry *geom, double minSize );
+    static bool checkMinimumSizeMM( const QgsRenderContext &context, const QgsGeometry *geom, double minSize );
 
     // hashtable of layer settings, being filled during labeling (key = layer ID)
     QHash<QString, QgsPalLayerSettings> mActiveLayers;
@@ -906,6 +905,7 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
 
     QgsLabelingResults* mResults;
 
+    friend class QgsPalLayerSettings;
 };
 Q_NOWARN_DEPRECATED_POP
 

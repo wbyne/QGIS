@@ -104,6 +104,7 @@
 %Include qgssnappingutils.sip
 %Include qgsspatialindex.sip
 %Include qgsstatisticalsummary.sip
+%Include qgsstringutils.sip
 %Include qgstolerance.sip
 %Include qgsvectordataprovider.sip
 %Include qgsvectorfilewriter.sip
@@ -115,6 +116,8 @@
 %Include qgsvectorlayerundocommand.sip
 %Include qgsvectorsimplifymethod.sip
 %Include qgsfontutils.sip
+%Include qgsdartmeasurement.sip
+%Include qgsexpressionfieldbuffer.sip
 
 %Include qgscachedfeatureiterator.sip
 %Include qgscacheindex.sip
@@ -281,7 +284,6 @@
 %Include geometry/qgscurvev2.sip
 %Include geometry/qgsgeometrycollectionv2.sip
 %Include geometry/qgsgeometryengine.sip
-%Include geometry/qgsgeos.sip
 %Include geometry/qgslinestringv2.sip
 %Include geometry/qgsmulticurvev2.sip
 %Include geometry/qgsmultilinestringv2.sip

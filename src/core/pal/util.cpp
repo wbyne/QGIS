@@ -27,10 +27,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <stddef.h>
 #include <geos_c.h>
 
@@ -42,8 +38,7 @@
 #include <cstdarg>
 #include <ctime>
 
-#include <pal/layer.h>
-
+#include "layer.h"
 #include "internalexception.h"
 #include "util.h"
 #include "labelposition.h"

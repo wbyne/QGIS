@@ -27,15 +27,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #define _CRT_SECURE_NO_DEPRECATE
-
-#ifdef _EXPORT_MAP_
-#include <cstdlib>
-#endif
 
 #include <iostream>
 #include <fstream>
@@ -45,10 +37,9 @@
 #include <list>
 #include <limits.h> //for INT_MAX
 
-#include <pal/pal.h>
-#include <pal/palstat.h>
-#include <pal/layer.h>
-
+#include "pal.h"
+#include "palstat.h"
+#include "layer.h"
 #include "linkedlist.hpp"
 #include "rtree.hpp"
 #include "feature.h"
@@ -57,8 +48,6 @@
 #include "problem.h"
 #include "util.h"
 #include "priorityqueue.h"
-
-#define UNUSED(x) (void)x;
 
 namespace pal
 {
@@ -230,9 +219,6 @@ namespace pal
     delete[] ok;
   }
 
-  /**
-   * \brief Basic initial solution : every feature to -1
-   */
   void Problem::init_sol_empty()
   {
     int i;
@@ -754,9 +740,6 @@ namespace pal
     subPart->seed = featseed;
     return subPart;
   }
-
-
-  /** From SubPart.cpp ***/
 
   double Problem::compute_feature_cost( SubPart *part, int feat_id, int label_id, int *nbOverlap )
   {
@@ -1613,7 +1596,7 @@ namespace pal
 #ifdef _DEBUG_FULL_
           std::cout << "catch int " << i << std::endl;
 #else
-          UNUSED( i );
+          Q_UNUSED( i );
 #endif
           while ( conflicts->size() > 0 )
             conflicts->pop_front();
@@ -1903,7 +1886,7 @@ namespace pal
 #ifdef _DEBUG_FULL_
           std::cout << "catch Cycle in chain" << std::endl;
 #else
-          UNUSED( i );
+          Q_UNUSED( i );
 #endif
           while ( conflicts->size() > 0 )
             conflicts->pop_front();
@@ -1970,10 +1953,6 @@ namespace pal
     return retainedChain;
   }
 
-
-  /**
-   *  POPMUSIC, chain
-   */
   double Problem::popmusic_chain( SubPart *part )
   {
     int i;
@@ -2125,14 +2104,6 @@ namespace pal
     return initial_cost - best_cost;
   }
 
-
-
-
-  /**
-   *
-   * POPMUSIC, Tabu search with  chain'
-   *
-   */
   double Problem::popmusic_tabu_chain( SubPart *part )
   {
     int i;
@@ -2488,158 +2459,6 @@ namespace pal
     return true;
   }
 
-#if 0
-// tabu,
-  void Problem::chain_search()
-  {
-    int i;
-
-    int *best_sol = new int[nbft];
-
-    double initial_cost;
-    double cur_cost = 0;
-    double best_cost = 0;
-
-    int nbOverlap = 0;
-
-    int seed;
-
-    int featOv;
-
-    int lid;
-    int fid;
-
-    int *tabu_list = new int[nbft];
-
-    Chain *current_chain = NULL;
-
-    int it;
-    int stop_it;
-    int maxit;
-    int itwimp; // iteration without improvment
-
-    int tenure = pal->tenure;
-    //tenure = 0;
-
-#ifdef _VERBOSE_
-    clock_t start_time = clock();
-    clock_t init_sol_time;
-    clock_t search_time;
-#endif
-
-    init_sol_falp();
-
-
-#ifdef _VERBOSE_
-    std::cout << "   Compute initial solution: " << ( double )(( init_sol_time = clock() ) - start_time ) / ( double ) CLOCKS_PER_SEC;
-#endif
-
-    solution_cost();
-
-#ifdef _VERBOSE_
-    std::cerr << "\t" << sol->cost << "\t" << nbActive << "\t" << ( double ) nbActive / ( double ) nbft;
-    std::cout << " (solution cost: " << sol->cost << ", nbDisplayed: " << nbActive  << "(" << double( nbActive ) / nbft << "%)" << std::endl;
-#endif
-
-    cur_cost = sol->cost;
-
-    initial_cost = cur_cost;
-
-    best_cost = cur_cost;
-
-    memcpy( best_sol, sol->s, sizeof( int ) *nbft );
-
-    it = 0;
-
-    maxit = nbft * pal->tabuMaxIt;
-
-    itwimp = nbft * pal->tabuMinIt;;
-
-    stop_it = itwimp;
-
-    for ( i = 0; i < nbft; i++ )
-      tabu_list[i] = -1; // others aren't
-
-    while ( it < stop_it )
-    {
-      seed = ( it % nbft );
-
-      if (( current_chain = chain( seed ) ) )
-      {
-
-        /* we accept a modification only if the seed is not tabu or
-         * if the nmodification will generate a new best solution */
-        if ( tabu_list[seed] < it || ( cur_cost + current_chain->delta ) - best_cost < -EPSILON )
-        {
-
-          for ( i = 0; i < current_chain->degree; i++ )
-          {
-            fid = current_chain->feat[i];
-            lid = current_chain->label[i];
-
-            if ( sol->s[fid] >= 0 )
-            {
-              labelpositions[sol->s[fid]]->removeFromIndex( candidates_sol );
-            }
-            sol->s[fid] = lid;
-
-            if ( sol->s[fid] >= 0 )
-            {
-              labelpositions[lid]->insertIntoIndex( candidates_sol );
-            }
-
-            tabu_list[fid] = it + tenure;
-          }
-
-          cur_cost += current_chain->delta;
-
-#ifdef _DEBUG_
-          std::cout << "cur->cost: " << cur_cost << std::endl;
-          solution_cost();
-          std::cout << "computed cost: " << sol->cost << std::endl << std::endl;
-#endif
-
-          /* check if new solution is a new best solution */
-          //std::cout << "Costs : " << cur_cost <<" <--> " << best_cost << std::endl;
-          if ( best_cost - cur_cost > EPSILON )
-          {
-            //std::cout << "New best : " << cur_cost <<" <--> " << best_cost << std::endl;
-            //std::cout << "New best" << std::endl;
-            best_cost = cur_cost;
-            memcpy( best_sol, sol->s, sizeof( int ) *nbft );
-
-            stop_it = ( it + itwimp > maxit ? maxit : it + itwimp );
-          }
-        }
-        delete_chain( current_chain );
-      }
-      it++;
-    }
-
-    memcpy( sol->s, best_sol, sizeof( int ) *nbft );
-
-    candidates_sol->RemoveAll();
-    for ( i = 0; i < nbft; i++ )
-      if ( sol->s[i] != -1 )
-        labelpositions[sol->s[i]]->insertIntoIndex( candidates_sol );
-
-    std::cout << "Cost : " << cur_cost << std::endl;
-
-    solution_cost();
-
-#ifdef _VERBOSE_
-    std::cout << "   Improved solution: " << ( double )(( search_time = clock() ) - start_time ) / ( double ) CLOCKS_PER_SEC << " (solution cost: " << sol->cost << ", nbDisplayed: " << nbActive << " (" << ( double ) nbActive / ( double ) nbft << "%)" << std::endl;
-
-    std::cerr << "\tna\tchain" << "\tna\t" << it << "\tna\t" << ( init_sol_time - start_time ) / ( double ) CLOCKS_PER_SEC << "\t" << ( search_time - init_sol_time ) / ( double ) CLOCKS_PER_SEC << "\t" << ( search_time - start_time ) / ( double ) CLOCKS_PER_SEC << "\t" << sol->cost <<   "\t" << nbActive << "\t" << ( double ) nbActive / ( double ) nbft;
-#endif
-
-    delete[] best_sol;
-    delete[] tabu_list;
-
-    return;
-  }
-#endif
-
   void Problem::chain_search()
   {
 
@@ -2798,157 +2617,6 @@ namespace pal
     return;
   }
 
-#if 0
-  double Problem::popmusic_chain( SubPart *part )
-  {
-    int i;
-
-    int probSize   = part->probSize;
-    int borderSize = part->borderSize;
-    int subSize    = part->subSize;
-    int *sub       = part->sub;
-    int *sol       = part->sol;
-
-    int *best_sol = new int[subSize];
-
-    for ( i = 0; i < subSize; i++ )
-    {
-      featWrap[sub[i]] = i;
-      best_sol[i] = sol[i];
-    }
-
-    double initial_cost;
-    double cur_cost = 0;
-
-    int nbOverlap = 0;
-
-    int seed;
-
-    int featOv;
-
-    int lid;
-    int fid;
-
-    bool *ok = new bool[subSize];
-
-    Chain *retainedChain = NULL;
-
-    int c;
-    double amin[2];
-    double amax[2];
-
-    NokContext context;
-    context.ok = ok;
-    context.feat = NULL;
-    context.wrap = featWrap;
-
-    //int itC;
-
-    int iter = 0, it = 0;
-
-    for ( i = 0; i < subSize; i++ )
-    {
-      cur_cost += compute_feature_cost( part, i, sol[i], &featOv );
-      nbOverlap += featOv;
-    }
-
-    initial_cost = cur_cost;
-
-#ifdef _DEBUG_FULL_
-    cout << "Popmusic_chain" << std::endl;
-    std::cout << " initial cost" << initial_cost << std::endl;
-#endif
-
-    // feature on border are ok
-    for ( i = 0; i < borderSize; i++ )
-      ok[i] = true;   // border is ok
-
-    for ( i = 0; i < probSize; i++ )
-      ok[i+borderSize] = false; // others aren't
-
-    while ( true )
-    {
-      for ( seed = ( iter + 1 ) % probSize;
-            ok[seed + borderSize] && seed != iter;
-            seed = ( seed + 1 ) % probSize );
-
-      if ( seed == iter )
-        break;
-
-      iter = ( iter + 1 ) % probSize;
-      seed = seed + borderSize;
-
-      retainedChain = chain( part, seed );
-
-#ifdef _DEBUG_FULL_
-      std::cout << "   seed: " << seed << "(" << seed - borderSize << " / " << probSize << ")"  << std::endl;
-      std::cout << "   chain(seed)";
-      if ( retainedChain )
-      {
-        std::cout << " delta: " << retainedChain->delta << std::endl;
-      }
-      else
-        std::cout << ": undef" << std::endl;
-#endif
-
-      if ( retainedChain && retainedChain->delta  < -EPSILON )
-      {
-#ifdef _DEBUG_FULL_
-        std::cout << "     chain accepted " << std::endl;
-#endif
-        for ( i = 0; i < retainedChain->degree; i++ )
-        {
-          fid = retainedChain->feat[i];
-          lid = retainedChain->label[i];
-
-          if ( sol[fid] >= 0 )
-          {
-            LabelPosition *old = labelpositions[sol[fid]];
-            old->removeFromIndex( candidates_subsol );
-
-            old->getBoundingBox( amin, amax );
-
-            context.lp = old;
-            candidates->Search( amin, amax, nokCallback, &context );
-          }
-
-          sol[fid] = lid;
-
-          if ( sol[fid] >= 0 )
-            labelpositions[lid]->insertIntoIndex( candidates_subsol );
-
-          ok[fid] = false;
-        }
-
-        cur_cost += retainedChain->delta;
-#ifdef _DEBUG_FULL_
-        std::cout << "    cur->cost: " << cur_cost << std::endl;
-        int kov;
-        std::cout << "    computed cost: " << compute_subsolution_cost( part, sol, &kov ) << std::endl << std::endl;
-#endif
-      }
-      else
-      {
-        ok[seed] = true;
-      }
-      delete_chain( retainedChain );
-      it++;
-    }
-
-    for ( i = 0; i < subSize; i++ )
-      featWrap[sub[i]] = -1;
-
-    delete[] ok;
-
-#ifdef _DEBUG_FULL_
-    std::cout << "Final cost : " << cur_cost << " (" << initial_cost - cur_cost << ")" << std::endl;
-#endif
-
-    return initial_cost - cur_cost;
-  }
-//#undef _DEBUG_FULL_
-#endif
-
   bool Problem::compareLabelArea( pal::LabelPosition* l1, pal::LabelPosition* l2 )
   {
     return l1->getWidth() * l1->getHeight() > l2->getWidth() * l2->getHeight();
@@ -3042,82 +2710,6 @@ namespace pal
     return stats;
   }
 
-  void Problem::post_optimization()
-  {
-#if 0
-    /*
-     *   this->sol                 => s[nbFeature] s[i] = quel label pour la feat. i
-     *   this->labelpositions      => tout les candidats à la suite pour toute les feature
-     *       labelpositions[sol->s[i]] => label choisi pour la feat. i (attention sol->s[i] peut == -1 pour indiquer que le label est pas affiché)
-     *
-     *   this->featStartId        => featStartId[i] indice du premier candidate dans labelposiiton pour la feat. i
-     *   this->feat               => a quel feat correspond un candidats (feat[labelId] == feature id)
-     *
-     *
-     *
-     *
-     *   labelpositon[i]->geometry == la geometrie qui correspond au label (possible que ça soit NULL) dans ce cas c'est labelpositions[i]->feature qui doit etre utilisée  (normalement c'est que pour les points)
-     *
-     *
-     *
-     * L'appel a cette méthode est fait dans pal->labeller
-     *
-     */
-    Feature *feature;
-    LabelPosition *lp;
-
-    int i, j;
-    double xrm, yrm;
-
-    std::ofstream solution( "solution.raw" );
-    solution << "GeomType ; nbPoints ;  label length ; label height ; down-left X ; down-left Y ; rotation (rad) ; points list" << std::endl;
-    for ( i = 0; i < nbft; i++ )
-    {
-
-      if ( sol->s[i] >= 0 )
-      {
-        lp = labelpositions[sol->s[i]];
-        if ( lp->feature->layer->label_unit == PIXEL )
-        {
-          xrm = px2meters( lp->feature->label_x, pal->dpi, scale );
-          yrm = px2meters( lp->feature->label_y, pal->dpi, scale );
-        }
-        else
-        {
-          xrm = lp->feature->label_x;
-          yrm = lp->feature->label_y;
-        }
-      }
-      else
-      {
-        lp = labelpositions[featStartId[i]];
-        xrm = yrm = 0;
-      }
-
-
-      feature = lp->feature;
-
-      if ( sol->s[i] >= 0 )
-      {
-        solution << feature->type << ";" << feature->nbPoints << ";" << xrm << ";" << yrm
-        << ";" << lp->x[0] << ";" << lp->y[0] << ";" << lp->alpha << ";";
-      }
-      else
-      {
-        solution << feature->type << ";" << feature->nbPoints << ";0;0;0;0;0;";
-      }
-
-      for ( j = 0; j < feature->nbPoints; j++ )
-      {
-        solution << feature->x[j] << " " << feature->y[j] << " ";
-      }
-      solution << std::endl;
-    }
-
-    solution.close();
-#endif
-  }
-
   void Problem::solution_cost()
   {
 
@@ -3175,28 +2767,5 @@ namespace pal
     std::cout << "solution cost:" << sol->cost << std::endl;
 #endif
   }
-
-
-#ifdef _EXPORT_MAP_
-  void Problem::drawLabels( std::ofstream &svgmap )
-  {
-    int i;
-
-    svgmap << "<g inkscape:label=\"labels\"" << std::endl
-    <<     "inkscape:groupmode=\"layer\"" << std::endl
-    <<     "id=\"label_layer\">" << std::endl << std::endl;
-
-    for ( i = 0; i < nbft; i++ )
-    {
-      if ( sol->s[i] >= 0 )
-      {
-        LabelPosition *lp = labelpositions[sol->s[i]];
-        toSVGPath( 4, 3, lp->x, lp->y, pal->getDpi(), scale, convert2pt( bbox[0], scale, pal->getDpi() ), convert2pt( bbox[3], scale, pal->getDpi() ), "label", lp->feature->uid, svgmap );
-      }
-    }
-
-    svgmap << "</g>" << std::endl;
-  }
-#endif
 
 } // namespace

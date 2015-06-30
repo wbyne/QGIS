@@ -15,7 +15,6 @@
 #include <QtTest/QtTest>
 #include <QObject>
 #include <QString>
-#include <QObject>
 #include <QtConcurrentMap>
 #include <QSharedPointer>
 
@@ -26,11 +25,6 @@
 #include <qgsfeaturerequest.h>
 #include <qgsgeometry.h>
 #include <qgsrenderchecker.h>
-
-#if QT_VERSION < 0x40701
-// See http://hub.qgis.org/issues/4284
-Q_DECLARE_METATYPE( QVariant )
-#endif
 
 static void _parseAndEvalExpr( int arg )
 {
@@ -393,7 +387,21 @@ class TestQgsExpression: public QObject
       QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis\nsupports many multiline',-5,' ')" << false << QVariant( "university\nof qgis\nsupports\nmany multiline" );
       QTest::newRow( "format" ) << "format('%1 %2 %3 %1', 'One', 'Two', 'Three')" << false << QVariant( "One Two Three One" );
       QTest::newRow( "concat" ) << "concat('a', 'b', 'c', 'd')" << false << QVariant( "abcd" );
-      QTest::newRow( "concat single" ) << "concat('a')" << false << QVariant( "a" );
+      QTest::newRow( "concat function single" ) << "concat('a')" << false << QVariant( "a" );
+      QTest::newRow( "concat function with NULL" ) << "concat(NULL,'a','b')" << false << QVariant( "ab" );
+
+      //fuzzy matching
+      QTest::newRow( "levenshtein" ) << "levenshtein('kitten','sitting')" << false << QVariant( 3 );
+      QTest::newRow( "levenshtein" ) << "levenshtein('kitten','kiTTen')" << false << QVariant( 2 );
+      QTest::newRow( "levenshtein" ) << "levenshtein('','')" << false << QVariant( 0 );
+      QTest::newRow( "longest_common_substring" ) << "longest_common_substring('expression','impression')" << false << QVariant( "pression" );
+      QTest::newRow( "longest_common_substring" ) << "longest_common_substring('abCdE','abcde')" << false << QVariant( "ab" );
+      QTest::newRow( "longest_common_substring" ) << "longest_common_substring('','')" << false << QVariant( "" );
+      QTest::newRow( "hamming_distance" ) << "hamming_distance('abc','xec')" << false << QVariant( 2 );
+      QTest::newRow( "hamming_distance" ) << "hamming_distance('abc','ABc')" << false << QVariant( 2 );
+      QTest::newRow( "hamming_distance" ) << "hamming_distance('abcd','xec')" << false << QVariant();
+      QTest::newRow( "soundex" ) << "soundex('jackson')" << false << QVariant( "J250" );
+      QTest::newRow( "soundex" ) << "soundex('')" << false << QVariant( "" );
 
       // implicit conversions
       QTest::newRow( "implicit int->text" ) << "length(123)" << false << QVariant( 3 );
@@ -441,15 +449,16 @@ class TestQgsExpression: public QObject
       QTest::newRow( "color hsva" ) << "color_hsva(40,100,100,200)" << false << QVariant( "255,170,0,200" );
       QTest::newRow( "color cmyk" ) << "color_cmyk(100,50,33,10)" << false << QVariant( "0,115,154" );
       QTest::newRow( "color cmyka" ) << "color_cmyka(50,25,90,60,200)" << false << QVariant( "51,76,10,200" );
+
+      // Precedence and associativity
+      QTest::newRow( "multiplication first" ) << "1+2*3" << false << QVariant( 7 );
+      QTest::newRow( "brackets first" ) << "(1+2)*(3+4)" << false << QVariant( 21 );
+      QTest::newRow( "right associativity" ) << "(2^3)^2" << false << QVariant( 64. );
+      QTest::newRow( "left associativity" ) << "1-(2-1)" << false << QVariant( 0 );
     }
 
-    void evaluation()
+    void run_evaluation_test( QgsExpression& exp, bool evalError, QVariant& result )
     {
-      QFETCH( QString, string );
-      QFETCH( bool, evalError );
-      QFETCH( QVariant, result );
-
-      QgsExpression exp( string );
       QCOMPARE( exp.hasParserError(), false );
       if ( exp.hasParserError() )
         qDebug() << exp.parserErrorString();
@@ -507,19 +516,25 @@ class TestQgsExpression: public QObject
       }
     }
 
+    void evaluation()
+    {
+      QFETCH( QString, string );
+      QFETCH( bool, evalError );
+      QFETCH( QVariant, result );
+
+      QgsExpression exp( string );
+      run_evaluation_test( exp, evalError, result );
+      QgsExpression exp2( exp.dump() );
+      run_evaluation_test( exp2, evalError, result );
+      QgsExpression exp3( exp.expression() );
+      run_evaluation_test( exp3, evalError, result );
+    }
+
     void eval_precedence()
     {
       QCOMPARE( QgsExpression::BinaryOperatorText[QgsExpression::boDiv], "/" );
       QCOMPARE( QgsExpression::BinaryOperatorText[QgsExpression::boConcat], "||" );
 
-      QgsExpression e0( "1+2*3" );
-      QCOMPARE( e0.evaluate().toInt(), 7 );
-
-      QgsExpression e1( "(1+2)*(3+4)" );
-      QCOMPARE( e1.evaluate().toInt(), 21 );
-
-      QgsExpression e2( e1.dump() );
-      QCOMPARE( e2.evaluate().toInt(), 21 );
     }
 
     void eval_columns()
@@ -1152,4 +1167,3 @@ class TestQgsExpression: public QObject
 QTEST_MAIN( TestQgsExpression )
 
 #include "testqgsexpression.moc"
-

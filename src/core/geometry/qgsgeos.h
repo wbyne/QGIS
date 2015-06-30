@@ -23,7 +23,9 @@ email                : marco.hugentobler at sourcepole dot com
 class QgsLineStringV2;
 class QgsPolygonV2;
 
-/**Does vector analysis using the geos library and handles import, export, exception handling*/
+/** Does vector analysis using the geos library and handles import, export, exception handling*
+ * \note this API is not considered stable and may change for 2.12
+ */
 class CORE_EXPORT QgsGeos: public QgsGeometryEngine
 {
   public:
@@ -40,6 +42,7 @@ class CORE_EXPORT QgsGeos: public QgsGeometryEngine
     QgsAbstractGeometryV2* combine( const QList< const QgsAbstractGeometryV2* > ) const override;
     QgsAbstractGeometryV2* symDifference( const QgsAbstractGeometryV2& geom ) const override;
     QgsAbstractGeometryV2* buffer( double distance, int segments ) const override;
+    QgsAbstractGeometryV2* buffer( double distance, int segments, int endCapStyle, int joinStyle, double mitreLimit ) const override;
     QgsAbstractGeometryV2* simplify( double tolerance ) const override;
     QgsAbstractGeometryV2* interpolate( double distance ) const override;
     bool centroid( QgsPointV2& pt ) const override;
@@ -112,7 +115,7 @@ class CORE_EXPORT QgsGeos: public QgsGeometryEngine
     static int numberOfGeometries( GEOSGeometry* g );
     static GEOSGeometry* nodeGeometries( const GEOSGeometry *splitLine, const GEOSGeometry *geom );
     int mergeGeometriesMultiTypeSplit( QVector<GEOSGeometry*>& splitResult ) const;
-    GEOSGeometry* createGeosCollection( int typeId, QVector<GEOSGeometry*> geoms ) const;
+    static GEOSGeometry* createGeosCollection( int typeId, const QVector<GEOSGeometry*>& geoms );
 
     static GEOSGeometry* createGeosPoint( const QgsAbstractGeometryV2* point, int coordDims );
     static GEOSGeometry* createGeosLinestring( const QgsAbstractGeometryV2* curve );

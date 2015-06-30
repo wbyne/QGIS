@@ -1103,6 +1103,11 @@ class TestQgsGeometry(TestCase):
         bb = polygon.boundingBox()
         assert expbb == bb, "Expected:\n%s\nGot:\n%s\n" % (expbb.toString(), bb.toString())
 
+        # NULL
+        points = []
+        line = QgsGeometry.fromPolyline(points)
+        assert line.boundingBox().isNull()
+
     def testAddPart(self):
         #   2-3 6-+-7
         #   | | |   |
@@ -1143,6 +1148,19 @@ class TestQgsGeometry(TestCase):
         assert polygon.addPart( points[1][0] ) == 0, "addPart failed"
         expwkt = "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((4 0, 5 0, 5 2, 3 2, 3 1, 4 1, 4 0)))"
         wkt = polygon.exportToWkt()
+        assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
+
+        mp = QgsGeometry.fromMultiPolygon( points[:1] )
+        p = QgsGeometry.fromPolygon( points[1] )
+
+        assert mp.addPartGeometry( p ) == 0
+        wkt = mp.exportToWkt()
+        assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
+
+        mp = QgsGeometry.fromMultiPolygon( points[:1] )
+        mp2 = QgsGeometry.fromMultiPolygon( points[1:] )
+        assert mp.addPartGeometry( mp2 ) == 0
+        wkt = mp.exportToWkt()
         assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
 
     def testConvertToType(self):

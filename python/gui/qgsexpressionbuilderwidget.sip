@@ -84,6 +84,12 @@ class QgsExpressionBuilderWidget : QWidget
 
     void loadFieldNames( const QgsFields& fields );
 
+    /** Loads field names and values from the specified map.
+     *  @note The field values must be quoted appropriately if they are strings.
+     *  @note added in QGIS 2.12
+     */
+    void loadFieldsAndValues(const QMap<QString, QStringList>& fieldValues );
+
     /** Sets geometry calculator used in distance/area calculations. */
     void setGeomCalculator( const QgsDistanceArea & da );
 

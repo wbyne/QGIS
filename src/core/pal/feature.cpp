@@ -27,10 +27,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #define _CRT_SECURE_NO_DEPRECATE
 
 
@@ -44,15 +40,13 @@
 #include <cstring>
 #include <cfloat>
 
-#include <pal/pal.h>
-#include <pal/layer.h>
-
+#include "pal.h"
+#include "layer.h"
 #include "linkedlist.hpp"
 #include "feature.h"
 #include "geomfunction.h"
 #include "labelposition.h"
 #include "pointset.h"
-#include "simplemutex.h"
 #include "util.h"
 
 #ifndef M_PI
@@ -131,10 +125,6 @@ namespace pal
     }
   }
 
-
-  /*
-   * \brief read coordinates from a GEOS geom
-   */
   void FeaturePart::extractCoords( const GEOSGeometry* geom )
   {
     int i, j;
@@ -418,17 +408,6 @@ namespace pal
     double alpha;
     double beta = 2 * M_PI / nbp; /* angle bw 2 pos */
 
-    // uncomment for Wolff 2 position model test on RailwayStation
-    //if (nbp==2)
-    //   beta = M_PI/2;
-
-#if 0
-    double distlabel =  unit_convert( this->distlabel,
-                                      pal::PIXEL,
-                                      layer->pal->map_unit,
-                                      dpi, scale, delta_width );
-#endif
-
     double lx, ly; /* label pos */
 
     /* various alpha */
@@ -580,15 +559,6 @@ namespace pal
                         f->layer->label_unit,
                         f->layer->pal->map_unit,
                         dpi, scale, delta_width );
-
-
-#if 0
-    double distlabel = unit_convert( this->distlabel,
-                                     pal::PIXEL,
-                                     layer->pal->map_unit,
-                                     dpi, scale, delta_width );
-#endif
-
 
     double *d; // segments lengths distance bw pt[i] && pt[i+1]
     double *ad;  // absolute distance bw pt[0] and pt[i] along the line
@@ -1348,19 +1318,11 @@ namespace pal
 
   int FeaturePart::setPosition( double scale, LabelPosition ***lPos,
                                 double bbox_min[2], double bbox_max[2],
-                                PointSet *mapShape, RTree<LabelPosition*, double, 2, double> *candidates
-#ifdef _EXPORT_MAP_
-                                , std::ofstream &svgmap
-#endif
-                              )
+                                PointSet *mapShape, RTree<LabelPosition*, double, 2, double> *candidates )
   {
     int nbp = 0;
     int i;
     double bbox[4];
-
-#ifdef _EXPORT_MAP_
-    int dpi = layer->pal->getDpi();
-#endif
 
     bbox[0] = bbox_min[0];
     bbox[1] = bbox_min[1];

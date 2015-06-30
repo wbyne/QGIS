@@ -27,10 +27,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include <iostream>
@@ -39,9 +35,8 @@
 #include <cstring>
 #include <cfloat>
 
-#include <pal/layer.h>
-#include <pal/pal.h>
-
+#include "layer.h"
+#include "pal.h"
 #include "costcalculator.h"
 #include "feature.h"
 #include "geomfunction.h"

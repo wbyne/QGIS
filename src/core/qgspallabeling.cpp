@@ -742,7 +742,7 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   bool fontItalic = layer->customProperty( "labeling/fontItalic" ).toBool();
   textFont = QFont( fontFamily, fontSize, fontWeight, fontItalic );
   textFont.setPointSizeF( fontSize ); //double precision needed because of map units
-  textNamedStyle = layer->customProperty( "labeling/namedStyle", QVariant( "" ) ).toString();
+  textNamedStyle = QgsFontUtils::translateNamedStyle( layer->customProperty( "labeling/namedStyle", QVariant( "" ) ).toString() );
   QgsFontUtils::updateFontViaStyle( textFont, textNamedStyle ); // must come after textFont.setPointSizeF()
   textFont.setCapitalization(( QFont::Capitalization )layer->customProperty( "labeling/fontCapitals", QVariant( 0 ) ).toUInt() );
   textFont.setUnderline( layer->customProperty( "labeling/fontUnderline" ).toBool() );
@@ -930,7 +930,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/fieldName", fieldName );
   layer->setCustomProperty( "labeling/isExpression", isExpression );
   layer->setCustomProperty( "labeling/fontFamily", textFont.family() );
-  layer->setCustomProperty( "labeling/namedStyle", textNamedStyle );
+  layer->setCustomProperty( "labeling/namedStyle", QgsFontUtils::untranslateNamedStyle( textNamedStyle ) );
   layer->setCustomProperty( "labeling/fontSize", textFont.pointSizeF() );
   layer->setCustomProperty( "labeling/fontSizeInMapUnits", fontSizeInMapUnits );
   layer->setCustomProperty( "labeling/fontSizeMapUnitMinScale", fontSizeMapUnitScale.minScale );
@@ -1240,42 +1240,9 @@ bool QgsPalLayerSettings::dataDefinedUseExpression( DataDefinedProperties p ) co
   return useExpression;
 }
 
-bool QgsPalLayerSettings::checkMinimumSizeMM( const QgsRenderContext& ct, QgsGeometry* geom, double minSize ) const
+bool QgsPalLayerSettings::checkMinimumSizeMM( const QgsRenderContext& ct, const QgsGeometry* geom, double minSize ) const
 {
-  if ( minSize <= 0 )
-  {
-    return true;
-  }
-
-  if ( !geom )
-  {
-    return false;
-  }
-
-  QGis::GeometryType featureType = geom->type();
-  if ( featureType == QGis::Point ) //minimum size does not apply to point features
-  {
-    return true;
-  }
-
-  double mapUnitsPerMM = ct.mapToPixel().mapUnitsPerPixel() * ct.scaleFactor();
-  if ( featureType == QGis::Line )
-  {
-    double length = geom->length();
-    if ( length >= 0.0 )
-    {
-      return ( length >= ( minSize * mapUnitsPerMM ) );
-    }
-  }
-  else if ( featureType == QGis::Polygon )
-  {
-    double area = geom->area();
-    if ( area >= 0.0 )
-    {
-      return ( sqrt( area ) >= ( minSize * mapUnitsPerMM ) );
-    }
-  }
-  return true; //should never be reached. Return true in this case to label such geometries anyway.
+  return QgsPalLabeling::checkMinimumSizeMM( ct, geom, minSize );
 }
 
 void QgsPalLayerSettings::calculateLabelSize( const QFontMetricsF* fm, QString text, double& labelX, double& labelY, QgsFeature* f )
@@ -1763,18 +1730,24 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, const QgsRenderContext
   }
 
   const GEOSGeometry* geos_geom = 0;
-  QScopedPointer<QgsGeometry> preparedGeom;
+  const QgsGeometry* preparedGeom = geom;
+  QScopedPointer<QgsGeometry> scpoedPreparedGeom;
+
   if ( QgsPalLabeling::geometryRequiresPreparation( geom, context, ct, doClip ? extentGeom : 0 ) )
   {
-    preparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, ct, minFeatureSize, doClip ? extentGeom : 0 ) );
-    if ( !preparedGeom.data() )
+    scpoedPreparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, ct, doClip ? extentGeom : 0 ) );
+    if ( !scpoedPreparedGeom.data() )
       return;
-    geos_geom = preparedGeom.data()->asGeos();
+    preparedGeom = scpoedPreparedGeom.data();
+    geos_geom = scpoedPreparedGeom.data()->asGeos();
   }
   else
   {
     geos_geom = geom->asGeos();
   }
+
+  if ( minFeatureSize > 0 && !checkMinimumSizeMM( context, preparedGeom, minFeatureSize ) )
+    return;
 
   if ( geos_geom == NULL )
     return; // invalid geometry
@@ -2097,9 +2070,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, const QgsRenderContext
   geometries.append( lbl );
 
   // store the label's calculated font for later use during painting
-#if QT_VERSION >= 0x040800
   QgsDebugMsgLevel( QString( "PAL font stored definedFont: %1, Style: %2" ).arg( labelFont.toString() ).arg( labelFont.styleName() ), 4 );
-#endif
   lbl->setDefinedFont( labelFont );
 
   // set repeat distance
@@ -3325,6 +3296,11 @@ int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QStringList& attrNames,
 
   // rect for clipping
   lyr.extentGeom = QgsGeometry::fromRect( mMapSettings->visibleExtent() );
+  if ( !qgsDoubleNear( mMapSettings->rotation(), 0.0 ) )
+  {
+    //PAL features are prerotated, so extent also needs to be unrotated
+    lyr.extentGeom->rotate( -mMapSettings->rotation(), mMapSettings->visibleExtent().center() );
+  }
 
   lyr.mFeatsSendingToPal = 0;
 
@@ -3421,7 +3397,7 @@ QStringList QgsPalLabeling::splitToGraphemes( const QString &text )
   return graphemes;
 }
 
-QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const QgsRenderContext& context, const QgsCoordinateTransform* ct, double minSize, QgsGeometry* clipGeometry )
+QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const QgsRenderContext& context, const QgsCoordinateTransform* ct, QgsGeometry* clipGeometry )
 {
   if ( !geometry )
   {
@@ -3447,9 +3423,31 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const
     }
   }
 
-  if ( minSize > 0 && !checkMinimumSizeMM( context, geom, minSize ) )
+  // Rotate the geometry if needed, before clipping
+  const QgsMapToPixel& m2p = context.mapToPixel();
+  if ( !qgsDoubleNear( m2p.mapRotation(), 0 ) )
   {
-    return 0;
+    QgsPoint center = context.extent().center();
+
+    if ( ct )
+    {
+      try
+      {
+        center = ct->transform( center );
+      }
+      catch ( QgsCsException &cse )
+      {
+        Q_UNUSED( cse );
+        QgsDebugMsgLevel( QString( "Ignoring feature due to transformation exception" ), 4 );
+        return 0;
+      }
+    }
+
+    if ( geom->rotate( m2p.mapRotation(), center ) )
+    {
+      QgsDebugMsg( QString( "Error rotating geometry" ).arg( geom->exportToWkt() ) );
+      return 0;
+    }
   }
 
   if ( !geom->asGeos() )
@@ -3467,17 +3465,6 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const
     clonedGeometry.reset( geom );
   }
 
-  // Rotate the geometry if needed, before clipping
-  const QgsMapToPixel& m2p = context.mapToPixel();
-  if ( !qgsDoubleNear( m2p.mapRotation(), 0 ) )
-  {
-    if ( geom->rotate( m2p.mapRotation(), context.extent().center() ) )
-    {
-      QgsDebugMsg( QString( "Error rotating geometry" ).arg( geom->exportToWkt() ) );
-      return 0;
-    }
-  }
-
   if ( clipGeometry && !clipGeometry->contains( geom ) )
   {
     QgsGeometry* clipGeom = geom->intersection( clipGeometry ); // creates new geometry
@@ -3492,7 +3479,7 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, const
   return clonedGeometry.take();
 }
 
-bool QgsPalLabeling::checkMinimumSizeMM( const QgsRenderContext& context, QgsGeometry* geom, double minSize )
+bool QgsPalLabeling::checkMinimumSizeMM( const QgsRenderContext& context, const QgsGeometry* geom, double minSize )
 {
   if ( minSize <= 0 )
   {
@@ -3562,12 +3549,17 @@ void QgsPalLabeling::registerDiagramFeature( const QString& layerID, QgsFeature&
   //convert geom to geos
   const QgsGeometry* geom = feat.constGeometry();
   QScopedPointer<QgsGeometry> extentGeom( QgsGeometry::fromRect( mMapSettings->visibleExtent() ) );
+  if ( !qgsDoubleNear( mMapSettings->rotation(), 0.0 ) )
+  {
+    //PAL features are prerotated, so extent also needs to be unrotated
+    extentGeom->rotate( -mMapSettings->rotation(), mMapSettings->visibleExtent().center() );
+  }
 
   const GEOSGeometry* geos_geom = 0;
   QScopedPointer<QgsGeometry> preparedGeom;
   if ( QgsPalLabeling::geometryRequiresPreparation( geom, context, layerIt.value().ct, extentGeom.data() ) )
   {
-    preparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, layerIt.value().ct, 0, extentGeom.data() ) );
+    preparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, layerIt.value().ct, extentGeom.data() ) );
     if ( !preparedGeom.data() )
       return;
     geos_geom = preparedGeom.data()->asGeos();
@@ -4036,7 +4028,16 @@ void QgsPalLabeling::drawLabeling( QgsRenderContext& context )
 {
   Q_ASSERT( mMapSettings != NULL );
   QPainter* painter = context.painter();
-  QgsRectangle extent = context.extent();
+
+  QgsGeometry* extentGeom( QgsGeometry::fromRect( mMapSettings->visibleExtent() ) );
+  if ( !qgsDoubleNear( mMapSettings->rotation(), 0.0 ) )
+  {
+    //PAL features are prerotated, so extent also needs to be unrotated
+    extentGeom->rotate( -mMapSettings->rotation(), mMapSettings->visibleExtent().center() );
+  }
+
+  QgsRectangle extent = extentGeom->boundingBox();
+  delete extentGeom;
 
   mPal->registerCancellationCallback( &_palIsCancelled, &context );
 
@@ -4048,8 +4049,7 @@ void QgsPalLabeling::drawLabeling( QgsRenderContext& context )
 
   // do the labeling itself
   double scale = mMapSettings->scale(); // scale denominator
-  QgsRectangle r = extent;
-  double bbox[] = { r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum() };
+  double bbox[] = { extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() };
 
   std::list<LabelPosition*>* labels;
   pal::Problem* problem;
@@ -4183,11 +4183,8 @@ void QgsPalLabeling::drawLabeling( QgsRenderContext& context )
 
     //font
     QFont dFont = palGeometry->definedFont();
-    // following debug is >= Qt 4.8 only ( because of QFont::styleName() )
-#if QT_VERSION >= 0x040800
-    QgsDebugMsgLevel( QString( "PAL font tmpLyr: %1, Style: %2" ).arg( tmpLyr.textFont.toString() ).arg( QFontInfo( tmpLyr.textFont ).styleName() ), 4 );
+    QgsDebugMsgLevel( QString( "PAL font tmpLyr: %1, Style: %2" ).arg( tmpLyr.textFont.toString() ).arg( tmpLyr.textFont.styleName() ), 4 );
     QgsDebugMsgLevel( QString( "PAL font definedFont: %1, Style: %2" ).arg( dFont.toString() ).arg( dFont.styleName() ), 4 );
-#endif
     tmpLyr.textFont = dFont;
 
     if ( tmpLyr.multilineAlign == QgsPalLayerSettings::MultiFollowPlacement )

@@ -39,6 +39,7 @@
         <file>flags/zh_TW.png</file>
         <file>icons/qgis-icon-16x16.png</file>
         <file>icons/qgis-icon-60x60.png</file>
+        <file>icons/qbrowser-icon-60x60.png</file>
         <file>north_arrows/default.png</file>
         <file>north_arrows/gpsarrow.svg</file>
         <file>north_arrows/gpsarrow2.svg</file>
@@ -102,11 +103,13 @@
         <file>themes/default/mAction.svg</file>
         <file>themes/default/mActionAdd.png</file>
         <file>themes/default/mActionAdd.svg</file>
+        <file>themes/default/mActionAddLayer.svg</file>
         <file>themes/default/mActionAddAllToOverview.svg</file>
         <file>themes/default/mActionAddArrow.png</file>
         <file>themes/default/mActionAddBasicShape.png</file>
         <file>themes/default/mActionAddGPSLayer.png</file>
         <file>themes/default/mActionAddGroup.png</file>
+        <file>themes/default/mActionAddGroup.svg</file>
         <file>themes/default/mActionAddHtml.png</file>
         <file>themes/default/mActionAddImage.png</file>
         <file>themes/default/mActionAddLegend.png</file>
@@ -270,7 +273,11 @@
         <file>themes/default/mActionSelectPolygon.svg</file>
         <file>themes/default/mActionSelectRadius.svg</file>
         <file>themes/default/mActionSelectRectangle.svg</file>
+        <file>themes/default/mActionSelectAllTree.svg</file>
         <file>themes/default/mActionSetProjection.svg</file>
+        <file>themes/default/mActionSharing.svg</file>
+        <file>themes/default/mActionSharingExport.svg</file>
+        <file>themes/default/mActionSharingImport.svg</file>
         <file>themes/default/mActionShowAllLayers.png</file>
         <file>themes/default/mActionShowAllLayers.svg</file>
         <file>themes/default/mActionShowBookmarks.png</file>
@@ -441,10 +448,14 @@
         <file>themes/default/styleicons/style-point.png</file>
         <file>themes/default/styleicons/style-polygon.png</file>
         <file>themes/default/symbologyAdd.png</file>
+        <file>themes/default/symbologyAdd.svg</file>
         <file>themes/default/symbologyDown.png</file>
+        <file>themes/default/symbologyDown.svg</file>
         <file>themes/default/symbologyEdit.png</file>
         <file>themes/default/symbologyRemove.png</file>
+        <file>themes/default/symbologyRemove.svg</file>
         <file>themes/default/symbologyUp.png</file>
+        <file>themes/default/symbologyUp.svg</file>
         <file>themes/default/text.png</file>
         <file>themes/default/tracking.png</file>
         <file>themes/default/transformed.png</file>

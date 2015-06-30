@@ -29,7 +29,7 @@ class QgsMapLayer;
 class QgsRectangle;
 class QDomDocument;
 
-class QgsServerProjectParser
+class SERVER_EXPORT QgsServerProjectParser
 {
   public:
 

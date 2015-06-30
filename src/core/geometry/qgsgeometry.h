@@ -59,23 +59,18 @@ typedef QVector<QgsPolygon> QgsMultiPolygon;
 
 class QgsRectangle;
 
-/** \ingroup core
- * A geometry is the spatial representation of a feature.
- * Represents a geometry with input and output in formats specified by
- * (at least) the Open Geospatial Consortium (WKB / Wkt), and containing
- * various functions for geoprocessing of the geometry.
- *
- * The geometry is represented internally by the OGC WKB format or
- * as GEOS geometry. Some functions use WKB for their work, others
- * use GEOS.
- *
- * TODO: migrate completely to GEOS and only support WKB/Wkt import/export.
- *
- * @author Brendan Morley
- */
 class QgsConstWkbPtr;
 
-struct QgsGeometryData;
+struct QgsGeometryPrivate;
+
+/** \ingroup core
+ * A geometry is the spatial representation of a feature. Since QGIS 2.10, QgsGeometry acts as a generic container
+ * for geometry objects. QgsGeometry is implicitly shared, so making copies of geometries is inexpensive. The geometry
+ * container class can also be stored inside a QVariant object.
+ *
+ * The actual geometry representation is stored as a @link QgsAbstractGeometryV2 @endlink within the container, and
+ * can be accessed via the @link geometry @endlink method or set using the @link setGeometry @endlink method.
+ */
 
 class CORE_EXPORT QgsGeometry
 {
@@ -91,7 +86,8 @@ class CORE_EXPORT QgsGeometry
       */
     QgsGeometry & operator=( QgsGeometry const & rhs );
 
-    /** Creates a geometry from an abstract geometry object.
+    /** Creates a geometry from an abstract geometry object. Ownership of
+     * geom is transferred.
      * @note added in QGIS 2.10
      */
     QgsGeometry( QgsAbstractGeometryV2* geom );
@@ -101,8 +97,22 @@ class CORE_EXPORT QgsGeometry
 
     /** Returns the underlying geometry store.
      * @note added in QGIS 2.10
+     * @see setGeometry
      */
     const QgsAbstractGeometryV2* geometry() const;
+
+    /** Sets the underlying geometry store. Ownership of geometry is transferred.
+     * @note added in QGIS 2.10
+     * @see geometry
+     */
+    void setGeometry( QgsAbstractGeometryV2* geometry );
+
+    /** Returns true if the geometry is empty (ie, contains no underlying geometry
+     * accessible via @link geometry @endlink).
+     * @see geometry
+     * @note added in QGIS 2.10
+     */
+    bool isEmpty() const;
 
     /** Creates a new geometry from a WKT string */
     static QgsGeometry* fromWkt( QString wkt );
@@ -308,7 +318,7 @@ class CORE_EXPORT QgsGeometry
     /**Adds a new part to this geometry (takes ownership)
      @return 0 in case of success, 1 if not a multipolygon, 2 if ring is not a valid geometry, 3 if new polygon ring
      not disjoint with existing polygons of the feature*/
-    int addPart( QgsCurveV2* part );
+    int addPart( QgsAbstractGeometryV2* part );
 
     /**Adds a new island polygon to a multipolygon feature
      @return 0 in case of success, 1 if not a multipolygon, 2 if ring is not a valid geometry, 3 if new polygon ring
@@ -444,7 +454,7 @@ class CORE_EXPORT QgsGeometry
     /* Return interpolated point on line at distance
      * @note added in 1.9
      */
-    QgsGeometry* interpolate( double distance );
+    QgsGeometry* interpolate( double distance ) const;
 
     /** Returns a geometry representing the points shared by this geometry and other. */
     QgsGeometry* intersection( const QgsGeometry* geometry ) const;
@@ -474,7 +484,7 @@ class CORE_EXPORT QgsGeometry
      */
     QString exportToGeoJSON( const int &precision = 17 ) const;
 
-    /** try to convert the geometry to the requested type
+    /** Try to convert the geometry to the requested type
      * @param destType the geometry type to be converted to
      * @param destMultipart determines if the output geometry will be multipart or not
      * @return the converted geometry or NULL pointer if the conversion fails.
@@ -482,34 +492,33 @@ class CORE_EXPORT QgsGeometry
      */
     QgsGeometry* convertToType( QGis::GeometryType destType, bool destMultipart = false ) const;
 
-
     /* Accessor functions for getting geometry data */
 
-    /** return contents of the geometry as a point
+    /** Return contents of the geometry as a point
         if wkbType is WKBPoint, otherwise returns [0,0] */
     QgsPoint asPoint() const;
 
-    /** return contents of the geometry as a polyline
+    /** Return contents of the geometry as a polyline
         if wkbType is WKBLineString, otherwise an empty list */
     QgsPolyline asPolyline() const;
 
-    /** return contents of the geometry as a polygon
+    /** Return contents of the geometry as a polygon
         if wkbType is WKBPolygon, otherwise an empty list */
     QgsPolygon asPolygon() const;
 
-    /** return contents of the geometry as a multi point
+    /** Return contents of the geometry as a multi point
         if wkbType is WKBMultiPoint, otherwise an empty list */
     QgsMultiPoint asMultiPoint() const;
 
-    /** return contents of the geometry as a multi linestring
+    /** Return contents of the geometry as a multi linestring
         if wkbType is WKBMultiLineString, otherwise an empty list */
     QgsMultiPolyline asMultiPolyline() const;
 
-    /** return contents of the geometry as a multi polygon
+    /** Return contents of the geometry as a multi polygon
         if wkbType is WKBMultiPolygon, otherwise an empty list */
     QgsMultiPolygon asMultiPolygon() const;
 
-    /** return contents of the geometry as a list of geometries
+    /** Return contents of the geometry as a list of geometries
      @note added in version 1.1 */
     QList<QgsGeometry*> asGeometryCollection() const;
 
@@ -537,9 +546,14 @@ class CORE_EXPORT QgsGeometry
       @note added in version 1.2 */
     bool deletePart( int partNum );
 
-    /**Converts single type geometry into multitype geometry
-     e.g. a polygon into a multipolygon geometry with one polygon
-    @return true in case of success and false else*/
+    /**
+     * Converts single type geometry into multitype geometry
+     * e.g. a polygon into a multipolygon geometry with one polygon
+     * If it is already a multipart geometry, it will return true and
+     * not change the geometry.
+     *
+     * @return true in case of success and false else
+     */
     bool convertToMultiType();
 
     /** Modifies geometry to avoid intersections with the layers specified in project properties
@@ -598,14 +612,12 @@ class CORE_EXPORT QgsGeometry
      */
     void mapToPixel( const QgsMapToPixel& mtp );
 
-#if 0
     // not implemented for 2.10
-    /** Clips the geometry using the specified rectangle
+    /* Clips the geometry using the specified rectangle
      * @param rect clip rectangle
      * @note added in QGIS 2.10
      */
-    void clip( const QgsRectangle& rect );
-#endif
+    // void clip( const QgsRectangle& rect );
 
     /** Draws the geometry onto a QPainter
      * @param p destination QPainter
@@ -665,34 +677,34 @@ class CORE_EXPORT QgsGeometry
     static QgsPolygon createPolygonFromQPolygonF( const QPolygonF &polygon );
 
     /** Compares two polylines for equality within a specified tolerance.
-    * @param p1 first polyline
-    * @param p2 second polyline
-    * @param epsilon maximum difference for coordinates between the polylines
-    * @returns true if polylines have the same number of points and all
-    * points are equal within the specified tolerance
-    * @note added in QGIS 2.9
-    */
+     * @param p1 first polyline
+     * @param p2 second polyline
+     * @param epsilon maximum difference for coordinates between the polylines
+     * @returns true if polylines have the same number of points and all
+     * points are equal within the specified tolerance
+     * @note added in QGIS 2.9
+     */
     static bool compare( const QgsPolyline& p1, const QgsPolyline& p2, double epsilon = 4 * DBL_EPSILON );
 
     /** Compares two polygons for equality within a specified tolerance.
-    * @param p1 first polygon
-    * @param p2 second polygon
-    * @param epsilon maximum difference for coordinates between the polygons
-    * @returns true if polygons have the same number of rings, and each ring has the same
-    * number of points and all points are equal within the specified tolerance
-    * @note added in QGIS 2.9
-    */
+     * @param p1 first polygon
+     * @param p2 second polygon
+     * @param epsilon maximum difference for coordinates between the polygons
+     * @returns true if polygons have the same number of rings, and each ring has the same
+     * number of points and all points are equal within the specified tolerance
+     * @note added in QGIS 2.9
+     */
     static bool compare( const QgsPolygon& p1, const QgsPolygon& p2, double epsilon = 4 * DBL_EPSILON );
 
     /** Compares two multipolygons for equality within a specified tolerance.
-    * @param p1 first multipolygon
-    * @param p2 second multipolygon
-    * @param epsilon maximum difference for coordinates between the multipolygons
-    * @returns true if multipolygons have the same number of polygons, the polygons have the same number
-    * of rings, and each ring has the same number of points and all points are equal within the specified
-    * tolerance
-    * @note added in QGIS 2.9
-    */
+     * @param p1 first multipolygon
+     * @param p2 second multipolygon
+     * @param epsilon maximum difference for coordinates between the multipolygons
+     * @returns true if multipolygons have the same number of polygons, the polygons have the same number
+     * of rings, and each ring has the same number of points and all points are equal within the specified
+     * tolerance
+     * @note added in QGIS 2.9
+     */
     static bool compare( const QgsMultiPolygon& p1, const QgsMultiPolygon& p2, double epsilon = 4 * DBL_EPSILON );
 
     /**Smooths a geometry by rounding off corners using the Chaikin algorithm. This operation
@@ -711,12 +723,13 @@ class CORE_EXPORT QgsGeometry
     /**Smooths a polyline using the Chaikin algorithm*/
     QgsPolyline smoothLine( const QgsPolyline &polyline, const unsigned int iterations = 1, const double offset = 0.25 ) const;
 
+    /** Creates and returns a new geometry engine
+     */
+    static QgsGeometryEngine* createGeometryEngine( const QgsAbstractGeometryV2* geometry );
+
   private:
 
-    QgsGeometryData* d; //implicitely shared data pointer
-    mutable const unsigned char* mWkb; //store wkb pointer for backward compatibility
-    mutable int mWkbSize;
-    mutable GEOSGeometry* mGeos;
+    QgsGeometryPrivate* d; //implicitely shared data pointer
 
     void detach( bool cloneGeom = true ); //make sure mGeometry only referenced from this instance
     void removeWkbGeos();

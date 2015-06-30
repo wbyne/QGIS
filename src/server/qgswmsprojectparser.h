@@ -25,7 +25,7 @@
 class QTextDocument;
 class QSvgRenderer;
 
-class QgsWMSProjectParser : public QgsWMSConfigParser
+class SERVER_EXPORT QgsWMSProjectParser : public QgsWMSConfigParser
 {
   public:
     QgsWMSProjectParser( const QString& filePath );

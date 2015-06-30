@@ -165,7 +165,9 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature& feature )
   }
   else
   {
+    Q_NOWARN_DEPRECATED_PUSH
     feature.setGeometry( mFeatureQueue.front().geometryAndOwnership() );
+    Q_NOWARN_DEPRECATED_POP
   }
   feature.setFeatureId( mFeatureQueue.front().id() );
   feature.setAttributes( mFeatureQueue.front().attributes() );
@@ -287,13 +289,13 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
            .arg( mSource->mRequestedSrid.isEmpty() ? mSource->mDetectedSrid : mSource->mRequestedSrid );
   }
 
-  QString whereClause = QString( "%1%2 && %3" )
-                        .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ) )
-                        .arg( mSource->mSpatialColType == sctPcPatch ? "::geometry" : "" )
-                        .arg( qBox );
-
   bool castToGeometry = mSource->mSpatialColType == sctGeography ||
                         mSource->mSpatialColType == sctPcPatch;
+
+  QString whereClause = QString( "%1%2 && %3" )
+                        .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ) )
+                        .arg( castToGeometry ? "::geometry" : "" )
+                        .arg( qBox );
 
   if ( mRequest.flags() & QgsFeatureRequest::ExactIntersect )
   {

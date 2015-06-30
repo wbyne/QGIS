@@ -8,6 +8,22 @@ class QgsAttributeEditorElement : QObject
 #include "qgsvectorlayer.h"
 %End
 
+%ConvertToSubClassCode
+  QgsAttributeEditorElement* e = qobject_cast<QgsAttributeEditorElement*>( sipCpp );
+
+  sipClass = 0;
+  if ( e )
+  {
+    switch ( e->type() )
+    {
+      case QgsAttributeEditorElement::AeTypeContainer: sipClass = sipClass_QgsAttributeEditorContainer; break;
+      case QgsAttributeEditorElement::AeTypeField:   sipClass = sipClass_QgsAttributeEditorField; break;
+      case QgsAttributeEditorElement::AeTypeRelation:  sipClass = sipClass_QgsAttributeEditorRelation; break;
+    }
+  }
+%End
+
+
   public:
 
     enum AttributeEditorType
@@ -43,6 +59,7 @@ class QgsAttributeEditorContainer : QgsAttributeEditorElement
     virtual void addChildElement( QgsAttributeEditorElement *widget );
     virtual void setIsGroupBox( bool isGroupBox );
     virtual bool isGroupBox() const;
+    virtual void setName( const QString& name );
     QList<QgsAttributeEditorElement*> children() const;
 };
 
@@ -284,7 +301,7 @@ class QgsVectorLayer : QgsMapLayer
     /** Removes a vector layer join */
     void removeJoin( const QString& joinLayerId );
 
-    const QList< QgsVectorJoinInfo >& vectorJoins() const;
+    const QList< QgsVectorJoinInfo > vectorJoins() const;
 
     /**
      * Add a new field which is calculated by the expression specified
@@ -560,7 +577,17 @@ class QgsVectorLayer : QgsMapLayer
      */
     virtual long featureCount() const;
 
-    void setDataSource(QString dataSource, QString baseName, QString provider, bool loadDefaultStyleFlag = true);
+    /**
+     * Update the data source of the layer. The layer's renderer and legend will be preserved only
+     * if the geometry type of the new data source matches the current geometry type of the layer.
+     * @param dataSource new layer data source
+     * @param baseName base name of the layer
+     * @param provider provider string
+     * @param loadDefaultStyleFlag set to true to reset the layer's style to the default for the
+     * data source
+     * @note added in QGIS 2.10
+     */
+    void setDataSource( QString dataSource, QString baseName, QString provider, bool loadDefaultStyleFlag = false );
 
     /**
      * Number of features rendered with specified symbol. Features must be first

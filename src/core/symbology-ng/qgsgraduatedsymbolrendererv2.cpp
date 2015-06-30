@@ -1454,9 +1454,17 @@ void QgsGraduatedSymbolRendererV2::addBreak( double breakValue, bool updateSymbo
     }
   }
 
-  if ( updateSymbols && mGraduatedMethod == GraduatedColor )
+  if ( updateSymbols )
   {
-    updateColorRamp( mSourceColorRamp.data(), mInvertedColorRamp );
+    switch ( mGraduatedMethod )
+    {
+      case GraduatedColor:
+        updateColorRamp( mSourceColorRamp.data(), mInvertedColorRamp );
+        break;
+      case GraduatedSize:
+        setSymbolSizes( minSymbolSize(), maxSymbolSize() );
+        break;
+    }
   }
 }
 
@@ -1545,6 +1553,56 @@ void QgsGraduatedSymbolRendererV2::sortByValue( Qt::SortOrder order )
   {
     qSort( mRanges.begin(), mRanges.end(), valueGreaterThan );
   }
+}
+
+bool QgsGraduatedSymbolRendererV2::rangesOverlap() const
+{
+  QgsRangeList sortedRanges = mRanges;
+  qSort( sortedRanges.begin(), sortedRanges.end(), valueLessThan );
+
+  QgsRangeList::const_iterator it = sortedRanges.constBegin();
+  if ( it == sortedRanges.constEnd() )
+    return false;
+
+  if (( *it ).upperValue() < ( *it ).lowerValue() )
+    return true;
+
+  double prevMax = ( *it ).upperValue();
+  it++;
+
+  for ( ; it != sortedRanges.constEnd(); ++it )
+  {
+    if (( *it ).upperValue() < ( *it ).lowerValue() )
+      return true;
+
+    if (( *it ).lowerValue() < prevMax )
+      return true;
+
+    prevMax = ( *it ).upperValue();
+  }
+  return false;
+}
+
+bool QgsGraduatedSymbolRendererV2::rangesHaveGaps() const
+{
+  QgsRangeList sortedRanges = mRanges;
+  qSort( sortedRanges.begin(), sortedRanges.end(), valueLessThan );
+
+  QgsRangeList::const_iterator it = sortedRanges.constBegin();
+  if ( it == sortedRanges.constEnd() )
+    return false;
+
+  double prevMax = ( *it ).upperValue();
+  it++;
+
+  for ( ; it != sortedRanges.constEnd(); ++it )
+  {
+    if ( !qgsDoubleNear(( *it ).lowerValue(), prevMax ) )
+      return true;
+
+    prevMax = ( *it ).upperValue();
+  }
+  return false;
 }
 
 bool labelLessThan( const QgsRendererRangeV2 &r1, const QgsRendererRangeV2 &r2 )

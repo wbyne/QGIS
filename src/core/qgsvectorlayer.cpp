@@ -1330,6 +1330,8 @@ bool QgsVectorLayer::readXml( const QDomNode& layer_node )
 
 void QgsVectorLayer::setDataSource( QString dataSource, QString baseName, QString provider, bool loadDefaultStyleFlag )
 {
+  QGis::GeometryType oldGeomType = geometryType();
+
   mDataSource = dataSource;
   mLayerName = capitaliseLayerName( baseName );
   setLayerName( mLayerName );
@@ -1340,39 +1342,41 @@ void QgsVectorLayer::setDataSource( QString dataSource, QString baseName, QStrin
     // Always set crs
     setCoordinateSystem();
 
-    // check if there is a default style / propertysheet defined
-    // for this layer and if so apply it
-    bool defaultLoadedFlag = false;
-    if ( loadDefaultStyleFlag )
+    // reset style if loading default style, style is missing, or geometry type has changed
+    if ( !rendererV2() || !legend() || oldGeomType != geometryType() || loadDefaultStyleFlag )
     {
-      loadDefaultStyle( defaultLoadedFlag );
-    }
+      // check if there is a default style / propertysheet defined
+      // for this layer and if so apply it
+      bool defaultLoadedFlag = false;
+      if ( loadDefaultStyleFlag )
+      {
+        loadDefaultStyle( defaultLoadedFlag );
+      }
 
-    // if the default style failed to load or was disabled use some very basic defaults
-    if ( !defaultLoadedFlag && hasGeometryType() )
-    {
-      // add single symbol renderer
-      setRendererV2( QgsFeatureRendererV2::defaultRenderer( geometryType() ) );
-    }
+      // if the default style failed to load or was disabled use some very basic defaults
+      if ( !defaultLoadedFlag && hasGeometryType() )
+      {
+        // add single symbol renderer
+        setRendererV2( QgsFeatureRendererV2::defaultRenderer( geometryType() ) );
+      }
 
-    setLegend( QgsMapLayerLegend::defaultVectorLegend( this ) );
+      setLegend( QgsMapLayerLegend::defaultVectorLegend( this ) );
+    }
 
     connect( QgsMapLayerRegistry::instance(), SIGNAL( layerWillBeRemoved( QString ) ), this, SLOT( checkJoinLayerRemove( QString ) ) );
+    emit repaintRequested();
   }
 }
 
 
 bool QgsVectorLayer::setDataProvider( QString const & provider )
 {
-  // XXX should I check for and possibly delete any pre-existing providers?
-  // XXX How often will that scenario occur?
-  Q_ASSERT( !mDataProvider );
-
   mProviderKey = provider;     // XXX is this necessary?  Usually already set
   // XXX when execution gets here.
 
   //XXX - This was a dynamic cast but that kills the Windows
   //      version big-time with an abnormal termination error
+  delete mDataProvider;
   mDataProvider =
     ( QgsVectorDataProvider* )( QgsProviderRegistry::instance()->provider( provider, mDataSource ) );
 
@@ -2356,7 +2360,7 @@ QgsFeatureList QgsVectorLayer::selectedFeatures()
   {
     // for small amount of selected features, fetch them directly
     // because request with FilterFids would go iterate over the whole layer
-    foreach ( int fid, mSelectedFeatureIds )
+    foreach ( QgsFeatureId fid, mSelectedFeatureIds )
     {
       getFeatures( QgsFeatureRequest( fid ) ).nextFeature( f );
       features << f;
@@ -2858,7 +2862,7 @@ int QgsVectorLayer::fieldNameIndex( const QString& fieldName ) const
 
 bool QgsVectorLayer::addJoin( const QgsVectorJoinInfo& joinInfo )
 {
-  return mJoinBuffer->addJoin( joinInfo );
+  return mJoinBuffer && mJoinBuffer->addJoin( joinInfo );
 }
 
 void QgsVectorLayer::checkJoinLayerRemove( QString theLayerId )
@@ -2868,12 +2872,16 @@ void QgsVectorLayer::checkJoinLayerRemove( QString theLayerId )
 
 void QgsVectorLayer::removeJoin( const QString& joinLayerId )
 {
-  mJoinBuffer->removeJoin( joinLayerId );
+  if ( mJoinBuffer )
+    mJoinBuffer->removeJoin( joinLayerId );
 }
 
-const QList< QgsVectorJoinInfo >& QgsVectorLayer::vectorJoins() const
+const QList< QgsVectorJoinInfo > QgsVectorLayer::vectorJoins() const
 {
-  return mJoinBuffer->vectorJoins();
+  if ( mJoinBuffer )
+    return mJoinBuffer->vectorJoins();
+  else
+    return QList< QgsVectorJoinInfo >();
 }
 
 int QgsVectorLayer::addExpressionField( const QString& exp, const QgsField& fld )
@@ -3851,6 +3859,11 @@ QDomElement QgsAttributeEditorContainer::toDomElement( QDomDocument& doc ) const
 void QgsAttributeEditorContainer::addChildElement( QgsAttributeEditorElement *widget )
 {
   mChildren.append( widget );
+}
+
+void QgsAttributeEditorContainer::setName( const QString& name )
+{
+  mName = name;
 }
 
 QList<QgsAttributeEditorElement*> QgsAttributeEditorContainer::findElements( QgsAttributeEditorElement::AttributeEditorType type ) const

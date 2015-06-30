@@ -62,7 +62,7 @@ int QgsGeometryEditUtils::addRing( QgsAbstractGeometryV2* geom, QgsCurveV2* ring
     delete ring; return 3;
   }
 
-  QScopedPointer<QgsGeometryEngine> ringGeom( createGeometryEngine( ring ) );
+  QScopedPointer<QgsGeometryEngine> ringGeom( QgsGeometry::createGeometryEngine( ring ) );
   ringGeom->prepareGeometry();
 
   //for each polygon, test if inside outer ring and no intersection with other interior ring
@@ -110,22 +110,52 @@ int QgsGeometryEditUtils::addPart( QgsAbstractGeometryV2* geom, QgsAbstractGeome
   if ( geom->geometryType() == "MultiSurface" || geom->geometryType() == "MultiPolygon" )
   {
     QgsCurveV2* curve = dynamic_cast<QgsCurveV2*>( part );
-    if ( !curve || !curve->isClosed() || curve->numPoints() < 4 )
+    if ( curve && curve->isClosed() && curve->numPoints() >= 4 )
     {
-      delete part; return 2;
+      QgsCurvePolygonV2 *poly = 0;
+      if ( curve->geometryType() == "LineString" )
+      {
+        poly = new QgsPolygonV2();
+      }
+      else
+      {
+        poly = new QgsCurvePolygonV2();
+      }
+      poly->setExteriorRing( curve );
+      added = geomCollection->addGeometry( poly );
     }
-
-    QgsCurvePolygonV2* poly = 0;
-    if ( curve->geometryType() == "LineString" )
+    else if ( part->geometryType() == "Polygon" )
     {
-      poly = new QgsPolygonV2();
+      added = geomCollection->addGeometry( part );
+    }
+    else if ( part->geometryType() == "MultiPolygon" )
+    {
+      QgsGeometryCollectionV2 *parts = dynamic_cast<QgsGeometryCollectionV2*>( part );
+
+      int i;
+      int n = geomCollection->numGeometries();
+      for ( i = 0; i < parts->numGeometries() && geomCollection->addGeometry( parts->geometryN( i ) ); i++ )
+        ;
+
+      added = i == parts->numGeometries();
+      if ( !added )
+      {
+        while ( geomCollection->numGeometries() > n )
+          geomCollection->removeGeometry( n );
+        delete part; return 2;
+      }
+
+      while ( parts->numGeometries() > 0 )
+      {
+        parts->removeGeometry( 0 );
+      }
+
+      delete part;
     }
     else
     {
-      poly = new QgsCurvePolygonV2();
+      delete part; return 2;
     }
-    poly->setExteriorRing( curve );
-    added = geomCollection->addGeometry( poly );
   }
   else
   {
@@ -136,7 +166,7 @@ int QgsGeometryEditUtils::addPart( QgsAbstractGeometryV2* geom, QgsAbstractGeome
 
 bool QgsGeometryEditUtils::deleteRing( QgsAbstractGeometryV2* geom, int ringNum, int partNum )
 {
-  if ( !geom )
+  if ( !geom || partNum < 0 )
   {
     return false;
   }
@@ -147,14 +177,15 @@ bool QgsGeometryEditUtils::deleteRing( QgsAbstractGeometryV2* geom, int ringNum,
   }
 
   QgsAbstractGeometryV2* g = geom;
-  if ( partNum > 0 )
+  QgsGeometryCollectionV2* c = dynamic_cast<QgsGeometryCollectionV2*>( geom );
+  if ( c )
   {
-    QgsMultiSurfaceV2* multiSurface = dynamic_cast<QgsMultiSurfaceV2*>( geom );
-    if ( !multiSurface )
-    {
-      return false;
-    }
-    g = multiSurface->geometryN( partNum );
+    g = c->geometryN( partNum );
+  }
+  else if ( partNum > 0 )
+  {
+    //part num specified, but not a multi part geometry type
+    return false;
   }
 
   QgsCurvePolygonV2* cpoly = dynamic_cast<QgsCurvePolygonV2*>( g );
@@ -184,7 +215,7 @@ bool QgsGeometryEditUtils::deletePart( QgsAbstractGeometryV2* geom, int partNum 
 
 QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstractGeometryV2& geom, QMap<QgsVectorLayer*, QSet<QgsFeatureId> > ignoreFeatures )
 {
-  QScopedPointer<QgsGeometryEngine> geomEngine( createGeometryEngine( &geom ) );
+  QScopedPointer<QgsGeometryEngine> geomEngine( QgsGeometry::createGeometryEngine( &geom ) );
   if ( geomEngine.isNull() )
   {
     return 0;
@@ -253,9 +284,4 @@ QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstra
 
   delete combinedGeometries;
   return diffGeom;
-}
-
-QgsGeometryEngine* QgsGeometryEditUtils::createGeometryEngine( const QgsAbstractGeometryV2* geometry )
-{
-  return new QgsGeos( geometry );
 }

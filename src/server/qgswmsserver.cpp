@@ -1401,7 +1401,7 @@ int QgsWMSServer::getFeatureInfo( QDomDocument& result, QString version )
   //However, in order to make attribute only queries via the FILTER parameter, it is allowed to skip them if the FILTER parameter is there
 
   QgsRectangle* featuresRect = 0;
-  QgsPoint* infoPoint = 0;
+  QScopedPointer<QgsPoint> infoPoint;
 
   if ( i == -1 || j == -1 )
   {
@@ -1416,8 +1416,8 @@ int QgsWMSServer::getFeatureInfo( QDomDocument& result, QString version )
   }
   else
   {
-    infoPoint = new QgsPoint();
-    if ( !infoPointToMapCoordinates( i, j, infoPoint, mMapRenderer ) )
+    infoPoint.reset( new QgsPoint() );
+    if ( !infoPointToMapCoordinates( i, j, infoPoint.data(), mMapRenderer ) )
     {
       return 5;
     }
@@ -1539,7 +1539,7 @@ int QgsWMSServer::getFeatureInfo( QDomDocument& result, QString version )
 
       if ( vectorLayer )
       {
-        if ( featureInfoFromVectorLayer( vectorLayer, infoPoint, featureCount, result, layerElement, mMapRenderer, renderContext,
+        if ( featureInfoFromVectorLayer( vectorLayer, infoPoint.data(), featureCount, result, layerElement, mMapRenderer, renderContext,
                                          version, infoFormat, featuresRect ) != 0 )
         {
           continue;
@@ -1556,11 +1556,11 @@ int QgsWMSServer::getFeatureInfo( QDomDocument& result, QString version )
         QgsRasterLayer* rasterLayer = dynamic_cast<QgsRasterLayer*>( currentLayer );
         if ( rasterLayer )
         {
-          if ( !infoPoint )
+          if ( !infoPoint.data() )
           {
             continue;
           }
-          QgsPoint layerInfoPoint = mMapRenderer->mapToLayerCoordinates( currentLayer, *infoPoint );
+          QgsPoint layerInfoPoint = mMapRenderer->mapToLayerCoordinates( currentLayer, *( infoPoint.data() ) );
           if ( featureInfoFromRasterLayer( rasterLayer, &layerInfoPoint, result, layerElement, version, infoFormat ) != 0 )
           {
             continue;
@@ -1745,7 +1745,7 @@ QImage* QgsWMSServer::createImage( int width, int height ) const
     return 0;
   }
 
-  //apply DPI parameter if present. This is an extension of QGIS mapserver compared to WMS 1.3.
+  //apply DPI parameter if present. This is an extension of Qgis Mapserver compared to WMS 1.3.
   //Because of backwards compatibility, this parameter is optional
   double OGC_PX_M = 0.00028; // OGC reference pixel size in meter, also used by qgis
   int dpm = 1 / OGC_PX_M;

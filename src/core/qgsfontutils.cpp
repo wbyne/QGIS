@@ -277,3 +277,85 @@ QFont QgsFontUtils::getStandardTestFont( const QString& style, int pointsize )
 
   return f;
 }
+
+QDomElement QgsFontUtils::toXmlElement( const QFont& font, QDomDocument& document, const QString& elementName )
+{
+  QDomElement fontElem = document.createElement( elementName );
+  fontElem.setAttribute( "description", font.toString() );
+  fontElem.setAttribute( "style", untranslateNamedStyle( font.styleName() ) );
+  return fontElem;
+}
+
+bool QgsFontUtils::setFromXmlElement( QFont& font, const QDomElement& element )
+{
+  if ( element.isNull() )
+  {
+    return false;
+  }
+
+  font.fromString( element.attribute( "description" ) );
+  if ( element.hasAttribute( "style" ) )
+  {
+    ( void )updateFontViaStyle( font, translateNamedStyle( element.attribute( "style" ) ) );
+  }
+
+  return true;
+}
+
+bool QgsFontUtils::setFromXmlChildNode( QFont& font, const QDomElement& element, const QString& childNode )
+{
+  if ( element.isNull() )
+  {
+    return false;
+  }
+
+  QDomNodeList nodeList = element.elementsByTagName( childNode );
+  if ( nodeList.size() > 0 )
+  {
+    QDomElement fontElem = nodeList.at( 0 ).toElement();
+    return setFromXmlElement( font, fontElem );
+  }
+  else
+  {
+    return false;
+  }
+}
+
+static QMap<QString, QString> createTranslatedStyleMap()
+{
+  QMap<QString, QString> translatedStyleMap;
+  QStringList words = QStringList() << "Normal" << "Light" << "Bold" << "Black" << "Demi" << "Italic" << "Oblique";
+  foreach ( const QString& word, words )
+  {
+    translatedStyleMap.insert( QCoreApplication::translate( "QFontDatabase", qPrintable( word ) ), word );
+  }
+  return translatedStyleMap;
+}
+
+QString QgsFontUtils::translateNamedStyle( const QString& namedStyle )
+{
+  QStringList words = namedStyle.split( " ", QString::SkipEmptyParts );
+  for ( int i = 0, n = words.length(); i < n; ++i )
+  {
+    words[i] = QCoreApplication::translate( "QFontDatabase", words[i].toUtf8(), 0, QCoreApplication::UnicodeUTF8 );
+  }
+  return words.join( " " );
+}
+
+QString QgsFontUtils::untranslateNamedStyle( const QString& namedStyle )
+{
+  static QMap<QString, QString> translatedStyleMap = createTranslatedStyleMap();
+  QStringList words = namedStyle.split( " ", QString::SkipEmptyParts );
+  for ( int i = 0, n = words.length(); i < n; ++i )
+  {
+    if ( translatedStyleMap.contains( words[i] ) )
+    {
+      words[i] = translatedStyleMap.value( words[i] );
+    }
+    else
+    {
+      QgsDebugMsg( QString( "Warning: style map does not contain %1" ).arg( words[i] ) );
+    }
+  }
+  return words.join( " " );
+}

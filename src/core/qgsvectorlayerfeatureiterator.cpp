@@ -90,12 +90,11 @@ QgsVectorLayerFeatureIterator::QgsVectorLayerFeatureIterator( QgsVectorLayerFeat
     , mFetchedFid( false )
     , mEditGeometrySimplifier( 0 )
 {
+  prepareExpressions();
 
   // prepare joins: may add more attributes to fetch (in order to allow join)
   if ( mSource->mJoinBuffer->containsJoins() )
     prepareJoins();
-
-  prepareExpressions();
 
   mHasVirtualAttributes = !mFetchJoinInfo.isEmpty() || !mExpressionFieldInfo.isEmpty();
 

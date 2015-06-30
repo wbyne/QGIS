@@ -35,6 +35,7 @@
 #include "qgssymbollayerv2utils.h"
 #include "qgsvectorcolorrampv2.h"
 #include "qgsstylev2.h"
+#include "qgsstringutils.h"
 
 // from parser
 extern QgsExpression::Node* parseExpression( const QString& str, QString& parserErrorMsg );
@@ -655,6 +656,34 @@ static QVariant fcnTrim( const QVariantList& values, const QgsFeature*, QgsExpre
 {
   QString str = getStringValue( values.at( 0 ), parent );
   return QVariant( str.trimmed() );
+}
+
+static QVariant fcnLevenshtein( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QString string1 = getStringValue( values.at( 0 ), parent );
+  QString string2 = getStringValue( values.at( 1 ), parent );
+  return QVariant( QgsStringUtils::levenshteinDistance( string1, string2, true) );
+}
+
+static QVariant fcnLCS( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QString string1 = getStringValue( values.at( 0 ), parent );
+  QString string2 = getStringValue( values.at( 1 ), parent );
+  return QVariant( QgsStringUtils::longestCommonSubstring( string1, string2, true ) );
+}
+
+static QVariant fcnHamming( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QString string1 = getStringValue( values.at( 0 ), parent );
+  QString string2 = getStringValue( values.at( 1 ), parent );
+  int dist = QgsStringUtils::hammingDistance( string1, string2 );
+  return ( dist < 0 ? QVariant() : QVariant( QgsStringUtils::hammingDistance( string1, string2, true ) ) );
+}
+
+static QVariant fcnSoundex( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
+{
+  QString string = getStringValue( values.at( 0 ), parent );
+  return QVariant( QgsStringUtils::soundex( string ) );
 }
 
 static QVariant fcnWordwrap( const QVariantList& values, const QgsFeature*, QgsExpression* parent )
@@ -1345,6 +1374,11 @@ static QVariant fcnFormatNumber( const QVariantList& values, const QgsFeature*, 
 {
   double value = getDoubleValue( values.at( 0 ), parent );
   int places = getIntValue( values.at( 1 ), parent );
+  if ( places < 0 )
+  {
+    parent->setEvalErrorString( QObject::tr( "Number of places must be positive" ) );
+    return QVariant();
+  }
   return QString( "%L1" ).arg( value, 0, 'f', places );
 }
 
@@ -1692,7 +1726,8 @@ const QStringList& QgsExpression::BuiltinFunctions()
     << "distance" << "intersection" << "sym_difference" << "combine"
     << "union" << "geom_to_wkt" << "geomToWKT" << "geometry"
     << "transform" << "get_feature" << "getFeature"
-    << "attribute"
+    << "attribute" << "levenshtein" << "longest_common_substring" << "hamming_distance"
+    << "soundex"
     << "$rownum" << "$id" << "$scale" << "_specialcol_";
   }
   return gmBuiltinFunctions;
@@ -1736,7 +1771,7 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "to_date", 1, fcnToDate, "Conversions", QString(), false, QStringList(), false, QStringList() << "todate" )
     << new StaticFunction( "to_time", 1, fcnToTime, "Conversions", QString(), false, QStringList(), false, QStringList() << "totime" )
     << new StaticFunction( "to_interval", 1, fcnToInterval, "Conversions", QString(), false, QStringList(), false, QStringList() << "tointerval" )
-    << new StaticFunction( "coalesce", -1, fcnCoalesce, "Conditionals" )
+    << new StaticFunction( "coalesce", -1, fcnCoalesce, "Conditionals", QString(), false, QStringList(), false, QStringList(), true )
     << new StaticFunction( "if", 3, fcnIf, "Conditionals", "", False, QStringList(), true )
     << new StaticFunction( "regexp_match", 2, fcnRegexpMatch, "Conditionals" )
     << new StaticFunction( "now", 0, fcnNow, "Date and Time", QString(), false, QStringList(), false, QStringList() << "$now" )
@@ -1752,13 +1787,17 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "upper", 1, fcnUpper, "String" )
     << new StaticFunction( "title", 1, fcnTitle, "String" )
     << new StaticFunction( "trim", 1, fcnTrim, "String" )
+    << new StaticFunction( "levenshtein", 2, fcnLevenshtein, "Fuzzy Matching" )
+    << new StaticFunction( "longest_common_substring", 2, fcnLCS, "Fuzzy Matching" )
+    << new StaticFunction( "hamming_distance", 2, fcnHamming, "Fuzzy Matching" )
+    << new StaticFunction( "soundex", 1, fcnSoundex, "Fuzzy Matching" )
     << new StaticFunction( "wordwrap", -1, fcnWordwrap, "String" )
     << new StaticFunction( "length", 1, fcnLength, "String" )
     << new StaticFunction( "replace", 3, fcnReplace, "String" )
     << new StaticFunction( "regexp_replace", 3, fcnRegexpReplace, "String" )
     << new StaticFunction( "regexp_substr", 2, fcnRegexpSubstr, "String" )
     << new StaticFunction( "substr", 3, fcnSubstr, "String" )
-    << new StaticFunction( "concat", -1, fcnConcat, "String" )
+    << new StaticFunction( "concat", -1, fcnConcat, "String", QString(), false, QStringList(), false, QStringList(), true )
     << new StaticFunction( "strpos", 2, fcnStrpos, "String" )
     << new StaticFunction( "left", 2, fcnLeft, "String" )
     << new StaticFunction( "right", 2, fcnRight, "String" )
@@ -2535,15 +2574,60 @@ int QgsExpression::NodeBinaryOperator::precedence() const
   return -1;
 }
 
+bool QgsExpression::NodeBinaryOperator::leftAssociative() const
+{
+  // see left/right in qgsexpressionparser.yy
+  switch ( mOp )
+  {
+    case boOr:
+    case boAnd:
+    case boEQ:
+    case boNE:
+    case boLE:
+    case boGE:
+    case boLT:
+    case boGT:
+    case boRegexp:
+    case boLike:
+    case boILike:
+    case boNotLike:
+    case boNotILike:
+    case boIs:
+    case boIsNot:
+    case boPlus:
+    case boMinus:
+    case boMul:
+    case boDiv:
+    case boIntDiv:
+    case boMod:
+    case boConcat:
+      return true;
+
+    case boPow:
+      return false;
+  }
+  Q_ASSERT( 0 && "unexpected binary operator" );
+  return -1;
+}
+
 QString QgsExpression::NodeBinaryOperator::dump() const
 {
   QgsExpression::NodeBinaryOperator *lOp = dynamic_cast<QgsExpression::NodeBinaryOperator *>( mOpLeft );
   QgsExpression::NodeBinaryOperator *rOp = dynamic_cast<QgsExpression::NodeBinaryOperator *>( mOpRight );
 
   QString fmt;
-  fmt += lOp && lOp->precedence() < precedence() ? "(%1)" : "%1";
-  fmt += " %2 ";
-  fmt += rOp && rOp->precedence() <= precedence() ? "(%3)" : "%3";
+  if ( leftAssociative() )
+  {
+    fmt += lOp && ( lOp->precedence() < precedence() ) ? "(%1)" : "%1";
+    fmt += " %2 ";
+    fmt += rOp && ( rOp->precedence() <= precedence() ) ? "(%3)" : "%3";
+  }
+  else
+  {
+    fmt += lOp && ( lOp->precedence() <= precedence() ) ? "(%1)" : "%1";
+    fmt += " %2 ";
+    fmt += rOp && ( rOp->precedence() < precedence() ) ? "(%3)" : "%3";
+  }
 
   return fmt.arg( mOpLeft->dump() ).arg( BinaryOperatorText[mOp] ).arg( mOpRight->dump() );
 }
@@ -2608,7 +2692,7 @@ bool QgsExpression::NodeInOperator::prepare( QgsExpression* parent, const QgsFie
 
 QString QgsExpression::NodeInOperator::dump() const
 {
-  return QString( "%1 IN (%2)" ).arg( mNode->dump() ).arg( mList->dump() );
+  return QString( "%1 %2 IN (%3)" ).arg( mNode->dump() ).arg( mNotIn ? "NOT" : "" ).arg( mList->dump() );
 }
 
 //
@@ -2633,7 +2717,7 @@ QVariant QgsExpression::NodeFunction::eval( QgsExpression* parent, const QgsFeat
       {
         v = n->eval( parent, f );
         ENSURE_NO_EVAL_ERROR;
-        if ( isNull( v ) && fd->name() != "coalesce" )
+        if ( isNull( v ) && !fd->handlesNull() )
           return QVariant(); // all "normal" functions return NULL, when any parameter is NULL (so coalesce is abnormal)
       }
       argValues.append( v );
@@ -2665,7 +2749,7 @@ QString QgsExpression::NodeFunction::dump() const
 {
   Function* fd = Functions()[mFnIndex];
   if ( fd->params() == 0 )
-    return fd->name(); // special column
+    return QString( "%1%2" ).arg( fd->name() ).arg( fd->name().startsWith( '$' ) ? "" : "()" ); // special column
   else
     return QString( "%1(%2)" ).arg( fd->name() ).arg( mArgs ? mArgs->dump() : QString() ); // function
 }

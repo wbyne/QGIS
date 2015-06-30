@@ -15,7 +15,6 @@
 #include <QtTest/QtTest>
 #include <QObject>
 #include <QStringList>
-#include <QObject>
 #include <QApplication>
 #include <QFileInfo>
 
@@ -80,6 +79,9 @@ class TestStyleV2 : public QObject
 
 TestStyleV2::TestStyleV2()
     : mStyle( NULL )
+    , mpPointsLayer( 0 )
+    , mpLinesLayer( 0 )
+    , mpPolysLayer( 0 )
 {
 
 }
@@ -174,6 +176,7 @@ void TestStyleV2::cleanupTestCase()
 bool TestStyleV2::imageCheck( QgsMapSettings& ms, const QString& testName )
 {
   QgsMultiRenderChecker checker;
+  ms.setOutputDpi( 96 );
   checker.setControlName( "expected_" + testName );
   checker.setMapSettings( ms );
   bool result = checker.runTest( testName, 0 );

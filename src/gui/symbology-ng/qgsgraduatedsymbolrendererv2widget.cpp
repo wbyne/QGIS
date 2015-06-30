@@ -605,7 +605,7 @@ void QgsGraduatedSymbolRendererV2Widget::updateUiFromRenderer( bool updateCount 
   viewGraduated->resizeColumnToContents( 1 );
   viewGraduated->resizeColumnToContents( 2 );
 
-  mHistogramWidget->refreshAndRedraw();
+  mHistogramWidget->refresh();
 
   connectUpdateHandlers();
 }
@@ -873,7 +873,7 @@ void QgsGraduatedSymbolRendererV2Widget::changeRangeSymbol( int rangeIdx )
   }
 
   mRenderer->updateRangeSymbol( rangeIdx, newSymbol );
-  mHistogramWidget->refreshHistogram();
+  mHistogramWidget->refresh();
 }
 
 void QgsGraduatedSymbolRendererV2Widget::changeRange( int rangeIdx )
@@ -909,26 +909,26 @@ void QgsGraduatedSymbolRendererV2Widget::changeRange( int rangeIdx )
       }
     }
   }
-  mHistogramWidget->refreshHistogram();
+  mHistogramWidget->refresh();
 }
 
 void QgsGraduatedSymbolRendererV2Widget::addClass()
 {
   mModel->addClass( mGraduatedSymbol );
-  mHistogramWidget->refreshHistogram();
+  mHistogramWidget->refresh();
 }
 
 void QgsGraduatedSymbolRendererV2Widget::deleteClasses()
 {
   QList<int> classIndexes = selectedClasses();
   mModel->deleteRows( classIndexes );
-  mHistogramWidget->refreshHistogram();
+  mHistogramWidget->refresh();
 }
 
 void QgsGraduatedSymbolRendererV2Widget::deleteAllClasses()
 {
   mModel->removeAllRows();
-  mHistogramWidget->refreshHistogram();
+  mHistogramWidget->refresh();
 }
 
 bool QgsGraduatedSymbolRendererV2Widget::rowsOrdered()
@@ -1061,6 +1061,7 @@ void QgsGraduatedSymbolRendererV2Widget::refreshSymbolView()
   {
     mModel->updateSymbology();
   }
+  mHistogramWidget->refresh();
 }
 
 void QgsGraduatedSymbolRendererV2Widget::showSymbolLevels()

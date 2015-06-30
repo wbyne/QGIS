@@ -27,10 +27,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifndef _PALSTAT_H_
 #define _PALSTAT_H_
 
@@ -38,7 +34,7 @@
 namespace pal
 {
 
-  /**
+  /** 
    * Summury of problem
    */
   class PalStat
@@ -46,6 +42,44 @@ namespace pal
 
       friend class Pal;
       friend class Problem;
+
+    public:
+
+      /** 
+       * \brief delete stats
+       */
+      ~PalStat();
+
+
+      /** 
+       * \brief the number of object in problem
+       */
+      int getNbObjects();
+
+      /** 
+       * \brief the number of objects which are labelled
+       */
+      int getNbLabelledObjects();
+
+      /** 
+       *  \brief how many layersare labelled ?
+       */
+      int getNbLayers();
+
+      /** 
+       * \brief get a name of the labelled layer 'layerId'
+       */
+      const char * getLayerName( int layerId );
+
+      /** 
+       * \brief get the number of object in layer 'layerId'
+       */
+      int getLayerNbObjects( int layerId );
+
+      /** 
+       * \brief get the number of object in layer 'layerId' which are labelled
+       */
+      int getLayerNbLabelledObjects( int layerId );
 
     private:
       int nbObjects;
@@ -58,44 +92,6 @@ namespace pal
       int *layersNbLabelledObjects; // [nbLayers]
 
       PalStat();
-
-    public:
-
-      /**
-       * \brief delete stats
-       */
-      ~PalStat();
-
-
-      /**
-       * \brief the number of object in problem
-       */
-      int getNbObjects();
-
-      /**
-       * \brief the number of objects which are labelled
-       */
-      int getNbLabelledObjects();
-
-      /**
-       *  \brief how many layersare labelled ?
-       */
-      int getNbLayers();
-
-      /**
-       * \brief get a name of the labelled layer 'layerId'
-       */
-      const char * getLayerName( int layerId );
-
-      /**
-       * \brief get the number of object in layer 'layerId'
-       */
-      int getLayerNbObjects( int layerId );
-
-      /**
-       * \brief get the number of object in layer 'layerId' which are labelled
-       */
-      int getLayerNbLabelledObjects( int layerId );
   };
 
 } // end namespace pal

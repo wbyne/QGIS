@@ -22,6 +22,12 @@
 
 class QgsPolygonV2;
 
+/**\ingroup core
+ * \class QgsCurvePolygonV2
+ * \brief Curve polygon geometry type
+ * \note added in QGIS 2.10
+ * \note this API is not considered stable and may change for 2.12
+ */
 class CORE_EXPORT QgsCurvePolygonV2: public QgsSurfaceV2
 {
   public:
@@ -62,8 +68,9 @@ class CORE_EXPORT QgsCurvePolygonV2: public QgsSurfaceV2
 
     /**Sets exterior ring (takes ownership)*/
     void setExteriorRing( QgsCurveV2* ring );
-    /**Sets interior rings (takes ownership)*/
+    /**Sets all interior rings (takes ownership)*/
     void setInteriorRings( QList<QgsCurveV2*> rings );
+    /**Adds an interior ring to the geometry (takes ownership)*/
     void addInteriorRing( QgsCurveV2* ring );
     /**Removes ring. Exterior ring is 0, first interior ring 1, ...*/
     bool removeInteriorRing( int nr );

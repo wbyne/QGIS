@@ -18,6 +18,12 @@ email                : marco.hugentobler at sourcepole dot com
 
 #include "qgsgeometrycollectionv2.h"
 
+/**\ingroup core
+ * \class QgsMultiSurfaceV2
+ * \brief Multi surface geometry collection.
+ * \note added in QGIS 2.10
+ * \note this API is not considered stable and may change for 2.12
+ */
 class CORE_EXPORT QgsMultiSurfaceV2: public QgsGeometryCollectionV2
 {
   public:
@@ -36,9 +42,6 @@ class CORE_EXPORT QgsMultiSurfaceV2: public QgsGeometryCollectionV2
 
     /**Adds a geometry and takes ownership. Returns true in case of success*/
     virtual bool addGeometry( QgsAbstractGeometryV2* g ) override;
-
-    /**Returns a geometry without curves. Caller takes ownership*/
-    QgsAbstractGeometryV2* segmentize() const override;
 };
 
 #endif // QGSMULTISURFACEV2_H

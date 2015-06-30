@@ -137,7 +137,7 @@ bool QgsOracleFeatureIterator::fetchFeature( QgsFeature& feature )
     int col = 0;
 
     if ((( mRequest.flags() & QgsFeatureRequest::NoGeometry ) == 0 && !mSource->mGeometryColumn.isNull() ) ||
-        (( mRequest.flags() & QgsFeatureRequest::ExactIntersect ) != 0 && !mConnection->hasSpatial() ) )
+        (( mRequest.flags() & QgsFeatureRequest::ExactIntersect ) != 0 && ( !mConnection->hasSpatial() || !mSource->mHasSpatialIndex ) ) )
     {
       QByteArray *ba = static_cast<QByteArray*>( mQry.value( col++ ).data() );
       unsigned char *copy = new unsigned char[ba->size()];
@@ -145,10 +145,9 @@ bool QgsOracleFeatureIterator::fetchFeature( QgsFeature& feature )
 
       feature.setGeometryAndOwnership( copy, ba->size() );
 
-      if ( !mConnection->hasSpatial() &&
-           mRequest.filterType() == QgsFeatureRequest::FilterRect &&
-           ( mRequest.flags() & QgsFeatureRequest::ExactIntersect ) != 0 &&
-           ( !feature.geometry() || !feature.geometry()->intersects( mRequest.filterRect() ) ) )
+      if (( mRequest.flags() & QgsFeatureRequest::ExactIntersect ) != 0 && ( !mConnection->hasSpatial() || !mSource->mHasSpatialIndex ) &&
+          mRequest.filterType() == QgsFeatureRequest::FilterRect &&
+          ( !feature.geometry() || !feature.geometry()->intersects( mRequest.filterRect() ) ) )
       {
         // skip feature that don't intersect with our rectangle
         QgsDebugMsg( "no intersect" );

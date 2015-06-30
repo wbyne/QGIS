@@ -554,6 +554,12 @@ void QgsMapCanvas::setCachingEnabled( bool enabled )
   if ( enabled == isCachingEnabled() )
     return;
 
+  if ( mJob && mJob->isActive() )
+  {
+    // wait for the current rendering to finish, before touching the cache
+    mJob->waitForFinished();
+  }
+
   if ( enabled )
   {
     mCache = new QgsMapRendererCache;
@@ -1959,4 +1965,21 @@ bool QgsMapCanvas::rotationEnabled()
 void QgsMapCanvas::enableRotation( bool enable )
 {
   QSettings().setValue( "/qgis/canvasRotation", enable );
+}
+
+void QgsMapCanvas::refreshAllLayers()
+{
+  // reload all layers in canvas
+  for ( int i = 0; i < layerCount(); i++ )
+  {
+    QgsMapLayer *l = layer( i );
+    if ( l )
+      l->reload();
+  }
+
+  // clear the cache
+  clearCache();
+
+  // and then refresh
+  refresh();
 }

@@ -27,10 +27,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifndef _FEATURE_H
 #define _FEATURE_H
 
@@ -40,15 +36,14 @@
 
 #include <geos_c.h>
 
-#include <pal/palgeometry.h>
-
+#include "palgeometry.h"
 #include "pointset.h"
 #include "util.h"
 #include "labelposition.h"
 
 namespace pal
 {
-  /** optional additional info about label (for curved labels) */
+  /** Optional additional info about label (for curved labels) */
   class CORE_EXPORT LabelInfo
   {
     public:
@@ -84,7 +79,7 @@ namespace pal
       friend class FeaturePart;
 
     public:
-      Feature( Layer* l, const char* id, PalGeometry* userG, double lx, double ly );
+      Feature( Layer* l, const char* geom_id, PalGeometry* userG, double lx, double ly );
       ~Feature();
 
       void setLabelInfo( LabelInfo* info ) { labelInfo = info; }
@@ -137,23 +132,6 @@ namespace pal
    */
   class CORE_EXPORT FeaturePart : public PointSet
   {
-
-    protected:
-      Feature* f;
-
-      int nbHoles;
-      PointSet **holes;
-
-      GEOSGeometry *the_geom;
-      bool ownsGeom;
-
-      /** \brief read coordinates from a GEOS geom */
-      void extractCoords( const GEOSGeometry* geom );
-
-      /** find duplicate (or nearly duplicate points) and remove them.
-       * Probably to avoid numerical errors in geometry algorithms.
-       */
-      void removeDuplicatePoints();
 
     public:
 
@@ -218,25 +196,6 @@ namespace pal
        */
       int setPositionForPolygon( double scale, LabelPosition ***lPos, PointSet *mapShape, double delta_width );
 
-#if 0
-      /**
-       * \brief Feature against problem bbox
-       * \param bbox[0] problem x min
-       * \param bbox[1] problem x max
-       * \param bbox[2] problem y min
-       * \param bbox[3] problem y max
-       * return A set of feature which are in the bbox or null if the feature is in the bbox
-       */
-      LinkedList<Feature*> *splitFeature( double bbox[4] );
-
-
-      /**
-       * \brief return the feature id
-       * \return the feature id
-       */
-      int getId();
-#endif
-
       /**
        * \brief return the feature
        * \return the feature
@@ -255,15 +214,6 @@ namespace pal
        */
       Layer * getLayer();
 
-#if 0
-      /**
-       * \brief save the feature into file
-       * Called by Pal::save()
-       * \param file the file to write
-       */
-      void save( std::ofstream *file );
-#endif
-
       /**
        * \brief generic method to generate candidates
        * This method will call either setPositionFromPoint(), setPositionFromLine or setPositionFromPolygon
@@ -275,11 +225,7 @@ namespace pal
        * \param candidates index for candidates
        * \return the number of candidates in *lPos
        */
-      int setPosition( double scale, LabelPosition ***lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates
-#ifdef _EXPORT_MAP_
-                       , std::ofstream &svgmap
-#endif
-                     );
+      int setPosition( double scale, LabelPosition ***lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates );
 
       /**
        * \brief get the unique id of the feature
@@ -312,14 +258,31 @@ namespace pal
       int getNumSelfObstacles() const { return nbHoles; }
       PointSet* getSelfObstacle( int i ) { return holes[i]; }
 
-      /** check whether this part is connected with some other part */
+      /** Check whether this part is connected with some other part */
       bool isConnected( FeaturePart* p2 );
 
-      /** merge other (connected) part with this one and save the result in this part (other is unchanged).
+      /** Merge other (connected) part with this one and save the result in this part (other is unchanged).
        * Return true on success, false if the feature wasn't modified */
       bool mergeWithFeaturePart( FeaturePart* other );
 
       void addSizePenalty( int nbp, LabelPosition** lPos, double bbx[4], double bby[4] );
+
+    protected:
+      Feature* f;
+
+      int nbHoles;
+      PointSet **holes;
+
+      GEOSGeometry *the_geom;
+      bool ownsGeom;
+
+      /** \brief read coordinates from a GEOS geom */
+      void extractCoords( const GEOSGeometry* geom );
+
+      /** Find duplicate (or nearly duplicate points) and remove them.
+       * Probably to avoid numerical errors in geometry algorithms.
+       */
+      void removeDuplicatePoints();
 
     private:
 

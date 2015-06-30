@@ -21,6 +21,13 @@
 
 #include <setjmp.h>
 
+// for Sleep / usleep for debugging
+#ifdef Q_OS_WIN
+#include <windows.h>
+#else
+#include <time.h>
+#endif
+
 #include "qgsgrass.h"
 
 #include "qgslogger.h"
@@ -29,6 +36,7 @@
 #include "qgsfield.h"
 #include "qgsrectangle.h"
 #include "qgsconfig.h"
+#include "qgslocalec.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -130,11 +138,19 @@ bool QgsGrassObject::setFromUri( const QString& uri )
 QString QgsGrassObject::elementShort() const
 {
   if ( mType == Raster )
+#if GRASS_VERSION_MAJOR < 7
     return "rast";
+#else
+    return "raster";
+#endif
   else if ( mType == Group )
     return "group";
   else if ( mType == Vector )
+#if GRASS_VERSION_MAJOR < 7
     return "vect";
+#else
+    return "vector";
+#endif
   else if ( mType == Region )
     return "region";
   else
@@ -993,6 +1009,30 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectors( const QString& mapsetPath )
   }
   return list;
 }
+
+bool GRASS_LIB_EXPORT QgsGrass::topoVersion( const QString& gisdbase, const QString& location,
+    const QString& mapset, const QString& mapName, int &major, int &minor )
+{
+  QString path = gisdbase + "/" + location + "/" + mapset + "/vector/" + mapName + "/topo";
+  QFile file( path );
+  if ( !file.exists( path ) || file.size() < 5 )
+  {
+    return false;
+  }
+  if ( !file.open( QIODevice::ReadOnly ) )
+  {
+    return false;
+  }
+  QDataStream stream( &file );
+  quint8 maj, min;
+  stream >> maj;
+  stream >> min;
+  file.close();
+  major = maj;
+  minor = min;
+  return true;
+}
+
 QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, const QString& location,
     const QString& mapset, const QString& mapName )
 {
@@ -1006,7 +1046,11 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
   /* Open vector */
   QgsGrass::resetError();
   //Vect_set_open_level( 2 );
-  struct Map_info map;
+
+  // TODO: We are currently using vectDestroyMapStruct in G_CATCH blocks because we know
+  // that it does cannot call another G_fatal_error, but once we switch to hypothetical Vect_destroy_map_struct
+  // it should be verified if it can still be in G_CATCH
+  struct Map_info *map = vectNewMapStruct();
   int level = -1;
 
   // Vect_open_old_head GRASS is raising fatal error if topo exists but it is in different (older) version.
@@ -1015,17 +1059,12 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
 
   G_TRY
   {
-    // TODO: With Vect_open_old_head it crashes on Windows + GRASS 7 in Vect_cidx_get_type_count() when the first
-    // type is found. Try to open full map on win for now.
-#if defined(Q_OS_WIN) && GRASS_VERSION_MAJOR >= 7
-    level = Vect_open_old( &map, ( char * ) mapName.toUtf8().data(), ( char * ) mapset.toUtf8().data() );
-#else
-    level = Vect_open_old_head( &map, ( char * ) mapName.toUtf8().data(), ( char * ) mapset.toUtf8().data() );
-#endif
+    level = Vect_open_old_head( map, ( char * ) mapName.toUtf8().data(), ( char * ) mapset.toUtf8().data() );
   }
   G_CATCH( QgsGrass::Exception &e )
   {
     QgsDebugMsg( QString( "Cannot open GRASS vector: %1" ).arg( e.what() ) );
+    vectDestroyMapStruct( map );
     GRASS_UNLOCK
     throw e;
   }
@@ -1041,8 +1080,9 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
     // crash on win http://trac.osgeo.org/qgis/ticket/2003
     // disabled on win test it
 #ifndef Q_OS_WIN
-    Vect_close( &map );
+    Vect_close( map );
 #endif
+    vectDestroyMapStruct( map );
     GRASS_UNLOCK
     throw QgsGrass::Exception( QObject::tr( "Cannot open vector on level 2" ) );
   }
@@ -1051,6 +1091,7 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
     QgsDebugMsg( "Cannot open vector" );
     // Do not open QMessageBox here!
     //QMessageBox::warning( 0, QObject::tr( "Warning" ), QObject::tr( "Cannot open vector %1 in mapset %2" ).arg( mapName ).arg( mapset ) );
+    vectDestroyMapStruct( map );
     GRASS_UNLOCK
     throw QgsGrass::Exception( QObject::tr( "Cannot open vector" ) );
   }
@@ -1060,18 +1101,18 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
   G_TRY
   {
     // Get layers
-    int ncidx = Vect_cidx_get_num_fields( &map );
+    int ncidx = Vect_cidx_get_num_fields( map );
 
     for ( int i = 0; i < ncidx; i++ )
     {
-      int field = Vect_cidx_get_field_number( &map, i );
+      int field = Vect_cidx_get_field_number( map, i );
       QString fs;
       fs.sprintf( "%d", field );
 
       QgsDebugMsg( QString( "i = %1 layer = %2" ).arg( i ).arg( field ) );
 
       /* Points */
-      int npoints = Vect_cidx_get_type_count( &map, field, GV_POINT );
+      int npoints = Vect_cidx_get_type_count( map, field, GV_POINT );
       QgsDebugMsg( QString( "npoints = %1" ).arg( npoints ) );
       if ( npoints > 0 )
       {
@@ -1087,7 +1128,7 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
       else
         tp = GV_LINE | GV_BOUNDARY;
 
-      int nlines = Vect_cidx_get_type_count( &map, field, tp );
+      int nlines = Vect_cidx_get_type_count( map, field, tp );
       QgsDebugMsg( QString( "nlines = %1" ).arg( nlines ) );
       if ( nlines > 0 )
       {
@@ -1096,7 +1137,7 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
       }
 
       /* Faces */
-      int nfaces = Vect_cidx_get_type_count( &map, field, GV_FACE );
+      int nfaces = Vect_cidx_get_type_count( map, field, GV_FACE );
       QgsDebugMsg( QString( "nfaces = %1" ).arg( nfaces ) );
       if ( nfaces > 0 )
       {
@@ -1105,7 +1146,7 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
       }
 
       /* Polygons */
-      int nareas = Vect_cidx_get_type_count( &map, field, GV_AREA );
+      int nareas = Vect_cidx_get_type_count( map, field, GV_AREA );
       QgsDebugMsg( QString( "nareas = %1" ).arg( nareas ) );
       if ( nareas > 0 )
       {
@@ -1121,34 +1162,33 @@ QStringList GRASS_LIB_EXPORT QgsGrass::vectorLayers( const QString& gisdbase, co
     if ( listTopoLayers )
     {
       // add topology layers
-      if ( Vect_get_num_primitives( &map, GV_POINTS ) > 0 )
+      if ( Vect_get_num_primitives( map, GV_POINTS ) > 0 )
       {
 #if GRASS_VERSION_MAJOR < 7 /* no more point in GRASS 7 topo */
         list.append( "topo_point" );
 #endif
       }
-      if ( Vect_get_num_primitives( &map, GV_LINES ) > 0 )
+      if ( Vect_get_num_primitives( map, GV_LINES ) > 0 )
       {
         list.append( "topo_line" );
       }
-      if ( Vect_get_num_nodes( &map ) > 0 )
+      if ( Vect_get_num_nodes( map ) > 0 )
       {
         list.append( "topo_node" );
       }
     }
-
-    QgsDebugMsg( "close map" );
-    Vect_close( &map );
-    QgsDebugMsg( "map closed" );
+    Vect_close( map );
+    vectDestroyMapStruct( map );
+    GRASS_UNLOCK
   }
   G_CATCH( QgsGrass::Exception &e )
   {
     QgsDebugMsg( QString( "Cannot get vector layers: %1" ).arg( e.what() ) );
+    vectDestroyMapStruct( map );
     GRASS_UNLOCK
     throw e;
   }
 
-  GRASS_UNLOCK
   return list;
 }
 
@@ -1605,6 +1645,7 @@ QProcess GRASS_LIB_EXPORT *QgsGrass::startModule( const QString& gisdbase, const
   process->setEnvironment( environment );
 
   QgsDebugMsg( module + " " + arguments.join( " " ) );
+  //process->start( module, arguments, QProcess::Unbuffered );
   process->start( module, arguments );
   if ( !process->waitForStarted() )
   {
@@ -1723,31 +1764,29 @@ QgsCoordinateReferenceSystem GRASS_LIB_EXPORT QgsGrass::crsDirect( const QString
   QgsGrass::resetError();
   QgsGrass::setLocation( gisdbase, location );
 
-  const char *oldlocale = setlocale( LC_NUMERIC, NULL );
-  setlocale( LC_NUMERIC, "C" );
-
-  G_TRY
   {
-    G_get_default_window( &cellhd );
-  }
-  G_CATCH( QgsGrass::Exception &e )
-  {
-    Q_UNUSED( e );
-    setlocale( LC_NUMERIC, oldlocale );
-    QgsDebugMsg( QString( "Cannot get default window: %1" ).arg( e.what() ) );
-    return QgsCoordinateReferenceSystem();
-  }
+    QgsLocaleNumC l;
 
-  if ( cellhd.proj != PROJECTION_XY )
-  {
-    struct Key_Value *projinfo = G_get_projinfo();
-    struct Key_Value *projunits = G_get_projunits();
-    char *wkt = GPJ_grass_to_wkt( projinfo, projunits, 0, 0 );
-    Wkt = QString( wkt );
-    G_free( wkt );
-  }
+    G_TRY
+    {
+      G_get_default_window( &cellhd );
+    }
+    G_CATCH( QgsGrass::Exception &e )
+    {
+      Q_UNUSED( e );
+      QgsDebugMsg( QString( "Cannot get default window: %1" ).arg( e.what() ) );
+      return QgsCoordinateReferenceSystem();
+    }
 
-  setlocale( LC_NUMERIC, oldlocale );
+    if ( cellhd.proj != PROJECTION_XY )
+    {
+      struct Key_Value *projinfo = G_get_projinfo();
+      struct Key_Value *projunits = G_get_projunits();
+      char *wkt = GPJ_grass_to_wkt( projinfo, projunits, 0, 0 );
+      Wkt = QString( wkt );
+      G_free( wkt );
+    }
+  }
 
   QgsCoordinateReferenceSystem srs;
   srs.createFromWkt( Wkt );
@@ -1954,7 +1993,11 @@ bool GRASS_LIB_EXPORT QgsGrass::deleteObject( const QgsGrassObject & object )
   QString cmd = "g.remove";
   QStringList arguments;
 
+#if GRASS_VERSION_MAJOR < 7
   arguments << object.elementShort() + "=" + object.name();
+#else
+  arguments << "-f" << "type=" + object.elementShort() << "name=" + object.name();
+#endif
 
   try
   {
@@ -2201,3 +2244,35 @@ void GRASS_LIB_EXPORT QgsGrass::putEnv( QString name, QString value )
   putenv( envChar );
 }
 
+struct Map_info GRASS_LIB_EXPORT *QgsGrass::vectNewMapStruct()
+{
+  // In OSGeo4W there is GRASS compiled by MinGW while QGIS compiled by MSVC, the compilers
+  // may have different sizes of types, see issue #13002. Because there is no Vect_new_map_struct (GRASS 7.0.0, July 2015)
+  // the structure is allocated here using doubled (should be enough) space.
+  // TODO: replace by Vect_new_map_struct once it appears in GRASS
+#if defined(WIN32)
+  return ( struct Map_info* ) qgsMalloc( 2*sizeof( struct Map_info ) );
+#else
+  return ( struct Map_info* ) qgsMalloc( sizeof( struct Map_info ) );
+#endif
+}
+
+void GRASS_LIB_EXPORT QgsGrass::vectDestroyMapStruct( struct Map_info *map )
+{
+  // TODO: replace by Vect_destroy_map_struct once it appears in GRASS
+  // TODO: until switch to hypothetical Vect_destroy_map_struct verify that Vect_destroy_map_struct cannot
+  // call G_fatal_error, otherwise check and remove use of vectDestroyMapStruct from G_CATCH blocks
+  qgsFree( map );
+  map = 0;
+}
+
+void GRASS_LIB_EXPORT QgsGrass::sleep( int ms )
+{
+// Stolen from QTest::qSleep
+#ifdef Q_OS_WIN
+  Sleep( uint( ms ) );
+#else
+  struct timespec ts = { ms / 1000, ( ms % 1000 ) * 1000 * 1000 };
+  nanosleep( &ts, NULL );
+#endif
+}
