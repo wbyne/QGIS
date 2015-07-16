@@ -47,6 +47,7 @@
 #include <QScopedPointer>
 // TODO: remove, it's only needed by a single debug message
 #include <fcgi_stdio.h>
+#include <stdlib.h>
 
 
 // Static initialisers, default values for fcgi server
@@ -393,8 +394,11 @@ bool QgsServer::init( int & argc, char ** argv )
   }
 #endif
 
+  QgsServerLogger::instance();
+
   QgsEditorWidgetRegistry::initEditors();
   mInitialised = TRUE;
+  QgsMessageLog::logMessage( "Server intialised", "Server", QgsMessageLog::INFO );
   return TRUE;
 }
 
@@ -453,7 +457,11 @@ QByteArray QgsServer::handleRequest( const QString queryString ,
    */
   if ( ! queryString.isEmpty() )
   {
-    setenv( "QUERY_STRING", queryString.toUtf8( ), 1 );
+#ifdef _MSC_VER
+    _putenv_s( "QUERY_STRING", queryString.toUtf8().data() );
+#else
+    setenv( "QUERY_STRING", queryString.toUtf8().data(), 1 );
+#endif
   }
 
   int logLevel = QgsServerLogger::instance()->logLevel();
@@ -520,6 +528,14 @@ QByteArray QgsServer::handleRequest( const QString queryString ,
     }
   }
 
+  //possibility for client to suggest a download filename
+  QString outputFileName = theRequestHandler->parameter( "FILE_NAME" );
+  if ( !outputFileName.isEmpty() )
+  {
+    theRequestHandler->setDefaultHeaders();
+    theRequestHandler->setHeader( "Content-Disposition", "attachment; filename=\"" + outputFileName + "\"" );
+  }
+
   // Enter core services main switch
   if ( !theRequestHandler->exceptionRaised() )
   {
@@ -574,7 +590,11 @@ QByteArray QgsServer::handleRequest( const QString queryString ,
   {
     filtersIterator.value()->responseComplete();
   }
+  // We are done using theRequestHandler in plugins, make sure we don't access
+  // to a deleted request handler from Python bindings
+  mServerInterface->clearRequestHandler( );
 #endif
+
   theRequestHandler->sendResponse();
 
   if ( logLevel < 1 )

@@ -450,6 +450,8 @@ QgsOgrProvider::QgsOgrProvider( QString const & uri )
     mNativeTypes
     << QgsVectorDataProvider::NativeType( tr( "Date & Time" ), "datetime", QVariant::DateTime );
   }
+
+  QgsOgrConnPool::instance()->ref( mFilePath );
 }
 
 QgsOgrProvider::~QgsOgrProvider()
@@ -470,6 +472,8 @@ QgsOgrProvider::~QgsOgrProvider()
     free( extent_ );
     extent_ = 0;
   }
+
+  QgsOgrConnPool::instance()->unref( mFilePath );
 }
 
 QgsAbstractFeatureSource* QgsOgrProvider::featureSource() const
@@ -1686,7 +1690,7 @@ QString createFilters( QString type )
       else if ( driverName.startsWith( "PGeo" ) )
       {
         myDatabaseDrivers += QObject::tr( "ESRI Personal GeoDatabase" ) + ",PGeo;";
-#ifdef WIN32
+#ifdef Q_OS_WIN
         myFileFilters += createFileFilter_( QObject::tr( "ESRI Personal GeoDatabase" ), "*.mdb" );
         myExtensions << "mdb";
 #endif

@@ -15,13 +15,13 @@ __revision__ = '$Format:%H$'
 import os
 import re
 import unittest
+import tempfile
 from qgis.server import QgsServer
 from qgis.core import QgsMessageLog
 from utilities import unitTestDataPath
 
-# Strip path and content lenght because path may vary
+# Strip path and content length because path may vary
 RE_STRIP_PATH=r'MAP=[^&]+|Content-Length: \d+'
-
 
 class TestQgsServer(unittest.TestCase):
 
@@ -56,11 +56,11 @@ class TestQgsServer(unittest.TestCase):
         we are going to test if headers and body are returned correctly"""
         # Test as a whole
         response = str(self.server.handleRequest())
-        expected = 'Content-Type: text/xml; charset=utf-8\nContent-Length: 206\n\n<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc">\n <ServiceException code="Service configuration error">Service unknown or unsupported</ServiceException>\n</ServiceExceptionReport>\n'
+        expected = 'Content-Length: 206\nContent-Type: text/xml; charset=utf-8\n\n<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc">\n <ServiceException code="Service configuration error">Service unknown or unsupported</ServiceException>\n</ServiceExceptionReport>\n'
         self.assertEqual(response, expected)
         # Test header
         response = str(self.server.handleRequestGetHeaders())
-        expected = 'Content-Type: text/xml; charset=utf-8\nContent-Length: 206\n\n'
+        expected = 'Content-Length: 206\nContent-Type: text/xml; charset=utf-8\n\n'
         self.assertEqual(response, expected)
         # Test body
         response = str(self.server.handleRequestGetBody())
@@ -75,7 +75,7 @@ class TestQgsServer(unittest.TestCase):
         except ImportError:
             print "QGIS Server plugins are not compiled. Skipping test"
             return
-        
+
         class SimpleHelloFilter(QgsServerFilter):
             def requestReady(self):
                 QgsMessageLog.logMessage("SimpleHelloFilter.requestReady")
@@ -97,18 +97,30 @@ class TestQgsServer(unittest.TestCase):
         serverIface = self.server.serverInterface()
         serverIface.registerFilter(SimpleHelloFilter(serverIface), 100 )
         response = str(self.server.handleRequest('service=simple'))
-        expected = 'Content-type: text/plain\n\n\nHello from SimpleServer!'
+        expected = 'Content-type: text/plain\n\nHello from SimpleServer!'
         self.assertEqual(response, expected)
 
 
     ## WMS tests
     def wms_request_compare(self, request):
         map = self.testdata_path + "testproject.qgs"
-        response = str(self.server.handleRequest('MAP=%s&SERVICE=WMS&VERSION=1.3&REQUEST=%s' % (map, request)))
+        query_string = 'MAP=%s&SERVICE=WMS&VERSION=1.3&REQUEST=%s' % (map, request)
+        response = str(self.server.handleRequest(query_string))
         f = open(self.testdata_path + request.lower() + '.txt')
         expected = f.read()
         f.close()
-        self.assertEqual(re.sub(RE_STRIP_PATH, '', response), re.sub(RE_STRIP_PATH, '', expected))
+        # Store for debug or to regenerate the reference documents:
+        """
+        f = open(os.path.dirname(__file__) + '/expected.txt', 'w+')
+        f.write(expected)
+        f.close()
+        f = open(os.path.dirname(__file__) + '/response.txt', 'w+')
+        f.write(response)
+        f.close()
+        """
+        response = re.sub(RE_STRIP_PATH, '', response)
+        expected = re.sub(RE_STRIP_PATH, '', expected)
+        self.assertEqual(response, expected, msg="request %s failed. Expected:\n%s\n\nResponse:\n%s" % (request, expected, response))
 
 
     def test_project_wms(self):

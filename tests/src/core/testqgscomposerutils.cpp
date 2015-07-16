@@ -63,24 +63,26 @@ class TestQgsComposerUtils : public QObject
   private:
     bool renderCheck( QString testName, QImage &image, int mismatchCount = 0 );
     QgsComposition* mComposition;
-    QgsMapSettings mMapSettings;
+    QgsMapSettings *mMapSettings;
     QString mReport;
     QFont mTestFont;
 
 };
 
 TestQgsComposerUtils::TestQgsComposerUtils()
-    : mComposition( NULL )
+    : mComposition( 0 )
+    , mMapSettings( 0 )
 {
-
 }
+
 
 void TestQgsComposerUtils::initTestCase()
 {
   QgsApplication::init();
   QgsApplication::initQgis(); //for access to test font
 
-  mComposition = new QgsComposition( mMapSettings );
+  mMapSettings = new QgsMapSettings();
+  mComposition = new QgsComposition( *mMapSettings );
   mComposition->setPaperSize( 297, 210 ); //A4 landscape
 
   mReport = "<h1>Composer Utils Tests</h1>\n";
@@ -94,10 +96,11 @@ void TestQgsComposerUtils::initTestCase()
 void TestQgsComposerUtils::cleanupTestCase()
 {
   delete mComposition;
+  delete mMapSettings;
 
   QgsApplication::exitQgis();
 
-  QString myReportFile = QDir::tempPath() + QDir::separator() + "qgistest.html";
+  QString myReportFile = QDir::tempPath() + "/qgistest.html";
   QFile myFile( myReportFile );
   if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
   {
@@ -681,7 +684,7 @@ void TestQgsComposerUtils::drawTextRect()
 bool TestQgsComposerUtils::renderCheck( QString testName, QImage &image, int mismatchCount )
 {
   mReport += "<h2>" + testName + "</h2>\n";
-  QString myTmpDir = QDir::tempPath() + QDir::separator();
+  QString myTmpDir = QDir::tempPath() + "/";
   QString myFileName = myTmpDir + testName + ".png";
   image.save( myFileName, "PNG" );
   QgsRenderChecker myChecker;

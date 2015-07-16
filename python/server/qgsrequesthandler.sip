@@ -30,6 +30,7 @@ class QgsRequestHandler
 
     /**Allow plugins to return a QgsMapServiceException*/
     virtual void setServiceException( QgsMapServiceException ex /Transfer/ ) = 0;
+    virtual void setDefaultHeaders();
     /**Set an HTTP header*/
     virtual void setHeader( const QString &name, const QString &value ) = 0;
     /**Remove an HTTP header*/
@@ -60,7 +61,7 @@ class QgsRequestHandler
     /**Remove a request parameter*/
     virtual int removeParameter( const QString &key ) = 0;
     /**Return a request parameter*/
-    virtual QString parameter( const QString &key ) const = 0;
+    virtual QString parameter( const QString &key) const = 0;
     /**Return the requested format string*/
     QString format() const;
     /**Return the mime type for the response*/

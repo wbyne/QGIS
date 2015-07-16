@@ -41,7 +41,7 @@ class ANALYSIS_EXPORT QgsAlignRaster
     QgsAlignRaster();
 
     //! Utility class for gathering information about rasters
-    struct RasterInfo
+    struct ANALYSIS_EXPORT RasterInfo
     {
     public:
       //! Construct raster info with a path to a raster file
@@ -104,8 +104,12 @@ class ANALYSIS_EXPORT QgsAlignRaster
     struct Item
     {
       Item( const QString& input, const QString& output )
-          : inputFilename( input ), outputFilename( output )
-          , resampleMethod( RA_NearestNeighbour ), rescaleValues( false ) {}
+          : inputFilename( input )
+          , outputFilename( output )
+          , resampleMethod( RA_NearestNeighbour )
+          , rescaleValues( false )
+          , srcCellSizeInDestCRS( 0.0 )
+      {}
 
       //! filename of the source raster
       QString inputFilename;

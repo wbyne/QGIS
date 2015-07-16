@@ -206,9 +206,9 @@ namespace pal
   }
 
 
-  void PointSet::splitPolygons( LinkedList<PointSet*> *shapes_toProcess,
-                                LinkedList<PointSet*> *shapes_final,
-                                double xrm, double yrm, char *uid )
+  void PointSet::splitPolygons( QLinkedList<PointSet*> &shapes_toProcess,
+                                QLinkedList<PointSet*> &shapes_final,
+                                double xrm, double yrm, const QString& uid )
   {
 #ifdef _DEBUG_
     std::cout << "splitPolygons: " << uid << std::endl;
@@ -252,12 +252,12 @@ namespace pal
 
     PointSet *shape;
 
-    while ( shapes_toProcess->size() > 0 )
+    while ( shapes_toProcess.size() > 0 )
     {
 #ifdef _DEBUG_FULL_
       std::cout << "Shape popping()" << std::endl;
 #endif
-      shape = shapes_toProcess->pop_front();
+      shape = shapes_toProcess.takeFirst();
 
       x = shape->x;
       y = shape->y;
@@ -315,7 +315,7 @@ namespace pal
           // lookup for the deepest point in the hole
           for ( i = ips; i != cHull[ihn]; i = ( i + 1 ) % nbp )
           {
-            cp = vabs( cross_product( x[cHull[ihs]], y[cHull[ihs]],
+            cp = qAbs( cross_product( x[cHull[ihs]], y[cHull[ihs]],
                                       x[cHull[ihn]], y[cHull[ihn]],
                                       x[i], y[i] ) );
             if ( cp - bestcp > EPSILON )
@@ -400,7 +400,7 @@ namespace pal
           std::cout << "D: " << dx << " " << dy << std::endl;
           std::cout << "seg_length: " << seg_length << std::endl;
 #endif
-          if ( seg_length < EPSILON || vabs(( b = cross_product( ex, ey, fx, fy, x[retainedPt], y[retainedPt] ) / ( seg_length ) ) ) > ( seg_length / 2 ) )    // retainedPt is not fronting i->j
+          if ( seg_length < EPSILON || qAbs(( b = cross_product( ex, ey, fx, fy, x[retainedPt], y[retainedPt] ) / ( seg_length ) ) ) > ( seg_length / 2 ) )    // retainedPt is not fronting i->j
           {
             if (( ex = dist_euc2d_sq( x[i], y[i], x[retainedPt], y[retainedPt] ) ) < ( ey = dist_euc2d_sq( x[j], y[j], x[retainedPt], y[retainedPt] ) ) )
             {
@@ -483,7 +483,7 @@ namespace pal
 
         // we will cut the shapeu in two new shapes, one from [retainedPoint] to [newPoint] and one form [newPoint] to [retainedPoint]
         int imin = retainedPt;
-        int imax = ((( fps < retainedPt && fpe < retainedPt ) || ( fps > retainedPt && fpe > retainedPt ) ) ? min( fps, fpe ) : max( fps, fpe ) );
+        int imax = ((( fps < retainedPt && fpe < retainedPt ) || ( fps > retainedPt && fpe > retainedPt ) ) ? qMin( fps, fpe ) : qMax( fps, fpe ) );
 
         int nbPtSh1, nbPtSh2; // how many points in new shapes ?
         if ( imax > imin )
@@ -511,7 +511,7 @@ namespace pal
         // check for useless spliting
         else if ( imax == imin || nbPtSh1 <= 2 || nbPtSh2 <= 2 || nbPtSh1 == nbp  || nbPtSh2 == nbp )
         {
-          shapes_final->push_back( shape );
+          shapes_final.append( shape );
         }
         else
         {
@@ -532,7 +532,7 @@ namespace pal
           }
 #endif
 
-          shapes_toProcess->push_back( newShape );
+          shapes_toProcess.append( newShape );
 
           if ( imax == fps )
             imax = fpe;
@@ -553,7 +553,7 @@ namespace pal
             std::cout << newShape->x[i] << ";" << newShape->y[i] << std::endl;
           }
 #endif
-          shapes_toProcess->push_back( newShape );
+          shapes_toProcess.append( newShape );
 
           if ( shape->parent )
             delete shape;
@@ -564,7 +564,7 @@ namespace pal
 #ifdef _DEBUG_FULL_
         std::cout << "Put shape into shapes_final" << std::endl;
 #endif
-        shapes_final->push_back( shape );
+        shapes_final.append( shape );
       }
       delete[] pts;
     }

@@ -61,28 +61,31 @@ class TestQgsComposerMapGrid : public QObject
   private:
     QgsComposition* mComposition;
     QgsComposerMap* mComposerMap;
-    QgsMapSettings mMapSettings;
+    QgsMapSettings *mMapSettings;
     QString mReport;
 };
 
 TestQgsComposerMapGrid::TestQgsComposerMapGrid()
-    : mComposition( NULL )
-    , mComposerMap( NULL )
+    : mComposition( 0 )
+    , mComposerMap( 0 )
+    , mMapSettings( 0 )
 {
-
 }
 
 void TestQgsComposerMapGrid::initTestCase()
 {
   QgsApplication::init();
   QgsApplication::initQgis();
+  mMapSettings = new QgsMapSettings();
 
   mReport = "<h1>Composer Map Grid Tests</h1>\n";
 }
 
 void TestQgsComposerMapGrid::cleanupTestCase()
 {
-  QString myReportFile = QDir::tempPath() + QDir::separator() + "qgistest.html";
+  delete mMapSettings;
+
+  QString myReportFile = QDir::tempPath() + "/qgistest.html";
   QFile myFile( myReportFile );
   if ( myFile.open( QIODevice::WriteOnly | QIODevice::Append ) )
   {
@@ -97,9 +100,9 @@ void TestQgsComposerMapGrid::cleanupTestCase()
 void TestQgsComposerMapGrid::init()
 {
   QgsCoordinateReferenceSystem crs = QgsCoordinateReferenceSystem( 32633 );
-  mMapSettings.setDestinationCrs( crs );
-  mMapSettings.setCrsTransformEnabled( false );
-  mComposition = new QgsComposition( mMapSettings );
+  mMapSettings->setDestinationCrs( crs );
+  mMapSettings->setCrsTransformEnabled( false );
+  mComposition = new QgsComposition( *mMapSettings );
   mComposition->setPaperSize( 297, 210 ); //A4 landscape
   mComposerMap = new QgsComposerMap( mComposition, 20, 20, 200, 100 );
   mComposerMap->setFrameEnabled( true );
@@ -162,7 +165,7 @@ void TestQgsComposerMapGrid::reprojected()
 
   bool testResult = checker.testComposition( mReport, 0, 0 );
   mComposerMap->grid()->setEnabled( false );
-  mComposerMap->grid()->setCrs( mMapSettings.destinationCrs() );
+  mComposerMap->grid()->setCrs( mMapSettings->destinationCrs() );
   mComposerMap->grid()->setFrameStyle( QgsComposerMapGrid::NoFrame );
   mComposerMap->setFrameEnabled( true );
   QVERIFY( testResult );

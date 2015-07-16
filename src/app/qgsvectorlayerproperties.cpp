@@ -49,6 +49,7 @@
 #include "qgsvectordataprovider.h"
 #include "qgsquerybuilder.h"
 #include "qgsdatasourceuri.h"
+#include "qgsrendererv2.h"
 
 #include <QMessageBox>
 #include <QDir>
@@ -91,10 +92,10 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
   QPushButton* b = new QPushButton( tr( "Style" ) );
   QMenu* m = new QMenu( this );
-  mActionLoadStyle = m->addAction( tr( "Load Style..." ), this, SLOT( loadStyle_clicked() ) );
-  mActionSaveStyleAs = m->addAction( tr( "Save Style..." ), this, SLOT( saveStyleAs_clicked() ) );
+  mActionLoadStyle = m->addAction( tr( "Load Style" ), this, SLOT( loadStyle_clicked() ) );
+  mActionSaveStyleAs = m->addAction( tr( "Save Style" ), this, SLOT( saveStyleAs_clicked() ) );
   m->addSeparator();
-  m->addAction( tr( "Save As Default" ), this, SLOT( saveDefaultStyle_clicked() ) );
+  m->addAction( tr( "Save as Default" ), this, SLOT( saveDefaultStyle_clicked() ) );
   m->addAction( tr( "Restore Default" ), this, SLOT( loadDefaultStyle_clicked() ) );
   b->setMenu( m );
   connect( m, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowStyleMenu() ) );
@@ -160,15 +161,15 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
   // Create the menu for the save style button to choose the output format
   mSaveAsMenu = new QMenu( this );
-  mSaveAsMenu->addAction( tr( "QGIS Layer Style File" ) );
-  mSaveAsMenu->addAction( tr( "SLD File" ) );
+  mSaveAsMenu->addAction( tr( "QGIS Layer Style File..." ) );
+  mSaveAsMenu->addAction( tr( "SLD File..." ) );
 
   //Only if the provider support loading & saving styles to db add new choices
   if ( layer->dataProvider()->isSaveAndLoadStyleToDBSupported() )
   {
     //for loading
     mLoadStyleMenu = new QMenu();
-    mLoadStyleMenu->addAction( tr( "Load from file" ) );
+    mLoadStyleMenu->addAction( tr( "Load from file..." ) );
     mLoadStyleMenu->addAction( tr( "Load from database" ) );
     //mActionLoadStyle->setContextMenuPolicy( Qt::PreventContextMenu );
     mActionLoadStyle->setMenu( mLoadStyleMenu );
@@ -435,14 +436,16 @@ void QgsVectorLayerProperties::syncToLayer( void )
   // disable simplification for point layers, now it is not implemented
   if ( layer->geometryType() == QGis::Point )
   {
-    mOptionsStackedWidget->removeWidget( mOptsPage_Rendering );
     mSimplifyDrawingGroupBox->setChecked( false );
+    mSimplifyDrawingGroupBox->setEnabled( false );
   }
 
   QStringList myScalesList = PROJECT_SCALES.split( "," );
   myScalesList.append( "1:1" );
   mSimplifyMaximumScaleComboBox->updateScales( myScalesList );
   mSimplifyMaximumScaleComboBox->setScale( 1.0 / simplifyMethod.maximumScale() );
+
+  mForceRasterCheckBox->setChecked( layer->rendererV2() && layer->rendererV2()->forceRasterRender() );
 
   // load appropriate symbology page (V1 or V2)
   updateSymbologyPage();
@@ -601,6 +604,9 @@ void QgsVectorLayerProperties::apply()
   simplifyMethod.setForceLocalOptimization( !mSimplifyDrawingAtProvider->isChecked() );
   simplifyMethod.setMaximumScale( 1.0 / mSimplifyMaximumScaleComboBox->scale() );
   layer->setSimplifyMethod( simplifyMethod );
+
+  if ( layer->rendererV2() )
+    layer->rendererV2()->setForceRasterRender( mForceRasterCheckBox->isChecked() );
 
   mOldJoins = layer->vectorJoins();
 

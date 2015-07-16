@@ -64,73 +64,6 @@
 namespace pal
 {
 
-  void sort( double* heap, int* x, int* y, int N )
-  {
-    unsigned int n = N, i = n / 2, parent, child;
-    double t;
-    int tx;
-    int ty;
-    for ( ;; )
-    {
-      if ( i > 0 )
-      {
-        i--;
-        t = heap[i];
-        tx = x[i];
-        ty = y[i];
-      }
-      else
-      {
-        n--;
-        if ( n == 0 ) return;
-        t = heap[n];
-        tx = x[n];
-        ty = y[n];
-        heap[n] = heap[0];
-        x[n] = x[0];
-        y[n] = y[0];
-      }
-      parent = i;
-      child = i * 2 + 1;
-      while ( child < n )
-      {
-        if ( child + 1 < n  &&  heap[child + 1] > heap[child] )
-        {
-          child++;
-        }
-        if ( heap[child] > t )
-        {
-          heap[parent] = heap[child];
-          x[parent] = x[child];
-          y[parent] = y[child];
-          parent = child;
-          child = parent * 2 + 1;
-        }
-        else
-        {
-          break;
-        }
-      }
-      heap[parent] = t;
-      x[parent] = tx;
-      y[parent] = ty;
-    }
-  }
-
-  void tabcpy( int n, const int* const x, const int* const y,
-               const double* const prob, int *cx, int *cy, double *p )
-  {
-    int i;
-
-    for ( i = 0; i < n; i++ )
-    {
-      cx[i] = x[i];
-      cy[i] = y[i];
-      p[i] = prob[i];
-    }
-  }
-
-
   void sort( void** items, int N, bool ( *greater )( void *l, void *r ) )
   {
 
@@ -183,20 +116,20 @@ namespace pal
     return l == r;
   }
 
-  LinkedList<const GEOSGeometry*> * unmulti( const GEOSGeometry *the_geom )
+  QLinkedList<const GEOSGeometry *> *unmulti( const GEOSGeometry *the_geom )
   {
-    LinkedList<const GEOSGeometry*> *queue = new  LinkedList<const GEOSGeometry*> ( ptrGeomEq );
-    LinkedList<const GEOSGeometry*> *final_queue = new  LinkedList<const GEOSGeometry*> ( ptrGeomEq );
+    QLinkedList<const GEOSGeometry*> *queue = new QLinkedList<const GEOSGeometry*>;
+    QLinkedList<const GEOSGeometry*> *final_queue = new QLinkedList<const GEOSGeometry*>;
 
     const GEOSGeometry *geom;
 
-    queue->push_back( the_geom );
+    queue->append( the_geom );
     int nGeom;
     int i;
 
     while ( queue->size() > 0 )
     {
-      geom = queue->pop_front();
+      geom = queue->takeFirst();
       GEOSContextHandle_t geosctxt = geosContext();
       switch ( GEOSGeomTypeId_r( geosctxt, geom ) )
       {
@@ -206,13 +139,13 @@ namespace pal
           nGeom = GEOSGetNumGeometries_r( geosctxt, geom );
           for ( i = 0; i < nGeom; i++ )
           {
-            queue->push_back( GEOSGetGeometryN_r( geosctxt, geom, i ) );
+            queue->append( GEOSGetGeometryN_r( geosctxt, geom, i ) );
           }
           break;
         case GEOS_POINT:
         case GEOS_LINESTRING:
         case GEOS_POLYGON:
-          final_queue->push_back( geom );
+          final_queue->append( geom );
           break;
         default:
           delete final_queue;

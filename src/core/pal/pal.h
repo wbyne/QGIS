@@ -35,6 +35,7 @@
 #include <ctime>
 #include <geos_c.h>
 #include <QMutex>
+#include <QStringList>
 
 // TODO ${MAJOR} ${MINOR} etc instead of 0.2
 
@@ -51,28 +52,14 @@ namespace pal
   /** Get GEOS context handle to be used in all GEOS library calls with reentrant API */
   GEOSContextHandle_t geosContext();
 
-  template <class Type> class LinkedList;
-
   class Layer;
   class LabelPosition;
   class PalStat;
   class Problem;
   class PointSet;
 
-  /** Units for label sizes and distlabel */
-  enum _Units
-  {
-    PIXEL = 0, /**< pixel [px]*/
-    METER, /**< meter [m]*/
-    FOOT, /**< foot [ft]*/
-    DEGREE /**< degree [°] */
-  };
-
-  /** Typedef for _Units enumeration */
-  typedef enum _Units Units;
-
   /** Search method to use */
-  enum _searchMethod
+  enum SearchMethod
   {
     CHAIN = 0, /**< is the worst but fastest method */
     POPMUSIC_TABU_CHAIN = 1, /**< is the best but slowest */
@@ -81,14 +68,11 @@ namespace pal
     FALP = 4 /** only initial solution */
   };
 
-  /** Typedef for _Units enumeration */
-  typedef enum _searchMethod SearchMethod;
-
   /** The way to arrange labels against spatial entities
    *
    * image html arrangement.png "Arrangement modes" width=7cm
    * */
-  enum _arrangement
+  enum Arrangement
   {
     P_POINT = 0, /**< arranges candidates around a point (centroid for polygon)*/
     P_POINT_OVER, /** arranges candidates over a point (centroid for polygon)*/
@@ -98,23 +82,21 @@ namespace pal
     P_FREE /**< Only for polygon, arranges candidates with respect of polygon orientation */
   };
 
-  /** Typedef for _arrangement enumeration */
-  typedef enum _arrangement Arrangement;
-
   /** Enumeration line arrangement flags. Flags can be combined. */
-  enum LineArrangementFlags
+  enum LineArrangementFlag
   {
     FLAG_ON_LINE     = 1,
     FLAG_ABOVE_LINE  = 2,
     FLAG_BELOW_LINE  = 4,
     FLAG_MAP_ORIENTATION = 8
   };
+  Q_DECLARE_FLAGS( LineArrangementFlags, LineArrangementFlag )
 
   /**
    *  \brief Pal main class.
    *
    *  A pal object will contains layers and global information such as which search method
-   *  will be used, the map resolution (dpi) ....
+   *  will be used.
    *
    *  \author Maxence Laurent (maxence _dot_ laurent _at_ heig-vd _dot_ ch)
    */
@@ -140,10 +122,7 @@ namespace pal
        * \brief add a new layer
        *
        * @param lyrName layer's name
-       * @param min_scale bellow this scale: no labelling (-1 to disable)
-       * @param max_scale above this scale: no labelling (-1 to disable)
        * @param arrangement Howto place candidates
-       * @param label_unit Unit for labels sizes
        * @param defaultPriority layer's prioriry (0 is the best, 1 the worst)
        * @param obstacle 'true' will discourage other label to be placed above features of this layer
        * @param active is the layer is active (currently displayed)
@@ -154,7 +133,7 @@ namespace pal
        *
        * @todo add symbolUnit
        */
-      Layer * addLayer( const char *lyrName, double min_scale, double max_scale, Arrangement arrangement, Units label_unit, double defaultPriority, bool obstacle, bool active, bool toLabel, bool displayAll = false );
+      Layer* addLayer( const QString& lyrName, Arrangement arrangement, double defaultPriority, bool obstacle, bool active, bool toLabel, bool displayAll = false );
 
       /**
        * \brief Look for a layer
@@ -165,7 +144,7 @@ namespace pal
        *
        * @return a pointer on layer or NULL if layer not exist
        */
-      Layer *getLayer( const char *lyrName );
+      Layer *getLayer( const QString &lyrName );
 
       /**
        * \brief get all layers
@@ -185,14 +164,13 @@ namespace pal
        * \brief the labeling machine
        * Will extract all active layers
        *
-       * @param scale map scale is 1:scale
        * @param bbox map extent
        * @param stats A PalStat object (can be NULL)
        * @param displayAll if true, all feature will be labelled even though overlaps occur
        *
        * @return A list of label to display on map
        */
-      std::list<LabelPosition*> *labeller( double scale, double bbox[4], PalStat **stats, bool displayAll );
+      std::list<LabelPosition*> *labeller( double bbox[4], PalStat **stats, bool displayAll );
 
       /**
        * \brief the labeling machine
@@ -201,8 +179,6 @@ namespace pal
        *
        * @param nbLayers # layers
        * @param layersName names of layers to label
-       * @param layersFactor layers priorities array
-       * @param scale map scale is  '1:scale'
        * @param bbox map extent
        * @param stat will be filled with labelling process statistics, can be NULL
        * @param displayAll if true, all feature will be labelled even though overlaps occur
@@ -212,9 +188,8 @@ namespace pal
        * @return A list of label to display on map
        */
       std::list<LabelPosition*> *labeller( int nbLayers,
-                                           char **layersName,
-                                           double *layersFactor,
-                                           double scale, double bbox[4],
+                                           const QStringList &layersName,
+                                           double bbox[4],
                                            PalStat **stat,
                                            bool displayAll );
 
@@ -226,23 +201,9 @@ namespace pal
       /** Check whether the job has been cancelled */
       inline bool isCancelled() { return fnIsCancelled ? fnIsCancelled( fnIsCancelledContext ) : false; }
 
-      Problem* extractProblem( double scale, double bbox[4] );
+      Problem* extractProblem( double bbox[4] );
 
       std::list<LabelPosition*>* solveProblem( Problem* prob, bool displayAll );
-
-      /**
-       * \brief Set map resolution
-       *
-       * @param dpi map resolution (dot per inch)
-       */
-      void setDpi( int dpi );
-
-      /**
-       * \brief get map resolution
-       *
-       * @return map resolution (dot per inch)
-       */
-      int getDpi();
 
       /**
        *\brief Set flag show partial label
@@ -298,16 +259,6 @@ namespace pal
       int getPolyP();
 
       /**
-       * \brief get current map unit
-       */
-      Units getMapUnit();
-
-      /**
-       * \brief set map unit
-       */
-      void setMapUnit( Units map_unit );
-
-      /**
        * \brief Select the search method to use.
        *
        * For interactive mapping using CHAIN is a good
@@ -328,8 +279,6 @@ namespace pal
       QList<Layer*> *layers;
 
       QMutex mMutex;
-
-      Units map_unit;
 
       /**
        * \brief maximum # candidates for a point
@@ -356,8 +305,6 @@ namespace pal
       int tabuMaxIt;
       int tabuMinIt;
 
-      int dpi;
-
       int ejChainDeg;
       int tenure;
       double candListSize;
@@ -375,21 +322,18 @@ namespace pal
       /**
        * \brief Problem factory
        * Extract features to label and generates candidates for them,
-       * respects to a bounding box and a map scale
+       * respects to a bounding box
        *
        * @param nbLayers  number of layers to extract
        * @param layersName layers name to be extracted
-       * @param layersFactor layer's factor (priority between layers, 0 is the best, 1 the worst)
        * @param lambda_min xMin bounding-box
        * @param phi_min yMin bounding-box
        * @param lambda_max xMax bounding-box
        * @param phi_max yMax bounding-box
-       * @param scale the scale (1:scale)
        */
-      Problem* extract( int nbLayers, char **layersName, double *layersFactor,
+      Problem* extract( int nbLayers, const QStringList& layersName,
                         double lambda_min, double phi_min,
-                        double lambda_max, double phi_max,
-                        double scale );
+                        double lambda_max, double phi_max );
 
 
       /**
@@ -397,8 +341,6 @@ namespace pal
        * @param r subpart size
        */
       void setPopmusicR( int r );
-
-
 
       /**
        * \brief minimum # of iteration for search method POPMUSIC_TABU, POPMUSIC_CHAIN and POPMUSIC_TABU_CHAIN
@@ -442,5 +384,9 @@ namespace pal
        */
       int getMaxIt();
   };
+
 } // end namespace pal
+
+Q_DECLARE_OPERATORS_FOR_FLAGS( pal::LineArrangementFlags )
+
 #endif

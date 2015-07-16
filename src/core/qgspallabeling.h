@@ -253,6 +253,7 @@ class CORE_EXPORT QgsPalLayerSettings
       Rotation = 14, //data defined rotation
       RepeatDistance = 84,
       RepeatDistanceUnit = 86,
+      Priority = 87,
 
       // rendering
       ScaleVisibility = 23,
@@ -268,6 +269,15 @@ class CORE_EXPORT QgsPalLayerSettings
 
     // whether to label this layer
     bool enabled;
+
+    /** Whether to draw labels for this layer. For some layers it may be desirable
+     * to register their features as obstacles for other labels without requiring
+     * labels to be drawn for the layer itself. In this case drawLabels can be set
+     * to false and obstacle set to true, which will result in the layer acting
+     * as an obstacle but having no labels of its own.
+     * @note added in QGIS 2.12
+     */
+    bool drawLabels;
 
     //-- text style
 
@@ -556,10 +566,13 @@ class CORE_EXPORT QgsPalLayerSettings
 
     void parseDropShadow();
 
-    /**Checks if a feature is larger than a minimum size (in mm)
+    /** Checks if a feature is larger than a minimum size (in mm)
     @return true if above size, false if below*/
     bool checkMinimumSizeMM( const QgsRenderContext& ct, const QgsGeometry* geom, double minSize ) const;
 
+    /** Registers a feature as an obstacle only (no label rendered)
+     */
+    void registerObstacleFeature( QgsFeature &f, const QgsRenderContext &context, QString dxfLayer );
 
     QMap<DataDefinedProperties, QVariant> dataDefinedValues;
     QgsExpression* expression;

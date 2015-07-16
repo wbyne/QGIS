@@ -97,12 +97,12 @@ namespace pal
     y[3] = y1 + dy2;
 
     // upside down ? (curved labels are always correct)
-    if ( feature->getLayer()->getArrangement() != P_CURVED &&
+    if ( feature->getLayer()->arrangement() != P_CURVED &&
          this->alpha > M_PI / 2 && this->alpha <= 3*M_PI / 2 )
     {
       bool uprightLabel = false;
 
-      switch ( feature->getLayer()->getUpsidedownLabels() )
+      switch ( feature->getLayer()->upsidedownLabels() )
       {
         case Layer::Upright:
           uprightLabel = true;
@@ -229,7 +229,7 @@ namespace pal
 
   void LabelPosition::print()
   {
-    std::cout << feature->getLayer()->getName() << "/" << feature->getUID() << "/" << id;
+    //  std::cout << feature->getLayer()->getName() << "/" << feature->getUID() << "/" << id;
     std::cout << " cost: " << cost;
     std::cout << " alpha" << alpha << std::endl;
     std::cout << x[0] << ", " << y[0] << std::endl;
@@ -349,7 +349,7 @@ namespace pal
   {
     if ( cost >= 1 )
     {
-      std::cout << " Warning: lp->cost == " << cost << " (from feat: " << feature->getUID() << "/" << getLayerName() << ")" << std::endl;
+      //   std::cout << " Warning: lp->cost == " << cost << " (from feat: " << feature->getUID() << "/" << getLayerName() << ")" << std::endl;
       cost -= int ( cost ); // label cost up to 1
     }
   }
@@ -386,9 +386,9 @@ namespace pal
     }
   }
 
-  char* LabelPosition::getLayerName() const
+  QString LabelPosition::getLayerName() const
   {
-    return feature->getLayer()->name;
+    return feature->getLayer()->name();
   }
 
   bool LabelPosition::costShrink( void *l, void *r )
@@ -522,37 +522,37 @@ namespace pal
       my[i] = ( y[i] + y[j] ) / 2.0;
     }
 
-    if ( vabs( cross_product( mx[0], my[0], mx[2], my[2], xp, yp ) / h ) < w / 2 )
+    if ( qAbs( cross_product( mx[0], my[0], mx[2], my[2], xp, yp ) / h ) < w / 2 )
     {
       dist = cross_product( x[1], y[1], x[0], y[0], xp, yp ) / w;
-      if ( vabs( dist ) < vabs( dist_min ) )
+      if ( qAbs( dist ) < qAbs( dist_min ) )
         dist_min = dist;
 
       dist = cross_product( x[3], y[3], x[2], y[2], xp, yp ) / w;
-      if ( vabs( dist ) < vabs( dist_min ) )
+      if ( qAbs( dist ) < qAbs( dist_min ) )
         dist_min = dist;
     }
 
-    if ( vabs( cross_product( mx[1], my[1], mx[3], my[3], xp, yp ) / w ) < h / 2 )
+    if ( qAbs( cross_product( mx[1], my[1], mx[3], my[3], xp, yp ) / w ) < h / 2 )
     {
       dist = cross_product( x[2], y[2], x[1], y[1], xp, yp ) / h;
-      if ( vabs( dist ) < vabs( dist_min ) )
+      if ( qAbs( dist ) < qAbs( dist_min ) )
         dist_min = dist;
 
       dist = cross_product( x[0], y[0], x[3], y[3], xp, yp ) / h;
-      if ( vabs( dist ) < vabs( dist_min ) )
+      if ( qAbs( dist ) < qAbs( dist_min ) )
         dist_min = dist;
     }
 
     for ( i = 0; i < 4; i++ )
     {
       dist = dist_euc2d( x[i], y[i], xp, yp );
-      if ( vabs( dist ) < vabs( dist_min ) )
+      if ( qAbs( dist ) < qAbs( dist_min ) )
         dist_min = dist;
     }
 
     if ( nextPart && dist_min > 0 )
-      return min( dist_min, nextPart->getDistanceToPoint( xp, yp ) );
+      return qMin( dist_min, nextPart->getDistanceToPoint( xp, yp ) );
 
     return dist_min;
   }

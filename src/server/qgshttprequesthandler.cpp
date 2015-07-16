@@ -72,6 +72,24 @@ bool QgsHttpRequestHandler::exceptionRaised() const
   return mException != NULL;
 }
 
+void QgsHttpRequestHandler::setDefaultHeaders()
+{
+  //format
+  QString format = mInfoFormat;
+  if ( mInfoFormat.startsWith( "text/" ) )
+  {
+    format.append( "; charset=utf-8" );
+  }
+  setHeader( "Content-Type", format );
+
+  //length
+  int contentLength = mBody.size();
+  if ( contentLength > 0 ) // size is not known when streaming
+  {
+    setHeader( "Content-Length", QString::number( contentLength ) );
+  }
+}
+
 void QgsHttpRequestHandler::setHeader( const QString &name, const QString &value )
 {
   mHeaders.insert( name, value );
@@ -112,7 +130,7 @@ void QgsHttpRequestHandler::addToResponseHeader( const char * response )
   }
   else
   {
-    printf( response );
+    fputs( response, FCGI_stdout );
   }
 }
 
@@ -124,7 +142,7 @@ void QgsHttpRequestHandler::addToResponseBody( const char * response )
   }
   else
   {
-    printf( response );
+    fputs( response, FCGI_stdout );
   }
 }
 
@@ -133,29 +151,15 @@ void QgsHttpRequestHandler::sendHeaders()
   // Send default headers if they've not been set in a previous stage
   if ( mHeaders.empty() )
   {
-    QgsDebugMsg( QString( "Content size: %1" ).arg( mBody.size() ) );
-    QgsDebugMsg( QString( "Content format: %1" ).arg( mInfoFormat ) );
-    addToResponseHeader( "Content-Type: " );
-    addToResponseHeader( mInfoFormat.toUtf8() );
-    if ( mInfoFormat.startsWith( "text/" ) )
-      addToResponseHeader( "; charset=utf-8" );
-    addToResponseHeader( "\n" );
-    // size is not known when streaming
-    if ( mBody.size() > 0 )
-    {
-      addToResponseHeader( QString( "Content-Length: %1\n" ).arg( mBody.size() ).toUtf8( ) );
-    }
+    setDefaultHeaders();
   }
-  else
+
+  QMap<QString, QString>::const_iterator it;
+  for ( it = mHeaders.constBegin(); it != mHeaders.constEnd(); ++it )
   {
-    QMap<QString, QString>::const_iterator it;
-    for ( it = mHeaders.constBegin(); it != mHeaders.constEnd(); ++it )
-    {
-      addToResponseHeader( it.key().toUtf8() );
-      addToResponseHeader( ": " );
-      addToResponseHeader( it.value().toUtf8() );
-      addToResponseHeader( "\n" );
-    }
+    addToResponseHeader( it.key().toUtf8() );
+    addToResponseHeader( ": " );
+    addToResponseHeader( it.value().toUtf8() );
     addToResponseHeader( "\n" );
   }
   addToResponseHeader( "\n" );
@@ -219,7 +223,7 @@ QByteArray QgsHttpRequestHandler::getResponse( const bool returnHeaders,
 {
   if ( ! returnHeaders )
   {
-    return  mResponseBody;
+    return mResponseBody;
   }
   else if ( ! returnBody )
   {

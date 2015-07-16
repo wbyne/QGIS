@@ -36,7 +36,6 @@ from utilities import (getQgisTestApp,
 QGISAPP, CANVAS, IFACE, PARENT = getQgisTestApp()
 
 class TestQgsGeometry(TestCase):
-    wkbPtr = 1
 
     def testWktPointLoading(self):
         myWKT='Point (10 10)'
@@ -502,9 +501,7 @@ class TestQgsGeometry(TestCase):
 
         # don't crash
         (before,after) = polyline.adjacentVertices(-100)
-        if TestQgsGeometry.wkbPtr:
-          # CHANGE previous implementation returned (-101,-99) here
-          assert before==-1 and after==-1, "Expected (-1,-1), Got:(%d,%d)" % (before,after)
+        assert before==-1 and after==-1, "Expected (-1,-1), Got:(%d,%d)" % (before,after)
 
         for i in range(0, 10):
                 (before,after) = polyline.adjacentVertices(i)
@@ -516,9 +513,7 @@ class TestQgsGeometry(TestCase):
                         assert before==i-1 and after==i+1, "Expected (0,1), Got:(%d,%d)" % (before,after)
 
         (before,after) = polyline.adjacentVertices(100)
-        if TestQgsGeometry.wkbPtr:
-          # CHANGE previous implementation returned (99,101) here
-          assert before==-1 and after==-1, "Expected (-1,-1), Got:(%d,%d)" % (before,after)
+        assert before==-1 and after==-1, "Expected (-1,-1), Got:(%d,%d)" % (before,after)
 
         #   2-3 6-+-7
         #   | | |   |
@@ -740,10 +735,6 @@ class TestQgsGeometry(TestCase):
                                 i+=1
 
     def testMultipoint(self):
-        # CHANGE previous implementation didn't support multipoint too much
-        if not TestQgsGeometry.wkbPtr:
-          return
-
         # #9423
         points = [ QgsPoint(10, 30), QgsPoint(40, 20), QgsPoint(30,10), QgsPoint(20,10) ]
         wkt = "MultiPoint ((10 30),(40 20),(30 10),(20 10))"
@@ -760,6 +751,12 @@ class TestQgsGeometry(TestCase):
 
     def testMoveVertex(self):
         multipoint = QgsGeometry.fromWkt( "MultiPoint ((5 0),(0 0),(0 4),(5 4),(5 1),(1 1),(1 3),(4 3),(4 2),(2 2))" )
+
+        #try moving invalid vertices
+        assert not multipoint.moveVertex( 9, 9, -1 ), "move vertex succeeded when it should have failed"
+        assert not multipoint.moveVertex( 9, 9, 10 ), "move vertex succeeded when it should have failed"
+        assert not multipoint.moveVertex( 9, 9, 11 ), "move vertex succeeded when it should have failed"
+
         for i in range(0,10):
           assert multipoint.moveVertex( i+1, -1-i, i ), "move vertex %d failed" % i
         expwkt = "MultiPoint ((1 -1),(2 -2),(3 -3),(4 -4),(5 -5),(6 -6),(7 -7),(8 -8),(9 -9),(10 -10))"
@@ -776,6 +773,12 @@ class TestQgsGeometry(TestCase):
         # |
         # 1-+-+-+-+-0 !
         polyline = QgsGeometry.fromWkt( "LineString (5 0, 0 0, 0 4, 5 4, 5 1, 1 1, 1 3, 4 3, 4 2, 2 2)" )
+
+        #try moving invalid vertices
+        assert not polyline.moveVertex( 9, 9, -1 ), "move vertex succeeded when it should have failed"
+        assert not polyline.moveVertex( 9, 9, 10 ), "move vertex succeeded when it should have failed"
+        assert not polyline.moveVertex( 9, 9, 11 ), "move vertex succeeded when it should have failed"
+
         assert polyline.moveVertex( 5.5, 4.5, 3 ), "move vertex failed"
         expwkt = "LineString (5 0, 0 0, 0 4, 5.5 4.5, 5 1, 1 1, 1 3, 4 3, 4 2, 2 2)"
         wkt = polyline.exportToWkt()
@@ -790,6 +793,7 @@ class TestQgsGeometry(TestCase):
 
         assert not polygon.moveVertex( 3, 4, -10 ), "move vertex unexpectedly succeeded"
         assert not polygon.moveVertex( 3, 4, 7 ), "move vertex unexpectedly succeeded"
+        assert not polygon.moveVertex( 3, 4, 8 ), "move vertex unexpectedly succeeded"
 
         assert polygon.moveVertex( 1, 2, 0 ), "move vertex failed"
         expwkt = "Polygon ((1 2, 1 0, 1 1, 2 1, 2 2, 0 2, 1 2))"
@@ -812,6 +816,11 @@ class TestQgsGeometry(TestCase):
         # | |     | |
         # 0-1     7-8
         polygon = QgsGeometry.fromWkt( "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((4 0, 5 0, 5 2, 3 2, 3 1, 4 1, 4 0)))" )
+
+        assert not polygon.moveVertex( 3, 4, -10 ), "move vertex unexpectedly succeeded"
+        assert not polygon.moveVertex( 3, 4, 14 ), "move vertex unexpectedly succeeded"
+        assert not polygon.moveVertex( 3, 4, 15 ), "move vertex unexpectedly succeeded"
+
         assert polygon.moveVertex( 6, 2, 9 ), "move vertex failed"
         expwkt = "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((4 0, 5 0, 6 2, 3 2, 3 1, 4 1, 4 0)))"
         wkt = polygon.exportToWkt()
@@ -878,7 +887,6 @@ class TestQgsGeometry(TestCase):
         polygon = QgsGeometry.fromWkt("Polygon ((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0))")
 
         assert polygon.deleteVertex(2), "Delete vertex 2 failed"
-        print "FIXME: exportToWkt doesn't put a blank behind the comma"
         expwkt = "Polygon ((0 0, 1 0, 2 1, 2 2, 0 2, 0 0))"
         wkt = polygon.exportToWkt()
         assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
@@ -953,15 +961,13 @@ class TestQgsGeometry(TestCase):
     def testInsertVertex(self):
         linestring = QgsGeometry.fromWkt( "LineString(1 0, 2 0)" )
 
-        if TestQgsGeometry.wkbPtr:
-          # CHANGE old implementation fails to insert vertex
-          assert linestring.insertVertex( 0, 0, 0 ), "Insert vertex 0 0 at 0 failed"
-          expwkt = "LineString (0 0, 1 0, 2 0)"
-          wkt = linestring.exportToWkt()
-          assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
+        assert linestring.insertVertex( 0, 0, 0 ), "Insert vertex 0 0 at 0 failed"
+        expwkt = "LineString (0 0, 1 0, 2 0)"
+        wkt = linestring.exportToWkt()
+        assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
 
-        assert linestring.insertVertex( 1.5, 0, 2 if TestQgsGeometry.wkbPtr else 1 ), "Insert vertex 1.5 0 at 2 failed"
-        expwkt = "LineString (0 0, 1 0, 1.5 0, 2 0)" if TestQgsGeometry.wkbPtr else "LineString(1 0, 1.5 0, 2 0)"
+        assert linestring.insertVertex( 1.5, 0, 2 ), "Insert vertex 1.5 0 at 2 failed"
+        expwkt = "LineString (0 0, 1 0, 1.5 0, 2 0)"
         wkt = linestring.exportToWkt()
         assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
 
@@ -971,16 +977,13 @@ class TestQgsGeometry(TestCase):
         assert polygon.insertVertex( 0, 0, 8 ), "Insert vertex 0 0 at 8 failed"
         expwkt = "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((4 0, 0 0, 5 0, 5 2, 3 2, 3 1, 4 1, 4 0)))"
         wkt = polygon.exportToWkt()
-
         assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
+
         polygon = QgsGeometry.fromWkt( "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((4 0, 5 0, 5 2, 3 2, 3 1, 4 1, 4 0)))" )
         assert polygon.insertVertex( 0, 0, 7 ), "Insert vertex 0 0 at 7 failed"
         expwkt = "MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),((0 0, 4 0, 5 0, 5 2, 3 2, 3 1, 4 1, 0 0)))"
         wkt = polygon.exportToWkt()
-
-        if TestQgsGeometry.wkbPtr:
-          # CHANGE old implementation produces: MultiPolygon (((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0)),())
-          assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
+        assert compareWkt( expwkt, wkt ), "Expected:\n%s\nGot:\n%s\n" % (expwkt, wkt )
 
     def testTranslate(self):
         point = QgsGeometry.fromWkt( "Point (1 1)" )
@@ -1307,6 +1310,27 @@ class TestQgsGeometry(TestCase):
         wkt = multiPolygon.convertToType(QGis.Polygon, False).exportToWkt()
         expWkt = "Polygon ((0 0, 1 0, 1 1, 2 1, 2 2, 0 2, 0 0))"
         assert compareWkt( expWkt, wkt ), "convertToType failed: from multiline to polygon. Expected:\n%s\nGot:\n%s\n" % (expWkt, wkt )
+
+    def testRegression13053(self):
+        """ See http://hub.qgis.org/issues/13053 """
+        p = QgsGeometry.fromWkt('MULTIPOLYGON(((62.0 18.0, 62.0 19.0, 63.0 19.0, 63.0 18.0, 62.0 18.0)), ((63.0 19.0, 63.0 20.0, 64.0 20.0, 64.0 19.0, 63.0 19.0)))')
+        assert p is not None
+
+        expWkt ='MultiPolygon (((62 18, 62 19, 63 19, 63 18, 62 18)),((63 19, 63 20, 64 20, 64 19, 63 19)))'
+        wkt = p.exportToWkt()
+        assert compareWkt( expWkt, wkt ), "testRegression13053 failed: mismatch Expected:\n%s\nGot:\n%s\n" % (expWkt, wkt )
+
+    def testRegression13055(self):
+        """ See http://hub.qgis.org/issues/13055
+            Testing that invalid WKT with z values but not using PolygonZ is still parsed
+            by QGIS.
+        """
+        p = QgsGeometry.fromWkt('Polygon((0 0 0, 0 1 0, 1 1 0, 0 0 0 ))')
+        assert p is not None
+
+        expWkt ='Polygon ((0 0, 0 1, 1 1, 0 0))'
+        wkt = p.exportToWkt()
+        assert compareWkt( expWkt, wkt ), "testRegression13055 failed: mismatch Expected:\n%s\nGot:\n%s\n" % (expWkt, wkt )
 
 if __name__ == '__main__':
     unittest.main()

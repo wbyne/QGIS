@@ -45,7 +45,6 @@
 #include "layer.h"
 #include "palexception.h"
 #include "palstat.h"
-#include "linkedlist.hpp"
 #include "rtree.hpp"
 #include "costcalculator.h"
 #include "feature.h"
@@ -104,14 +103,11 @@ namespace pal
 
     setSearch( CHAIN );
 
-    dpi = 72;
     point_p = 8;
     line_p = 8;
     poly_p = 8;
 
     showPartial = true;
-
-    this->map_unit = pal::METER;
 
     std::cout.precision( 12 );
     std::cerr.precision( 12 );
@@ -124,11 +120,11 @@ namespace pal
     return layers;
   }
 
-  Layer *Pal::getLayer( const char *lyrName )
+  Layer *Pal::getLayer( const QString& lyrName )
   {
     mMutex.lock();
     for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
-      if ( strcmp(( *it )->name, lyrName ) == 0 )
+      if (( *it )->name() == lyrName )
       {
         mMutex.unlock();
         return *it;
@@ -169,7 +165,7 @@ namespace pal
   }
 
 
-  Layer * Pal::addLayer( const char *lyrName, double min_scale, double max_scale, Arrangement arrangement, Units label_unit, double defaultPriority, bool obstacle, bool active, bool toLabel, bool displayAll )
+  Layer * Pal::addLayer( const QString &lyrName, Arrangement arrangement, double defaultPriority, bool obstacle, bool active, bool toLabel, bool displayAll )
   {
     Layer *lyr;
     mMutex.lock();
@@ -182,7 +178,7 @@ namespace pal
 
     for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
-      if ( strcmp(( *it )->name, lyrName ) == 0 )   // if layer already known
+      if (( *it )->name() == lyrName )    // if layer already known
       {
         mMutex.unlock();
         //There is already a layer with this name, so we just return the existing one.
@@ -191,7 +187,7 @@ namespace pal
       }
     }
 
-    lyr = new Layer( lyrName, min_scale, max_scale, arrangement, label_unit, defaultPriority, obstacle, active, toLabel, this, displayAll );
+    lyr = new Layer( lyrName, arrangement, defaultPriority, obstacle, active, toLabel, this, displayAll );
     layers->push_back( lyr );
 
     mMutex.unlock();
@@ -203,11 +199,9 @@ namespace pal
   typedef struct _featCbackCtx
   {
     Layer *layer;
-    double scale;
-    LinkedList<Feats*> *fFeats;
+    QLinkedList<Feats*>* fFeats;
     RTree<PointSet*, double, 2, double> *obstacles;
     RTree<LabelPosition*, double, 2, double> *candidates;
-    double priority;
     double bbox_min[2];
     double bbox_max[2];
   } FeatCallBackCtx;
@@ -230,7 +224,7 @@ namespace pal
 #endif
 
     // all feature which are obstacle will be inserted into obstacles
-    if ( context->layer->obstacle )
+    if ( context->layer->obstacle() )
     {
       ft_ptr->getBoundingBox( amin, amax );
       context->obstacles->Insert( amin, amax, ft_ptr );
@@ -239,11 +233,7 @@ namespace pal
     // first do some checks whether to extract candidates or not
 
     // feature has to be labeled?
-    if ( !context->layer->toLabel )
-      return true;
-
-    // are we in a valid scale range for the layer?
-    if ( !context->layer->isScaleValid( context->scale ) )
+    if ( !context->layer->labelLayer() )
       return true;
 
     // is the feature well defined?  TODO Check epsilon
@@ -266,7 +256,7 @@ namespace pal
 
     // generate candidates for the feature part
     LabelPosition** lPos = NULL;
-    int nblp = ft_ptr->setPosition( context->scale, &lPos, context->bbox_min, context->bbox_max, ft_ptr, context->candidates );
+    int nblp = ft_ptr->setPosition( &lPos, context->bbox_min, context->bbox_max, ft_ptr, context->candidates );
 
     if ( nblp > 0 )
     {
@@ -276,8 +266,8 @@ namespace pal
       ft->shape = NULL;
       ft->nblp = nblp;
       ft->lPos = lPos;
-      ft->priority = context->priority;
-      context->fFeats->push_back( ft );
+      ft->priority = ft_ptr->getFeature()->calculatePriority();
+      context->fFeats->append( ft );
     }
     else
     {
@@ -294,7 +284,6 @@ namespace pal
   typedef struct _filterContext
   {
     RTree<LabelPosition*, double, 2, double> *cdtsIndex;
-    double scale;
     Pal* pal;
   } FilterContext;
 
@@ -302,7 +291,6 @@ namespace pal
   {
 
     RTree<LabelPosition*, double, 2, double> *cdtsIndex = (( FilterContext* ) ctx )->cdtsIndex;
-    double scale = (( FilterContext* ) ctx )->scale;
     Pal* pal = (( FilterContext* )ctx )->pal;
 
     if ( pal->isCancelled() )
@@ -312,8 +300,6 @@ namespace pal
     pset->getBoundingBox( amin, amax );
 
     LabelPosition::PruneCtx pruneContext;
-
-    pruneContext.scale = scale;
     pruneContext.obstacle = pset;
     pruneContext.pal = pal;
     cdtsIndex->Search( amin, amax, LabelPosition::pruneCallback, ( void* ) &pruneContext );
@@ -321,7 +307,7 @@ namespace pal
     return true;
   }
 
-  Problem* Pal::extract( int nbLayers, char **layersName, double *layersFactor, double lambda_min, double phi_min, double lambda_max, double phi_max, double scale )
+  Problem* Pal::extract( int nbLayers, const QStringList& layersName, double lambda_min, double phi_min, double lambda_max, double phi_max )
   {
     // to store obstacles
     RTree<PointSet*, double, 2, double> *obstacles = new RTree<PointSet*, double, 2, double>();
@@ -345,15 +331,12 @@ namespace pal
     bbx[1] = bbx[2] = amax[0] = prob->bbox[2] = lambda_max;
     bby[2] = bby[3] = amax[1] = prob->bbox[3] = phi_max;
 
-
-    prob->scale = scale;
     prob->pal = this;
 
-    LinkedList<Feats*> *fFeats = new LinkedList<Feats*> ( ptrFeatsCompare );
+    QLinkedList<Feats*> *fFeats = new QLinkedList<Feats*>;
 
     FeatCallBackCtx *context = new FeatCallBackCtx();
     context->fFeats = fFeats;
-    context->scale = scale;
     context->obstacles = obstacles;
     context->candidates = prob->candidates;
 
@@ -365,8 +348,6 @@ namespace pal
 
 #ifdef _VERBOSE_
     std::cout <<  nbLayers << "/" << layers->size() << " layers to extract " << std::endl;
-    std::cout << "scale is 1:" << scale << std::endl << std::endl;
-
 #endif
 
 
@@ -376,7 +357,7 @@ namespace pal
     int oldNbft = 0;
     Layer *layer;
 
-    QList<char*> *labLayers = new QList<char*>();
+    QStringList labLayers;
 
     mMutex.lock();
     for ( i = 0; i < nbLayers; i++ )
@@ -384,23 +365,22 @@ namespace pal
       for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it ) // iterate on pal->layers
       {
         layer = *it;
-        // Only select those who are active and labellable (with scale constraint) or those who are active and which must be treated as obstaclewhich must be treated as obstacle
-        if ( layer->active
-             && ( layer->obstacle || ( layer->toLabel && layer->isScaleValid( scale ) ) ) )
+        // Only select those who are active and labellable or those who are active and which must be treated as obstaclewhich must be treated as obstacle
+        if ( layer->active()
+             && ( layer->obstacle() || layer->labelLayer() ) )
         {
 
           // check if this selected layers has been selected by user
-          if ( strcmp( layersName[i], layer->name ) == 0 )
+          if ( layersName.at( i ) == layer->name() )
           {
             // check for connected features with the same label text and join them
-            if ( layer->getMergeConnectedLines() )
+            if ( layer->mergeConnectedLines() )
               layer->joinConnectedFeatures();
 
             layer->chopFeaturesAtRepeatDistance();
 
 
             context->layer = layer;
-            context->priority = layersFactor[i];
             // lookup for feature (and generates candidates list)
 
             context->layer->mMutex.lock();
@@ -409,7 +389,6 @@ namespace pal
 
 #ifdef _VERBOSE_
             std::cout << "Layer's name: " << layer->getName() << std::endl;
-            std::cout << "     scale range: " << layer->getMinScale() << "->" << layer->getMaxScale() << std::endl;
             std::cout << "     active:" << layer->isToLabel() << std::endl;
             std::cout << "     obstacle:" << layer->isObstacle() << std::endl;
             std::cout << "     toLabel:" << layer->isToLabel() << std::endl;
@@ -418,9 +397,7 @@ namespace pal
 #endif
             if ( context->fFeats->size() - oldNbft > 0 )
             {
-              char *name = new char[strlen( layer->getName() ) +1];
-              strcpy( name, layer->getName() );
-              labLayers->push_back( name );
+              labLayers << layer->name();
             }
             oldNbft = context->fFeats->size();
 
@@ -433,15 +410,11 @@ namespace pal
     delete context;
     mMutex.unlock();
 
-    prob->nbLabelledLayers = labLayers->size();
-    prob->labelledLayersName = new char*[prob->nbLabelledLayers];
+    prob->nbLabelledLayers = labLayers.size();
     for ( i = 0; i < prob->nbLabelledLayers; i++ )
     {
-      prob->labelledLayersName[i] = labLayers->front();
-      labLayers->pop_front();
+      prob->labelledLayersName << labLayers.takeFirst();
     }
-
-    delete labLayers;
 
     if ( fFeats->size() == 0 )
     {
@@ -471,7 +444,6 @@ namespace pal
     amax[0] = amax[1] = DBL_MAX;
     FilterContext filterCtx;
     filterCtx.cdtsIndex = prob->candidates;
-    filterCtx.scale = prob->scale;
     filterCtx.pal = this;
     obstacles->Search( amin, amax, filteringCallback, ( void* ) &filterCtx );
 
@@ -486,7 +458,7 @@ namespace pal
     int idlp = 0;
     for ( i = 0; i < prob->nbft; i++ ) /* foreach feature into prob */
     {
-      feat = fFeats->pop_front();
+      feat = fFeats->takeFirst();
 #ifdef _DEBUG_FULL_
       std::cout << "Feature:" << feat->feature->getLayer()->getName() << "/" << feat->feature->getUID() << " candidates " << feat->nblp << std::endl;
 #endif
@@ -532,7 +504,7 @@ namespace pal
         //lp->insertIntoIndex(prob->candidates);
         lp->setProblemIds( i, idlp ); // bugfix #1 (maxence 10/23/2008)
       }
-      fFeats->push_back( feat );
+      fFeats->append( feat );
     }
 
 #ifdef _DEBUG_FULL_
@@ -561,7 +533,7 @@ namespace pal
         return 0;
       }
 
-      feat = fFeats->pop_front();
+      feat = fFeats->takeFirst();
       for ( i = 0; i < feat->nblp; i++, idlp++ )  // foreach label candidate
       {
         lp = feat->lPos[i];
@@ -600,8 +572,7 @@ namespace pal
 
 #ifdef _VERBOSE_
     std::cout << "nbOverlap: " << prob->nbOverlap << std::endl;
-    std::cerr << scale << "\t"
-              << prob->nbft << "\t"
+    std::cerr << prob->nbft << "\t"
               << prob->nblp << "\t"
               << prob->nbOverlap << "\t";
 #endif
@@ -609,7 +580,7 @@ namespace pal
     return prob;
   }
 
-  std::list<LabelPosition*>* Pal::labeller( double scale, double bbox[4], PalStat **stats, bool displayAll )
+  std::list<LabelPosition*>* Pal::labeller( double bbox[4], PalStat **stats, bool displayAll )
   {
 
 #ifdef _DEBUG_FULL_
@@ -620,23 +591,19 @@ namespace pal
     mMutex.lock();
     int nbLayers = layers->size();
 
-    char **layersName = new char*[nbLayers];
-    double *priorities = new double[nbLayers];
+    QStringList layersName;
     Layer *layer;
     i = 0;
     for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
       layer = *it;
-      layersName[i] = layer->name;
-      priorities[i] = layer->defaultPriority;
+      layersName << layer->name();
       i++;
     }
     mMutex.unlock();
 
-    std::list<LabelPosition*> * solution = labeller( nbLayers, layersName, priorities, scale, bbox, stats, displayAll );
+    std::list<LabelPosition*> * solution = labeller( nbLayers, layersName, bbox, stats, displayAll );
 
-    delete[] layersName;
-    delete[] priorities;
     return solution;
   }
 
@@ -644,7 +611,7 @@ namespace pal
   /*
    * BIG MACHINE
    */
-  std::list<LabelPosition*>* Pal::labeller( int nbLayers, char **layersName, double *layersFactor, double scale, double bbox[4], PalStat **stats, bool displayAll )
+  std::list<LabelPosition*>* Pal::labeller( int nbLayers, const QStringList& layersName, double bbox[4], PalStat **stats, bool displayAll )
   {
 #ifdef _DEBUG_
     std::cout << "LABELLER (selection)" << std::endl;
@@ -669,17 +636,8 @@ namespace pal
     t.start();
 
     // First, extract the problem
-    // TODO which is the minimum scale? (> 0, >= 0, >= 1, >1 )
-    if ( scale < 1 || ( prob = extract( nbLayers, layersName, layersFactor, bbox[0], bbox[1], bbox[2], bbox[3], scale ) ) == NULL )
+    if (( prob = extract( nbLayers, layersName, bbox[0], bbox[1], bbox[2], bbox[3] ) ) == NULL )
     {
-
-#ifdef _VERBOSE_
-      if ( scale < 1 )
-        std::cout << "Scale is 1:" << scale << std::endl;
-      else
-        std::cout << "empty problem... finishing" << std::endl;
-#endif
-
       // nothing to be done => return an empty result set
       if ( stats )
         ( *stats ) = new PalStat();
@@ -751,29 +709,24 @@ namespace pal
     fnIsCancelledContext = context;
   }
 
-  Problem* Pal::extractProblem( double scale, double bbox[4] )
+  Problem* Pal::extractProblem( double bbox[4] )
   {
     // find out: nbLayers, layersName, layersFactor
     mMutex.lock();
     int nbLayers = layers->size();
 
-    char **layersName = new char*[nbLayers];
-    double *priorities = new double[nbLayers];
+    QStringList layersName;
     Layer *layer;
     int i = 0;
     for ( QList<Layer*>::iterator it = layers->begin(); it != layers->end(); ++it )
     {
       layer = *it;
-      layersName[i] = layer->name;
-      priorities[i] = layer->defaultPriority;
+      layersName << layer->name();
       i++;
     }
     mMutex.unlock();
 
-    Problem* prob = extract( nbLayers, layersName, priorities, bbox[0], bbox[1], bbox[2], bbox[3], scale );
-
-    delete[] layersName;
-    delete[] priorities;
+    Problem* prob = extract( nbLayers, layersName, bbox[0], bbox[1], bbox[2], bbox[3] );
 
     return prob;
   }
@@ -848,13 +801,6 @@ namespace pal
     this->candListSize = fact;
   }
 
-
-  void Pal::setDpi( int dpi )
-  {
-    if ( dpi > 0 )
-      this->dpi = dpi;
-  }
-
   void Pal::setShowPartial( bool show )
   {
     this->showPartial = show;
@@ -883,11 +829,6 @@ namespace pal
   int Pal::getMaxIt()
   {
     return tabuMinIt;
-  }
-
-  int Pal::getDpi()
-  {
-    return dpi;
   }
 
   bool Pal::getShowPartial()
@@ -942,22 +883,6 @@ namespace pal
         std::cerr << "Unknown search method..." << std::endl;
     }
   }
-
-  Units Pal::getMapUnit()
-  {
-    return map_unit;
-  }
-
-  void Pal::setMapUnit( Units map_unit )
-  {
-    if ( map_unit == pal::PIXEL || map_unit == pal::METER
-         || map_unit == pal::FOOT || map_unit == pal::DEGREE )
-    {
-      this->map_unit = map_unit;
-    }
-  }
-
-
 
 } // namespace pal
 

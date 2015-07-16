@@ -18,6 +18,7 @@
 #include <gdalwarper.h>
 #include <ogr_spatialref.h>
 #include <cpl_conv.h>
+#include <limits>
 
 #include <qmath.h>
 #include <QPair>
@@ -555,6 +556,9 @@ bool QgsAlignRaster::suggestedWarpOutput( const QgsAlignRaster::RasterInfo& info
 
 
 QgsAlignRaster::RasterInfo::RasterInfo( const QString& layerpath )
+    : mXSize( 0 )
+    , mYSize( 0 )
+    , mBandCnt( 0 )
 {
   mDataset = GDALOpen( layerpath.toLocal8Bit().constData(), GA_ReadOnly );
   if ( !mDataset )
@@ -563,7 +567,7 @@ QgsAlignRaster::RasterInfo::RasterInfo( const QString& layerpath )
   mXSize = GDALGetRasterXSize( mDataset );
   mYSize = GDALGetRasterYSize( mDataset );
 
-  GDALGetGeoTransform( mDataset, mGeoTransform );
+  ( void ) GDALGetGeoTransform( mDataset, mGeoTransform );
 
   // TODO: may be null or empty string
   mCrsWkt = QString::fromAscii( GDALGetProjectionRef( mDataset ) );

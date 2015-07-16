@@ -33,6 +33,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <QString>
 
 #include <geos_c.h>
 
@@ -79,21 +80,59 @@ namespace pal
       friend class FeaturePart;
 
     public:
-      Feature( Layer* l, const char* geom_id, PalGeometry* userG, double lx, double ly );
+      Feature( Layer* l, const QString& geom_id, PalGeometry* userG, double lx, double ly );
       ~Feature();
 
       void setLabelInfo( LabelInfo* info ) { labelInfo = info; }
       void setDistLabel( double dist ) { distlabel = dist; }
-      //Set label position of the feature to fixed x/y values
+      /** Set label position of the feature to fixed x/y values */
       void setFixedPosition( double x, double y ) { fixedPos = true; fixedPosX = x; fixedPosY = y;}
       void setQuadOffset( double x, double y ) { quadOffset = true; quadOffsetX = x; quadOffsetY = y;}
+
+      /** Sets whether the quadrant for the label must be respected. This can be used
+       * to fix the quadrant for specific features when using an "around point" placement.
+       * @see fixedQuadrant
+       */
+      void setFixedQuadrant( bool fixed ) { mFixedQuadrant = fixed; }
+
+      /** Returns whether the quadrant for the label is fixed.
+       * @see setFixedQuadrant
+       */
+      bool fixedQuadrant() const { return mFixedQuadrant; }
+
       void setPosOffset( double x, double y ) { offsetPos = true; offsetPosX = x; offsetPosY = y;}
       bool fixedPosition() const { return fixedPos; }
-      //Set label rotation to fixed value
+
+      /** Set label rotation to fixed value
+      */
       void setFixedAngle( double a ) { fixedRotation = true; fixedAngle = a; }
       void setRepeatDistance( double dist ) { repeatDist = dist; }
       double repeatDistance() const { return repeatDist; }
       void setAlwaysShow( bool bl ) { alwaysShow = bl; }
+
+      /** Sets the priority for labeling the feature.
+       * @param priority feature's priority, as a value between 0 (highest priority)
+       * and 1 (lowest priority). Set to -1.0 to use the layer's default priority
+       * for this feature.
+       * @see priority
+       * @see calculatePriority
+       */
+      void setPriority( double priority ) { mPriority = priority; }
+
+      /** Returns the feature's labeling priority.
+       * @returns feature's priority, as a value between 0 (highest priority)
+       * and 1 (lowest priority). Returns -1.0 if feature will use the layer's default priority.
+       * @see setPriority
+       * @see calculatePriority
+       */
+      double priority() const { return mPriority; }
+
+      /** Calculates the priority for the feature. This will be the feature's priority if set,
+       * otherwise the layer's default priority.
+       * @see setPriority
+       * @see priority
+       */
+      double calculatePriority() const;
 
     protected:
       Layer *layer;
@@ -103,7 +142,7 @@ namespace pal
       double distlabel;
       LabelInfo* labelInfo; // optional
 
-      char *uid;
+      QString uid;
 
       bool fixedPos; //true in case of fixed position (only 1 candidate position with cost 0)
       double fixedPosX;
@@ -125,6 +164,12 @@ namespace pal
       // array of parts - possibly not necessary
       //int nPart;
       //FeaturePart** parts;
+    private:
+
+      bool mFixedQuadrant;
+
+      //-1 if layer priority should be used
+      double mPriority;
   };
 
   /**
@@ -153,29 +198,25 @@ namespace pal
        * Generate candidates for point features
        * \param x x coordinates of the point
        * \param y y coordinates of the point
-       * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
-       * \param delta_width delta width
        * \param angle orientation of the label
        * \return the number of generated cadidates
        */
-      int setPositionForPoint( double x, double y, double scale, LabelPosition ***lPos, double delta_width, double angle );
+      int setPositionForPoint( double x, double y, LabelPosition ***lPos, double angle );
 
       /**
        * generate one candidate over specified point
        */
-      int setPositionOverPoint( double x, double y, double scale, LabelPosition ***lPos, double delta_width, double angle );
+      int setPositionOverPoint( double x, double y, LabelPosition ***lPos, double angle );
 
       /**
        * \brief generate candidates for line feature
        * Generate candidates for line features
-       * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
        * \param mapShape a pointer to the line
-       * \param delta_width delta width
        * \return the number of generated cadidates
        */
-      int setPositionForLine( double scale, LabelPosition ***lPos, PointSet *mapShape, double delta_width );
+      int setPositionForLine( LabelPosition ***lPos, PointSet *mapShape );
 
       LabelPosition* curvedPlacementAtOffset( PointSet* path_positions, double* path_distances,
                                               int orientation, int index, double distance );
@@ -188,13 +229,11 @@ namespace pal
       /**
        * \brief generate candidates for point feature
        * Generate candidates for point features
-       * \param scale map scale is 1:scale
        * \param lPos pointer to an array of candidates, will be filled by generated candidates
        * \param mapShape a pointer to the polygon
-       * \param delta_width delta width
        * \return the number of generated cadidates
        */
-      int setPositionForPolygon( double scale, LabelPosition ***lPos, PointSet *mapShape, double delta_width );
+      int setPositionForPolygon( LabelPosition ***lPos, PointSet *mapShape );
 
       /**
        * \brief return the feature
@@ -217,7 +256,6 @@ namespace pal
       /**
        * \brief generic method to generate candidates
        * This method will call either setPositionFromPoint(), setPositionFromLine or setPositionFromPolygon
-       * \param scale the map scale is 1:scale
        * \param lPos pointer to candidates array in which candidates will be put
        * \param bbox_min min values of the map extent
        * \param bbox_max max values of the map extent
@@ -225,21 +263,22 @@ namespace pal
        * \param candidates index for candidates
        * \return the number of candidates in *lPos
        */
-      int setPosition( double scale, LabelPosition ***lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates );
+      int setPosition( LabelPosition ***lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates );
 
       /**
        * \brief get the unique id of the feature
        * \return the feature unique identifier
        */
-      const char *getUID();
+      QString getUID() const;
 
 
+#if 0
       /**
        * \brief Print feature information
        * Print feature unique id, geometry type, points, and holes on screen
        */
       void print();
-
+#endif
 
       PalGeometry* getUserGeometry() { return f->userGeom; }
 

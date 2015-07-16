@@ -169,7 +169,7 @@ namespace pal
       /**
        * Names of the labelled layers
        */
-      char **labelledLayersName;
+      QStringList labelledLayersName;
 
       /**
        * # active candidates (remaining after reduce())
@@ -195,11 +195,6 @@ namespace pal
        * Map extent (xmin, ymin, xmax, ymax)
        */
       double bbox[4];
-
-      /**
-       * map scale is 1:scale
-       */
-      double scale;
 
       double *labelPositionCost;
       int *nbOlap;
