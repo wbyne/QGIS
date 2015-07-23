@@ -80,6 +80,9 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   mFontLetterSpacingSpinBox->setClearValue( 0.0 );
   mFontWordSpacingSpinBox->setClearValue( 0.0 );
 
+  mObstacleTypeComboBox->addItem( tr( "Over the feature's interior" ), QgsPalLayerSettings::PolygonInterior );
+  mObstacleTypeComboBox->addItem( tr( "Over the feature's boundary" ), QgsPalLayerSettings::PolygonBoundary );
+
   mCharDlg = new QgsCharacterSelectorDialog( this );
 
   mRefFont = lblFontPreview->font();
@@ -152,6 +155,8 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   chkMergeLines->setVisible( layer->geometryType() == QGis::Line );
   mDirectSymbolsFrame->setVisible( layer->geometryType() == QGis::Line );
   mMinSizeFrame->setVisible( layer->geometryType() != QGis::Point );
+  mPolygonObstacleTypeFrame->setVisible( layer->geometryType() == QGis::Polygon );
+  mPolygonFeatureOptionsFrame->setVisible( layer->geometryType() == QGis::Polygon );
 
   // field combo and expression button
   mFieldExpressionWidget->setLayer( mLayer );
@@ -306,6 +311,7 @@ void QgsLabelingGui::init()
   // populate placement options
   mCentroidRadioWhole->setChecked( lyr.centroidWhole );
   mCentroidInsideCheckBox->setChecked( lyr.centroidInside );
+  mFitInsidePolygonCheckBox->setChecked( lyr.fitInPolygonOnly );
   mLineDistanceSpnBx->setValue( lyr.dist );
   mLineDistanceUnitWidget->setUnit( lyr.distInMapUnits ? QgsSymbolV2::MapUnit : QgsSymbolV2::MM );
   mLineDistanceUnitWidget->setMapUnitScale( lyr.distMapUnitScale );
@@ -354,7 +360,11 @@ void QgsLabelingGui::init()
   mRepeatDistanceUnitWidget->setMapUnitScale( lyr.repeatDistanceMapUnitScale );
 
   mPrioritySlider->setValue( lyr.priority );
-  chkNoObstacle->setChecked( lyr.obstacle );
+  mChkNoObstacle->setChecked( lyr.obstacle );
+  mObstacleFactorSlider->setValue( lyr.obstacleFactor * 50 );
+  mObstacleTypeComboBox->setCurrentIndex( mObstacleTypeComboBox->findData( lyr.obstacleType ) );
+  mPolygonObstacleTypeFrame->setEnabled( lyr.obstacle );
+  mObstaclePriorityFrame->setEnabled( lyr.obstacle );
   chkLabelPerFeaturePart->setChecked( lyr.labelPerPart );
   mPalShowAllLabelsForLayerChkBx->setChecked( lyr.displayAll );
   chkMergeLines->setChecked( lyr.mergeLines );
@@ -588,6 +598,7 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   QWidget* curPlacementWdgt = stackedPlacement->currentWidget();
   lyr.centroidWhole = mCentroidRadioWhole->isChecked();
   lyr.centroidInside = mCentroidInsideCheckBox->isChecked();
+  lyr.fitInPolygonOnly = mFitInsidePolygonCheckBox->isChecked();
   lyr.dist = mLineDistanceSpnBx->value();
   lyr.distInMapUnits = ( mLineDistanceUnitWidget->unit() == QgsSymbolV2::MapUnit );
   lyr.distMapUnitScale = mLineDistanceUnitWidget->getMapUnitScale();
@@ -648,7 +659,9 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   lyr.previewBkgrdColor = mPreviewBackgroundBtn->color();
 
   lyr.priority = mPrioritySlider->value();
-  lyr.obstacle = chkNoObstacle->isChecked();
+  lyr.obstacle = mChkNoObstacle->isChecked() || mLabelModeComboBox->currentIndex() == 2;
+  lyr.obstacleFactor = mObstacleFactorSlider->value() / 50.0;
+  lyr.obstacleType = ( QgsPalLayerSettings::ObstacleType )mObstacleTypeComboBox->itemData( mObstacleTypeComboBox->currentIndex() ).toInt();
   lyr.labelPerPart = chkLabelPerFeaturePart->isChecked();
   lyr.displayAll = mPalShowAllLabelsForLayerChkBx->isChecked();
   lyr.mergeLines = chkMergeLines->isChecked();
@@ -847,6 +860,8 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   setDataDefinedProperty( mFontMaxPixelDDBtn, QgsPalLayerSettings::FontMaxPixel, lyr );
   setDataDefinedProperty( mShowLabelDDBtn, QgsPalLayerSettings::Show, lyr );
   setDataDefinedProperty( mAlwaysShowDDBtn, QgsPalLayerSettings::AlwaysShow, lyr );
+  setDataDefinedProperty( mIsObstacleDDBtn, QgsPalLayerSettings::IsObstacle, lyr );
+  setDataDefinedProperty( mObstacleFactorDDBtn, QgsPalLayerSettings::ObstacleFactor, lyr );
 
   return lyr;
 }
@@ -1112,6 +1127,11 @@ void QgsLabelingGui::populateDataDefinedButtons( QgsPalLayerSettings& s )
 
   mAlwaysShowDDBtn->init( mLayer, s.dataDefinedProperty( QgsPalLayerSettings::AlwaysShow ),
                           QgsDataDefinedButton::AnyType, QgsDataDefinedButton::boolDesc() );
+
+  mIsObstacleDDBtn->init( mLayer, s.dataDefinedProperty( QgsPalLayerSettings::IsObstacle ),
+                          QgsDataDefinedButton::AnyType, QgsDataDefinedButton::boolDesc() );
+  mObstacleFactorDDBtn->init( mLayer, s.dataDefinedProperty( QgsPalLayerSettings::ObstacleFactor ),
+                              QgsDataDefinedButton::AnyType, tr( "double [0.0-10.0]" ) );
 }
 
 void QgsLabelingGui::changeTextColor( const QColor &color )
@@ -1696,6 +1716,12 @@ void QgsLabelingGui::on_mDirectSymbRightToolBtn_clicked()
 
   if ( !dirSymb.isNull() )
     mDirectSymbRightLineEdit->setText( QString( dirSymb ) );
+}
+
+void QgsLabelingGui::on_mChkNoObstacle_toggled( bool active )
+{
+  mPolygonObstacleTypeFrame->setEnabled( active );
+  mObstaclePriorityFrame->setEnabled( active );
 }
 
 void QgsLabelingGui::showBackgroundRadius( bool show )

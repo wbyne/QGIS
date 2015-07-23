@@ -29,14 +29,6 @@
 
 #define _CRT_SECURE_NO_DEPRECATE
 
-#include <iostream>
-#include <fstream>
-#include <cstring>
-#include <cfloat>
-#include <ctime>
-#include <list>
-#include <limits.h> //for INT_MAX
-
 #include "pal.h"
 #include "palstat.h"
 #include "layer.h"
@@ -47,6 +39,12 @@
 #include "problem.h"
 #include "util.h"
 #include "priorityqueue.h"
+#include <iostream>
+#include <fstream>
+#include <cfloat>
+#include <ctime>
+#include <list>
+#include <limits.h> //for INT_MAX
 
 namespace pal
 {
@@ -2626,7 +2624,7 @@ namespace pal
         solList->push_back( labelpositions[sol->s[i]] ); // active labels
       }
       else if ( returnInactive
-                || labelpositions[featStartId[i]]->getFeaturePart()->getLayer()->displayAll()
+                || labelpositions[featStartId[i]]->getFeaturePart()->layer()->displayAll()
                 || labelpositions[featStartId[i]]->getFeaturePart()->getAlwaysShow() )
       {
         solList->push_back( labelpositions[featStartId[i]] ); // unplaced label

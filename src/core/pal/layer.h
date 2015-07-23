@@ -30,13 +30,12 @@
 #ifndef _LAYER_H_
 #define _LAYER_H_
 
-#include <fstream>
-
 #include "pal.h"
 #include "palgeometry.h"
 #include <QMutex>
 #include <QLinkedList>
 #include <QHash>
+#include <fstream>
 
 namespace pal
 {
@@ -73,6 +72,8 @@ namespace pal
         ShowDefined, // show upside down when rotation is layer- or data-defined
         ShowAll // show upside down for all labels, including dynamic ones
       };
+
+      virtual ~Layer();
 
       bool displayAll() const { return mDisplayAll; }
 
@@ -149,6 +150,19 @@ namespace pal
        */
       bool obstacle() const { return mObstacle; }
 
+      /** Returns the obstacle type, which controls how features within the layer
+       * act as obstacles for labels.
+       * @see setObstacleType
+       */
+      ObstacleType obstacleType() const { return mObstacleType; }
+
+      /** Sets the obstacle type, which controls how features within the layer
+       * act as obstacles for labels.
+       * @param obstacleType new obstacle type
+       * @see obstacleType
+       */
+      void setObstacleType( ObstacleType obstacleType ) { mObstacleType = obstacleType; }
+
       /** Sets the layer's priority.
        * @param priority layer priority, between 0 and 1. 0 corresponds to highest priority,
        * 1 to lowest priority.
@@ -209,6 +223,21 @@ namespace pal
        */
       bool centroidInside() const { return mCentroidInside; }
 
+      /** Sets whether labels which do not fit completely within a polygon feature
+       * are discarded.
+       * @param fitInPolygon set to true to discard labels which do not fit within
+       * polygon features. Set to false to allow labels which partially fall outside
+       * the polygon.
+       * @see fitInPolygonOnly
+       */
+      void setFitInPolygonOnly( bool fitInPolygon ) { mFitInPolygon = fitInPolygon; }
+
+      /** Returns whether labels which do not fit completely within a polygon feature
+       * are discarded.
+       * @see setFitInPolygonOnly
+       */
+      bool fitInPolygonOnly() const { return mFitInPolygon; }
+
       /** Register a feature in the layer.
        * @param geom_id unique identifier
        * @param userGeom user's geometry that implements the PalGeometry interface
@@ -260,10 +289,12 @@ namespace pal
       double mDefaultPriority;
 
       bool mObstacle;
+      ObstacleType mObstacleType;
       bool mActive;
       bool mLabelLayer;
       bool mDisplayAll;
       bool mCentroidInside;
+      bool mFitInPolygon;
 
       /** Optional flags used for some placement methods */
       Arrangement mArrangement;
@@ -296,11 +327,6 @@ namespace pal
        *
        */
       Layer( const QString& lyrName, Arrangement arrangement, double defaultPriority, bool obstacle, bool active, bool toLabel, Pal *pal, bool displayAll = false );
-
-      /**
-       * \brief Delete the layer
-       */
-      virtual ~Layer();
 
       /** Add newly created feature part into r tree and to the list */
       void addFeaturePart( FeaturePart* fpart, const QString &labelText = QString() );

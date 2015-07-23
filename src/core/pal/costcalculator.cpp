@@ -13,12 +13,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <cstring>
-#include <cfloat>
-
 #include "layer.h"
 #include "pal.h"
 #include "feature.h"
@@ -26,24 +20,30 @@
 #include "labelposition.h"
 #include "util.h"
 #include "costcalculator.h"
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <cfloat>
 
 namespace pal
 {
 
-  void CostCalculator::addObstacleCostPenalty( LabelPosition* lp, PointSet* feat )
+  void CostCalculator::addObstacleCostPenalty( LabelPosition* lp, FeaturePart* obstacle )
   {
     int n = 0;
     double dist;
     double distlabel = lp->feature->getLabelDistance();
 
-    switch ( feat->getGeosType() )
+    switch ( obstacle->getGeosType() )
     {
       case GEOS_POINT:
 
-        dist = lp->getDistanceToPoint( feat->x[0], feat->y[0] );
+        dist = lp->getDistanceToPoint( obstacle->x[0], obstacle->y[0] );
         if ( dist < 0 )
           n = 2;
         else if ( dist < distlabel )
+          //note this never happens at the moment - points are not obstacles if they don't fall
+          //within the label
           n = 1;
         else
           n = 0;
@@ -52,22 +52,37 @@ namespace pal
       case GEOS_LINESTRING:
 
         // Is one of label's borders crossing the line ?
-        n = ( lp->isBorderCrossingLine( feat ) ? 1 : 0 );
+        n = ( lp->isBorderCrossingLine( obstacle ) ? 1 : 0 );
         break;
 
       case GEOS_POLYGON:
-        n = lp->getNumPointsInPolygon( feat->getNumPoints(), feat->x, feat->y );
+        // behaviour depends on obstacle avoid type
+        switch ( obstacle->layer()->obstacleType() )
+        {
+          case PolygonInterior:
+            // n ranges from 0 -> 12
+            n = lp->getNumPointsInPolygon( obstacle );
+            break;
+          case PolygonBoundary:
+            // penalty may need tweaking, given that interior mode ranges up to 12
+            n = ( lp->isBorderCrossingLine( obstacle ) ? 6 : 0 );
+            break;
+        }
+
         break;
     }
 
+    //scale cost by obstacle's factor
+    double obstacleCost = obstacle->getFeature()->obstacleFactor() * double( n );
+
     // label cost is penalized
-    lp->setCost( lp->getCost() + double( n ) );
+    lp->setCost( lp->getCost() + obstacleCost );
   }
 
 
   ////////
 
-  void CostCalculator::setPolygonCandidatesCost( int nblp, LabelPosition **lPos, int max_p, RTree<PointSet*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
+  void CostCalculator::setPolygonCandidatesCost( int nblp, LabelPosition **lPos, int max_p, RTree<FeaturePart*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
   {
     int i;
 
@@ -125,7 +140,7 @@ namespace pal
   }
 
 
-  void CostCalculator::setCandidateCostFromPolygon( LabelPosition* lp, RTree <PointSet*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
+  void CostCalculator::setCandidateCostFromPolygon( LabelPosition* lp, RTree <FeaturePart*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
   {
 
     double amin[2];
@@ -153,7 +168,7 @@ namespace pal
     delete pCost;
   }
 
-  int CostCalculator::finalizeCandidatesCosts( Feats* feat, int max_p, RTree <PointSet*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
+  int CostCalculator::finalizeCandidatesCosts( Feats* feat, int max_p, RTree <FeaturePart*, double, 2, double> *obstacles, double bbx[4], double bby[4] )
   {
     // If candidates list is smaller than expected
     if ( max_p > feat->nblp )
@@ -191,7 +206,7 @@ namespace pal
 
     if ( feat->feature->getGeosType() == GEOS_POLYGON )
     {
-      int arrangement = feat->feature->getLayer()->arrangement();
+      int arrangement = feat->feature->layer()->arrangement();
       if ( arrangement == P_FREE || arrangement == P_HORIZ )
         setPolygonCandidatesCost( stop, ( LabelPosition** ) feat->lPos, max_p, obstacles, bbx, bby );
     }
@@ -217,9 +232,7 @@ namespace pal
 
   void PolygonCostCalculator::update( PointSet *pset )
   {
-    double rx, ry;
-    pset->getDist( px, py, &rx, &ry );
-    double d = dist_euc2d_sq( px, py, rx, ry );
+    double d = pset->minDistanceToPoint( px, py );
     if ( d < dist )
     {
       dist = d;

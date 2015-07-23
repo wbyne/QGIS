@@ -29,14 +29,6 @@
 
 #define _CRT_SECURE_NO_DEPRECATE
 
-#include <stddef.h>
-#include <geos_c.h>
-
-#include <iostream>
-#include <cstring>
-#include <cmath>
-#include <vector>
-
 #include "pal.h"
 #include "layer.h"
 #include "palexception.h"
@@ -44,6 +36,9 @@
 #include "feature.h"
 #include "geomfunction.h"
 #include "util.h"
+#include <iostream>
+#include <cmath>
+#include <vector>
 
 namespace pal
 {
@@ -52,10 +47,12 @@ namespace pal
       : mName( lyrName )
       , pal( pal )
       , mObstacle( obstacle )
+      , mObstacleType( PolygonInterior )
       , mActive( active )
       , mLabelLayer( toLabel )
       , mDisplayAll( displayAll )
       , mCentroidInside( false )
+      , mFitInPolygon( false )
       , mArrangement( arrangement )
       , mArrangementFlags( 0 )
       , mMode( LabelPerFeature )
@@ -170,6 +167,9 @@ namespace pal
     f->setRepeatDistance( repeatDistance );
 
     f->setAlwaysShow( alwaysShow );
+
+    // feature inherits layer setting for acting as an obstacle
+    f->setIsObstacle( mObstacle );
 
     bool first_feat = true;
 
@@ -382,7 +382,7 @@ namespace pal
     while ( !featureParts->isEmpty() )
     {
       FeaturePart* fpart = featureParts->takeFirst();
-      const GEOSGeometry* geom = fpart->getGeometry();
+      const GEOSGeometry* geom = fpart->geos();
       double chopInterval = fpart->getFeature()->repeatDistance();
       if ( chopInterval != 0. && GEOSGeomTypeId_r( geosctxt, geom ) == GEOS_LINESTRING )
       {

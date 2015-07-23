@@ -28,8 +28,6 @@
 #include <pal/problem.h>
 #include <pal/labelposition.h>
 
-#include <geos_c.h>
-
 #include <cmath>
 
 #include <QApplication>
@@ -171,6 +169,7 @@ QgsPalLayerSettings::QgsPalLayerSettings()
   placementFlags = AboveLine | MapOrientation;
   centroidWhole = false;
   centroidInside = false;
+  fitInPolygonOnly = false;
   quadOffset = QuadrantOver;
   xOffset = 0;
   yOffset = 0;
@@ -201,6 +200,8 @@ QgsPalLayerSettings::QgsPalLayerSettings()
   limitNumLabels = false;
   maxNumLabels = 2000;
   obstacle = true;
+  obstacleFactor = 1.0;
+  obstacleType = PolygonInterior;
 
   // scale factors
   vectorScaleFactor = 1.0;
@@ -294,6 +295,8 @@ QgsPalLayerSettings::QgsPalLayerSettings()
   mDataDefinedNames.insert( RepeatDistance, QPair<QString, int>( "RepeatDistance", -1 ) );
   mDataDefinedNames.insert( RepeatDistanceUnit, QPair<QString, int>( "RepeatDistanceUnit", -1 ) );
   mDataDefinedNames.insert( Priority, QPair<QString, int>( "Priority", -1 ) );
+  mDataDefinedNames.insert( IsObstacle, QPair<QString, int>( "IsObstacle", -1 ) );
+  mDataDefinedNames.insert( ObstacleFactor, QPair<QString, int>( "ObstacleFactor", -1 ) );
 
   // (data defined only)
   mDataDefinedNames.insert( PositionX, QPair<QString, int>( "PositionX", 9 ) );
@@ -380,6 +383,7 @@ QgsPalLayerSettings::QgsPalLayerSettings( const QgsPalLayerSettings& s )
   placementFlags = s.placementFlags;
   centroidWhole = s.centroidWhole;
   centroidInside = s.centroidInside;
+  fitInPolygonOnly = s.fitInPolygonOnly;
   quadOffset = s.quadOffset;
   xOffset = s.xOffset;
   yOffset = s.yOffset;
@@ -413,6 +417,8 @@ QgsPalLayerSettings::QgsPalLayerSettings( const QgsPalLayerSettings& s )
   limitNumLabels = s.limitNumLabels;
   maxNumLabels = s.maxNumLabels;
   obstacle = s.obstacle;
+  obstacleFactor = s.obstacleFactor;
+  obstacleType = s.obstacleType;
 
   // shape background
   shapeDraw = s.shapeDraw;
@@ -863,6 +869,7 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   placementFlags = layer->customProperty( "labeling/placementFlags" ).toUInt();
   centroidWhole = layer->customProperty( "labeling/centroidWhole", QVariant( false ) ).toBool();
   centroidInside = layer->customProperty( "labeling/centroidInside", QVariant( false ) ).toBool();
+  fitInPolygonOnly = layer->customProperty( "labeling/fitInPolygonOnly", QVariant( false ) ).toBool();
   dist = layer->customProperty( "labeling/dist" ).toDouble();
   distInMapUnits = layer->customProperty( "labeling/distInMapUnits" ).toBool();
   distMapUnitScale.minScale = layer->customProperty( "labeling/distMapUnitMinScale", 0.0 ).toDouble();
@@ -920,6 +927,8 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   limitNumLabels = layer->customProperty( "labeling/limitNumLabels", QVariant( false ) ).toBool();
   maxNumLabels = layer->customProperty( "labeling/maxNumLabels", QVariant( 2000 ) ).toInt();
   obstacle = layer->customProperty( "labeling/obstacle", QVariant( true ) ).toBool();
+  obstacleFactor = layer->customProperty( "labeling/obstacleFactor", QVariant( 1.0 ) ).toDouble();
+  obstacleType = ( ObstacleType )layer->customProperty( "labeling/obstacleType", QVariant( PolygonInterior ) ).toUInt();
 
   readDataDefinedPropertyMap( layer, dataDefinedProperties );
 }
@@ -1035,6 +1044,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/placementFlags", ( unsigned int )placementFlags );
   layer->setCustomProperty( "labeling/centroidWhole", centroidWhole );
   layer->setCustomProperty( "labeling/centroidInside", centroidInside );
+  layer->setCustomProperty( "labeling/fitInPolygonOnly", fitInPolygonOnly );
   layer->setCustomProperty( "labeling/dist", dist );
   layer->setCustomProperty( "labeling/distInMapUnits", distInMapUnits );
   layer->setCustomProperty( "labeling/distMapUnitMinScale", distMapUnitScale.minScale );
@@ -1071,6 +1081,8 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/limitNumLabels", limitNumLabels );
   layer->setCustomProperty( "labeling/maxNumLabels", maxNumLabels );
   layer->setCustomProperty( "labeling/obstacle", obstacle );
+  layer->setCustomProperty( "labeling/obstacleFactor", obstacleFactor );
+  layer->setCustomProperty( "labeling/obstacleType", ( unsigned int )obstacleType );
 
   writeDataDefinedPropertyMap( layer, dataDefinedProperties );
 }
@@ -2201,6 +2213,26 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, const QgsRenderContext
     }
   }
 
+  // data defined is obstacle?
+  if ( dataDefinedEvaluate( QgsPalLayerSettings::IsObstacle, exprVal ) )
+  {
+    feat->setIsObstacle( exprVal.toBool() );
+  }
+
+  double featObstacleFactor = obstacleFactor;
+  if ( dataDefinedEvaluate( QgsPalLayerSettings::ObstacleFactor, exprVal ) )
+  {
+    bool ok;
+    double factorD = exprVal.toDouble( &ok );
+    if ( ok )
+    {
+      factorD = qBound( 0.0, factorD, 10.0 );
+      factorD = factorD / 5.0 + 0.0001; // convert 0 -> 10 to 0.0001 -> 2.0
+      featObstacleFactor = factorD;
+    }
+  }
+  feat->setObstacleFactor( featObstacleFactor );
+
   //add parameters for data defined labeling to QgsPalGeometry
   QMap< DataDefinedProperties, QVariant >::const_iterator dIt = dataDefinedValues.constBegin();
   for ( ; dIt != dataDefinedValues.constEnd(); ++dIt )
@@ -3302,7 +3334,7 @@ int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QStringList& attrNames,
   // create the pal layer
   double priority = 1 - lyr.priority / 10.0; // convert 0..10 --> 1..0
 
-  Layer* l = mPal->addLayer( layer->id().toUtf8().data(),
+  Layer* l = mPal->addLayer( layer->id(),
                              arrangement,
                              priority, lyr.obstacle, true, lyr.drawLabels,
                              lyr.displayAll );
@@ -3316,9 +3348,22 @@ int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QStringList& attrNames,
   // set whether adjacent lines should be merged
   l->setMergeConnectedLines( lyr.mergeLines );
 
+  // set obstacle type
+  switch ( lyr.obstacleType )
+  {
+    case PolygonInterior:
+      l->setObstacleType( pal::PolygonInterior );
+      break;
+    case PolygonBoundary:
+      l->setObstacleType( pal::PolygonBoundary );
+      break;
+  }
 
   // set whether location of centroid must be inside of polygons
   l->setCentroidInside( lyr.centroidInside );
+
+  // set whether labels must fall completely within the polygon
+  l->setFitInPolygonOnly( lyr.fitInPolygonOnly );
 
   // set how to show upside-down labels
   Layer::UpsideDownLabels upsdnlabels;

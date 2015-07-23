@@ -30,11 +30,9 @@
 #ifndef _LABELPOSITION_H
 #define _LABELPOSITION_H
 
-#include <fstream>
-
 #include "pointset.h"
 #include "rtree.hpp"
-
+#include <fstream>
 
 namespace pal
 {
@@ -47,7 +45,7 @@ namespace pal
   /**
    * \brief LabelPosition is a candidate feature label position
    */
-  class CORE_EXPORT LabelPosition
+  class CORE_EXPORT LabelPosition : public PointSet
   {
       friend class CostCalculator;
       friend class PolygonCostCalculator;
@@ -128,13 +126,13 @@ namespace pal
       void getBoundingBox( double amin[2], double amax[2] ) const;
 
       /** Get distance from this label to a point. If point lies inside, returns negative number. */
-      double getDistanceToPoint( double xp, double yp );
+      double getDistanceToPoint( double xp, double yp ) const;
 
       /** Returns true if this label crosses the specified line */
-      bool isBorderCrossingLine( PointSet* feat );
+      bool isBorderCrossingLine( PointSet* line ) const;
 
       /** Returns number of intersections with polygon (testing border and center) */
-      int getNumPointsInPolygon( int npol, double *xp, double *yp );
+      int getNumPointsInPolygon( PointSet* polygon ) const;
 
       /** Shift the label by specified offset */
       void offsetPosition( double xOffset, double yOffset );
@@ -217,7 +215,7 @@ namespace pal
       typedef struct
       {
         Pal* pal;
-        PointSet *obstacle;
+        FeaturePart *obstacle;
       } PruneCtx;
 
       /** Check whether the candidate in ctx overlap with obstacle feat */
@@ -247,7 +245,7 @@ namespace pal
       static bool removeOverlapCallback( LabelPosition *lp, void *ctx );
 
       // for polygon cost calculation
-      static bool polygonObstacleCallback( PointSet *feat, void *ctx );
+      static bool polygonObstacleCallback( pal::FeaturePart *obstacle, void *ctx );
 
     protected:
 
@@ -260,7 +258,6 @@ namespace pal
 
       int nbOverlap;
 
-      double x[4], y[4];
       double alpha;
       double w;
       double h;

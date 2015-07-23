@@ -120,6 +120,17 @@ class CORE_EXPORT QgsPalLayerSettings
                                will be drawn with right alignment*/
     };
 
+    /** Valid obstacle types, which affect how features within the layer will act as obstacles
+     * for labels.
+     */
+    enum ObstacleType
+    {
+      PolygonInterior, /*!< avoid placing labels over interior of polygon (prefer placing labels totally
+       outside or just slightly inside polygon) */
+      PolygonBoundary /*!< avoid placing labels over boundary of polygon (prefer placing outside or
+       completely inside polygon) */
+    };
+
     enum ShapeType
     {
       ShapeRectangle = 0,
@@ -262,6 +273,9 @@ class CORE_EXPORT QgsPalLayerSettings
       FontLimitPixel = 24,
       FontMinPixel = 25,
       FontMaxPixel = 26,
+      IsObstacle = 88,
+      ObstacleFactor = 89,
+
       // (data defined only)
       Show = 15,
       AlwaysShow = 20
@@ -382,6 +396,10 @@ class CORE_EXPORT QgsPalLayerSettings
 
     bool centroidWhole; // whether centroid calculated from whole or visible polygon
     bool centroidInside; // whether centroid-point calculated must be inside polygon
+
+    /** True if only labels which completely fit within a polygon are allowed.
+     */
+    bool fitInPolygonOnly;
     double dist; // distance from the feature (in mm)
     bool distInMapUnits; //true if distance is in map units (otherwise in mm)
     QgsMapUnitScale distMapUnitScale;
@@ -427,6 +445,15 @@ class CORE_EXPORT QgsPalLayerSettings
 
     double minFeatureSize; // minimum feature size to be labelled (in mm)
     bool obstacle; // whether features for layer are obstacles to labels of other layers
+
+    /** Obstacle factor, where 1.0 = default, < 1.0 more likely to be covered by labels,
+     * > 1.0 less likely to be covered
+     */
+    double obstacleFactor;
+
+    /** Controls how features act as obstacles for labels
+     */
+    ObstacleType obstacleType;
 
     //-- scale factors
     double vectorScaleFactor; //scale factor painter units->pixels
