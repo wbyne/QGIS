@@ -399,6 +399,7 @@ void QgsGraduatedSymbolRendererV2::startRender( QgsRenderContext& context, const
       mTempSymbols[ it->symbol()] = tempSymbol;
     }
   }
+  return;
 }
 
 void QgsGraduatedSymbolRendererV2::stopRender( QgsRenderContext& context )

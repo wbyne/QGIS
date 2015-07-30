@@ -119,6 +119,8 @@ void QgsInvertedPolygonRenderer::startRender( QgsRenderContext& context, const Q
 
   mExtentPolygon.clear();
   mExtentPolygon.append( exteriorRing );
+
+  return;
 }
 
 bool QgsInvertedPolygonRenderer::renderFeature( QgsFeature& feature, QgsRenderContext& context, int layer, bool selected, bool drawVertexMarker )

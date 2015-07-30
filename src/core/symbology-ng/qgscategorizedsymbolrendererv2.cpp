@@ -425,6 +425,7 @@ void QgsCategorizedSymbolRendererV2::startRender( QgsRenderContext& context, con
       mTempSymbols[ it->symbol()] = tempSymbol;
     }
   }
+  return;
 }
 
 void QgsCategorizedSymbolRendererV2::stopRender( QgsRenderContext& context )
