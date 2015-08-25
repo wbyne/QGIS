@@ -27,6 +27,7 @@
 #include "qgsmaplayerregistry.h"
 #include "qgsproject.h"
 #include "qgsmessagelog.h"
+#include "qgsexpressioncontext.h"
 
 QgsAtlasComposition::QgsAtlasComposition( QgsComposition* composition )
     : mComposition( composition )
@@ -168,7 +169,7 @@ void QgsAtlasComposition::setSortKeyAttributeIndex( int idx )
 {
   if ( mCoverageLayer )
   {
-    const QgsFields fields = mCoverageLayer->pendingFields();
+    const QgsFields fields = mCoverageLayer->fields();
     if ( idx >= 0 && idx < fields.count() )
     {
       mSortKeyAttributeName = fields[idx].name();
@@ -218,6 +219,8 @@ int QgsAtlasComposition::updateFeatures()
     return 0;
   }
 
+  QgsExpressionContext expressionContext = createExpressionContext();
+
   updateFilenameExpression();
 
   // select all features with all attributes
@@ -248,7 +251,7 @@ int QgsAtlasComposition::updateFeatures()
     {
       nameExpression.reset( 0 );
     }
-    nameExpression->prepare( mCoverageLayer->pendingFields() );
+    nameExpression->prepare( &expressionContext );
   }
 
   // We cannot use nextFeature() directly since the feature pointer is rewinded by the rendering process
@@ -260,10 +263,12 @@ int QgsAtlasComposition::updateFeatures()
 
   while ( fit.nextFeature( feat ) )
   {
+    expressionContext.setFeature( feat );
+
     QString pageName;
     if ( !nameExpression.isNull() )
     {
-      QVariant result = nameExpression->evaluate( &feat, mCoverageLayer->pendingFields() );
+      QVariant result = nameExpression->evaluate( &expressionContext );
       if ( nameExpression->hasEvalError() )
       {
         QgsMessageLog::logMessage( tr( "Atlas name eval error: %1" ).arg( nameExpression->evalErrorString() ), tr( "Composer" ) );
@@ -299,6 +304,10 @@ int QgsAtlasComposition::updateFeatures()
   return mFeatureIds.size();
 }
 
+QString QgsAtlasComposition::currentPageName() const
+{
+  return nameForPage( currentFeatureNumber() );
+}
 
 bool QgsAtlasComposition::beginRender()
 {
@@ -442,13 +451,15 @@ bool QgsAtlasComposition::prepareForFeature( const int featureI, const bool upda
   // retrieve the next feature, based on its id
   mCoverageLayer->getFeatures( QgsFeatureRequest().setFilterFid( mFeatureIds[ featureI ].first ) ).nextFeature( mCurrentFeature );
 
+  QgsExpressionContext expressionContext = createExpressionContext();
+
   QgsExpression::setSpecialColumn( "$atlasfeatureid", mCurrentFeature.id() );
   QgsExpression::setSpecialColumn( "$atlasgeometry", QVariant::fromValue( *mCurrentFeature.constGeometry() ) );
   QgsExpression::setSpecialColumn( "$atlasfeature", QVariant::fromValue( mCurrentFeature ) );
   QgsExpression::setSpecialColumn( "$feature", QVariant(( int )featureI + 1 ) );
 
   // generate filename for current feature
-  if ( !evalFeatureFilename() )
+  if ( !evalFeatureFilename( expressionContext ) )
   {
     //error evaluating filename
     return false;
@@ -744,7 +755,7 @@ void QgsAtlasComposition::readXML( const QDomElement& atlasElem, const QDomDocum
     int idx = mSortKeyAttributeName.toInt( &isIndex );
     if ( isIndex && mCoverageLayer )
     {
-      const QgsFields fields = mCoverageLayer->pendingFields();
+      const QgsFields fields = mCoverageLayer->fields();
       if ( idx >= 0 && idx < fields.count() )
       {
         mSortKeyAttributeName = fields[idx].name();
@@ -816,6 +827,23 @@ bool QgsAtlasComposition::setFilenamePattern( const QString& pattern )
   return updateFilenameExpression();
 }
 
+QgsExpressionContext QgsAtlasComposition::createExpressionContext()
+{
+  QgsExpressionContext expressionContext;
+  expressionContext << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope();
+  if ( mComposition )
+    expressionContext << QgsExpressionContextUtils::compositionScope( mComposition );
+
+  expressionContext << new QgsExpressionContextScope( "Atlas" );
+  if ( mCoverageLayer )
+    expressionContext.lastScope()->setFields( mCoverageLayer->fields() );
+  if ( mComposition->atlasMode() != QgsComposition::AtlasOff )
+    expressionContext.lastScope()->setFeature( mCurrentFeature );
+
+  return expressionContext;
+}
+
 bool QgsAtlasComposition::updateFilenameExpression()
 {
   if ( !mCoverageLayer )
@@ -823,7 +851,7 @@ bool QgsAtlasComposition::updateFilenameExpression()
     return false;
   }
 
-  const QgsFields& fields = mCoverageLayer->pendingFields();
+  QgsExpressionContext expressionContext = createExpressionContext();
 
   if ( mFilenamePattern.size() > 0 )
   {
@@ -837,23 +865,23 @@ bool QgsAtlasComposition::updateFilenameExpression()
     }
 
     // prepare the filename expression
-    mFilenameExpr->prepare( fields );
+    mFilenameExpr->prepare( &expressionContext );
   }
 
   //if atlas preview is currently enabled, regenerate filename for current feature
   if ( mComposition->atlasMode() == QgsComposition::PreviewAtlas )
   {
-    evalFeatureFilename();
+    evalFeatureFilename( expressionContext );
   }
   return true;
 }
 
-bool QgsAtlasComposition::evalFeatureFilename()
+bool QgsAtlasComposition::evalFeatureFilename( const QgsExpressionContext &context )
 {
   //generate filename for current atlas feature
   if ( mFilenamePattern.size() > 0 && !mFilenameExpr.isNull() )
   {
-    QVariant filenameRes = mFilenameExpr->evaluate( &mCurrentFeature, mCoverageLayer->pendingFields() );
+    QVariant filenameRes = mFilenameExpr->evaluate( &context );
     if ( mFilenameExpr->hasEvalError() )
     {
       QgsMessageLog::logMessage( tr( "Atlas filename evaluation error: %1" ).arg( mFilenameExpr->evalErrorString() ), tr( "Composer" ) );

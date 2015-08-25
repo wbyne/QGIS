@@ -86,11 +86,11 @@ def run(item, action, mainwindow):
                                        mainwindow.iface.messageTimeout())
         return False
 
-    if ( res[0] < 0 ):
+    if (res[0] < 0):
         mainwindow.infoBar.pushMessage("WARNING", u'Topology "{0}" is registered as having a srid of {1} in topology.topology, we will assume 0 (for unknown)'.format(item.schema().name, res[0]), QgsMessageBar.WARNING, mainwindow.iface.messageTimeout())
         toposrid = '0'
     else:
-        toposrid = str(res[0])
+        toposrid = unicode(res[0])
 
     # load layers into the current project
     toponame = item.schema().name
@@ -151,7 +151,6 @@ def run(item, action, mainwindow):
 
         # TODO: add polygon0, polygon1 and polygon2 ?
 
-
         # NODES
         group = legend.addGroup(u'Nodes', False, supergroup)
 
@@ -204,7 +203,6 @@ def run(item, action, mainwindow):
         legend.moveLayer(layer, group)
         legend.setLayerVisible(layer, False)
         legend.setLayerExpanded(layer, False)
-
 
         # edge labels
         uri.setDataSource(toponame, 'edge_data', 'geom', '', 'edge_id')
@@ -270,12 +268,12 @@ def run(item, action, mainwindow):
 
         # Set canvas extent to topology extent, if not yet initialized
         canvas = iface.mapCanvas()
-        if ( canvas.fullExtent().isNull() ):
-          ext = node_extent
-          ext.combineExtentWith(edge_extent)
-          # Grow by 1/20 of largest side
-          ext = ext.buffer(max(ext.width(),ext.height())/20)
-          canvas.setExtent(ext)
+        if (canvas.fullExtent().isNull()):
+            ext = node_extent
+            ext.combineExtentWith(edge_extent)
+            # Grow by 1/20 of largest side
+            ext = ext.buffer(max(ext.width(), ext.height()) / 20)
+            canvas.setExtent(ext)
 
         # restore canvas render flag
         iface.mapCanvas().setRenderFlag(prevRenderFlagState)

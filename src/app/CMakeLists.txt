@@ -50,6 +50,9 @@ SET(QGIS_APP_SRCS
   qgsmapmouseevent.cpp
   qgssavestyletodbdialog.cpp
   qgsguivectorlayertools.cpp
+  qgswelcomepageitemsmodel.cpp
+  qgswelcomepage.cpp
+  qgsversioninfo.cpp
 
   qgsmaptooladdfeature.cpp
   qgsmaptooladdpart.cpp
@@ -108,7 +111,6 @@ SET(QGIS_APP_SRCS
   qgsstatisticalsummarydockwidget.cpp
   qgstextannotationdialog.cpp
   qgsshortcutsmanager.cpp
-  qgsguivectorlayertools.h
   qgssnappingdialog.cpp
   qgssvgannotationdialog.cpp
   qgsundowidget.cpp
@@ -117,6 +119,9 @@ SET(QGIS_APP_SRCS
   qgsvectorlayerproperties.cpp
   qgsvisibilitypresets.cpp
   qgshandlebadlayers.cpp
+  qgsmaptooladdcircularstring.cpp
+  qgsmaptoolcircularstringcurvepoint.cpp
+  qgsmaptoolcircularstringradius.cpp
 
   composer/qgsattributeselectiondialog.cpp
   composer/qgscomposer.cpp
@@ -209,9 +214,13 @@ SET (QGIS_APP_MOC_HDRS
   qgsshortcutsmanager.h
   qgsapplayertreeviewmenuprovider.h
   qgsguivectorlayertools.h
+  qgswelcomepageitemsmodel.h
+  qgswelcomepage.h
+  qgsversioninfo.h
 
   qgsmaptooladdfeature.h
   qgsmaptoolcapture.h
+  qgsmaptoolcircularstringradius.h
   qgsmaptooladdpart.h
   qgsmaptooladdring.h
   qgsmaptooledit.h
@@ -240,6 +249,7 @@ SET (QGIS_APP_MOC_HDRS
   qgsmaptoolsimplify.h
   qgsmaptoolsplitfeatures.h
   qgsmaptoolsplitparts.h
+  qgsmaptooladdcircularstring.h
 
   nodetool/qgsmaptoolnodetool.h
   nodetool/qgsselectedfeature.h

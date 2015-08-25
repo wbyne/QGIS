@@ -27,6 +27,7 @@
 #include <QList>
 #include <QObject>
 #include <QPair>
+#include <QFileInfo>
 
 //for the snap settings
 #include "qgssnapper.h"
@@ -45,6 +46,7 @@ class QgsMapLayer;
 class QgsProjectBadLayerHandler;
 class QgsRelationManager;
 class QgsVectorLayer;
+class QgsVisibilityPresetCollection;
 
 /** \ingroup core
  * Reads and writes project states.
@@ -81,10 +83,10 @@ class CORE_EXPORT QgsProject : public QObject
     /**
        Every project has an associated title string
 
-       ### QGIS 3: remove in favor of setTitle(...)
+       @deprecated Use setTitle instead.
      */
     //@{
-    void title( const QString & title );
+    Q_DECL_DEPRECATED inline void title( const QString & title ) { setTitle( title ); }
 
     /** Set project title
      *  @note added in 2.4 */
@@ -119,6 +121,11 @@ class CORE_EXPORT QgsProject : public QObject
     /** Returns file name */
     QString fileName() const;
     //@}
+
+    /** Returns QFileInfo object for the project's associated file.
+     * @note added in QGIS 2.9
+     */
+    QFileInfo fileInfo() const;
 
     /** Clear the project
      * @note added in 2.4
@@ -301,6 +308,11 @@ class CORE_EXPORT QgsProject : public QObject
      */
     QgsLayerTreeRegistryBridge* layerTreeRegistryBridge() const { return mLayerTreeRegistryBridge; }
 
+    /** Returns pointer to the project's visibility preset collection.
+     * @note added in QGIS 2.12
+     */
+    QgsVisibilityPresetCollection* visibilityPresetCollection();
+
   protected:
 
     /** Set error message from read/write operation */
@@ -393,6 +405,8 @@ class CORE_EXPORT QgsProject : public QObject
     QgsLayerTreeGroup* mRootGroup;
 
     QgsLayerTreeRegistryBridge* mLayerTreeRegistryBridge;
+
+    QScopedPointer<QgsVisibilityPresetCollection> mVisibilityPresetCollection;
 
 }; // QgsProject
 

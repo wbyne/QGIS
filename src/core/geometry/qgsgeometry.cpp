@@ -146,6 +146,13 @@ const QgsAbstractGeometryV2* QgsGeometry::geometry() const
 void QgsGeometry::setGeometry( QgsAbstractGeometryV2* geometry )
 {
   detach( false );
+  if ( d->geometry )
+  {
+    delete d->geometry;
+    d->geometry = 0;
+  }
+  removeWkbGeos();
+
   d->geometry = geometry;
 }
 
@@ -2246,6 +2253,12 @@ QDataStream& operator>>( QDataStream& in, QgsGeometry& geometry )
 {
   QByteArray byteArray;
   in >> byteArray;
+  if ( byteArray.isEmpty() )
+  {
+    geometry.setGeometry( 0 );
+    return in;
+  }
+
   char *data = new char[byteArray.size()];
   memcpy( data, byteArray.data(), byteArray.size() );
   geometry.fromWkb(( unsigned char* )data, byteArray.size() );

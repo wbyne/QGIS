@@ -46,7 +46,7 @@ class GroundFilter(FusionAlgorithm):
         self.addParameter(ParameterFile(
             self.INPUT, self.tr('Input LAS layer')))
         self.addParameter(ParameterNumber(self.CELLSIZE,
-            self.tr('Cellsize for intermediate surfaces'), 0, None, 10))
+                                          self.tr('Cellsize for intermediate surfaces'), 0, None, 10))
         self.addOutput(OutputFile(
             self.OUTPUT, self.tr('Output ground LAS file')))
         self.addAdvancedModifiers()
@@ -56,7 +56,7 @@ class GroundFilter(FusionAlgorithm):
         commands.append('/verbose')
         self.addAdvancedModifiersToCommand(commands)
         outFile = self.getOutputValue(self.OUTPUT) + '.lda'
-        commands.append(str(self.getParameterValue(self.CELLSIZE)))
+        commands.append(unicode(self.getParameterValue(self.CELLSIZE)))
         commands.append(outFile)
         files = self.getParameterValue(self.INPUT).split(';')
         if len(files) == 1:

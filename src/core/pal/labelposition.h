@@ -128,7 +128,10 @@ namespace pal
       double getDistanceToPoint( double xp, double yp ) const;
 
       /** Returns true if this label crosses the specified line */
-      bool isBorderCrossingLine( PointSet* line ) const;
+      bool crossesLine( PointSet* line ) const;
+
+      /** Returns true if this label crosses the boundary of the specified polygon */
+      bool crossesBoundary( PointSet* polygon ) const;
 
       /** Returns number of intersections with polygon (testing border and center) */
       int getNumPointsInPolygon( PointSet* polygon ) const;
@@ -175,9 +178,10 @@ namespace pal
 
       /** Sets whether the position is marked as conflicting with an obstacle feature.
        * @param conflicts set to true to mark candidate as being in conflict
+       * @note This method applies to all label parts for the candidate position.
        * @see conflictsWithObstacle
        */
-      void setConflictsWithObstacle( bool conflicts ) { mHasObstacleConflict = conflicts; }
+      void setConflictsWithObstacle( bool conflicts );
 
       /** Returns whether the position is marked as conflicting with an obstacle feature.
        * @see setConflictsWithObstacle

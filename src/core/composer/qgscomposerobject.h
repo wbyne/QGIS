@@ -17,10 +17,10 @@
 #ifndef QGSCOMPOSEROBJECT_H
 #define QGSCOMPOSEROBJECT_H
 
+#include "qgsobjectcustomproperties.h"
+#include "qgsexpressioncontext.h"
 #include <QObject>
 #include <QDomNode>
-#include <QPointF>
-#include <QRectF>
 #include <QMap>
 
 class QgsComposition;
@@ -66,6 +66,8 @@ class CORE_EXPORT QgsComposerObject: public QObject
       MapXMax, /*!< map extent x maximum */
       MapYMax, /*!< map extent y maximum */
       MapAtlasMargin, /*!< map atlas margin*/
+      MapLayers, /*!< map layer set*/
+      MapStylePreset, /*!< layer and style visibility preset */
       //composer picture
       PictureSource, /*!< picture source url */
       //html item
@@ -122,6 +124,50 @@ class CORE_EXPORT QgsComposerObject: public QObject
     */
     void setDataDefinedProperty( const DataDefinedProperty property, const bool active, const bool useExpression, const QString &expression, const QString &field );
 
+    /** Set a custom property for the object.
+     * @param key property key. If a property with the same key already exists it will be overwritten.
+     * @param value property value
+     * @see customProperty()
+     * @see removeCustomProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+    */
+    void setCustomProperty( const QString &key, const QVariant &value );
+
+    /** Read a custom property from the object.
+     * @param key property key
+     * @param defaultValue default value to return if property with matching key does not exist
+     * @returns value of matching property
+     * @see setCustomProperty()
+     * @see removeCustomProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+     */
+    QVariant customProperty( const QString &key, const QVariant &defaultValue = QVariant() ) const;
+
+    /** Remove a custom property from the object.
+     * @param key property key
+     * @see setCustomProperty()
+     * @see customProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+     */
+    void removeCustomProperty( const QString &key );
+
+    /** Return list of keys stored in custom properties for the object.
+     * @see setCustomProperty()
+     * @see customProperty()
+     * @see removeCustomProperty()
+     * @note added in QGIS 2.12
+     */
+    QStringList customProperties() const;
+
+    /** Creates an expression context relating to the objects's current state. The context includes
+     * scopes for global, project and composition properties.
+     * @note added in QGIS 2.12
+     */
+    virtual QgsExpressionContext* createExpressionContext() const;
+
   public slots:
 
     /** Triggers a redraw for the item*/
@@ -132,9 +178,10 @@ class CORE_EXPORT QgsComposerObject: public QObject
      * @param property data defined property to refresh. If property is set to
      * QgsComposerItem::AllProperties then all data defined properties for the item will be
      * refreshed.
+     * @param context expression context for evaluating data defined expressions
      * @note this method was added in version 2.5
     */
-    virtual void refreshDataDefinedProperty( const DataDefinedProperty property = AllProperties );
+    virtual void refreshDataDefinedProperty( const DataDefinedProperty property = AllProperties, const QgsExpressionContext* context = 0 );
 
   protected:
 
@@ -143,13 +190,18 @@ class CORE_EXPORT QgsComposerObject: public QObject
     /** Map of data defined properties for the item to string name to use when exporting item to xml*/
     QMap< QgsComposerObject::DataDefinedProperty, QString > mDataDefinedNames;
 
+    /** Custom properties for object*/
+    QgsObjectCustomProperties mCustomProperties;
+
     /** Evaluate a data defined property and return the calculated value
      * @returns true if data defined property could be successfully evaluated
      * @param property data defined property to evaluate
      * @param expressionValue QVariant for storing the evaluated value
+     * @param context expression context for evaluating expressions. Must have feature and fields set to current
+     * atlas feature and coverage layer fields prior to calling this method.
      * @note this method was added in version 2.5
     */
-    bool dataDefinedEvaluate( const QgsComposerObject::DataDefinedProperty property, QVariant &expressionValue );
+    bool dataDefinedEvaluate( const QgsComposerObject::DataDefinedProperty property, QVariant &expressionValue, const QgsExpressionContext& context = QgsExpressionContext() ) const;
 
   signals:
     /** Emitted when the item changes. Signifies that the item widgets must update the
@@ -166,7 +218,8 @@ class CORE_EXPORT QgsComposerObject: public QObject
   private:
 
     /** Map of current data defined properties*/
-    QMap< QgsComposerObject::DataDefinedProperty, QgsDataDefined* > mDataDefinedProperties;
+    //mutable since expressions in data defineds need to be preparable
+    mutable QMap< QgsComposerObject::DataDefinedProperty, QgsDataDefined* > mDataDefinedProperties;
 
     friend class TestQgsComposerObject;
 };

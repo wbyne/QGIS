@@ -36,12 +36,14 @@
 #include "qgsrectangle.h"
 #include "qgsrelationmanager.h"
 #include "qgsvectorlayer.h"
+#include "qgsvisibilitypresetcollection.h"
 
 #include <QApplication>
 #include <QFileInfo>
 #include <QDomNode>
 #include <QObject>
 #include <QTextStream>
+#include <QDir>
 
 // canonical project instance
 QgsProject *QgsProject::theProject_ = 0;
@@ -332,7 +334,6 @@ QgsProject::QgsProject()
   // whenever layers are added to or removed from the registry,
   // layer tree will be updated
   mLayerTreeRegistryBridge = new QgsLayerTreeRegistryBridge( mRootGroup, this );
-
 } // QgsProject ctor
 
 
@@ -357,16 +358,11 @@ QgsProject *QgsProject::instance()
   return theProject_;
 } // QgsProject *instance()
 
-void QgsProject::title( QString const &title )
+void QgsProject::setTitle( const QString &title )
 {
   imp_->title = title;
 
   dirty( true );
-} // void QgsProject::title
-
-void QgsProject::setTitle( const QString &t )
-{
-  title( t );
 }
 
 
@@ -406,13 +402,20 @@ void QgsProject::setFileName( QString const &name )
 QString QgsProject::fileName() const
 {
   return imp_->file.fileName();
-} // QString QgsProject::fileName() const
+}
+
+QFileInfo QgsProject::fileInfo() const
+{
+  return QFileInfo( imp_->file );
+}
 
 void QgsProject::clear()
 {
   imp_->clear();
   mEmbeddedLayers.clear();
   mRelationManager->clear();
+
+  mVisibilityPresetCollection.reset( new QgsVisibilityPresetCollection() );
 
   mRootGroup->removeAllChildren();
 
@@ -894,6 +897,9 @@ bool QgsProject::read()
 
   mRootGroup->removeCustomProperty( "loading" );
 
+  mVisibilityPresetCollection.reset( new QgsVisibilityPresetCollection() );
+  mVisibilityPresetCollection->readXML( *doc );
+
   // read the project: used by map canvas and legend
   emit readProject( *doc );
 
@@ -1092,6 +1098,8 @@ bool QgsProject::write()
   {
     imp_->properties_.writeXML( "properties", qgisNode, *doc );
   }
+
+  mVisibilityPresetCollection->writeXML( *doc );
 
   // now wrap it up and ship it to the project file
   doc->normalize();             // XXX I'm not entirely sure what this does
@@ -1965,4 +1973,9 @@ QgsRelationManager *QgsProject::relationManager() const
 QgsLayerTreeGroup *QgsProject::layerTreeRoot() const
 {
   return mRootGroup;
+}
+
+QgsVisibilityPresetCollection* QgsProject::visibilityPresetCollection()
+{
+  return mVisibilityPresetCollection.data();
 }

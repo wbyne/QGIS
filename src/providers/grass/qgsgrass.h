@@ -17,6 +17,7 @@
 #define QGSGRASS_H
 
 #include <QMutex>
+#include <QPen>
 
 #include <setjmp.h>
 
@@ -125,7 +126,7 @@ class GRASS_LIB_EXPORT QgsGrassObject
     Type mType;
 };
 
-/*!
+/** QString gisdbase()
    Methods for C library initialization and error handling.
 */
 class GRASS_LIB_EXPORT QgsGrass : public QObject
@@ -157,6 +158,9 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
 
     /** Get singleton instance of this class. Used as signals proxy between provider and plugin. */
     static QgsGrass* instance();
+
+    /** Path to where GRASS is installed (GISBASE) */
+    static QString gisbase() { return mGisbase; }
 
     //! Get info about the mode
     /** QgsGrass may be running in active or passive mode.
@@ -216,6 +220,7 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     /** \brief Close mapset if it was opened from QGIS.
      *         Delete GISRC, lock and temporary directory.
      *         Emits signal mapsetChanged().
+     * \param showError show error dialog on error
      * \return Empty string or error message
      */
     static QString closeMapset();
@@ -274,6 +279,7 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     /** Init region, set extent, rows and cols and adjust.
      * Returns error if adjustment failed. */
     static QString setRegion( struct Cell_head *window, QgsRectangle rect, int rows, int cols );
+
     //! Get extent from region
     static QgsRectangle extent( struct Cell_head *window );
 
@@ -303,6 +309,11 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     // ! Write current mapset region
     static bool writeRegion( const QString& gisbase, const QString& location, const QString& mapset,
                              const struct Cell_head *window );
+
+    /** Write current mapset region
+     *  throws QgsGrass::Exception
+     *  Emits regionChanged */
+    void writeRegion( const struct Cell_head *window );
 
     // ! Set (copy) region extent, resolution is not changed
     static void copyRegionExtent( struct Cell_head *source,
@@ -471,6 +482,11 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
 
     void setModulesConfig( bool custom, const QString &customDir );
 
+    static QPen regionPen();
+
+    /** Store region pen in settings, emits regionPenChanged */
+    void setRegionPen( const QPen & pen );
+
     // Modules UI debug
     static bool modulesDebug();
 
@@ -491,6 +507,10 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     // Sleep miliseconds (for debugging)
     static void sleep( int ms );
 
+  public slots:
+    /** Close mapset and show warning if closing failed */
+    bool closeMapsetWarn();
+
   signals:
     /** Signal emitted after mapset was opened */
     void mapsetChanged();
@@ -501,9 +521,19 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     /** Emitted when modules debug mode changed */
     void modulesDebugChanged();
 
+    /** Emitted when current region changed
+     *  TODO: currently only emited when writeRegion is called, add file system watcher
+     *  to get also changes done outside QGIS or by modules.
+     */
+    void regionChanged();
+
+    /** Emitted when region pen changed */
+    void regionPenChanged();
+
   private:
     static int initialized; // Set to 1 after initialization
     static bool active; // is active mode
+    static QString mGisbase;
     static QStringList mGrassModulesPaths;
     static QString defaultGisdbase;
     static QString defaultLocation;

@@ -550,9 +550,9 @@ QString QgsPostgresUtils::whereClause( QgsFeatureIds featureIds, const QgsFields
 
 QString QgsPostgresUtils::andWhereClauses( const QString& c1, const QString& c2 )
 {
-  if ( c1.isNull() )
+  if ( c1.isEmpty() )
     return c2;
-  if ( c2.isNull() )
+  if ( c2.isEmpty() )
     return c1;
 
   return QString( "(%1) AND (%2)" ).arg( c1 ).arg( c2 );
@@ -706,30 +706,34 @@ bool QgsPostgresProvider::loadFields()
         tableoids.insert( tableoid );
       }
     }
-    QStringList tableoidsList;
-    foreach ( int tableoid, tableoids )
-    {
-      tableoidsList.append( QString::number( tableoid ) );
-    }
 
-    QString tableoidsFilter = "(" + tableoidsList.join( "," ) + ")";
-
-    // Collect formatted field types
-    sql = "SELECT attrelid, attnum, pg_catalog.format_type(atttypid,atttypmod), pg_catalog.col_description(attrelid,attnum), pg_catalog.pg_get_expr(adbin,adrelid)"
-          " FROM pg_attribute"
-          " LEFT OUTER JOIN pg_attrdef ON attrelid=adrelid AND attnum=adnum"
-          " WHERE attrelid IN " + tableoidsFilter;
-    QgsPostgresResult fmtFieldTypeResult = connectionRO()->PQexec( sql );
-    for ( int i = 0; i < fmtFieldTypeResult.PQntuples(); ++i )
+    if ( !tableoids.isEmpty() )
     {
-      int attrelid = fmtFieldTypeResult.PQgetvalue( i, 0 ).toInt();
-      int attnum = fmtFieldTypeResult.PQgetvalue( i, 1 ).toInt();
-      QString formatType = fmtFieldTypeResult.PQgetvalue( i, 2 );
-      QString descr = fmtFieldTypeResult.PQgetvalue( i, 3 );
-      QString defVal = fmtFieldTypeResult.PQgetvalue( i, 4 );
-      fmtFieldTypeMap[attrelid][attnum] = formatType;
-      descrMap[attrelid][attnum] = descr;
-      defValMap[attrelid][attnum] = defVal;
+      QStringList tableoidsList;
+      foreach ( int tableoid, tableoids )
+      {
+        tableoidsList.append( QString::number( tableoid ) );
+      }
+
+      QString tableoidsFilter = "(" + tableoidsList.join( "," ) + ")";
+
+      // Collect formatted field types
+      sql = "SELECT attrelid, attnum, pg_catalog.format_type(atttypid,atttypmod), pg_catalog.col_description(attrelid,attnum), pg_catalog.pg_get_expr(adbin,adrelid)"
+            " FROM pg_attribute"
+            " LEFT OUTER JOIN pg_attrdef ON attrelid=adrelid AND attnum=adnum"
+            " WHERE attrelid IN " + tableoidsFilter;
+      QgsPostgresResult fmtFieldTypeResult = connectionRO()->PQexec( sql );
+      for ( int i = 0; i < fmtFieldTypeResult.PQntuples(); ++i )
+      {
+        int attrelid = fmtFieldTypeResult.PQgetvalue( i, 0 ).toInt();
+        int attnum = fmtFieldTypeResult.PQgetvalue( i, 1 ).toInt();
+        QString formatType = fmtFieldTypeResult.PQgetvalue( i, 2 );
+        QString descr = fmtFieldTypeResult.PQgetvalue( i, 3 );
+        QString defVal = fmtFieldTypeResult.PQgetvalue( i, 4 );
+        fmtFieldTypeMap[attrelid][attnum] = formatType;
+        descrMap[attrelid][attnum] = descr;
+        defValMap[attrelid][attnum] = defVal;
+      }
     }
   }
 
@@ -1091,6 +1095,9 @@ bool QgsPostgresProvider::hasSufficientPermsAndCapabilities()
 
   //supports transactions
   mEnabledCapabilities |= QgsVectorDataProvider::TransactionSupport;
+
+  // supports circular geometries
+  mEnabledCapabilities |= QgsVectorDataProvider::CircularGeometries;
   return true;
 }
 
@@ -1930,6 +1937,9 @@ bool QgsPostgresProvider::addAttributes( const QList<QgsField> &attributes )
 
   if ( mIsQuery )
     return false;
+
+  if ( attributes.count() == 0 )
+      return true;
 
   QgsPostgresConn* conn = connectionRW();
   if ( !conn )

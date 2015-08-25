@@ -50,6 +50,7 @@
 #include "qgsquerybuilder.h"
 #include "qgsdatasourceuri.h"
 #include "qgsrendererv2.h"
+#include "qgsexpressioncontext.h"
 
 #include <QMessageBox>
 #include <QDir>
@@ -154,7 +155,7 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
   // Create the Actions dialog tab
   QVBoxLayout *actionLayout = new QVBoxLayout( actionOptionsFrame );
   actionLayout->setMargin( 0 );
-  const QgsFields &fields = layer->pendingFields();
+  const QgsFields &fields = layer->fields();
   actionDialog = new QgsAttributeActionDialog( layer->actions(), fields, actionOptionsFrame );
   actionDialog->layout()->setMargin( 0 );
   actionLayout->addWidget( actionDialog );
@@ -344,7 +345,12 @@ void QgsVectorLayerProperties::insertExpression()
     selText = selText.mid( 2, selText.size() - 4 );
 
   // display the expression builder
-  QgsExpressionBuilderDialog dlg( layer, selText.replace( QChar::ParagraphSeparator, '\n' ), this );
+  QgsExpressionContext context;
+  context << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope()
+  << QgsExpressionContextUtils::layerScope( layer );
+
+  QgsExpressionBuilderDialog dlg( layer, selText.replace( QChar::ParagraphSeparator, '\n' ), this, "generic", context );
   dlg.setWindowTitle( tr( "Insert expression" ) );
   if ( dlg.exec() == QDialog::Accepted )
   {
@@ -402,7 +408,7 @@ void QgsVectorLayerProperties::syncToLayer( void )
   }
 
   //get field list for display field combo
-  const QgsFields& myFields = layer->pendingFields();
+  const QgsFields& myFields = layer->fields();
   for ( int idx = 0; idx < myFields.count(); ++idx )
   {
     displayFieldComboBox->addItem( myFields[idx].name() );
@@ -453,7 +459,7 @@ void QgsVectorLayerProperties::syncToLayer( void )
   actionDialog->init();
 
   // reset fields in label dialog
-  layer->label()->setFields( layer->pendingFields() );
+  layer->label()->setFields( layer->fields() );
 
   if ( layer->hasGeometryType() )
   {
@@ -499,6 +505,12 @@ void QgsVectorLayerProperties::syncToLayer( void )
       mOptsPage_LabelsOld = 0;
     }
   }
+
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::globalScope() );
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::projectScope() );
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::layerScope( layer ) );
+  mVariableEditor->reloadContext();
+  mVariableEditor->setEditableScopeIndex( 2 );
 
 } // syncToLayer()
 
@@ -609,6 +621,9 @@ void QgsVectorLayerProperties::apply()
     layer->rendererV2()->setForceRasterRender( mForceRasterCheckBox->isChecked() );
 
   mOldJoins = layer->vectorJoins();
+
+  //save variables
+  QgsExpressionContextUtils::setLayerVariables( layer, mVariableEditor->variablesInActiveScope() );
 
   // update symbology
   emit refreshLegend( layer->id() );
@@ -1062,7 +1077,7 @@ void QgsVectorLayerProperties::on_mButtonAddJoin_clicked()
       QgsVectorLayer* joinLayer = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( info.joinLayerId ) );
       if ( joinLayer )
       {
-        joinLayer->dataProvider()->createAttributeIndex( joinLayer->pendingFields().indexFromName( info.joinFieldName ) );
+        joinLayer->dataProvider()->createAttributeIndex( joinLayer->fields().indexFromName( info.joinFieldName ) );
       }
     }
     layer->addJoin( info );
@@ -1122,7 +1137,7 @@ void QgsVectorLayerProperties::on_mButtonEditJoin_clicked()
       QgsVectorLayer* joinLayer = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( info.joinLayerId ) );
       if ( joinLayer )
       {
-        joinLayer->dataProvider()->createAttributeIndex( joinLayer->pendingFields().indexFromName( info.joinFieldName ) );
+        joinLayer->dataProvider()->createAttributeIndex( joinLayer->fields().indexFromName( info.joinFieldName ) );
       }
     }
     layer->addJoin( info );
@@ -1147,18 +1162,18 @@ void QgsVectorLayerProperties::addJoinToTreeWidget( const QgsVectorJoinInfo& joi
   joinItem->setText( 0, joinLayer->name() );
   joinItem->setData( 0, Qt::UserRole, join.joinLayerId );
 
-  if ( join.joinFieldName.isEmpty() && join.joinFieldIndex >= 0 && join.joinFieldIndex < joinLayer->pendingFields().count() )
+  if ( join.joinFieldName.isEmpty() && join.joinFieldIndex >= 0 && join.joinFieldIndex < joinLayer->fields().count() )
   {
-    joinItem->setText( 1, joinLayer->pendingFields().field( join.joinFieldIndex ).name() );   //for compatibility with 1.x
+    joinItem->setText( 1, joinLayer->fields().field( join.joinFieldIndex ).name() );   //for compatibility with 1.x
   }
   else
   {
     joinItem->setText( 1, join.joinFieldName );
   }
 
-  if ( join.targetFieldName.isEmpty() && join.targetFieldIndex >= 0 && join.targetFieldIndex < layer->pendingFields().count() )
+  if ( join.targetFieldName.isEmpty() && join.targetFieldIndex >= 0 && join.targetFieldIndex < layer->fields().count() )
   {
-    joinItem->setText( 2, layer->pendingFields().field( join.targetFieldIndex ).name() );   //for compatibility with 1.x
+    joinItem->setText( 2, layer->fields().field( join.targetFieldIndex ).name() );   //for compatibility with 1.x
   }
   else
   {

@@ -104,13 +104,13 @@ class OracleDBPlugin(DBPlugin):
 
         useEstimatedMetadata = settings.value(
             "estimatedMetadata", False, type=bool)
-        uri.setParam('userTablesOnly', str(
+        uri.setParam('userTablesOnly', unicode(
             settings.value("userTablesOnly", False, type=bool)))
-        uri.setParam('geometryColumnsOnly', str(
+        uri.setParam('geometryColumnsOnly', unicode(
             settings.value("geometryColumnsOnly", False, type=bool)))
-        uri.setParam('allowGeometrylessTables', str(
+        uri.setParam('allowGeometrylessTables', unicode(
             settings.value("allowGeometrylessTables", False, type=bool)))
-        uri.setParam('onlyExistingTypes', str(
+        uri.setParam('onlyExistingTypes', unicode(
             settings.value("onlyExistingTypes", False, type=bool)))
 
         settings.endGroup()
@@ -122,8 +122,8 @@ class OracleDBPlugin(DBPlugin):
         err = u""
         try:
             return self.connectToUri(uri)
-        except ConnectionError, e:
-            err = str(e)
+        except ConnectionError as e:
+            err = unicode(e)
 
         # ask for valid credentials
         max_attempts = 3
@@ -138,10 +138,10 @@ class OracleDBPlugin(DBPlugin):
 
             try:
                 self.connectToUri(uri)
-            except ConnectionError, e:
+            except ConnectionError as e:
                 if i == max_attempts - 1:  # failed the last attempt
                     raise e
-                err = str(e)
+                err = unicode(e)
                 continue
 
             QgsCredentials.instance().put(

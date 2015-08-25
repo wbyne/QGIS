@@ -57,12 +57,12 @@ class aspect(GdalAlgorithm):
         self.addParameter(ParameterBoolean(
             self.COMPUTE_EDGES, self.tr('Compute edges'), False))
         self.addParameter(ParameterBoolean(self.ZEVENBERGEN,
-            self.tr("Use Zevenbergen&Thorne formula (instead of the Horn's one)"),
-            False))
+                                           self.tr("Use Zevenbergen&Thorne formula (instead of the Horn's one)"),
+                                           False))
         self.addParameter(ParameterBoolean(self.TRIG_ANGLE,
-            self.tr('Return trigonometric angle (instead of azimuth)'), False))
+                                           self.tr('Return trigonometric angle (instead of azimuth)'), False))
         self.addParameter(ParameterBoolean(self.ZERO_FLAT,
-            self.tr('Return 0 for flat (instead of -9999)'), False))
+                                           self.tr('Return 0 for flat (instead of -9999)'), False))
 
         self.addOutput(OutputRaster(self.OUTPUT, 'Aspect'))
 
@@ -76,7 +76,7 @@ class aspect(GdalAlgorithm):
         arguments.append(GdalUtils.getFormatShortNameFromFilename(output))
 
         arguments.append('-b')
-        arguments.append(str(self.getParameterValue(self.BAND)))
+        arguments.append(unicode(self.getParameterValue(self.BAND)))
 
         if self.getParameterValue(self.COMPUTE_EDGES):
             arguments.append('-compute_edges')
@@ -92,4 +92,3 @@ class aspect(GdalAlgorithm):
             arguments.append('-zero_for_flat')
 
         return ['gdaldem', GdalUtils.escapeAndJoin(arguments)]
-

@@ -816,7 +816,7 @@ class CORE_EXPORT QgsComposerMap : public QgsComposerItem
     /** @deprecated use QgsComposerMapOverview::overviewExtentChanged instead*/
     void overviewExtentChanged() {}
 
-    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties ) override;
+    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties, const QgsExpressionContext* context = 0 ) override;
 
   protected slots:
 
@@ -921,6 +921,9 @@ class CORE_EXPORT QgsComposerMap : public QgsComposerItem
     /** Returns a list of the layers to render for this map item*/
     QStringList layersToRender() const;
 
+    /** Returns current layer style overrides for this map item*/
+    QMap<QString, QString> layerStyleOverridesToRender() const;
+
     /** Returns extent that considers mOffsetX / mOffsetY (during content move)*/
     QgsRectangle transformedExtent() const;
 
@@ -950,11 +953,13 @@ class CORE_EXPORT QgsComposerMap : public QgsComposerItem
     bool shouldDrawPart( PartType part ) const;
 
     /** Refresh the map's extents, considering data defined extent, scale and rotation
+     * @param context expression context for evaluating data defined map parameters
      * @note this method was added in version 2.5
      */
-    void refreshMapExtents();
+    void refreshMapExtents( const QgsExpressionContext* context = 0 );
 
     friend class QgsComposerMapOverview; //to access mXOffset, mYOffset
+    friend class TestQgsComposerMap;
 };
 Q_NOWARN_DEPRECATED_POP
 

@@ -61,6 +61,19 @@ class QgsAttributeTableDock : public QDockWidget
     }
 };
 
+static QgsExpressionContext _getExpressionContext( const void* context )
+{
+  QgsExpressionContext expContext;
+  expContext << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope();
+
+  const QgsVectorLayer* layer = ( const QgsVectorLayer* ) context;
+  if ( layer )
+    expContext << QgsExpressionContextUtils::layerScope( layer );
+
+  return expContext;
+}
+
 QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWidget *parent, Qt::WindowFlags flags )
     : QDialog( parent, flags )
     , mDock( 0 )
@@ -133,6 +146,7 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   connect( mFilterActionMapper, SIGNAL( mapped( QObject* ) ), SLOT( filterColumnChanged( QObject* ) ) );
   connect( mFilterQuery, SIGNAL( returnPressed() ), SLOT( filterQueryAccepted() ) );
   connect( mActionApplyFilter, SIGNAL( triggered() ), SLOT( filterQueryAccepted() ) );
+  connect( mSetStyles, SIGNAL( pressed() ), SLOT( openConditionalStyles() ) );
 
   // info from layer to table
   connect( mLayer, SIGNAL( editingStarted() ), this, SLOT( editingToggled() ) );
@@ -221,6 +235,8 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
       break;
   }
 
+  mUpdateExpressionText->registerGetExpressionContextCallback( &_getExpressionContext, mLayer );
+
   mFieldModel = new QgsFieldModel();
   mFieldModel->setLayer( mLayer );
   mFieldCombo->setModel( mFieldModel );
@@ -307,7 +323,7 @@ void QgsAttributeTableDialog::columnBoxInit()
   mFilterButton->addAction( mActionFilterColumnsMenu );
   mFilterButton->addAction( mActionAdvancedFilter );
 
-  QList<QgsField> fields = mLayer->pendingFields().toList();
+  QList<QgsField> fields = mLayer->fields().toList();
 
   foreach ( const QgsField field, fields )
   {
@@ -364,7 +380,12 @@ void QgsAttributeTableDialog::runFieldCalculation( QgsVectorLayer* layer, QStrin
 
   int rownum = 1;
 
-  const QgsField &fld = layer->pendingFields()[ fieldindex ];
+  QgsExpressionContext context;
+  context << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope()
+  << QgsExpressionContextUtils::layerScope( layer );
+
+  QgsField fld = layer->fields()[ fieldindex ];
 
   //go through all the features and change the new attributes
   QgsFeatureIterator fit = layer->getFeatures( request );
@@ -376,8 +397,10 @@ void QgsAttributeTableDialog::runFieldCalculation( QgsVectorLayer* layer, QStrin
       continue;
     }
 
-    exp.setCurrentRowNumber( rownum );
-    QVariant value = exp.evaluate( &feature );
+    context.setFeature( feature );
+    context.lastScope()->setVariable( QString( "_rownum_" ), rownum );
+
+    QVariant value = exp.evaluate( &context );
     fld.convertCompatible( value );
     // Bail if we have a update error
     if ( exp.hasEvalError() )
@@ -452,7 +475,12 @@ void QgsAttributeTableDialog::filterColumnChanged( QObject* filterAction )
 void QgsAttributeTableDialog::filterExpressionBuilder()
 {
   // Show expression builder
-  QgsExpressionBuilderDialog dlg( mLayer, mFilterQuery->text(), this );
+  QgsExpressionContext context;
+  context << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope()
+  << QgsExpressionContextUtils::layerScope( mLayer );
+
+  QgsExpressionBuilderDialog dlg( mLayer, mFilterQuery->text(), this, "generic", context );
   dlg.setWindowTitle( tr( "Expression based filter" ) );
 
   QgsDistanceArea myDa;
@@ -729,6 +757,11 @@ void QgsAttributeTableDialog::filterQueryAccepted()
   filterQueryChanged( mFilterQuery->text() );
 }
 
+void QgsAttributeTableDialog::openConditionalStyles()
+{
+  mMainView->openConditionalStyles();
+}
+
 void QgsAttributeTableDialog::setFilterExpression( QString filterString )
 {
   if ( mCurrentSearchWidgetWrapper == 0 || !mCurrentSearchWidgetWrapper->applyDirectly() )
@@ -762,7 +795,12 @@ void QgsAttributeTableDialog::setFilterExpression( QString filterString )
     return;
   }
 
-  if ( ! filterExpression.prepare( mLayer->pendingFields() ) )
+  QgsExpressionContext context;
+  context << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope()
+  << QgsExpressionContextUtils::layerScope( mLayer );
+
+  if ( ! filterExpression.prepare( &context ) )
   {
     QgisApp::instance()->messageBar()->pushMessage( tr( "Evaluation error" ), filterExpression.evalErrorString(), QgsMessageBar::WARNING, QgisApp::instance()->messageTimeout() );
   }
@@ -773,7 +811,7 @@ void QgsAttributeTableDialog::setFilterExpression( QString filterString )
 
   filterExpression.setGeomCalculator( myDa );
   QgsFeatureRequest request( mMainView->masterModel()->request() );
-  request.setSubsetOfAttributes( filterExpression.referencedColumns(), mLayer->pendingFields() );
+  request.setSubsetOfAttributes( filterExpression.referencedColumns(), mLayer->fields() );
   if ( !fetchGeom )
   {
     request.setFlags( QgsFeatureRequest::NoGeometry );
@@ -784,7 +822,8 @@ void QgsAttributeTableDialog::setFilterExpression( QString filterString )
 
   while ( featIt.nextFeature( f ) )
   {
-    if ( filterExpression.evaluate( &f ).toInt() != 0 )
+    context.setFeature( f );
+    if ( filterExpression.evaluate( &context ).toInt() != 0 )
       filteredFeatures << f.id();
 
     // check if there were errors during evaluating

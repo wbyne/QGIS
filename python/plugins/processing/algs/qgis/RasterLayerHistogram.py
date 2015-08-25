@@ -52,13 +52,12 @@ class RasterLayerHistogram(GeoAlgorithm):
         self.group, self.i18n_group = self.trAlgorithm('Graphics')
 
         self.addParameter(ParameterRaster(self.INPUT,
-            self.tr('Input layer')))
+                                          self.tr('Input layer')))
         self.addParameter(ParameterNumber(self.BINS,
-           self.tr('Number of bins'), 2, None, 10))
+                                          self.tr('Number of bins'), 2, None, 10))
 
         self.addOutput(OutputHTML(self.PLOT, self.tr('Histogram')))
         self.addOutput(OutputTable(self.TABLE, self.tr('Table')))
-
 
     def processAlgorithm(self, progress):
         layer = dataobjects.getObjectFromUri(
@@ -82,7 +81,7 @@ class RasterLayerHistogram(GeoAlgorithm):
                   QgsField('NUM_ELEM', QVariant.Double)]
         writer = outputtable.getTableWriter(fields)
         for i in xrange(len(values)):
-            writer.addRecord([str(bins[i]) + '-' + str(bins[i + 1]), n[i]])
+            writer.addRecord([unicode(bins[i]) + '-' + unicode(bins[i + 1]), n[i]])
 
         plotFilename = outputplot + '.png'
         lab.savefig(plotFilename)

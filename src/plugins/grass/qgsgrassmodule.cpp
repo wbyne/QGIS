@@ -63,6 +63,10 @@ QString QgsGrassModule::findExec( QString file )
 #ifdef Q_OS_WIN
     mExecPath = path.split( ";" );
     mExecPath.prepend( QgsGrass::shortPath( QgsApplication::applicationDirPath() ) );
+#elif defined(Q_OS_MACX)
+    mExecPath = path.split( ":" );
+    mExecPath.prepend( QgsApplication::applicationDirPath() + "/bin" );
+    mExecPath.prepend( QgsApplication::applicationDirPath() + "/grass/bin" );
 #else
     mExecPath = path.split( ":" );
     mExecPath.prepend( QgsApplication::applicationDirPath() );
@@ -1030,31 +1034,6 @@ QgsGrassModule::~QgsGrassModule()
 QString QgsGrassModule::translate( QString msg )
 {
   return QString::fromUtf8( G_gettext( "grassmods", msg.trimmed().toUtf8() ) );
-}
-
-QDomNode QgsGrassModule::nodeByKey( QDomElement elem, QString key )
-{
-  QgsDebugMsg( "called with key=" + key );
-  QDomNode n = elem.firstChild();
-
-  while ( !n.isNull() )
-  {
-    QDomElement e = n.toElement();
-
-    if ( !e.isNull() )
-    {
-      if ( e.tagName() == "parameter" || e.tagName() == "flag" )
-      {
-        if ( e.attribute( "name" ) == key )
-        {
-          return n;
-        }
-      }
-    }
-    n = n.nextSibling();
-  }
-
-  return QDomNode();
 }
 
 QString QgsGrassModule::libraryPathVariable()

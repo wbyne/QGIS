@@ -75,6 +75,11 @@ class QgsProject : QObject
     QString fileName() const;
     //@}
 
+    /** Returns QFileInfo object for the project's associated file.
+     * @note added in QGIS 2.9
+     */
+    QFileInfo fileInfo() const;
+
     /** Clear the project
      * @note added in 2.4
      */
@@ -257,6 +262,11 @@ class QgsProject : QObject
      * @note added in 2.4
      */
     QgsLayerTreeRegistryBridge* layerTreeRegistryBridge() const;
+
+    /** Returns pointer to the project's visibility preset collection.
+     * @note added in QGIS 2.12
+     */
+    QgsVisibilityPresetCollection* visibilityPresetCollection();
 
   protected:
 

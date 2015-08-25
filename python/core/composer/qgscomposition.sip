@@ -604,6 +604,44 @@ class QgsComposition : QGraphicsScene
     */
     QgsComposerModel * itemsModel();
 
+    /** Set a custom property for the composition.
+     * @param key property key. If a property with the same key already exists it will be overwritten.
+     * @param value property value
+     * @see customProperty()
+     * @see removeCustomProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+    */
+    void setCustomProperty( const QString &key, const QVariant &value );
+
+    /** Read a custom property from the composition.
+     * @param key property key
+     * @param defaultValue default value to return if property with matching key does not exist
+     * @returns value of matching property
+     * @see setCustomProperty()
+     * @see removeCustomProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+     */
+    QVariant customProperty( const QString &key, const QVariant &defaultValue = QVariant() ) const;
+
+    /** Remove a custom property from the composition.
+     * @param key property key
+     * @see setCustomProperty()
+     * @see customProperty()
+     * @see customProperties()
+     * @note added in QGIS 2.12
+     */
+    void removeCustomProperty( const QString &key );
+
+    /** Return list of keys stored in custom properties for composition.
+     * @see setCustomProperty()
+     * @see customProperty()
+     * @see removeCustomProperty()
+     * @note added in QGIS 2.12
+     */
+    QStringList customProperties() const;
+
   public slots:
     /** Casts object to the proper subclass type and calls corresponding itemAdded signal*/
     void sendItemAddedSignal( QgsComposerItem* item );
@@ -635,9 +673,16 @@ class QgsComposition : QGraphicsScene
      * @param property data defined property to refresh. If property is set to
      * QgsComposerItem::AllProperties then all data defined properties for the composition will be
      * refreshed.
+     * @param context expression context for evaluating data defined expressions
      * @note this method was added in version 2.5
     */
-    void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties );
+    void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties, const QgsExpressionContext* context = 0 );
+
+    /** Creates an expression context relating to the compositions's current state. The context includes
+     * scopes for global, project, composition and atlas properties.
+     * @note added in QGIS 2.12
+     */
+    QgsExpressionContext* createExpressionContext() const;
 
   protected:
     void init();

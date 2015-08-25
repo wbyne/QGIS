@@ -59,16 +59,16 @@ class LengthArea(GeoAlgorithm):
         self.group, self.i18n_group = self.trAlgorithm('Stream Network Analysis tools')
 
         self.addParameter(ParameterRaster(self.LENGTH_GRID,
-            self.tr('Length Grid'), False))
+                                          self.tr('Length Grid'), False))
         self.addParameter(ParameterRaster(self.CONTRIB_AREA_GRID,
-            self.tr('Contributing Area Grid'), False))
+                                          self.tr('Contributing Area Grid'), False))
         self.addParameter(ParameterNumber(self.THRESHOLD,
-            self.tr('Threshold'), 0, None, 0.03))
+                                          self.tr('Threshold'), 0, None, 0.03))
         self.addParameter(ParameterNumber(self.EXPONENT,
-            self.tr('Exponent'), 0, None, 1.3))
+                                          self.tr('Exponent'), 0, None, 1.3))
 
         self.addOutput(OutputRaster(self.STREAM_SOURCE_GRID,
-            self.tr('Stream Source Grid')))
+                                    self.tr('Stream Source Grid')))
 
     def processAlgorithm(self, progress):
         commands = []
@@ -81,15 +81,15 @@ class LengthArea(GeoAlgorithm):
                         'correct number before running TauDEM algorithms.'))
 
         commands.append('-n')
-        commands.append(str(processNum))
+        commands.append(unicode(processNum))
         commands.append(os.path.join(TauDEMUtils.taudemPath(), self.cmdName))
         commands.append('-plen')
         commands.append(self.getParameterValue(self.LENGTH_GRID))
         commands.append('-ad8')
         commands.append(self.getParameterValue(self.CONTRIB_AREA_GRID))
         commands.append('-par')
-        commands.append(str(self.getParameterValue(self.THRESHOLD)))
-        commands.append(str(self.getParameterValue(self.EXPONENT)))
+        commands.append(unicode(self.getParameterValue(self.THRESHOLD)))
+        commands.append(unicode(self.getParameterValue(self.EXPONENT)))
         commands.append('-ss')
         commands.append(self.getOutputValue(self.STREAM_SOURCE_GRID))
 

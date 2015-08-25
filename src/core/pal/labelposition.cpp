@@ -35,6 +35,8 @@
 #include "feature.h"
 #include "geomfunction.h"
 #include "labelposition.h"
+#include "qgsgeos.h"
+#include "qgsmessagelog.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -273,8 +275,16 @@ namespace pal
       lp->createGeosGeom();
 
     GEOSContextHandle_t geosctxt = geosContext();
-    bool result = ( GEOSPreparedIntersects_r( geosctxt, preparedGeom(), lp->mGeos ) == 1 );
-    return result;
+    try
+    {
+      bool result = ( GEOSPreparedIntersects_r( geosctxt, preparedGeom(), lp->mGeos ) == 1 );
+      return result;
+    }
+    catch ( GEOSException &e )
+    {
+      QgsMessageLog::logMessage( QObject::tr( "Exception: %1" ).arg( e.what() ), QObject::tr( "GEOS" ) );
+      return false;
+    }
   }
 
   bool LabelPosition::isInConflictMultiPart( LabelPosition* lp )
@@ -375,6 +385,13 @@ namespace pal
   QString LabelPosition::getLayerName() const
   {
     return feature->layer()->name();
+  }
+
+  void LabelPosition::setConflictsWithObstacle( bool conflicts )
+  {
+    mHasObstacleConflict = conflicts;
+    if ( nextPart )
+      nextPart->setConflictsWithObstacle( conflicts );
   }
 
   bool LabelPosition::costShrink( void *l, void *r )
@@ -500,7 +517,7 @@ namespace pal
     return distance;
   }
 
-  bool LabelPosition::isBorderCrossingLine( PointSet* line ) const
+  bool LabelPosition::crossesLine( PointSet* line ) const
   {
     if ( !mGeos )
       createGeosGeom();
@@ -509,13 +526,51 @@ namespace pal
       line->createGeosGeom();
 
     GEOSContextHandle_t geosctxt = geosContext();
-    if ( GEOSPreparedIntersects_r( geosctxt, preparedGeom(), line->mGeos ) == 1 )
+    try
     {
-      return true;
+      if ( GEOSPreparedIntersects_r( geosctxt, line->preparedGeom(), mGeos ) == 1 )
+      {
+        return true;
+      }
+      else if ( nextPart )
+      {
+        return nextPart->crossesLine( line );
+      }
     }
-    else if ( nextPart )
+    catch ( GEOSException &e )
     {
-      return nextPart->isBorderCrossingLine( line );
+      QgsMessageLog::logMessage( QObject::tr( "Exception: %1" ).arg( e.what() ), QObject::tr( "GEOS" ) );
+      return false;
+    }
+
+    return false;
+  }
+
+  bool LabelPosition::crossesBoundary( PointSet *polygon ) const
+  {
+    if ( !mGeos )
+      createGeosGeom();
+
+    if ( !polygon->mGeos )
+      polygon->createGeosGeom();
+
+    GEOSContextHandle_t geosctxt = geosContext();
+    try
+    {
+      if ( GEOSPreparedOverlaps_r( geosctxt, polygon->preparedGeom(), mGeos ) == 1
+           || GEOSPreparedTouches_r( geosctxt, polygon->preparedGeom(), mGeos ) == 1 )
+      {
+        return true;
+      }
+      else if ( nextPart )
+      {
+        return nextPart->crossesBoundary( polygon );
+      }
+    }
+    catch ( GEOSException &e )
+    {
+      QgsMessageLog::logMessage( QObject::tr( "Exception: %1" ).arg( e.what() ), QObject::tr( "GEOS" ) );
+      return false;
     }
 
     return false;

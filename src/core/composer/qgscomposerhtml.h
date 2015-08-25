@@ -17,11 +17,11 @@
 #define QGSCOMPOSERHTML_H
 
 #include "qgscomposermultiframe.h"
+#include "qgsfeature.h"
 #include <QUrl>
 
 class QWebPage;
 class QImage;
-class QgsFeature;
 class QgsVectorLayer;
 class QgsNetworkContentFetcher;
 class QgsDistanceArea;
@@ -210,16 +210,17 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     /** Reloads the html source from the url and redraws the item.
      * @param useCache set to true to use a cached copy of remote html
      * content
+     * @param context expression context for evaluating data defined urls and expressions in html
      * @see setUrl
      * @see url
      */
-    void loadHtml( const bool useCache = false );
+    void loadHtml( const bool useCache = false, const QgsExpressionContext* context = 0 );
 
     /** Recalculates the frame sizes for the current viewport dimensions*/
     void recalculateFrameSizes() override;
     void refreshExpressionContext();
 
-    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties ) override;
+    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties, const QgsExpressionContext* context = 0 ) override;
 
   private slots:
     void frameLoaded( bool ok = true );
@@ -240,7 +241,7 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     bool mUseSmartBreaks;
     double mMaxBreakDistance;
 
-    QgsFeature* mExpressionFeature;
+    QgsFeature mExpressionFeature;
     QgsVectorLayer* mExpressionLayer;
     QgsDistanceArea* mDistanceArea;
 
@@ -258,7 +259,7 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     QString fetchHtml( QUrl url );
 
     /** Sets the current feature, the current layer and a list of local variable substitutions for evaluating expressions */
-    void setExpressionContext( QgsFeature* feature, QgsVectorLayer* layer );
+    void setExpressionContext( const QgsFeature& feature, QgsVectorLayer* layer );
 
     /** Calculates the max width of frames in the html multiframe*/
     double maxFrameWidth() const;

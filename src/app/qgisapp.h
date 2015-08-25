@@ -42,12 +42,13 @@ class QgisAppStyleSheet;
 class QgsAnnotationItem;
 class QgsClipboard;
 class QgsComposer;
-class QgsComposerView;
 class QgsComposerManager;
+class QgsComposerView;
 class QgsContrastEnhancement;
 class QgsCustomLayerOrderWidget;
-class QgsGeometry;
+class QgsDoubleSpinBox;
 class QgsFeature;
+class QgsGeometry;
 class QgsLayerTreeMapCanvasBridge;
 class QgsLayerTreeView;
 class QgsMapCanvas;
@@ -65,7 +66,8 @@ class QgsUndoWidget;
 class QgsUserInputDockWidget;
 class QgsVectorLayer;
 class QgsVectorLayerTools;
-class QgsDoubleSpinBox;
+class QgsWelcomePage;
+
 
 class QDomDocument;
 class QNetworkReply;
@@ -104,6 +106,7 @@ class QgsTileScaleWidget;
 #include "qgspluginmanager.h"
 #include "qgsmessagebar.h"
 #include "qgsbookmarks.h"
+#include "qgswelcomepageitemsmodel.h"
 
 #include "ui_qgisapp.h"
 
@@ -476,6 +479,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     static LONG WINAPI qgisCrashDump( struct _EXCEPTION_POINTERS *ExceptionInfo );
 #endif
+
+    void parseVersionInfo( QNetworkReply* reply, int& latestVersion, QStringList& versionInfo );
 
   public slots:
     void layerTreeViewDoubleClicked( const QModelIndex& index );
@@ -966,6 +971,10 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void newBookmark();
     //! activates the add feature tool
     void addFeature();
+    //! activates the add circular string tool
+    void circularStringCurvePoint();
+    //! activates the circular string radius tool
+    void circularStringRadius();
     //! activates the move feature tool
     void moveFeature();
     //! activates the offset curve tool
@@ -1036,6 +1045,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! map tool changed
     void mapToolChanged( QgsMapTool *newTool, QgsMapTool *oldTool );
+
+    //! map layers changed
+    void showMapCanvas();
 
     /** Called when some layer's editing mode was toggled on/off */
     void layerEditStateChanged();
@@ -1308,8 +1320,10 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     /** Add this file to the recently opened/saved projects list
      *  pass settings by reference since creating more than one
      * instance simultaneously results in data loss.
+     *
+     * @param savePreviewImage Set to false when the preview image should not be saved. E.g. project load.
      */
-    void saveRecentProjectPath( QString projectPath, QSettings & settings );
+    void saveRecentProjectPath( QString projectPath, bool savePreviewImage = true );
     //! Update project menu with the current list of recently accessed projects
     void updateRecentProjectPaths();
     //! Read Well Known Binary stream from PostGIS
@@ -1471,6 +1485,8 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
         QgsMapTool *mMeasureArea;
         QgsMapTool *mMeasureAngle;
         QgsMapTool *mAddFeature;
+        QgsMapTool *mCircularStringCurvePoint;
+        QgsMapTool *mCircularStringRadius;
         QgsMapTool *mMoveFeature;
         QgsMapTool *mOffsetCurve;
         QgsMapTool *mReshapeFeatures;
@@ -1570,7 +1586,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     QSplashScreen *mSplash;
     //! list of recently opened/saved project files
-    QStringList mRecentProjectPaths;
+    QList<QgsWelcomePageItemsModel::RecentProjectData> mRecentProjects;
     //! Print composers of this project, accessible by id string
     QSet<QgsComposer*> mPrintComposers;
     //! The number of decimal places to use if not automatic
@@ -1672,6 +1688,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     QDateTime mProjectLastModified;
 
+    QgsWelcomePage* mWelcomePage;
+
+    QStackedWidget* mCentralContainer;
 #ifdef HAVE_TOUCH
     bool gestureEvent( QGestureEvent *event );
     void tapAndHoldTriggered( QTapAndHoldGesture *gesture );

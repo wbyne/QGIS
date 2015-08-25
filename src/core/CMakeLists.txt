@@ -79,6 +79,7 @@ SET(QGIS_CORE_SRCS
   qgscontexthelp_texts.cpp
   qgscoordinatereferencesystem.cpp
   qgscoordinatetransform.cpp
+  qgsconditionalstyle.cpp
   qgscredentials.cpp
   qgsdartmeasurement.cpp
   qgscrscache.cpp
@@ -93,6 +94,7 @@ SET(QGIS_CORE_SRCS
   qgsdistancearea.cpp
   qgserror.cpp
   qgsexpression.cpp
+  qgsexpressioncontext.cpp
   qgsexpression_texts.cpp
   qgsexpressionfieldbuffer.cpp
   qgsfeature.cpp
@@ -185,6 +187,7 @@ SET(QGIS_CORE_SRCS
   qgsvectorlayerrenderer.cpp
   qgsvectorlayerundocommand.cpp
   qgsvectorsimplifymethod.cpp
+  qgsvisibilitypresetcollection.cpp
   qgsxmlutils.cpp
   qgsslconnect.cpp
   qgslocalec.cpp
@@ -408,6 +411,7 @@ SET(QGIS_CORE_MOC_HDRS
   qgsvectordataprovider.h
   qgsvectorlayercache.h
   qgsvectorlayerjoinbuffer.h
+  qgsvisibilitypresetcollection.h
   qgsgeometryvalidator.h
   qgswebview.h
 
@@ -514,6 +518,7 @@ SET(QGIS_CORE_HDRS
   qgscolorschemeregistry.h
   qgsconnectionpool.h
   qgscontexthelp.h
+  qgsconditionalstyle.h
   qgscoordinatereferencesystem.h
   qgscrscache.h
   qgscsexception.h
@@ -532,6 +537,7 @@ SET(QGIS_CORE_HDRS
   qgserror.h
   qgsexception.h
   qgsexpression.h
+  qgsexpressioncontext.h
   qgsexpressionfieldbuffer.h
   qgsfeature.h
   qgsfeature_p.h
@@ -602,6 +608,7 @@ SET(QGIS_CORE_HDRS
   qgsvectorlayerrenderer.h
   qgsvectorlayerundocommand.h
   qgsvectorsimplifymethod.h
+  qgsvisibilitypresetcollection.h
   qgsxmlutils.h
   qgswebpage.h
   qgswebframe.h

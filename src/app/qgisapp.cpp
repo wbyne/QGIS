@@ -211,6 +211,9 @@
 #include "qgsmessagelogviewer.h"
 #include "qgsdataitem.h"
 #include "qgsmaplayeractionregistry.h"
+#include "qgswelcomepage.h"
+#include "qgsmaprendererparalleljob.h"
+#include "qgsversioninfo.h"
 
 #include "qgssublayersdialog.h"
 #include "ogr/qgsopenvectorlayerdialog.h"
@@ -250,6 +253,8 @@
 #include "qgsmaptooladdring.h"
 #include "qgsmaptoolfillring.h"
 #include "qgsmaptoolannotation.h"
+#include "qgsmaptoolcircularstringcurvepoint.h"
+#include "qgsmaptoolcircularstringradius.h"
 #include "qgsmaptooldeletering.h"
 #include "qgsmaptooldeletepart.h"
 #include "qgsmaptoolfeatureaction.h"
@@ -285,7 +290,6 @@
 
 // Editor widgets
 #include "qgseditorwidgetregistry.h"
-
 //
 // Conditional Includes
 //
@@ -518,6 +522,8 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     , mpGpsWidget( 0 )
     , mSnappingUtils( 0 )
     , mProjectLastModified()
+    , mWelcomePage( 0 )
+    , mCentralContainer( 0 )
 {
   if ( smInstance )
   {
@@ -950,6 +956,8 @@ QgisApp::QgisApp()
     , mActionFilterLegend( 0 )
     , mSnappingUtils( 0 )
     , mProjectLastModified()
+    , mWelcomePage( 0 )
+    , mCentralContainer( 0 )
 {
   smInstance = this;
   setupUi( this );
@@ -1123,8 +1131,37 @@ void QgisApp::readSettings()
   // 'gis' theme is new /themes/default directory (2013-04-15)
   setTheme( settings.value( "/Themes", "default" ).toString() );
 
-  // Add the recently accessed project file paths to the Project menu
-  mRecentProjectPaths = settings.value( "/UI/recentProjectsList" ).toStringList();
+  // Read legacy settings
+  mRecentProjects.clear();
+
+  QStringList oldRecentProjects = settings.value( "/UI/recentProjectsList" ).toStringList();
+  settings.remove( "/UI/recentProjectsList" );
+
+  Q_FOREACH( const QString& project, oldRecentProjects )
+  {
+    QgsWelcomePageItemsModel::RecentProjectData data;
+    data.path = project;
+    data.title = project;
+
+    mRecentProjects.prepend( data );
+  }
+
+  settings.beginGroup( "/UI/recentProjects" );
+  QStringList projectKeys = settings.childGroups();
+
+
+
+  Q_FOREACH( const QString& key, projectKeys )
+  {
+    QgsWelcomePageItemsModel::RecentProjectData data;
+    settings.beginGroup( key );
+    data.title = settings.value( "title" ).toString();
+    data.path = settings.value( "path" ).toString();
+    data.previewImagePath = settings.value( "previewImage" ).toString();
+    settings.endGroup();
+    mRecentProjects.prepend( data );
+  }
+  settings.endGroup();
 
   // this is a new session! reset enable macros value to "ask"
   // whether set to "just for this session"
@@ -1170,6 +1207,8 @@ void QgisApp::createActions()
   connect( mActionCopyStyle, SIGNAL( triggered() ), this, SLOT( copyStyle() ) );
   connect( mActionPasteStyle, SIGNAL( triggered() ), this, SLOT( pasteStyle() ) );
   connect( mActionAddFeature, SIGNAL( triggered() ), this, SLOT( addFeature() ) );
+  connect( mActionCircularStringCurvePoint, SIGNAL( triggered() ), this, SLOT( circularStringCurvePoint() ) );
+  connect( mActionCircularStringRadius, SIGNAL( triggered() ), this, SLOT( circularStringRadius() ) );
   connect( mActionMoveFeature, SIGNAL( triggered() ), this, SLOT( moveFeature() ) );
   connect( mActionRotateFeature, SIGNAL( triggered() ), this, SLOT( rotateFeature() ) );
 
@@ -1444,6 +1483,8 @@ void QgisApp::createActionGroups()
   mMapToolGroup->addAction( mActionMeasureArea );
   mMapToolGroup->addAction( mActionMeasureAngle );
   mMapToolGroup->addAction( mActionAddFeature );
+  mMapToolGroup->addAction( mActionCircularStringCurvePoint );
+  mMapToolGroup->addAction( mActionCircularStringRadius );
   mMapToolGroup->addAction( mActionMoveFeature );
   mMapToolGroup->addAction( mActionRotateFeature );
 #if defined(GEOS_VERSION_MAJOR) && defined(GEOS_VERSION_MINOR) && \
@@ -2293,6 +2334,10 @@ void QgisApp::createCanvasTools()
   mMapTools.mAnnotation->setAction( mActionAnnotation );
   mMapTools.mAddFeature = new QgsMapToolAddFeature( mMapCanvas );
   mMapTools.mAddFeature->setAction( mActionAddFeature );
+  mMapTools.mCircularStringCurvePoint = new QgsMapToolCircularStringCurvePoint( dynamic_cast<QgsMapToolAddFeature*>( mMapTools.mAddFeature ), mMapCanvas );
+  mMapTools.mCircularStringCurvePoint->setAction( mActionCircularStringCurvePoint );
+  mMapTools.mCircularStringRadius = new QgsMapToolCircularStringRadius( dynamic_cast<QgsMapToolAddFeature*>( mMapTools.mAddFeature ), mMapCanvas );
+  mMapTools.mCircularStringRadius->setAction( mActionCircularStringRadius );
   mMapTools.mMoveFeature = new QgsMapToolMoveFeature( mMapCanvas );
   mMapTools.mMoveFeature->setAction( mActionMoveFeature );
   mMapTools.mRotateFeature = new QgsMapToolRotateFeature( mMapCanvas );
@@ -2673,52 +2718,86 @@ void QgisApp::projectReadDecorationItems()
 // Update project menu with the current list of recently accessed projects
 void QgisApp::updateRecentProjectPaths()
 {
-  // Remove existing paths from the recent projects menu
-  int i;
+  mRecentProjectsMenu->clear();
 
-  int menusize = mRecentProjectsMenu->actions().size();
-
-  for ( i = menusize; i < mRecentProjectPaths.size(); i++ )
+  Q_FOREACH( const QgsWelcomePageItemsModel::RecentProjectData& recentProject, mRecentProjects )
   {
-    mRecentProjectsMenu->addAction( "Dummy text" );
+    QAction* action = mRecentProjectsMenu->addAction( QString( "%1 (%2)" ).arg( recentProject.title ).arg( recentProject.path ) );
+    action->setEnabled( QFile::exists(( recentProject.path ) ) );
+    action->setData( recentProject.path );
   }
 
-  QList<QAction *> menulist = mRecentProjectsMenu->actions();
-
-  assert( menulist.size() == mRecentProjectPaths.size() );
-
-  for ( i = 0; i < mRecentProjectPaths.size(); i++ )
-  {
-    menulist.at( i )->setText( mRecentProjectPaths.at( i ) );
-
-    // Disable this menu item if the file has been removed, if not enable it
-    menulist.at( i )->setEnabled( QFile::exists(( mRecentProjectPaths.at( i ) ) ) );
-
-  }
+  if ( mWelcomePage )
+    mWelcomePage->setRecentProjects( mRecentProjects );
 } // QgisApp::updateRecentProjectPaths
 
 // add this file to the recently opened/saved projects list
-void QgisApp::saveRecentProjectPath( QString projectPath, QSettings & settings )
+void QgisApp::saveRecentProjectPath( QString projectPath, bool savePreviewImage )
 {
+  QSettings settings;
+
   // Get canonical absolute path
   QFileInfo myFileInfo( projectPath );
-  projectPath = myFileInfo.absoluteFilePath();
+  QgsWelcomePageItemsModel::RecentProjectData projectData;
+  projectData.path = myFileInfo.absoluteFilePath();
+  projectData.title = QgsProject::instance()->title();
+  if ( projectData.title.isEmpty() )
+    projectData.title = projectData.path;
 
-  // If this file is already in the list, remove it
-  mRecentProjectPaths.removeAll( projectPath );
-
-  // Prepend this file to the list
-  mRecentProjectPaths.prepend( projectPath );
-
-  // Keep the list to 8 items by trimming excess off the bottom
-  while ( mRecentProjectPaths.count() > 8 )
+  if ( savePreviewImage )
   {
-    mRecentProjectPaths.pop_back();
+    // Generate a unique file name
+    QString fileName( QCryptographicHash::hash(( projectData.path.toUtf8() ), QCryptographicHash::Md5 ).toHex() );
+    QString previewDir = QString( "%1/previewImages" ).arg( QgsApplication::qgisSettingsDirPath() );
+    projectData.previewImagePath = QString( "%1/%2.png" ).arg( previewDir ).arg( fileName );
+    QDir().mkdir( previewDir );
+
+    // Render the map canvas
+    QSize previewSize( 250, 177 ); // h = w / sqrt(2)
+    QRect previewRect( QPoint(( mMapCanvas->width() - previewSize.width() ) / 2
+                              , ( mMapCanvas->height() - previewSize.height() ) / 2 )
+                       , previewSize );
+
+    QPixmap previewImage( previewSize );
+    QPainter previewPainter( &previewImage );
+    mMapCanvas->render( &previewPainter, QRect( QPoint(), previewSize ), previewRect );
+
+    // Save
+    previewImage.save( projectData.previewImagePath );
+  }
+  else
+  {
+    int idx = mRecentProjects.indexOf( projectData );
+    if ( idx != -1 )
+      projectData.previewImagePath = mRecentProjects.at( idx ).previewImagePath;
   }
 
-  // Persist the list
-  settings.setValue( "/UI/recentProjectsList", mRecentProjectPaths );
+  // If this file is already in the list, remove it
+  mRecentProjects.removeAll( projectData );
 
+  // Prepend this file to the list
+  mRecentProjects.prepend( projectData );
+
+  // Keep the list to 8 items by trimming excess off the bottom
+  // And remove the associated image
+  while ( mRecentProjects.count() > 8 )
+  {
+    QFile( mRecentProjects.takeLast().previewImagePath ).remove();
+  }
+
+  settings.remove( "/UI/recentProjects" );
+  int idx = 0;
+
+  // Persist the list
+  Q_FOREACH( const QgsWelcomePageItemsModel::RecentProjectData& recentProject, mRecentProjects )
+  {
+    ++idx;
+    settings.beginGroup( QString( "/UI/recentProjects/%1" ).arg( idx ) );
+    settings.setValue( "title", recentProject.title );
+    settings.setValue( "path", recentProject.path );
+    settings.setValue( "previewImage", recentProject.previewImagePath );
+    settings.endGroup();
+  }
 
   // Update menu list of paths
   updateRecentProjectPaths();
@@ -3756,8 +3835,6 @@ void QgisApp::fileNew( bool thePromptToSaveFlag, bool forceBlank )
     fileNewFromDefaultTemplate();
   }
 
-  QgsVisibilityPresets::instance()->clear();
-
   // set the initial map tool
 #ifndef HAVE_TOUCH
   mMapCanvas->setMapTool( mMapTools.mPan );
@@ -3834,9 +3911,26 @@ void QgisApp::fileOpenAfterLaunch()
 
   // get path of project file to open, or was attempted
   QString projPath = QString();
-  if ( projOpen == 1 && mRecentProjectPaths.size() > 0 ) // most recent project
+  if ( projOpen == 0 ) // welcome page
   {
-    projPath = mRecentProjectPaths.at( 0 );
+    mWelcomePage = new QgsWelcomePage;
+
+    mCentralContainer = new QStackedWidget;
+    mCentralContainer->insertWidget( 0, mMapCanvas );
+    mCentralContainer->insertWidget( 1, mWelcomePage );
+
+    connect( mMapCanvas, SIGNAL( layersChanged() ), this, SLOT( showMapCanvas() ) );
+    connect( this, SIGNAL( newProject() ), this, SLOT( showMapCanvas() ) );
+
+    qobject_cast<QGridLayout *>( centralWidget()->layout() )->addWidget( mCentralContainer, 0, 0, 2, 1 );
+
+    mCentralContainer->setCurrentIndex( 1 );
+
+    return;
+  }
+  if ( projOpen == 1 && mRecentProjects.size() > 0 ) // most recent project
+  {
+    projPath = mRecentProjects.at( 0 ).path;
   }
   if ( projOpen == 2 ) // specific project
   {
@@ -4147,7 +4241,7 @@ bool QgisApp::addProject( QString projectFile )
   // specific plug-in state
 
   // add this to the list of recently used project files
-  saveRecentProjectPath( projectFile, settings );
+  saveRecentProjectPath( projectFile, false );
 
   QApplication::restoreOverrideCursor();
 
@@ -4166,15 +4260,8 @@ bool QgisApp::fileSave()
   // that the project file name is reset to null in fileNew()
   QFileInfo fullPath;
 
-  // we need to remember if this is a new project so that we know to later
-  // update the "last project dir" settings; we know it's a new project if
-  // the current project file name is empty
-  bool isNewProject = false;
-
   if ( QgsProject::instance()->fileName().isNull() )
   {
-    isNewProject = true;
-
     // Retrieve last used project dir from persistent settings
     QSettings settings;
     QString lastUsedDir = settings.value( "/UI/lastProjectDir", "." ).toString();
@@ -4201,6 +4288,7 @@ bool QgisApp::fileSave()
   else
   {
     QFileInfo fi( QgsProject::instance()->fileName() );
+    fullPath = fi.absoluteFilePath();
     if ( fi.exists() && !mProjectLastModified.isNull() && mProjectLastModified != fi.lastModified() )
     {
       if ( QMessageBox::warning( this,
@@ -4228,12 +4316,7 @@ bool QgisApp::fileSave()
     setTitleBarText_( *this ); // update title bar
     statusBar()->showMessage( tr( "Saved project to: %1" ).arg( QgsProject::instance()->fileName() ), 5000 );
 
-    if ( isNewProject )
-    {
-      // add this to the list of recently used project files
-      QSettings settings;
-      saveRecentProjectPath( fullPath.filePath(), settings );
-    }
+    saveRecentProjectPath( fullPath.filePath() );
 
     QFileInfo fi( QgsProject::instance()->fileName() );
     mProjectLastModified = fi.lastModified();
@@ -4285,7 +4368,7 @@ void QgisApp::fileSaveAs()
     setTitleBarText_( *this ); // update title bar
     statusBar()->showMessage( tr( "Saved project to: %1" ).arg( QgsProject::instance()->fileName() ), 5000 );
     // add this to the list of recently used project files
-    saveRecentProjectPath( fullPath.filePath(), settings );
+    saveRecentProjectPath( fullPath.filePath() );
   }
   else
   {
@@ -4352,7 +4435,7 @@ void QgisApp::openProject( QAction *action )
   QString debugme;
   assert( action != NULL );
 
-  debugme = action->text();
+  debugme = action->data().toString();
 
   if ( saveDirty() )
   {
@@ -6159,6 +6242,16 @@ void QgisApp::addFeature()
   mMapCanvas->setMapTool( mMapTools.mAddFeature );
 }
 
+void QgisApp::circularStringCurvePoint()
+{
+  mMapCanvas->setMapTool( mMapTools.mCircularStringCurvePoint );
+}
+
+void QgisApp::circularStringRadius()
+{
+  mMapCanvas->setMapTool( mMapTools.mCircularStringRadius );
+}
+
 void QgisApp::selectFeatures()
 {
   mMapCanvas->setMapTool( mMapTools.mSelectFeatures );
@@ -6275,17 +6368,17 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
   QgsFeatureList features;
   if ( mMapCanvas->mapSettings().hasCrsTransformEnabled() )
   {
-    features = clipboard()->transformedCopyOf( pasteVectorLayer->crs(), pasteVectorLayer->pendingFields() );
+    features = clipboard()->transformedCopyOf( pasteVectorLayer->crs(), pasteVectorLayer->fields() );
   }
   else
   {
-    features = clipboard()->copyOf( pasteVectorLayer->pendingFields() );
+    features = clipboard()->copyOf( pasteVectorLayer->fields() );
   }
   int nTotalFeatures = features.count();
 
   QHash<int, int> remap;
   const QgsFields &fields = clipboard()->fields();
-  QgsAttributeList pkAttrList = pasteVectorLayer->pendingPkAttributesList();
+  QgsAttributeList pkAttrList = pasteVectorLayer->pkAttributeList();
   for ( int idx = 0; idx < fields.count(); ++idx )
   {
     int dst = pasteVectorLayer->fieldNameIndex( fields[idx].name() );
@@ -6295,7 +6388,7 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
     remap.insert( idx, dst );
   }
 
-  int dstAttrCount = pasteVectorLayer->pendingFields().count();
+  int dstAttrCount = pasteVectorLayer->fields().count();
 
   QgsFeatureList::iterator featureIt = features.begin();
   while ( featureIt != features.end() )
@@ -7680,102 +7773,51 @@ void QgisApp::loadPythonSupport()
 
 void QgisApp::checkQgisVersion()
 {
+  QgsVersionInfo* versionInfo = new QgsVersionInfo();
   QApplication::setOverrideCursor( Qt::WaitCursor );
 
-  QNetworkReply *reply = QgsNetworkAccessManager::instance()->get( QNetworkRequest( QUrl( "http://qgis.org/version.txt" ) ) );
-  connect( reply, SIGNAL( finished() ), this, SLOT( versionReplyFinished() ) );
+  connect( versionInfo, SIGNAL( versionInfoAvailable() ), this, SLOT( versionReplyFinished() ) );
+  versionInfo->checkVersion();
 }
 
 void QgisApp::versionReplyFinished()
 {
   QApplication::restoreOverrideCursor();
 
-  QNetworkReply *reply = qobject_cast<QNetworkReply*>( sender() );
-  if ( !reply )
-    return;
+  QgsVersionInfo* versionInfo = qobject_cast<QgsVersionInfo*>( sender() );
+  Q_ASSERT( versionInfo );
 
-  QNetworkReply::NetworkError error = reply->error();
-
-  if ( error == QNetworkReply::NoError )
+  if ( versionInfo->error() == QNetworkReply::NoError )
   {
-    QString versionMessage = reply->readAll();
-    QgsDebugMsg( QString( "version message: %1" ).arg( versionMessage ) );
+    QString info;
 
-    // strip the header
-    QString contentFlag = "#QGIS Version";
-    int pos = versionMessage.indexOf( contentFlag );
-    if ( pos > -1 )
+    if ( versionInfo->newVersionAvailable() )
     {
-      pos += contentFlag.length();
-      QgsDebugMsg( QString( "Pos is %1" ).arg( pos ) );
-
-      versionMessage = versionMessage.mid( pos );
-      QStringList parts = versionMessage.split( "|", QString::SkipEmptyParts );
-      // check the version from the  server against our version
-      QString versionInfo;
-      int currentVersion = parts[0].toInt();
-      if ( currentVersion > QGis::QGIS_VERSION_INT )
-      {
-        // show version message from server
-        versionInfo = tr( "There is a new version of QGIS available" ) + "\n";
-      }
-      else if ( QGis::QGIS_VERSION_INT > currentVersion )
-      {
-        versionInfo = tr( "You are running a development version of QGIS" ) + "\n";
-      }
-      else
-      {
-        versionInfo = tr( "You are running the current version of QGIS" ) + "\n";
-      }
-
-      if ( parts.count() > 1 )
-      {
-        versionInfo += parts[1] + "\n\n" + tr( "Would you like more information?" );
-
-        QMessageBox::StandardButton result = QMessageBox::information( this,
-                                             tr( "QGIS Version Information" ), versionInfo, QMessageBox::Ok |
-                                             QMessageBox::Cancel );
-        if ( result == QMessageBox::Ok )
-        {
-          // show more info
-          QgsMessageViewer *mv = new QgsMessageViewer( this );
-          mv->setWindowTitle( tr( "QGIS - Changes since last release" ) );
-          mv->setMessageAsHtml( parts[2] );
-          mv->exec();
-        }
-      }
-      else
-      {
-        QMessageBox::information( this, tr( "QGIS Version Information" ), versionInfo );
-      }
+      info = tr( "There is a new version of QGIS available" );
+    }
+    else if ( versionInfo->isDevelopmentVersion() )
+    {
+      info = tr( "You are running a development version of QGIS" );
     }
     else
     {
-      QMessageBox::warning( this, tr( "QGIS Version Information" ), tr( "Unable to get current version information from server" ) );
+      info = tr( "You are running the current version of QGIS" );
     }
+
+    info = QString( "<b>%1</b>" ).arg( info );
+
+    info += "<br>" + versionInfo->downloadInfo();
+
+    QMessageBox mb( QMessageBox::Information, tr( "QGIS Version Information" ), info );
+    mb.setInformativeText( versionInfo->html() );
+    mb.exec();
   }
   else
   {
-    // get error type
-    QString detail;
-    switch ( error )
-    {
-      case QNetworkReply::ConnectionRefusedError:
-        detail = tr( "Connection refused - server may be down" );
-        break;
-      case QNetworkReply::HostNotFoundError:
-        detail = tr( "QGIS server was not found" );
-        break;
-      default:
-        detail = tr( "Unknown network socket error: %1" ).arg( error );
-        break;
-    }
-
-    // show version message from server
-    QMessageBox::critical( this, tr( "QGIS Version Information" ), tr( "Unable to communicate with QGIS Version server\n%1" ).arg( detail ) );
+    QMessageBox mb( QMessageBox::Warning, tr( "QGIS Version Information" ), tr( "Unable to get current version information from server" ) );
+    mb.setDetailedText( versionInfo->errorString() );
+    mb.exec();
   }
-
-  reply->deleteLater();
 }
 
 void QgisApp::configureShortcuts()
@@ -8982,6 +9024,13 @@ void QgisApp::mapToolChanged( QgsMapTool *newTool, QgsMapTool *oldTool )
   }
 }
 
+void QgisApp::showMapCanvas()
+{
+  // Map layers changed -> switch to map canvas
+  if ( mCentralContainer )
+    mCentralContainer->setCurrentIndex( 0 );
+}
+
 void QgisApp::extentsViewToggled( bool theFlag )
 {
   if ( theFlag )
@@ -9342,6 +9391,8 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer* layer )
     mActionAddToOverview->setEnabled( false );
     mActionFeatureAction->setEnabled( false );
     mActionAddFeature->setEnabled( false );
+    mActionCircularStringCurvePoint->setEnabled( false );
+    mActionCircularStringRadius->setEnabled( false );
     mActionMoveFeature->setEnabled( false );
     mActionRotateFeature->setEnabled( false );
     mActionOffsetCurve->setEnabled( false );
@@ -9461,6 +9512,8 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer* layer )
       mActionPasteFeatures->setEnabled( isEditable && canAddFeatures && !clipboard()->empty() );
 
       mActionAddFeature->setEnabled( isEditable && canAddFeatures );
+      mActionCircularStringCurvePoint->setEnabled( isEditable && ( canAddFeatures || canChangeGeometry ) );
+      mActionCircularStringRadius->setEnabled( isEditable && ( canAddFeatures || canChangeGeometry ) );
 
       //does provider allow deleting of features?
       mActionDeleteSelected->setEnabled( isEditable && canDeleteFeatures && layerHasSelection );

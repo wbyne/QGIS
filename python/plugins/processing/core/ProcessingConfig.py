@@ -57,7 +57,7 @@ class ProcessingConfig:
     def initialize():
         icon = QIcon(os.path.dirname(__file__) + '/../images/alg.png')
         ProcessingConfig.settingIcons['General'] = icon
-        ProcessingConfig.addSetting( Setting(
+        ProcessingConfig.addSetting(Setting(
             ProcessingConfig.tr('General'),
             ProcessingConfig.SHOW_DEBUG_IN_DIALOG,
             ProcessingConfig.tr('Show extra info in Log panel'), True))
@@ -134,7 +134,7 @@ class ProcessingConfig:
         if group in ProcessingConfig.settingIcons:
             return ProcessingConfig.settingIcons[group]
         else:
-            return QIcon( os.path.dirname(__file__) + '/../images/alg.png')
+            return QIcon(os.path.dirname(__file__) + '/../images/alg.png')
 
     @staticmethod
     def addSetting(setting):
@@ -157,12 +157,10 @@ class ProcessingConfig:
             group.append(setting)
         return settings
 
-
     @staticmethod
     def readSettings():
         for setting in ProcessingConfig.settings.values():
             setting.read()
-
 
     @staticmethod
     def getSetting(name):
@@ -188,6 +186,7 @@ class ProcessingConfig:
 
 
 class Setting:
+
     """A simple config parameter that will appear on the config dialog.
     """
     STRING = 0
@@ -209,11 +208,11 @@ class Setting:
         value = qsettings.value(self.qname, None)
         if value is not None:
             if isinstance(self.value, bool):
-                value = str(value).lower() == str(True).lower()
+                value = unicode(value).lower() == unicode(True).lower()
             self.value = value
 
     def save(self):
         QSettings().setValue(self.qname, self.value)
 
     def __str__(self):
-        return self.name + '=' + str(self.value)
+        return self.name + '=' + unicode(self.value)
