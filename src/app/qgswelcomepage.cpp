@@ -26,7 +26,7 @@
 #include <QDesktopServices>
 
 QgsWelcomePage::QgsWelcomePage( QWidget* parent )
-    : QWidget( parent )
+    : QTabWidget( parent )
 {
   QVBoxLayout* mainLayout = new QVBoxLayout;
   mainLayout->setMargin( 0 );
@@ -62,7 +62,7 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
 
   recentProjctsContainer->layout()->addWidget( recentProjectsListView );
 
-  layout->addWidget( recentProjctsContainer );
+  addTab( recentProjctsContainer, "Recent Projects" );
 
   QWidget* whatsNewContainer = new QWidget;
   whatsNewContainer->setLayout( new QVBoxLayout );
@@ -73,14 +73,14 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
   whatsNewPage->setUrl( QUrl::fromLocalFile( QgsApplication::whatsNewFilePath() ) );
   whatsNewPage->page()->setLinkDelegationPolicy( QWebPage::DelegateAllLinks );
   whatsNewPage->setContextMenuPolicy( Qt::NoContextMenu );
-  whatsNewPage->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Expanding );
+  whatsNewPage->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding );
   whatsNewPage->setStyleSheet( "background:transparent" );
   whatsNewPage->setAttribute( Qt::WA_TranslucentBackground );
 
   whatsNewContainer->layout()->addWidget( whatsNewPage );
-  whatsNewContainer->setMaximumWidth( 250 );
-  whatsNewContainer->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Preferred );
-  layout->addWidget( whatsNewContainer );
+//  whatsNewContainer->setMaximumWidth( 250 );
+//  whatsNewContainer->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Preferred );
+  addTab( whatsNewContainer, "News" );
 
   connect( whatsNewPage, SIGNAL( linkClicked( QUrl ) ), this, SLOT( whatsNewLinkClicked( QUrl ) ) );
 
@@ -88,11 +88,16 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
   mainLayout->addWidget( mVersionInformation );
   mVersionInformation->setVisible( false );
 
-  QgsVersionInfo* versionInfo = new QgsVersionInfo();
-  connect( versionInfo, SIGNAL( versionInfoAvailable() ), this, SLOT( versionInfoReceived() ) );
-  versionInfo->checkVersion();
+  mVersionInfo = new QgsVersionInfo();
+  connect( mVersionInfo, SIGNAL( versionInfoAvailable() ), this, SLOT( versionInfoReceived() ) );
+  mVersionInfo->checkVersion();
 
   connect( recentProjectsListView, SIGNAL( activated( QModelIndex ) ), this, SLOT( itemActivated( QModelIndex ) ) );
+}
+
+QgsWelcomePage::~QgsWelcomePage()
+{
+  delete mVersionInfo;
 }
 
 void QgsWelcomePage::setRecentProjects( const QList<QgsWelcomePageItemsModel::RecentProjectData>& recentProjects )

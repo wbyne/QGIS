@@ -288,13 +288,15 @@ void TestQgsRasterLayer::colorRamp1()
 
   // QVERIFY( testColorRamp( "raster_colorRamp1", colorRamp, QgsColorRampShader::INTERPOLATED, 5 ) );
   QVERIFY( testColorRamp( "raster_colorRamp1", colorRamp, QgsColorRampShader::DISCRETE, 10 ) );
+  delete colorRamp;
 }
 
 void TestQgsRasterLayer::colorRamp2()
 {
+  QgsVectorColorBrewerColorRampV2 ramp( "BrBG", 10 );
   // ColorBrewer ramp
   QVERIFY( testColorRamp( "raster_colorRamp2",
-                          new QgsVectorColorBrewerColorRampV2( "BrBG", 10 ),
+                          &ramp,
                           QgsColorRampShader::DISCRETE, 10 ) );
 }
 
@@ -302,16 +304,19 @@ void TestQgsRasterLayer::colorRamp3()
 {
   // cpt-city ramp, discrete
   QgsCptCityArchive::initArchives();
+  QgsCptCityColorRampV2 ramp( "cb/div/BrBG", "_10" );
   QVERIFY( testColorRamp( "raster_colorRamp3",
-                          new QgsCptCityColorRampV2( "cb/div/BrBG", "_10" ),
+                          &ramp,
                           QgsColorRampShader::DISCRETE, 10 ) );
+  QgsCptCityArchive::clearArchives();
 }
 
 void TestQgsRasterLayer::colorRamp4()
 {
   // cpt-city ramp, continuous
+  QgsCptCityColorRampV2 ramp( "grass/elevation", "" );
   QVERIFY( testColorRamp( "raster_colorRamp4",
-                          new QgsCptCityColorRampV2( "grass/elevation", "" ),
+                          &ramp,
                           QgsColorRampShader::DISCRETE, 10 ) );
 }
 
