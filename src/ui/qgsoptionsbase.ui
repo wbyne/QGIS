@@ -4658,12 +4658,12 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="page">
+         <widget class="QWidget" name="mOptionsPageVariables">
           <layout class="QVBoxLayout" name="verticalLayout_40">
            <item>
             <widget class="QGroupBox" name="groupBox_25">
              <property name="title">
-              <string>Variables</string>
+              <string>Expression Variables</string>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_41">
               <item>

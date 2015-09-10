@@ -76,17 +76,18 @@ class CORE_EXPORT QgsApplication : public QApplication
      */
     static QString themeName();
 
+    /**
+     * @brief Set the current UI theme used to style the interface.  Use uiThemes() to
+     * find valid themes to use. Variabels found in variables.qss will be added to the stylesheet
+     * on load.
+     * @param themeName The name of the theme.
+     * @note using an invalid theme name will reset to default
+     */
     static void setUITheme( const QString &themeName );
 
     /**
-     * @brief Return the active UI theme set in the settings.
-     * @return The name of the current UI theme.
-     */
-    static QString uiThemeName();
-
-    /**
-     * @brief All themes found in the application resources folder
-     * and ~/.qgis2/themes folder. The path is to the root folder for the theme
+     * @brief All themes found in ~/.qgis2/themes folder.
+     * The path is to the root folder for the theme
      * @note Valid theme folders must contain a style.qss file.
      * @return A hash of theme name and theme path. Valid theme folders contain style.qss
      */
@@ -186,8 +187,14 @@ class CORE_EXPORT QgsApplication : public QApplication
     //! Returns the path to user's style.
     static QString userStyleV2Path();
 
+    //! Returns the path to user's themes folder
+    static QString userThemesFolder();
+
     //! Returns the path to default style (works as a starting point).
     static QString defaultStyleV2Path();
+
+    //! Returns the path to default themes folder from install (works as a starting point).
+    static QString defaultThemesFolder();
 
     //! Returns the path containing qgis_core, qgis_gui, qgispython (and other) libraries
     static QString libraryPath();
@@ -212,6 +219,9 @@ class CORE_EXPORT QgsApplication : public QApplication
 
     //! initialise qgis.db
     static bool createDB( QString* errorMessage = 0 );
+
+    //! Create the users theme folder
+    static bool createThemeFolder( );
 
     //! deletes provider registry and map layer registry
     static void exitQgis();
@@ -320,6 +330,7 @@ class CORE_EXPORT QgsApplication : public QApplication
     void preNotify( QObject * receiver, QEvent * event, bool * done );
 
   private:
+    static void copyPath( QString src, QString dst );
     static QObject* ABISYM( mFileOpenEventReceiver );
     static QStringList ABISYM( mFileOpenEventList );
 

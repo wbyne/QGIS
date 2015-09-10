@@ -810,9 +810,9 @@ APP_EXPORT int main( int argc, char *argv[] )
   if ( mySettings.contains( "/Themes" ) )
   {
     QString theme = mySettings.value( "/Themes", "default" ).toString();
-    if ( theme == QString( "gis" )
-         || theme == QString( "classic" )
-         || theme == QString( "nkids" ) )
+    if ( theme == "gis"
+         || theme == "classic"
+         || theme == "nkids" )
     {
       mySettings.setValue( "/Themes", QString( "default" ) );
     }
@@ -827,7 +827,7 @@ APP_EXPORT int main( int argc, char *argv[] )
     QStringList customVarsList = mySettings.value( "qgis/customEnvVars", "" ).toStringList();
     if ( !customVarsList.isEmpty() )
     {
-      foreach ( const QString &varStr, customVarsList )
+      Q_FOREACH ( const QString &varStr, customVarsList )
       {
         int pos = varStr.indexOf( QLatin1Char( '|' ) );
         if ( pos == -1 )
@@ -881,7 +881,10 @@ APP_EXPORT int main( int argc, char *argv[] )
   // as it looks really ugly so we use QPlastiqueStyle.
   QString style = mySettings.value( "/qgis/style" ).toString();
   if ( !style.isNull() )
+  {
     QApplication::setStyle( style );
+    mySettings.setValue( "/qgis/style", QApplication::style()->objectName() );
+  }
 #ifdef Q_OS_WIN
 #if QT_VERSION < 0x050000
   else
@@ -889,7 +892,6 @@ APP_EXPORT int main( int argc, char *argv[] )
 #endif
 #endif
 
-  QgsApplication::setUITheme( QgsApplication::uiThemeName() );
   /* Translation file for QGIS.
    */
   QString i18nPath = QgsApplication::i18nPath();
@@ -1139,7 +1141,7 @@ APP_EXPORT int main( int argc, char *argv[] )
     QList< QPair<QgsVectorLayer *, int > > layers;
     if ( !dxfPreset.isEmpty() )
     {
-      foreach ( QString layer, QgsProject::instance()->visibilityPresetCollection()->presetVisibleLayers( dxfPreset ) )
+      Q_FOREACH ( const QString& layer, QgsProject::instance()->visibilityPresetCollection()->presetVisibleLayers( dxfPreset ) )
       {
         QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( QgsMapLayerRegistry::instance()->mapLayer( layer ) );
         if ( !vl )
@@ -1150,7 +1152,7 @@ APP_EXPORT int main( int argc, char *argv[] )
     }
     else
     {
-      foreach ( QgsMapLayer *ml, QgsMapLayerRegistry::instance()->mapLayers().values() )
+      Q_FOREACH ( QgsMapLayer *ml, QgsMapLayerRegistry::instance()->mapLayers().values() )
       {
         QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( ml );
         if ( !vl )
@@ -1168,7 +1170,7 @@ APP_EXPORT int main( int argc, char *argv[] )
     QFile dxfFile;
     if ( dxfOutputFile == "-" )
     {
-      if ( !dxfFile.open( STDOUT_FILENO, QIODevice::WriteOnly ) )
+      if ( !dxfFile.open( stdout, QIODevice::WriteOnly ) )
       {
         std::cerr << "could not open stdout" << std::endl;
         return 2;

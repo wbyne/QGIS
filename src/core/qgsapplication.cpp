@@ -114,7 +114,7 @@ void QgsApplication::init( QString customConfigPath )
   // check if QGIS is run from build directory (not the install directory)
   QFile f;
   // "/../../.." is for Mac bundled app in build directory
-  foreach ( const QString& path, QStringList() << "" << "/.." << "/bin" << "/../../.." )
+  Q_FOREACH ( const QString& path, QStringList() << "" << "/.." << "/bin" << "/../../.." )
   {
     f.setFileName( prefixPath + path + "/qgisbuildpath.txt" );
     if ( f.exists() )
@@ -186,7 +186,7 @@ void QgsApplication::init( QString customConfigPath )
 
   // store system environment variables passed to application, before they are adjusted
   QMap<QString, QString> systemEnvVarMap;
-  foreach ( const QString &varStr, QProcess::systemEnvironment() )
+  Q_FOREACH ( const QString &varStr, QProcess::systemEnvironment() )
   {
     int pos = varStr.indexOf( QLatin1Char( '=' ) );
     if ( pos == -1 )
@@ -356,7 +356,7 @@ QString QgsApplication::defaultThemePath()
 }
 QString QgsApplication::activeThemePath()
 {
-  return ":/images/themes/" + themeName() + "/";
+  return userThemesFolder() + QDir::separator() + themeName() + QDir::separator() + "icons/";
 }
 
 
@@ -413,16 +413,7 @@ QPixmap QgsApplication::getThemePixmap( const QString &theName )
 */
 void QgsApplication::setThemeName( const QString &theThemeName )
 {
-  QString myPath = ":/images/themes/" + theThemeName + "/";
-  //check it exists and if not roll back to default theme
-  if ( QFile::exists( myPath ) )
-  {
-    ABISYM( mThemeName ) = theThemeName;
-  }
-  else
-  {
-    ABISYM( mThemeName ) = "default";
-  }
+  ABISYM( mThemeName ) = theThemeName;
 }
 /*!
  * Get the active theme name
@@ -436,26 +427,66 @@ void QgsApplication::setUITheme( const QString &themeName )
 {
   // Loop all style sheets, find matching name, load it.
   QHash<QString, QString> themes = QgsApplication::uiThemes();
-  QString path = themes[themeName];
+  QString themename = themeName;
+  if ( !themes.contains( themename ) )
+    themename = "default";
+
+  QString path = themes[themename];
+  QString stylesheetname = path + "/style.qss";
+  QString autostylesheet = stylesheetname + ".auto";
+
+  QFile file( stylesheetname );
+  QFile variablesfile( path + "/variables.qss" );
+  QFile fileout( autostylesheet );
+
+  QFileInfo variableInfo( variablesfile );
+
+  if ( variableInfo.exists() && variablesfile.open( QIODevice::ReadOnly ) )
+  {
+    if ( !file.open( QIODevice::ReadOnly ) || !fileout.open( QIODevice::WriteOnly | QIODevice::Text ) )
+    {
+      return;
+    }
+
+    QHash<QString, QString> variables;
+    QString styledata = file.readAll();
+    QTextStream in( &variablesfile );
+    while ( !in.atEnd() )
+    {
+      QString line = in.readLine();
+      // This is is a variable
+      if ( line.startsWith( "@" ) )
+      {
+        int index = line.indexOf( ":" );
+        QString name = line.mid( 0, index );
+        QString value = line.mid( index + 1, line.length() );
+        styledata.replace( name, value );
+      }
+    }
+    variablesfile.close();
+    QTextStream out( &fileout );
+    out << styledata;
+    fileout.close();
+    file.close();
+    stylesheetname = autostylesheet;
+  }
+
   QString styleSheet = QLatin1String( "file:///" );
-  styleSheet.append( path + "/style.qss" );
+  styleSheet.append( stylesheetname );
   qApp->setStyleSheet( styleSheet );
-  QSettings settings;
-  return settings.setValue( "UI/UITheme", themeName );
+  setThemeName( themename );
 }
 
 QHash<QString, QString> QgsApplication::uiThemes()
 {
-  QString themepath = ABISYM( mPkgDataPath ) + QString( "/resources/themes" );
-  QString userthemes = qgisSettingsDirPath() + QString( "/themes" );
-  QStringList paths = QStringList() << themepath << userthemes;
+  QStringList paths = QStringList() << userThemesFolder();
   QHash<QString, QString> mapping;
   mapping.insert( "default", "" );
-  foreach ( const QString& path, paths )
+  Q_FOREACH ( const QString& path, paths )
   {
     QDir folder( path );
     QFileInfoList styleFiles = folder.entryInfoList( QDir::Dirs | QDir::NoDotAndDotDot );
-    foreach ( const QFileInfo& info, styleFiles )
+    Q_FOREACH ( const QFileInfo& info, styleFiles )
     {
       QFileInfo styleFile( info.absoluteFilePath() + "/style.qss" );
       if ( !styleFile.exists() )
@@ -467,12 +498,6 @@ QHash<QString, QString> QgsApplication::uiThemes()
     }
   }
   return mapping;
-}
-
-QString QgsApplication::uiThemeName()
-{
-  QSettings settings;
-  return settings.value( "UI/UITheme", "default" ).toString();
 }
 
 /*!
@@ -643,9 +668,19 @@ QString QgsApplication::userStyleV2Path()
   return qgisSettingsDirPath() + QString( "symbology-ng-style.db" );
 }
 
+QString QgsApplication::userThemesFolder()
+{
+  return qgisSettingsDirPath() + QString( "/themes" );
+}
+
 QString QgsApplication::defaultStyleV2Path()
 {
   return ABISYM( mPkgDataPath ) + QString( "/resources/symbology-ng-style.db" );
+}
+
+QString QgsApplication::defaultThemesFolder()
+{
+  return ABISYM( mPkgDataPath ) + QString( "/resources/themes" );
 }
 
 QString QgsApplication::libraryPath()
@@ -969,6 +1004,38 @@ void QgsApplication::applyGdalSkippedDrivers()
   QgsDebugMsg( myDriverList );
   CPLSetConfigOption( "GDAL_SKIP", myDriverList.toUtf8() );
   GDALAllRegister(); //to update driver list and skip missing ones
+}
+
+bool QgsApplication::createThemeFolder()
+{
+  QString folder = userThemesFolder();
+  QDir myDir( folder );
+  if ( !myDir.exists() )
+  {
+    myDir.mkpath( folder );
+  }
+
+  copyPath( defaultThemesFolder(), userThemesFolder() );
+  return true;
+}
+
+void QgsApplication::copyPath( QString src, QString dst )
+{
+  QDir dir( src );
+  if ( ! dir.exists() )
+    return;
+
+  Q_FOREACH ( const QString& d, dir.entryList( QDir::Dirs | QDir::NoDotAndDotDot ) )
+  {
+    QString dst_path = dst + QDir::separator() + d;
+    dir.mkpath( dst_path );
+    copyPath( src + QDir::separator() + d, dst_path );
+  }
+
+  Q_FOREACH ( const QString& f, dir.entryList( QDir::Files ) )
+  {
+    QFile::copy( src + QDir::separator() + f, dst + QDir::separator() + f );
+  }
 }
 
 bool QgsApplication::createDB( QString *errorMessage )

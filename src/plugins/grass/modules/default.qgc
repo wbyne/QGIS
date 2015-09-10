@@ -25,7 +25,7 @@
     <section label="File management">
         <section label="Import into GRASS">
             <section label="Import raster into GRASS">
-                                <section label="Import raster into GRASS from QGIS view">
+                <section label="Import raster into GRASS from QGIS view">
                     <grass name="r.in.gdal.qgis"/>
                     <grass name="r.in.gdal.qgis.loc"/>
                 </section>
@@ -51,20 +51,20 @@
                 </section>
             </section>
             <section label="Import vector into GRASS">
-                                    <grass name="v.in.ogr.qgis"/>
-                    <grass name="v.in.ogr"/>
-                    <grass name="v.in.ogr.loc"/>
-                    <grass name="v.in.ogr.all"/>
-                    <grass name="v.in.ogr.all.loc"/>
-                    <grass name="v.in.dxf"/>
-                    <grass name="v.in.e00"/>
-                    <grass name="v.in.ascii"/>
-                    <grass name="v.in.mapgen"/>
-                    <grass name="v.in.db"/>
-                    <grass name="v.in.garmin" version_max="6.4"/>
-                    <grass name="v.in.gpsbabel" version_max="6.4"/>
-                    <grass name="v.in.geonames" version_min="6.4"/>
-                    <grass name="v.in.gns" version_max="6.4"/>
+                <grass name="v.in.ogr.qgis"/>
+                <grass name="v.in.ogr"/>
+                <grass name="v.in.ogr.loc"/>
+                <grass name="v.in.ogr.all"/>
+                <grass name="v.in.ogr.all.loc"/>
+                <grass name="v.in.dxf"/>
+                <grass name="v.in.e00"/>
+                <grass name="v.in.ascii"/>
+                <grass name="v.in.mapgen"/>
+                <grass name="v.in.db"/>
+                <grass name="v.in.garmin" version_max="6.4"/>
+                <grass name="v.in.gpsbabel" version_max="6.4"/>
+                <grass name="v.in.geonames" version_min="6.4"/>
+                <grass name="v.in.gns" version_max="6.4"/>
             </section>
             <section label="Import from database into GRASS">
                 <grass name="db.in.ogr"/>
@@ -185,21 +185,21 @@
             </section>
             <section label="Map algebra">
                 <grass name="r.mapcalc"/>
-                <grass name="r.mapcalculator"version_max="6.4"/>
+                <grass name="r.mapcalculator" version_max="6.4"/>
             </section>
             <section label="Neighborhood analysis">
                 <grass name="r.neighbors"/>
                 <grass name="v.neighbors"/>
             </section>
             <section label="Overlay maps">
-                                <grass name="r.cross"/>
-                                <grass name="r.series"/>
-                                <grass name="r.patch"/>
+                <grass name="r.cross"/>
+                <grass name="r.series"/>
+                <grass name="r.patch"/>
                 <grass name="r.statistics"/>
             </section>
             <section label="Solar and irradiation model">
-                                <grass name="r.sunmask.position"/>
-                                <grass name="r.sunmask.date.time"/>
+                <grass name="r.sunmask.position"/>
+                <grass name="r.sunmask.date.time"/>
             </section>
             <section label="Terrain analysis">
                 <grass name="r.cost.coord"/>
@@ -268,23 +268,24 @@
                 <grass name="v.surf.bspline"/>
                 <grass name="v.surf.idw"/>
                 <grass name="v.surf.rst"/>
-                                <grass name="r.bilinear" version_min="6.4"/>
-                                <grass name="r.surf.idw"/>
-                                <grass name="r.surf.idw2"/>
+                <grass name="r.bilinear" version_max="6.4"/>
+                <grass name="r.surf.idw"/>
+                <grass name="r.surf.idw2" version_max="6.4"/>
                 <grass name="r.fillnulls"/>
-                                <grass name="r.surf.contour"/>
+                <grass name="r.surf.contour"/>
             </section>
         </section>
         <section label="Reports and statistics">
             <section label="Reports">
+				<grass name="r.info"/>
                 <grass name="r.category"/>
             </section>
             <section label="Statistics">
-                                <grass name="r.stats"/>
-                <grass name="r.sum"/>
+                <grass name="r.stats"/>
+                <grass name="r.sum" version_max="6.4"/>
                 <grass name="r.report"/>
-                <grass name="r.average"/>
-                <grass name="r.median"/>
+                <grass name="r.average" version_max="6.4"/>
+                <grass name="r.median" version_max="6.4"/>
                 <grass name="r.mode"/>
                 <grass name="r.volume"/>
                 <grass name="r.surf.area"/>
@@ -377,7 +378,7 @@
                 <grass name="v.net.steiner"/>
             </section>
             <section label="Overlay">
-                                <grass name="v.patch"/>
+                <grass name="v.patch"/>
                 <grass name="v.overlay.or"/>
                 <grass name="v.overlay.and"/>
                 <grass name="v.overlay.not"/>
@@ -402,6 +403,7 @@
             </section>
             <section label="Create points">
                 <grass name="v.random"/>
+                <grass name="v.random.3d"/>
                 <grass name="v.perturb"/>
             </section>
             <section label="Manage training dataset">
@@ -423,6 +425,7 @@
             <grass name="v.sample"/>
         </section>
         <section label="Reports and statistics">
+			<grass name="v.info"/>
             <grass name="v.to.db"/>
             <grass name="v.report"/>
             <grass name="v.univar"/>
@@ -437,8 +440,10 @@
         <section label="Manage image colors">
             <grass name="i.rgb.his"/>
             <grass name="i.his.rgb"/>
-            <grass name="i.landsat.rgb"/>
-            <grass name="i.fusion.brovey"/>
+            <grass name="i.landsat.rgb" version_max="6.4"/>
+            <grass name="i.colors.enhance" version_min="7.0"/>
+            <grass name="i.fusion.brovey" version_max="6.4"/>
+            <grass name="i.pansharpen" version_min="7.0"/>
         </section>
         <section label="Filter image">
             <grass name="i.zc"/>
@@ -448,6 +453,8 @@
             <grass name="i.tasscap4"/>
             <grass name="i.tasscap5"/>
             <grass name="i.tasscap7"/>
+            <grass name="i.tasscap8" version_min="7.0"/>
+            <grass name="i.tasscap.modis" version_min="7.0"/>
         </section>
         <section label="Transform image">
             <grass name="i.fft"/>
@@ -455,9 +462,74 @@
         </section>
         <section label="Reports and statistics">
             <grass name="r.describe"/>
-            <grass name="r.bitpattern"/>
+            <grass name="r.bitpattern" version_max="6.4"/>
+            <grass name="i.modis.qc" version_min="7.0"/>
             <grass name="r.kappa"/>
             <grass name="i.oif"/>
+        </section>
+    </section>
+
+    <section label="Temporal" version_min="7.0">
+        <section label="Manage datasets" version_min="7.0">
+            <grass name="t.create" version_min="7.0"/>
+            <grass name="t.rename" version_min="7.0"/>
+            <grass name="t.remove" version_min="7.0"/>
+            <grass name="t.support" version_min="7.0"/>
+            <grass name="t.merge" version_min="7.0"/>
+            <grass name="t.shift" version_min="7.0"/>
+            <grass name="t.snap" version_min="7.0"/>
+            <grass name="t.list" version_min="7.0"/>
+            <grass name="t.connect" version_min="7.0"/>
+            <grass name="t.select" version_min="7.0"/>
+        </section>
+        <section label="Manage maps in datasets" version_min="7.0">
+            <grass name="t.register" version_min="7.0"/>
+            <grass name="t.unregister" version_min="7.0"/>
+            <grass name="t.vect.list" version_min="7.0"/>
+            <grass name="t.rast.list" version_min="7.0"/>
+            <grass name="t.rast3d.list" version_min="7.0"/>
+        </section>
+        <section label="Import" version_min="7.0">
+            <grass name="t.rast.import" version_min="7.0"/>
+            <grass name="t.vect.import" version_min="7.0"/>
+        </section>
+        <section label="Export" version_min="7.0">
+            <grass name="t.rast.export" version_min="7.0"/>
+            <grass name="t.rast.out.vtk" version_min="7.0"/>
+            <grass name="t.vect.export" version_min="7.0"/>
+        </section>
+        <grass name="t.rast.to.rast3" version_min="7.0"/>
+        <section label="Extraction" version_min="7.0">
+            <grass name="t.rast.extract" version_min="7.0"/>
+            <grass name="t.rast3d.extract" version_min="7.0"/>
+            <grass name="t.vect.extract" version_min="7.0"/>
+        </section>
+        <grass name="t.vect.db.select" version_min="7.0"/>
+        <grass name="t.rast.colors.predefined" version_min="7.0"/>
+        <grass name="t.rast.colors.copy" version_min="7.0"/>
+        <grass name="t.rast.colors.rules" version_min="7.0"/>
+        <grass name="t.rast.mapcalc" version_min="7.0"/>
+        <grass name="t.rast3d.mapcalc" version_min="7.0"/>
+        <grass name="t.rast.gapfill" version_min="7.0"/>
+        <section label="Aggregation" version_min="7.0">
+            <grass name="t.rast.neighbors" version_min="7.0"/>
+            <grass name="t.rast.series" version_min="7.0"/>
+            <grass name="t.rast.aggregate" version_min="7.0"/>
+            <grass name="t.rast.aggregate.ds" version_min="7.0"/>
+            <grass name="t.rast.accdetect" version_min="7.0"/>
+            <grass name="t.rast.accumulate" version_min="7.0"/>
+        </section>
+        <section label="Sampling" version_min="7.0">
+            <grass name="t.sample" version_min="7.0"/>
+            <grass name="t.vect.what.strds" version_min="7.0"/>
+            <grass name="t.vect.observe.strds" version_min="7.0"/>
+        </section>
+        <section label="Report and statistics" version_min="7.0">
+            <grass name="t.info" version_min="7.0"/>
+            <grass name="t.rast.univar" version_min="7.0"/>
+            <grass name="t.rast3d.univar" version_min="7.0"/>
+            <grass name="t.vect.univar" version_min="7.0"/>
+            <grass name="t.topology" version_min="7.0"/>
         </section>
     </section>
 
@@ -475,13 +547,16 @@
             <grass name="v.db.droptable"/>
         </section>
         <section label="Columns management">
-            <grass name="v.db.addcol"/>
+            <grass name="v.db.addcol" version_max="6.4"/>
+            <grass name="v.db.addcolumn" version_min="7.0"/>
             <grass name="v.db.update_const"/>
             <grass name="v.db.update_query"/>
             <grass name="v.db.update_op"/>
             <grass name="v.db.update_op_query"/>
-            <grass name="v.db.dropcol" version_min="6.4"/>
-            <grass name="v.db.renamecol"/>
+            <grass name="v.db.dropcol" version_max="6.4"/>
+            <grass name="v.db.dropcolumn" version_min="7.0"/>
+            <grass name="v.db.renamecol" version_max="6.4"/>
+            <grass name="v.db.renamecolumn" version_min="7.0"/>
             <grass name="db.execute"/>
             <grass name="db.select"/>
             <grass name="v.db.select"/>
@@ -493,8 +568,8 @@
         </section>
     </section>
 
-    <section label="3d Visualization">
-        <grass name="nviz"/>
+    <section label="3d Visualization" version_max="6.4">
+        <grass name="nviz" version_max="6.4"/>
     </section>
     <section label="Convert coordinates">
         <grass name="m.cogo"/>

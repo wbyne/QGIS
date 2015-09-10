@@ -85,6 +85,8 @@ or they can be converted to numeric types.
 Arithmetic operators do integer arithmetics if both operands are integer. That is
 2+2 yields integer 4, but 2.0+2 returns real number 4.0. There are also two versions of
 division and modulo operators: 1.0/2 returns 0.5 while 1/2 returns 0. */
+
+Q_NOWARN_DEPRECATED_PUSH
 class CORE_EXPORT QgsExpression
 {
   public:
@@ -166,14 +168,24 @@ class CORE_EXPORT QgsExpression
     //! Return the number used for $rownum special column
     Q_DECL_DEPRECATED int currentRowNumber() { return mRowNumber; }
 
-    //! Assign a special column
-    static void setSpecialColumn( const QString& name, QVariant value );
-    //! Unset a special column
-    static void unsetSpecialColumn( const QString& name );
-    //! Return the value of the given special column or a null QVariant if undefined
-    static QVariant specialColumn( const QString& name );
-    //! Check whether a special column exists
-    //! @note added in 2.2
+    //TODO QGIS 3.0: make the following methods private. They are still required for replaceExpressionText
+    //but should not be publicly used
+    /** Assign a special column
+     * @deprecated use global or project QgsExpressionContext variables instead
+     */
+    Q_DECL_DEPRECATED static void setSpecialColumn( const QString& name, QVariant value );
+    /** Unset a special column
+     * @deprecated use global or project QgsExpressionContext variables instead
+     */
+    Q_DECL_DEPRECATED static void unsetSpecialColumn( const QString& name );
+    /** Return the value of the given special column or a null QVariant if undefined
+     * @deprecated use global or project QgsExpressionContext variables instead
+     */
+    Q_DECL_DEPRECATED static QVariant specialColumn( const QString& name );
+
+    /** Check whether a special column exists
+     * @note added in 2.2
+     */
     static bool hasSpecialColumn( const QString& name );
 
     /** Checks whether an expression consists only of a single field reference
@@ -397,7 +409,9 @@ class CORE_EXPORT QgsExpression
          * @param context context expression is being evaluated against
          * @param parent parent expression
          * @returns result of function
+         * @note named funcV2 in Python bindings. Will be renamed to func to replace deprecated method in QGIS 3.0.
          */
+        //TODO QGIS 3.0 - rename python method
         virtual QVariant func( const QVariantList& values, const QgsExpressionContext* context, QgsExpression* parent );
 
         bool operator==( const Function& other ) const
@@ -460,6 +474,7 @@ class CORE_EXPORT QgsExpression
             , mContextFnc( fcn )
             , mAliases( aliases )
         {}
+
         Q_DECL_DEPRECATED virtual QVariant func( const QVariantList& values, const QgsFeature* f, QgsExpression* parent ) override;
 
         /** Returns result of evaluating the function.
@@ -747,8 +762,8 @@ class CORE_EXPORT QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context ) override;
         virtual QString dump() const override;
 
-        virtual QStringList referencedColumns() const override { QStringList lst( mNode->referencedColumns() ); foreach ( Node* n, mList->list() ) lst.append( n->referencedColumns() ); return lst; }
-        virtual bool needsGeometry() const override { bool needs = false; foreach ( Node* n, mList->list() ) needs |= n->needsGeometry(); return needs; }
+        virtual QStringList referencedColumns() const override { QStringList lst( mNode->referencedColumns() ); Q_FOREACH ( Node* n, mList->list() ) lst.append( n->referencedColumns() ); return lst; }
+        virtual bool needsGeometry() const override { bool needs = false; Q_FOREACH ( Node* n, mList->list() ) needs |= n->needsGeometry(); return needs; }
         virtual void accept( Visitor& v ) const override { v.visit( *this ); }
 
       protected:
@@ -773,7 +788,7 @@ class CORE_EXPORT QgsExpression
         virtual QString dump() const override;
 
         virtual QStringList referencedColumns() const override;
-        virtual bool needsGeometry() const override { bool needs = Functions()[mFnIndex]->usesgeometry(); if ( mArgs ) { foreach ( Node* n, mArgs->list() ) needs |= n->needsGeometry(); } return needs; }
+        virtual bool needsGeometry() const override { bool needs = Functions()[mFnIndex]->usesgeometry(); if ( mArgs ) { Q_FOREACH ( Node* n, mArgs->list() ) needs |= n->needsGeometry(); } return needs; }
         virtual void accept( Visitor& v ) const override { v.visit( *this ); }
 
       protected:
@@ -934,6 +949,7 @@ class CORE_EXPORT QgsExpression
   private:
     Q_DISABLE_COPY( QgsExpression )  // for now - until we have proper copy constructor / implicit sharing
 };
+Q_NOWARN_DEPRECATED_POP
 
 Q_DECLARE_METATYPE( QgsExpression::Interval );
 Q_DECLARE_METATYPE( QgsExpression::Node* );

@@ -3,7 +3,7 @@
      --------------------------------------
     Date                 : 20.4.2013
     Copyright            : (C) 2013 Matthias Kuhn
-    Email                : matthias dot kuhn at gmx dot ch
+    Email                : matthias at opengis dot ch
  ***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -449,7 +449,7 @@ void QgsRelationReferenceWidget::init()
         QVariant nullValue = QSettings().value( "qgis/nullValue", "NULL" );
         cb->addItem( nullValue.toString(), QVariant( mReferencedLayer->fields()[idx].type() ) );
 
-        Q_FOREACH ( QVariant v, uniqueValues )
+        Q_FOREACH ( const QVariant& v, uniqueValues )
         {
           cb->addItem( v.toString(), v );
         }
