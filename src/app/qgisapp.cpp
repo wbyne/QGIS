@@ -487,9 +487,6 @@ QgisApp *QgisApp::smInstance = 0;
 // constructor starts here
 QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, Qt::WindowFlags fl )
     : QMainWindow( parent, fl )
-#ifdef Q_OS_WIN
-    , mSkipNextContextMenuEvent( 0 )
-#endif
     , mNonEditMapTool( 0 )
     , mScaleLabel( 0 )
     , mScaleEdit( 0 )
@@ -708,6 +705,8 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
   mLogDock->hide();
   connect( mMessageButton, SIGNAL( toggled( bool ) ), mLogDock, SLOT( setVisible( bool ) ) );
   connect( mLogDock, SIGNAL( visibilityChanged( bool ) ), mMessageButton, SLOT( setChecked( bool ) ) );
+  connect( QgsMessageLog::instance(), SIGNAL( messageReceived( bool ) ), this, SLOT( toggleLogMessageIcon( bool ) ) );
+  connect( mMessageButton, SIGNAL( toggled( bool ) ), this, SLOT( toggleLogMessageIcon( bool ) ) );
   mVectorLayerTools = new QgsGuiVectorLayerTools();
 
   // Init the editor widget types
@@ -1191,6 +1190,7 @@ void QgisApp::readSettings()
     data.title = settings.value( "title" ).toString();
     data.path = settings.value( "path" ).toString();
     data.previewImagePath = settings.value( "previewImage" ).toString();
+    data.crs = settings.value( "crs" ).toString();
     settings.endGroup();
     mRecentProjects.append( data );
   }
@@ -2011,7 +2011,7 @@ void QgisApp::createStatusBar()
 
   mMessageButton = new QToolButton( statusBar() );
   mMessageButton->setAutoRaise( true );
-  mMessageButton->setIcon( QgsApplication::getThemeIcon( "bubble.svg" ) );
+  mMessageButton->setIcon( QgsApplication::getThemeIcon( "/mMessageLogRead.svg" ) );
   mMessageButton->setToolTip( tr( "Messages" ) );
   mMessageButton->setWhatsThis( tr( "Messages" ) );
   mMessageButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
@@ -2541,6 +2541,18 @@ QgsMessageBar* QgisApp::messageBar()
   return mInfoBar;
 }
 
+void QgisApp::toggleLogMessageIcon( bool hasLogMessage )
+{
+  if ( hasLogMessage && !mLogDock->isVisible() )
+  {
+    mMessageButton->setIcon( QgsApplication::getThemeIcon( "/mMessageLog.svg" ) );
+  }
+  else
+  {
+    mMessageButton->setIcon( QgsApplication::getThemeIcon( "/mMessageLogRead.svg" ) );
+  }
+}
+
 void QgisApp::addUserInputWidget( QWidget *widget )
 {
   mUserInputDockWidget->addUserInputWidget( widget );
@@ -2786,6 +2798,8 @@ void QgisApp::saveRecentProjectPath( QString projectPath, bool savePreviewImage 
   if ( projectData.title.isEmpty() )
     projectData.title = projectData.path;
 
+  projectData.crs = mMapCanvas->mapSettings().destinationCrs().authid();
+
   if ( savePreviewImage )
   {
     // Generate a unique file name
@@ -2820,7 +2834,7 @@ void QgisApp::saveRecentProjectPath( QString projectPath, bool savePreviewImage 
   // Prepend this file to the list
   mRecentProjects.prepend( projectData );
 
-  // Keep the list to 8 items by trimming excess off the bottom
+  // Keep the list to 10 items by trimming excess off the bottom
   // And remove the associated image
   while ( mRecentProjects.count() > 10 )
   {
@@ -2838,6 +2852,7 @@ void QgisApp::saveRecentProjectPath( QString projectPath, bool savePreviewImage 
     settings.setValue( "title", recentProject.title );
     settings.setValue( "path", recentProject.path );
     settings.setValue( "previewImage", recentProject.previewImagePath );
+    settings.setValue( "crs", recentProject.crs );
     settings.endGroup();
   }
 
@@ -4592,8 +4607,8 @@ void QgisApp::openFile( const QString & fileName )
 
 void QgisApp::newPrintComposer()
 {
-  QString title = uniqueComposerTitle( this, true );
-  if ( title.isNull() )
+  QString title;
+  if ( !uniqueComposerTitle( this, title, true ) )
   {
     return;
   }
@@ -5691,7 +5706,7 @@ QgsGeometry* QgisApp::unionGeometries( const QgsVectorLayer* vl, QgsFeatureList&
   return unionGeom;
 }
 
-QString QgisApp::uniqueComposerTitle( QWidget* parent, bool acceptEmpty, const QString& currentName )
+bool QgisApp::uniqueComposerTitle( QWidget* parent, QString& composerTitle, bool acceptEmpty, const QString& currentName )
 {
   if ( !parent )
   {
@@ -5725,7 +5740,7 @@ QString QgisApp::uniqueComposerTitle( QWidget* parent, bool acceptEmpty, const Q
                                       &ok );
     if ( !ok )
     {
-      return QString::null;
+      return false;
     }
 
     if ( newTitle.isEmpty() )
@@ -5750,7 +5765,9 @@ QString QgisApp::uniqueComposerTitle( QWidget* parent, bool acceptEmpty, const Q
     }
   }
 
-  return newTitle;
+  composerTitle = newTitle;
+
+  return true;
 }
 
 QgsComposer* QgisApp::createNewComposer( QString title )
@@ -10120,35 +10137,6 @@ void QgisApp::mapCanvas_keyPressed( QKeyEvent *e )
   }
 }
 
-#ifdef Q_OS_WIN
-// hope your wearing your peril sensitive sunglasses.
-void QgisApp::contextMenuEvent( QContextMenuEvent *e )
-{
-  if ( mSkipNextContextMenuEvent )
-  {
-    mSkipNextContextMenuEvent--;
-    e->ignore();
-    return;
-  }
-
-  QMainWindow::contextMenuEvent( e );
-}
-
-void QgisApp::skipNextContextMenuEvent()
-{
-  mSkipNextContextMenuEvent++;
-}
-#endif
-
-// Debug hook - used to output diagnostic messages when evoked (usually from the menu)
-/* Temporarily disabled...
-   void QgisApp::debugHook()
-   {
-   QgsDebugMsg("Hello from debug hook");
-// show the map canvas extent
-QgsDebugMsg(mMapCanvas->extent());
-}
-*/
 void QgisApp::customProjection()
 {
   // Create an instance of the Custom Projection Designer modeless dialog.

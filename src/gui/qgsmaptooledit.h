@@ -17,7 +17,7 @@
 #define QGSMAPTOOLEDIT_H
 
 #include "qgis.h"
-#include "qgsmaptooladvanceddigitizing.h"
+#include "qgsmaptool.h"
 
 class QgsRubberBand;
 class QgsGeometryRubberBand;
@@ -25,7 +25,7 @@ class QgsVectorLayer;
 class QKeyEvent;
 
 /** Base class for map tools that edit vector geometry*/
-class APP_EXPORT QgsMapToolEdit: public QgsMapToolAdvancedDigitizing
+class GUI_EXPORT QgsMapToolEdit: public QgsMapTool
 {
     Q_OBJECT
 
@@ -33,6 +33,10 @@ class APP_EXPORT QgsMapToolEdit: public QgsMapToolAdvancedDigitizing
     QgsMapToolEdit( QgsMapCanvas* canvas );
     virtual ~QgsMapToolEdit();
 
+    /**
+     * Is this an edit tool?
+     * @return  Of course it is or you would not be inheriting from it.
+     */
     virtual bool isEditTool() override { return true; }
 
   protected:
@@ -44,7 +48,6 @@ class APP_EXPORT QgsMapToolEdit: public QgsMapToolAdvancedDigitizing
     *   @param alternativeBand if true, rubber band will be set with more transparency and a dash pattern. defaut is false.
     */
     QgsRubberBand* createRubberBand( QGis::GeometryType geometryType = QGis::Line, bool alternativeBand = false );
-
 
     QgsGeometryRubberBand* createGeometryRubberBand( QGis::GeometryType geometryType = QGis::Line ) const;
 

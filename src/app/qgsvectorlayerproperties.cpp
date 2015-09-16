@@ -508,12 +508,8 @@ void QgsVectorLayerProperties::syncToLayer( void )
     }
   }
 
-  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::globalScope() );
-  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::projectScope() );
-  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::layerScope( layer ) );
-  mVariableEditor->reloadContext();
-  mVariableEditor->setEditableScopeIndex( 2 );
-
+  // set initial state for variable editor
+  updateVariableEditor();
 } // syncToLayer()
 
 
@@ -626,6 +622,7 @@ void QgsVectorLayerProperties::apply()
 
   //save variables
   QgsExpressionContextUtils::setLayerVariables( layer, mVariableEditor->variablesInActiveScope() );
+  updateVariableEditor();
 
   // update symbology
   emit refreshLegend( layer->id() );
@@ -1240,6 +1237,7 @@ void QgsVectorLayerProperties::updateSymbologyPage()
   if ( layer->rendererV2() )
   {
     mRendererDialog = new QgsRendererV2PropertiesDialog( layer, QgsStyleV2::defaultStyle(), true );
+    mRendererDialog->setMapCanvas( QgisApp::instance()->mapCanvas() );
 
     // display the menu to choose the output format (fix #5136)
     mActionSaveStyleAs->setText( tr( "Save Style" ) );
@@ -1294,4 +1292,15 @@ void QgsVectorLayerProperties::on_mSimplifyDrawingGroupBox_toggled( bool checked
   {
     mSimplifyDrawingAtProvider->setEnabled( checked );
   }
+}
+
+void QgsVectorLayerProperties::updateVariableEditor()
+{
+  QgsExpressionContext context;
+  mVariableEditor->setContext( &context );
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::globalScope() );
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::projectScope() );
+  mVariableEditor->context()->appendScope( QgsExpressionContextUtils::layerScope( layer ) );
+  mVariableEditor->reloadContext();
+  mVariableEditor->setEditableScopeIndex( 2 );
 }

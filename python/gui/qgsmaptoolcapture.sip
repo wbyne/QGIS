@@ -13,57 +13,36 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef QGSMAPTOOLCAPTURE_H
-#define QGSMAPTOOLCAPTURE_H
-
-
-#include "qgsmaptooledit.h"
-#include "qgscompoundcurvev2.h"
-#include "qgspoint.h"
-#include "qgsgeometry.h"
-
-#include <QPoint>
-#include <QList>
-
-class QgsRubberBand;
-class QgsVertexMarker;
-class QgsMapLayer;
-class QgsGeometryValidator;
-
-class APP_EXPORT QgsMapToolCapture : public QgsMapToolEdit
+class QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
 {
-    Q_OBJECT
-
+%TypeHeaderCode
+#include "qgsmaptoolcapture.h"
+%End
   public:
     //! constructor
-    QgsMapToolCapture( QgsMapCanvas* canvas, CaptureMode mode = CaptureNone );
+    QgsMapToolCapture( QgsMapCanvas* canvas, QgsAdvancedDigitizingDockWidget* cadDockWidget, CaptureMode mode = CaptureNone );
 
     //! destructor
     virtual ~QgsMapToolCapture();
 
-    //! Overridden mouse move event
-    virtual void canvasMapMoveEvent( QgsMapMouseEvent* e ) override;
-
-    //! Overridden mouse press event
-    virtual void canvasMapPressEvent( QgsMapMouseEvent * e ) override;
-
-    //! Overridden key press event
-    virtual void canvasKeyPressEvent( QKeyEvent* e ) override;
-
     //! deactive the tool
-    virtual void deactivate() override;
+    virtual void deactivate();
 
     /** Adds a whole curve (e.g. circularstring) to the captured geometry. Curve must be in map CRS*/
     int addCurve( QgsCurveV2* c );
 
-    const QgsCompoundCurveV2* captureCurve() const { return &mCaptureCurve; }
+    const QgsCompoundCurveV2* captureCurve() const;
 
     void deleteTempRubberBand();
+    void cadCanvasMoveEvent( QgsMapMouseEvent * e );
+    void keyPressEvent( QKeyEvent* e );
 
-  public slots:
+  private slots:
+    void validationFinished();
+
     void currentLayerChanged( QgsMapLayer *layer );
     void addError( QgsGeometry::Error );
-    void validationFinished();
+
 
   protected:
     int nextPoint( const QgsPoint& mapPoint, QgsPoint& layerPoint );
@@ -84,29 +63,4 @@ class APP_EXPORT QgsMapToolCapture : public QgsMapToolEdit
     QList<QgsPoint> points();
     void setPoints( const QList<QgsPoint>& pointList );
     void closePolygon();
-
-  private:
-    /** Flag to indicate a map canvas capture operation is taking place */
-    bool mCapturing;
-
-    /** Rubber band for polylines and polygons */
-    QgsRubberBand* mRubberBand;
-
-    /** Temporary rubber band for polylines and polygons. this connects the last added point to the mouse cursor position */
-    QgsRubberBand* mTempRubberBand;
-
-    /** List to store the points of digitised lines and polygons (in layer coordinates)*/
-    QgsCompoundCurveV2 mCaptureCurve;
-
-    void validateGeometry();
-    QString mTip;
-    QgsGeometryValidator *mValidator;
-    QList< QgsGeometry::Error > mGeomErrors;
-    QList< QgsVertexMarker * > mGeomErrorMarkers;
-
-    bool mCaptureModeFromLayer;
-
-    QgsVertexMarker* mSnappingMarker;
 };
-
-#endif

@@ -188,6 +188,11 @@ void QgsPGConnectionItem::createSchema()
 
 bool QgsPGConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
 {
+  return handleDrop( data, QString::null );
+}
+
+bool QgsPGConnectionItem::handleDrop( const QMimeData * data, QString toSchema )
+{
   if ( !QgsMimeDataUtils::isUriList( data ) )
     return false;
 
@@ -220,6 +225,12 @@ bool QgsPGConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
     {
       uri.setDataSource( QString(), u.name, "geom" );
       QgsDebugMsg( "URI " + uri.uri() );
+
+      if ( !toSchema.isNull() )
+      {
+        uri.setSchema( toSchema );
+      }
+
       QgsVectorLayerImport::ImportError err;
       QString importError;
       err = QgsVectorLayerImport::importLayer( srcLayer, uri.uri(), "postgres", &srcLayer->crs(), false, &importError, false, 0, progress );
@@ -659,6 +670,15 @@ QgsPGLayerItem *QgsPGSchemaItem::createLayer( QgsPostgresLayerProperty layerProp
   QgsPGLayerItem *layerItem = new QgsPGLayerItem( this, layerProperty.defaultName(), mPath + "/" + layerProperty.tableName, layerType, layerProperty );
   layerItem->setToolTip( tip );
   return layerItem;
+}
+
+bool QgsPGSchemaItem::handleDrop( const QMimeData * data, Qt::DropAction )
+{
+  QgsPGConnectionItem *conn = qobject_cast<QgsPGConnectionItem *>( parent() );
+  if ( !conn )
+    return 0;
+
+  return conn->handleDrop( data, mName );
 }
 
 // ---------------------------------------------------------------------------

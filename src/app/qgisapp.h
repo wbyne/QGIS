@@ -256,7 +256,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      * @param currentTitle base name for initial title choice
      * @return QString::null if user cancels input dialog
      */
-    QString uniqueComposerTitle( QWidget *parent, bool acceptEmpty, const QString& currentTitle = QString() );
+    bool uniqueComposerTitle( QWidget *parent, QString& composerTitle, bool acceptEmpty, const QString& currentTitle = QString() );
     /** Creates a new composer and returns a pointer to it*/
     QgsComposer* createNewComposer( QString title = QString() );
     /** Deletes a composer and removes entry from Set*/
@@ -474,9 +474,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     static QString normalizedMenuName( const QString & name ) { return name.normalized( QString::NormalizationForm_KD ).remove( QRegExp( "[^a-zA-Z]" ) ); }
 
 #ifdef Q_OS_WIN
-    //! ugly hack
-    void skipNextContextMenuEvent();
-
     static LONG WINAPI qgisCrashDump( struct _EXCEPTION_POINTERS *ExceptionInfo );
 #endif
 
@@ -668,11 +665,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 #ifdef ANDROID
     //! reimplements widget keyReleaseEvent event so we can check if back was pressed
     virtual void keyReleaseEvent( QKeyEvent *event );
-#endif
-
-#ifdef Q_OS_WIN
-    //! reimplements context menu event
-    virtual void contextMenuEvent( QContextMenuEvent *event );
 #endif
 
   private slots:
@@ -1048,6 +1040,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! map layers changed
     void showMapCanvas();
+
+    //! change log message icon in statusbar
+    void toggleLogMessageIcon( bool hasLogMessage );
 
     /** Called when some layer's editing mode was toggled on/off */
     void layerEditStateChanged();
@@ -1655,10 +1650,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QList<QgsDecorationItem*> mDecorationItems;
 
     int mLastComposerId;
-
-#ifdef Q_OS_WIN
-    int mSkipNextContextMenuEvent; // ugly hack
-#endif
 
     //! Persistent GPS toolbox
     QgsGPSInformationWidget *mpGpsWidget;

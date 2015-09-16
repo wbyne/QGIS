@@ -1972,6 +1972,12 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
 
     mView->setPaintingEnabled( false );
 
+    int worldFilePageNo = -1;
+    if ( mComposition->generateWorldFile() && mComposition->worldFileMap() )
+    {
+      worldFilePageNo = mComposition->worldFileMap()->page() - 1;
+    }
+
     for ( int i = 0; i < mComposition->numPages(); ++i )
     {
       if ( !mComposition->shouldExportPage( i + 1 ) )
@@ -1991,16 +1997,19 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
         return;
       }
       bool saveOk;
+      QString outputFilePath;
       if ( i == 0 )
       {
-        saveOk = image.save( fileNExt.first, fileNExt.second.toLocal8Bit().constData() );
+        outputFilePath = fileNExt.first;
       }
       else
       {
         QFileInfo fi( fileNExt.first );
-        QString outputFilePath = fi.absolutePath() + "/" + fi.baseName() + "_" + QString::number( i + 1 ) + "." + fi.suffix();
-        saveOk = image.save( outputFilePath, fileNExt.second.toLocal8Bit().constData() );
+        outputFilePath = fi.absolutePath() + "/" + fi.baseName() + "_" + QString::number( i + 1 ) + "." + fi.suffix();
       }
+
+      saveOk = image.save( outputFilePath, fileNExt.second.toLocal8Bit().constData() );
+
       if ( !saveOk )
       {
         QMessageBox::warning( this, tr( "Image export error" ),
@@ -2010,21 +2019,20 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
         mView->setPaintingEnabled( true );
         return;
       }
-    }
 
-    //
-    // Write the world file if asked to
-    if ( mComposition->generateWorldFile() )
-    {
-      double a, b, c, d, e, f;
-      mComposition->computeWorldFileParameters( a, b, c, d, e, f );
+      if ( i == worldFilePageNo )
+      {
+        // should generate world file for this page
+        double a, b, c, d, e, f;
+        mComposition->computeWorldFileParameters( a, b, c, d, e, f );
 
-      QFileInfo fi( fileNExt.first );
-      // build the world file name
-      QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
-                              + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
+        QFileInfo fi( outputFilePath );
+        // build the world file name
+        QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
+                                + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
 
-      writeWorldFile( worldFileName, a, b, c, d, e, f );
+        writeWorldFile( worldFileName, a, b, c, d, e, f );
+      }
     }
 
     mView->setPaintingEnabled( true );
@@ -2052,6 +2060,7 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
     QFileDialog dlg( this, tr( "Directory where to save image files" ) );
     dlg.setFileMode( QFileDialog::Directory );
     dlg.setOption( QFileDialog::ShowDirsOnly, true );
+    dlg.setDirectory( lastUsedDir );
 
     //
     // Build an augmented FileDialog with a combo box to select the output format
@@ -2150,6 +2159,12 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
 
       QString filename = QDir( dir ).filePath( atlasMap->currentFilename() ) + fileExt;
 
+      int worldFilePageNo = -1;
+      if ( mComposition->generateWorldFile() && mComposition->worldFileMap() )
+      {
+        worldFilePageNo = mComposition->worldFileMap()->page() - 1;
+      }
+
       for ( int i = 0; i < mComposition->numPages(); ++i )
       {
         if ( !mComposition->shouldExportPage( i + 1 ) )
@@ -2177,21 +2192,20 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
           QApplication::restoreOverrideCursor();
           return;
         }
-      }
 
-      //
-      // Write the world file if asked to
-      if ( mComposition->generateWorldFile() )
-      {
-        double a, b, c, d, e, f;
-        mComposition->computeWorldFileParameters( a, b, c, d, e, f );
+        if ( i == worldFilePageNo )
+        {
+          // should generate world file for this page
+          double a, b, c, d, e, f;
+          mComposition->computeWorldFileParameters( a, b, c, d, e, f );
 
-        QFileInfo fi( filename );
-        // build the world file name
-        QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
-                                + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
+          QFileInfo fi( imageFilename );
+          // build the world file name
+          QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
+                                  + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
 
-        writeWorldFile( worldFileName, a, b, c, d, e, f );
+          writeWorldFile( worldFileName, a, b, c, d, e, f );
+        }
       }
     }
     atlasMap->endRender();
@@ -2289,6 +2303,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
   QString outputFileName;
   QString outputDir;
   bool groupLayers = false;
+  bool prevSettingLabelsAsOutlines = QgsProject::instance()->readBoolEntry( "PAL", "/DrawOutlineLabels", true );
 
   if ( mode == QgsComposer::Single )
   {
@@ -2319,8 +2334,12 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
       QDialog dialog;
       Ui::QgsSvgExportOptionsDialog options;
       options.setupUi( &dialog );
+      options.chkTextAsOutline->setChecked( prevSettingLabelsAsOutlines );
+
       dialog.exec();
       groupLayers = options.chkMapLayersAsGroup->isChecked();
+      //temporarily override label draw outlines setting
+      QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", options.chkTextAsOutline->isChecked() );
     }
 
     if ( !outputFileName.endsWith( ".svg", Qt::CaseInsensitive ) )
@@ -2374,8 +2393,12 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
       QDialog dialog;
       Ui::QgsSvgExportOptionsDialog options;
       options.setupUi( &dialog );
+      options.chkTextAsOutline->setChecked( prevSettingLabelsAsOutlines );
+
       dialog.exec();
       groupLayers = options.chkMapLayersAsGroup->isChecked();
+      //temporarily override label draw outlines setting
+      QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", options.chkTextAsOutline->isChecked() );
     }
 
 
@@ -2395,6 +2418,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
                             QMessageBox::Ok,
                             QMessageBox::Ok );
       mView->setPaintingEnabled( true );
+      QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", prevSettingLabelsAsOutlines );
       return;
     }
   }
@@ -2423,6 +2447,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
                               QMessageBox::Ok,
                               QMessageBox::Ok );
         mView->setPaintingEnabled( true );
+        QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", prevSettingLabelsAsOutlines );
         return;
       }
       outputFileName = QDir( outputDir ).filePath( atlasMap->currentFilename() ) + ".svg";
@@ -2467,6 +2492,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
                                 QMessageBox::Ok,
                                 QMessageBox::Ok );
           mView->setPaintingEnabled( true );
+          QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", prevSettingLabelsAsOutlines );
           return;
         }
 
@@ -2590,6 +2616,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
                                 QMessageBox::Ok,
                                 QMessageBox::Ok );
           mView->setPaintingEnabled( true );
+          QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", prevSettingLabelsAsOutlines );
           return;
         }
 
@@ -2604,6 +2631,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
     atlasMap->endRender();
 
   mView->setPaintingEnabled( true );
+  QgsProject::instance()->writeEntry( "PAL", "/DrawOutlineLabels", prevSettingLabelsAsOutlines );
 }
 
 void QgsComposer::on_mActionSelectMoveItem_triggered()
@@ -2717,8 +2745,8 @@ void QgsComposer::on_mActionSaveProject_triggered()
 
 void QgsComposer::on_mActionNewComposer_triggered()
 {
-  QString title = mQgis->uniqueComposerTitle( this, true );
-  if ( title.isNull() )
+  QString title;
+  if ( !mQgis->uniqueComposerTitle( this, title, true ) )
   {
     return;
   }
@@ -2727,8 +2755,8 @@ void QgsComposer::on_mActionNewComposer_triggered()
 
 void QgsComposer::on_mActionDuplicateComposer_triggered()
 {
-  QString newTitle = mQgis->uniqueComposerTitle( this, false, title() + tr( " copy" ) );
-  if ( newTitle.isNull() )
+  QString newTitle;
+  if ( !mQgis->uniqueComposerTitle( this, newTitle, false, title() + tr( " copy" ) ) )
   {
     return;
   }
@@ -2827,8 +2855,8 @@ void QgsComposer::loadTemplate( const bool newComposer )
 
   if ( newComposer )
   {
-    QString newTitle = mQgis->uniqueComposerTitle( this, true );
-    if ( newTitle.isNull() )
+    QString newTitle;
+    if ( !mQgis->uniqueComposerTitle( this, newTitle, true ) )
     {
       return;
     }

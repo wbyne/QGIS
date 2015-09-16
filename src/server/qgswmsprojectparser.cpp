@@ -118,7 +118,7 @@ QList<QgsMapLayer*> QgsWMSProjectParser::mapLayerFromStyle( const QString& lName
   }
 
   // can't use layer cache if we are going to apply a non-default style
-  if ( !styleName.isEmpty() )
+  if ( !styleName.isEmpty() && styleName != EMPTY_STYLE_NAME )
     useCache = false;
 
   //does lName refer to a leaf layer
@@ -127,7 +127,7 @@ QList<QgsMapLayer*> QgsWMSProjectParser::mapLayerFromStyle( const QString& lName
   if ( layerElemIt != projectLayerElements.constEnd() )
   {
     QgsMapLayer* ml = mProjectParser->createLayerFromElement( layerElemIt.value(), useCache );
-    if ( !styleName.isEmpty() )
+    if ( !styleName.isEmpty() && styleName != EMPTY_STYLE_NAME )
     {
       // try to apply the specified style
       if ( !ml->styleManager()->setCurrentStyle( styleName != EMPTY_STYLE_NAME ? styleName : QString() ) )
@@ -258,7 +258,8 @@ void QgsWMSProjectParser::addLayersFromGroup( const QDomElement& legendGroupElem
   {
     QMap< int, QDomElement > layerOrderList;
     QDomNodeList groupElemChildren = legendGroupElem.childNodes();
-    for ( int i = 0; i < groupElemChildren.size(); ++i )
+    // for rendering layers has to be add from bottom (end) to top (start)
+    for ( int i = groupElemChildren.size()-1; i >= 0 ; --i )
     {
       QDomElement elem = groupElemChildren.at( i ).toElement();
       if ( elem.tagName() == "legendgroup" )
