@@ -15,6 +15,11 @@
  *                                                                         *
  ***************************************************************************/
 
+#ifdef _MSC_VER
+#undef APP_EXPORT
+#define APP_EXPORT __declspec(dllimport)
+#endif
+
 //qt includes
 #include <QBitmap>
 #include <QDir>
@@ -119,6 +124,7 @@ void usage( std::string const & appName )
             << "\t[--customizationfile]\tuse the given ini file as GUI customization\n"
             << "\t[--optionspath path]\tuse the given QSettings path\n"
             << "\t[--configpath path]\tuse the given path for all user configuration\n"
+            << "\t[--authdbdirectory path] use the given directory for authentication database\n"
             << "\t[--code path]\trun the given python file on load\n"
             << "\t[--defaultui]\tstart by resetting user ui settings to default\n"
             << "\t[--dxf-export filename.dxf]\temit dxf output of loaded datasets to given file\n"
@@ -381,7 +387,7 @@ void myMessageOutput( QtMsgType type, const char *msg )
   }
 }
 
-APP_EXPORT int main( int argc, char *argv[] )
+int main( int argc, char *argv[] )
 {
 #ifdef Q_OS_MACX
   // Increase file resource limits (i.e., number of allowed open files)
@@ -501,6 +507,7 @@ APP_EXPORT int main( int argc, char *argv[] )
   // user settings (~/.qgis) and it will be used for QSettings INI file
   QString configpath;
   QString optionpath;
+  QString authdbdirectory;
 
   QString pythonfile;
 
@@ -574,6 +581,10 @@ APP_EXPORT int main( int argc, char *argv[] )
       else if ( i + 1 < argc && ( arg == "--configpath" || arg == "-c" ) )
       {
         configpath = QDir::toNativeSeparators( QDir( args[++i] ).absolutePath() );
+      }
+      else if ( i + 1 < argc && ( arg == "--authdbdirectory" || arg == "-a" ) )
+      {
+        authdbdirectory = QDir::toNativeSeparators( QDir( args[++i] ).absolutePath() );
       }
       else if ( i + 1 < argc && ( arg == "--code" || arg == "-f" ) )
       {
@@ -983,6 +994,12 @@ APP_EXPORT int main( int argc, char *argv[] )
   QCoreApplication::addLibraryPath( QgsApplication::pluginPath() );
   QCoreApplication::addLibraryPath( myPath );
 #endif
+
+  // set authentication database directory
+  if ( !authdbdirectory.isEmpty() )
+  {
+    QgsApplication::setAuthDbDirPath( authdbdirectory );
+  }
 
   //set up splash screen
   QString mySplashPath( QgsCustomization::instance()->splashPath() );

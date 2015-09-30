@@ -74,13 +74,13 @@ CMAKE_OPTS := \
 
 ifeq ($(GRASSVER),7)
 	CMAKE_OPTS += \
-		-DWITH_GRASS=FALSE \
+		-DWITH_GRASS=TRUE \
 		-DWITH_GRASS7=TRUE \
 		-DGRASS_PREFIX7=/usr/lib/$(GRASS)
 else
 	CMAKE_OPTS += \
 		-DWITH_GRASS=TRUE \
-		-DWITH_GRASS7=FALSE \
+		-DWITH_GRASS6=TRUE \
 		-DGRASS_PREFIX=/usr/lib/$(GRASS)
 endif
 
@@ -98,7 +98,8 @@ ifneq (,$(findstring $(DISTRIBUTION),"sid stretch"))
 endif
 
 ifneq (,$(findstring $(DISTRIBUTION),"sid"))
-	CMAKE_OPTS += -DGEOS_LIBRARY=/usr/lib/$(DEB_BUILD_MULTIARCH)/libgeos_c.so
+	CMAKE_OPTS += -DGEOS_LIBRARY=/usr/lib/$(DEB_BUILD_MULTIARCH)/libgeos_c.so \
+		      -DGEOS_CPP_LIBRARY=/usr/lib/$(DEB_BUILD_MULTIARCH)/libgeos.so
 endif
 
 ifneq (,$(findstring $(DISTRIBUTION),"jessie stretch trusty utopic vivid sid"))
@@ -115,9 +116,6 @@ endif
 
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	CMAKE_OPTS += -DCMAKE_BUILD_TYPE=Debug
-ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	CMAKE_OPTS += -DENABLE_COVERAGE=TRUE
-endif
 endif
 
 ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))

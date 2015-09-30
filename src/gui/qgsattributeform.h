@@ -173,7 +173,9 @@ class GUI_EXPORT QgsAttributeForm : public QWidget
     void onAttributeChanged( const QVariant& value );
     void onAttributeAdded( int idx );
     void onAttributeDeleted( int idx );
+    void onUpdatedFields();
 
+    void preventFeatureRefresh();
     void synchronizeEnabledState();
 
   private:
@@ -209,6 +211,9 @@ class GUI_EXPORT QgsAttributeForm : public QWidget
     //! Set to true while saving to prevent recursive saves
     bool mIsSaving;
     bool mIsAddDialog;
+
+    //! Flag to prevent refreshFeature() to change mFeature
+    bool mPreventFeatureRefresh;
 
     QString mEditCommandMessage;
 };

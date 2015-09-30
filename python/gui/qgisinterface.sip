@@ -168,6 +168,8 @@ class QgisInterface : QObject
     /** Return the message bar of the main app */
     virtual QgsMessageBar * messageBar() = 0;
 
+    virtual void openMessageLog() = 0;
+
     /** Adds a widget to the user input tool bar.*/
     virtual void addUserInputWidget( QWidget* widget ) = 0;
 
@@ -252,7 +254,7 @@ class QgisInterface : QObject
     virtual void showLayerProperties( QgsMapLayer *l ) = 0;
 
     /** Open attribute table dialog */
-    virtual void showAttributeTable( QgsVectorLayer *l ) = 0;
+    virtual QDialog* showAttributeTable( QgsVectorLayer *l, const QString& filterExpression = QString() ) = 0;
 
     /** Add window to Window menu. The action title is the window title
      * and the action should raise, unminimize and activate the window. */

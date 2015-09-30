@@ -57,21 +57,6 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     Q_OBJECT
 
   public:
-    enum TopoSymbol
-    {
-      TopoUndefined = 0,
-      TopoPoint,
-      TopoLine,
-      TopoBoundary0,
-      TopoBoundary1,
-      TopoBoundary2,
-      TopoCentroidIn,
-      TopoCentroidOut,
-      TopoCentroidDupl,
-      TopoNode0,
-      TopoNode1,
-      TopoNode2
-    };
 
     QgsGrassProvider( QString uri = QString() );
 
@@ -139,12 +124,19 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     QgsCoordinateReferenceSystem crs() override;
 
+    // ----------------------------------- New edit --------------------------------
+    // Changes are written during editing.
+    // TODO: implement also these functions but disable during manual layer editing
+    virtual bool addFeatures( QgsFeatureList & flist ) override { Q_UNUSED( flist ); return true; }
+    virtual bool deleteFeatures( const QgsFeatureIds & id ) override { Q_UNUSED( id ); return true; }
+    virtual bool addAttributes( const QList<QgsField> &attributes ) override;
+    virtual bool deleteAttributes( const QgsAttributeIds &attributes ) override;
+    virtual bool changeAttributeValues( const QgsChangedAttributesMap & attr_map ) override  { Q_UNUSED( attr_map ); return true; }
+    virtual bool changeGeometryValues( QgsGeometryMap & geometry_map ) override { Q_UNUSED( geometry_map ); return true; }
+
 
     //----------------------------------------------------------------------------
     QgsGrassObject grassObject() const { return mGrassObject; }
-
-    // ----------------------------------- New edit --------------------------------
-    bool changeGeometryValues( QgsGeometryMap & geometry_map ) override { Q_UNUSED( geometry_map ); return true; }
 
 
     // ----------------------------------- Edit ----------------------------------
@@ -186,7 +178,7 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
      *   @return true success
      *   @return false failed to close vector or vector was not in update mode
      */
-    bool closeEdit( bool newMap = false );
+    bool closeEdit( bool newMap = false, QgsVectorLayer *vectorLayer = 0 );
 
     /** Get current number of lines.
      *   @return number of lines
@@ -340,57 +332,6 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
      */
     int dbLinkField( int link );
 
-    /** Execute SQL statement
-     *   @param field
-     *   @param sql
-     *   @return empty string or error message
-     */
-    QString executeSql( int field, const QString &sql );
-
-    /** Update attributes
-     *   @param field
-     *   @param cat
-     *   @param update comma separated update string, e.g.: col1 = 5, col2 = 'Val d''Aosta'
-     *   @return empty string or error messagemLayer
-     */
-    QString updateAttributes( int field, int cat, const QString &values );
-
-    /** Insert new attributes to the table (it does not check if attributes already exists)
-     *   @param field
-     *   @param cat
-     *   @return empty string or error message
-     */
-    QString insertAttributes( int field, int cat );
-
-    /** Delete attributes from the table
-     *   @param field
-     *   @param cat
-     *   @return empty string or error message
-     */
-    QString deleteAttribute( int field, int cat );
-
-    /** Check if a database row exists and it is orphan (no more lines with
-     *  that category)
-     *   @param field
-     *   @param cat
-     *   @param orphan set to true if a record exits and it is orphan
-     *   @return empty string or error message
-     */
-    QString isOrphan( int field, int cat, int &orphan );
-
-    /** Create table and link vector to this table
-     *   @param field
-     *   @param columns SQL definition for columns, e.g. cat integer, label varchar(10)
-     *   @return empty string or error message
-     */
-    QString createTable( int field, const QString &key, const QString &columns );
-
-    /** Add column to table
-     *   @param field
-     *   @param column SQL definition for columns, e.g. label varchar(10)
-     *   @return empty string or error message
-     */
-    QString addColumn( int field, const QString &column );
 
     /* Following functions work only until first edit operation! (category index used) */
 
@@ -438,11 +379,22 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
       TOPO_NODE    // topology nodes
     };
 
+    // Set type for next digitized feature (GV_POINT,GV_LINE, GV_BOUNDARY, GV_CENTROID, GV_AREA)
+    void setNewFeatureType( int type ) { mNewFeatureType = type; }
+
   public slots:
-    void bufferGeometryChanged( QgsFeatureId fid, QgsGeometry &geom );
+    void onFeatureAdded( QgsFeatureId fid );
+    void onFeatureDeleted( QgsFeatureId fid );
+    void onGeometryChanged( QgsFeatureId fid, QgsGeometry &geom );
+    void onAttributeValueChanged( QgsFeatureId fid, int idx, const QVariant &value );
+    void onAttributeAdded( int idx );
+    void onAttributeDeleted( int idx );
     void onBeforeCommitChanges();
+    void onBeforeRollBack();
     void onEditingStopped();
     void onUndoIndexChanged( int index );
+
+    void onDataChanged();
 
   protected:
     // used by QgsGrassFeatureSource
@@ -495,12 +447,18 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     void setTopoFields();
 
+    void setPoints( struct line_pnts *points, const QgsAbstractGeometryV2 * geometry );
+
     /** Fields used for topo layers */
     QgsFields mTopoFields;
 
-    QgsFields mEditFields;
+    //QgsFields mEditFields;
 
     QgsVectorLayerEditBuffer* mEditBuffer;
+    QgsVectorLayer* mEditLayer;
+
+    //  next digitized feature GRASS type
+    int mNewFeatureType;
 
     friend class QgsGrassFeatureSource;
     friend class QgsGrassFeatureIterator;

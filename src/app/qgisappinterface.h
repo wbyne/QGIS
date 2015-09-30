@@ -184,6 +184,9 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
 
     QgsMessageBar * messageBar() override;
 
+    /** Open the message log dock widget **/
+    void openMessageLog() override;
+
     /** Adds a widget to the user input tool bar.*/
     void addUserInputWidget( QWidget* widget ) override;
 
@@ -267,7 +270,7 @@ class APP_EXPORT QgisAppInterface : public QgisInterface
     /** Show layer attribute dialog for layer
      * @param l layer to show attribute table for
      */
-    virtual void showAttributeTable( QgsVectorLayer *l ) override;
+    virtual QDialog* showAttributeTable( QgsVectorLayer *l, const QString& filterExpression = QString() ) override;
 
     /** Add window to Window menu. The action title is the window title
      * and the action should raise, unminimize and activate the window. */

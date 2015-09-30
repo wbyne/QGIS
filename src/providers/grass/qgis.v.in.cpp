@@ -221,7 +221,10 @@ int main( int argc, char **argv )
   QgsFeature feature;
   struct line_cats *cats = Vect_new_cats_struct();
 
-  qint32 featureCount = 0;
+  qint32 featureCount;
+  stdinStream >> featureCount;
+
+  qint32 count = 0;
   while ( true )
   {
     exitIfCanceled( stdinStream );
@@ -229,8 +232,10 @@ int main( int argc, char **argv )
     checkStream( stdinStream );
 #ifndef Q_OS_WIN
     // cannot be used on Windows, see notes in qgis.r.in
+//#if 0
     stdoutStream << true; // feature received
     stdoutFile.flush();
+//#endif
 #endif
     if ( !feature.isValid() )
     {
@@ -310,7 +315,8 @@ int main( int argc, char **argv )
         G_fatal_error( "Cannot insert: %s", e.what() );
       }
     }
-    featureCount++;
+    count++;
+    G_percent( count, featureCount, 1 );
   }
   db_commit_transaction( driver );
   db_close_database_shutdown_driver( driver );
@@ -318,18 +324,24 @@ int main( int argc, char **argv )
   if ( isPolygon )
   {
     double snapTreshold = 0;
+    G_message( "Building partial topology" );
     Vect_build_partial( map, GV_BUILD_BASE );
 
     if ( snapTreshold > 0 )
     {
       Vect_snap_lines( map, GV_BOUNDARY, snapTreshold, NULL );
     }
+    G_message( "Breaking polygons" );
     Vect_break_polygons( map, GV_BOUNDARY, NULL );
+    G_message( "Removing duplicates" );
     Vect_remove_duplicates( map, GV_BOUNDARY | GV_CENTROID, NULL );
-    while ( true )
+    for ( int i = 0; i < 3; i++ )
     {
+      G_message( "Breaking lines" );
       Vect_break_lines( map, GV_BOUNDARY, NULL );
+      G_message( "Removing duplicates" );
       Vect_remove_duplicates( map, GV_BOUNDARY, NULL );
+      G_message( "Cleaning small dangles at nodes" );
       if ( Vect_clean_small_angles_at_nodes( map, GV_BOUNDARY, NULL ) == 0 )
       {
         break;
@@ -358,15 +370,19 @@ int main( int argc, char **argv )
       }
     }
 
+    G_message( "Merging lines" );
     Vect_merge_lines( map, GV_BOUNDARY, NULL, NULL );
+    G_message( "Removing bridges" );
 #if GRASS_VERSION_MAJOR < 7
     Vect_remove_bridges( map, NULL );
 #else
     int linesRemoved, bridgesRemoved;
     Vect_remove_bridges( map, NULL, &linesRemoved, &bridgesRemoved );
 #endif
+    G_message( "Attaching islands" );
     Vect_build_partial( map, GV_BUILD_ATTACH_ISLES );
 
+    G_message( "Creating centroids" );
     QMap<QgsFeatureId, QgsFeature> centroids;
     QgsSpatialIndex spatialIndex;
     int nAreas = Vect_get_num_areas( map );
@@ -385,15 +401,20 @@ int main( int argc, char **argv )
       centroids.insert( area, feature );
       spatialIndex.insertFeature( feature );
     }
+
+    G_message( "Attaching input polygons to cleaned areas" );
     // read once more to assign centroids to polygons
+    count = 0;
     while ( true )
     {
       exitIfCanceled( stdinStream );
       stdinStream >> feature;
       checkStream( stdinStream );
 #ifndef Q_OS_WIN
+#if 0
       stdoutStream << true; // feature received
       stdoutFile.flush();
+#endif
 #endif
       if ( !feature.isValid() )
       {
@@ -415,12 +436,17 @@ int main( int argc, char **argv )
           centroid.setAttributes( attr );
         }
       }
+      count++;
+      G_percent( count, featureCount, 1 );
     }
 
+    G_message( "Copying lines from temporary map" );
     Vect_copy_map_lines( tmpMap, finalMap );
     Vect_close( tmpMap );
     Vect_delete( tmpName.toUtf8().data() );
 
+    int centroidsCount = centroids.size();
+    count = 0;
     foreach ( QgsFeature centroid, centroids.values() )
     {
       QgsPoint point = centroid.geometry()->asPoint();
@@ -434,11 +460,15 @@ int main( int argc, char **argv )
         }
         writePoint( finalMap, GV_CENTROID, point, cats );
       }
+      G_percent( count, centroidsCount, 1 );
     }
   }
 
+  G_message( "Building final map topology" );
   Vect_build( finalMap );
   Vect_close( finalMap );
+
+  G_message( "Done" );
 
   stdoutStream << true; // to keep caller waiting until finished
   stdoutFile.flush();

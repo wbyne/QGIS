@@ -2,7 +2,6 @@
 # sources
 
 SET(QGIS_CORE_SRCS
-
   gps/qgsgpsconnection.cpp
   gps/qgsgpsconnectionregistry.cpp
   gps/qgsnmeaconnection.cpp
@@ -65,6 +64,13 @@ SET(QGIS_CORE_SRCS
   layertree/qgslayertreeregistrybridge.cpp
   layertree/qgslayertreeutils.cpp
 
+  auth/qgsauthcertutils.cpp
+  auth/qgsauthconfig.cpp
+  auth/qgsauthcrypto.cpp
+  auth/qgsauthmanager.cpp
+  auth/qgsauthmethodmetadata.cpp
+  auth/qgsauthmethodregistry.cpp
+
   qgis.cpp
   qgsapplication.cpp
   qgsattributeaction.cpp
@@ -112,6 +118,7 @@ SET(QGIS_CORE_SRCS
   qgslayerdefinition.cpp
   qgslabel.cpp
   qgslabelattributes.cpp
+  qgslabelingenginev2.cpp
   qgslabelsearchtree.cpp
   qgslegacyhelpers.cpp
   qgslegendrenderer.cpp
@@ -162,6 +169,7 @@ SET(QGIS_CORE_SRCS
   qgsrenderchecker.cpp
   qgsrendercontext.cpp
   qgsrectangle.cpp
+  qgsrulebasedlabeling.cpp
   qgsrunprocess.cpp
   qgsscalecalculator.cpp
   qgsscaleexpression.cpp
@@ -178,12 +186,15 @@ SET(QGIS_CORE_SRCS
   qgsvectorfilewriter.cpp
   qgsvectorlayer.cpp
   qgsvectorlayercache.cpp
+  qgsvectorlayerdiagramprovider.cpp
   qgsvectorlayereditbuffer.cpp
   qgsvectorlayereditpassthrough.cpp
   qgsvectorlayereditutils.cpp
   qgsvectorlayerfeatureiterator.cpp
   qgsvectorlayerimport.cpp
   qgsvectorlayerjoinbuffer.cpp
+  qgsvectorlayerlabeling.cpp
+  qgsvectorlayerlabelprovider.cpp
   qgsvectorlayerrenderer.cpp
   qgsvectorlayerundocommand.cpp
   qgsvectorsimplifymethod.cpp
@@ -316,6 +327,17 @@ SET(QGIS_CORE_SRCS
   geometry/qgswkbtypes.cpp
 )
 
+FILE(GLOB JSON_HELP_FILES "${CMAKE_SOURCE_DIR}/resources/function_help/json/*")
+STRING(REPLACE "$" "$$" JSON_HELP_FILES "${JSON_HELP_FILES}")
+STRING(REPLACE "\(" "\\(" JSON_HELP_FILES "${JSON_HELP_FILES}")
+STRING(REPLACE "\)" "\\)" JSON_HELP_FILES "${JSON_HELP_FILES}")
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/qgsexpression_texts.cpp
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/process_function_template.py ${CMAKE_CURRENT_BINARY_DIR}/qgsexpression_texts.cpp.temp
+        COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_CURRENT_BINARY_DIR}/qgsexpression_texts.cpp.temp -DDST=${CMAKE_CURRENT_SOURCE_DIR}/qgsexpression_texts.cpp -P ${CMAKE_SOURCE_DIR}/cmake/CopyIfChanged.cmake
+	DEPENDS ${JSON_HELP_FILES}
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 IF(ENABLE_MODELTEST)
   SET(MODELTEST_SRCS
     ../../tests/qt_modeltest/modeltest.cpp
@@ -415,6 +437,9 @@ SET(QGIS_CORE_MOC_HDRS
   qgsgeometryvalidator.h
   qgswebview.h
 
+  auth/qgsauthmanager.h
+  auth/qgsauthmethod.h
+
   composer/qgsaddremoveitemcommand.h
   composer/qgsatlascomposition.h
   composer/qgscomposerattributetable.h
@@ -495,7 +520,7 @@ ENDIF (QT_MOBILITY_LOCATION_FOUND OR Qt5Positioning_FOUND)
 QT4_WRAP_CPP(QGIS_CORE_MOC_SRCS ${QGIS_CORE_MOC_HDRS})
 
 IF(MSVC)
-  SET_SOURCE_FILES_PROPERTIES(${QGIS_CORE_MOC_SRCS} PROPERTIES COMPILE_FLAGS "/wd4996" )
+  SET_SOURCE_FILES_PROPERTIES(${QGIS_CORE_MOC_SRCS} PROPERTIES COMPILE_FLAGS "/wd4512 /wd4996" )
 ELSE(MSVC)
   SET_SOURCE_FILES_PROPERTIES(${QGIS_CORE_MOC_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations" )
 ENDIF(MSVC)
@@ -552,6 +577,7 @@ SET(QGIS_CORE_HDRS
   qgslayerdefinition.h
   qgslabel.h
   qgslabelattributes.h
+  qgslabelingenginev2.h
   qgslabelsearchtree.h
   qgslegacyhelpers.h
   qgslegendrenderer.h
@@ -602,9 +628,11 @@ SET(QGIS_CORE_HDRS
   qgsvectordataprovider.h
   qgsvectorlayercache.h
   qgsvectorfilewriter.h
+  qgsvectorlayerdiagramprovider.h
   qgsvectorlayereditutils.h
   qgsvectorlayerfeatureiterator.h
   qgsvectorlayerimport.h
+  qgsvectorlayerlabelprovider.h
   qgsvectorlayerrenderer.h
   qgsvectorlayerundocommand.h
   qgsvectorsimplifymethod.h
@@ -614,6 +642,14 @@ SET(QGIS_CORE_HDRS
   qgswebframe.h
   qgswebview.h
   qgslocalec.h
+
+  auth/qgsauthcertutils.h
+  auth/qgsauthconfig.h
+  auth/qgsauthcrypto.h
+  auth/qgsauthmanager.h
+  auth/qgsauthmethod.h
+  auth/qgsauthmethodmetadata.h
+  auth/qgsauthmethodregistry.h
 
   diagram/qgsdiagram.h
   diagram/qgspiediagram.h
@@ -717,6 +753,12 @@ SET(QGIS_CORE_HDRS
   geometry/qgspointv2.h
 )
 
+IF(GEOS_CPP_LIBRARY)
+  SET(QGIS_CORE_SRCS ${QGIS_CORE_SRCS} geosextra/geos_c_extra.cpp)
+  SET(QGIS_CORE_HDRS ${QGIS_CORE_HDRS} geosextra/geos_c_extra.h)
+  ADD_DEFINITIONS("-DHAVE_GEOS_CPP")
+ENDIF(GEOS_CPP_LIBRARY)
+
 IF (QT_MOBILITY_LOCATION_FOUND OR Qt5Positioning_FOUND)
   SET(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
     gps/qgsqtlocationconnection.h
@@ -726,6 +768,7 @@ ENDIF (QT_MOBILITY_LOCATION_FOUND OR Qt5Positioning_FOUND)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
+  auth
   composer
   dxf
   effects
@@ -743,6 +786,7 @@ INCLUDE_DIRECTORIES(
   ${EXPAT_INCLUDE_DIR}
   ${SQLITE3_INCLUDE_DIR}
   ${SPATIALITE_INCLUDE_DIR}
+  ${QCA_INCLUDE_DIR}
 )
 
 IF (NOT MSVC)
@@ -826,6 +870,8 @@ TARGET_LINK_LIBRARIES(qgis_core
   ${QT_QTNETWORK_LIBRARY}
   ${QT_QTSVG_LIBRARY}
   ${QT_QTWEBKIT_LIBRARY}
+  ${QT_QTSQL_LIBRARY}
+  ${QCA_LIBRARY}
 
   ${PROJ_LIBRARY}
   ${GEOS_LIBRARY}
@@ -835,6 +881,10 @@ TARGET_LINK_LIBRARIES(qgis_core
   ${SQLITE3_LIBRARY}
   ${SPATIALITE_LIBRARY}
 )
+
+IF(GEOS_CPP_LIBRARY)
+  TARGET_LINK_LIBRARIES(qgis_core ${GEOS_CPP_LIBRARY})
+ENDIF(GEOS_CPP_LIBRARY)
 
 IF (Qt5Positioning_FOUND)
   TARGET_LINK_LIBRARIES(qgis_core

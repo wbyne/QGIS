@@ -65,6 +65,12 @@ QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
 
   txtSearchEdit->setPlaceholderText( tr( "Search" ) );
 
+  mValuesModel = new QStringListModel();
+  mProxyValues = new QSortFilterProxyModel();
+  mProxyValues->setSourceModel( mValuesModel );
+  mValuesListView->setModel( mProxyValues );
+  txtSearchEditValues->setPlaceholderText( tr( "Search" ) );
+
   QSettings settings;
   splitter->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/splitter" ).toByteArray() );
   functionsplit->restoreState( settings.value( "/windows/QgsExpressionBuilderWidget/functionsplitter" ).toByteArray() );
@@ -101,6 +107,8 @@ QgsExpressionBuilderWidget::~QgsExpressionBuilderWidget()
 
   delete mModel;
   delete mProxyModel;
+  delete mValuesModel;
+  delete mProxyValues;
 }
 
 void QgsExpressionBuilderWidget::setLayer( QgsVectorLayer *layer )
@@ -115,25 +123,22 @@ void QgsExpressionBuilderWidget::setLayer( QgsVectorLayer *layer )
 
 void QgsExpressionBuilderWidget::currentChanged( const QModelIndex &index, const QModelIndex & )
 {
+  txtSearchEditValues->setText( QString( "" ) );
+
   // Get the item
   QModelIndex idx = mProxyModel->mapToSource( index );
   QgsExpressionItem* item = dynamic_cast<QgsExpressionItem*>( mModel->itemFromIndex( idx ) );
   if ( !item )
     return;
 
-  mValueListWidget->clear();
   if ( item->getItemType() == QgsExpressionItem::Field && mFieldValues.contains( item->text() ) )
   {
     const QStringList& values = mFieldValues[item->text()];
-    mValueListWidget->setUpdatesEnabled( false );
-    mValueListWidget->blockSignals( true );
-    mValueListWidget->addItems( values );
-    mValueListWidget->setUpdatesEnabled( true );
-    mValueListWidget->blockSignals( false );
+    mValuesModel->setStringList( values );
   }
 
   mLoadGroupBox->setVisible( item->getItemType() == QgsExpressionItem::Field && mLayer );
-  mValueGroupBox->setVisible(( item->getItemType() == QgsExpressionItem::Field && mLayer ) || mValueListWidget->count() > 0 );
+  mValueGroupBox->setVisible(( item->getItemType() == QgsExpressionItem::Field && mLayer ) || mValuesListView->model()->rowCount() > 0 );
 
   // Show the help for the current item.
   QString help = loadFunctionHelp( item );
@@ -308,15 +313,11 @@ void QgsExpressionBuilderWidget::fillFieldValues( const QString& fieldName, int 
     return;
 
   // TODO We should thread this so that we don't hold the user up if the layer is massive.
-  mValueListWidget->clear();
 
   int fieldIndex = mLayer->fieldNameIndex( fieldName );
 
   if ( fieldIndex < 0 )
     return;
-
-  mValueListWidget->setUpdatesEnabled( false );
-  mValueListWidget->blockSignals( true );
 
   QList<QVariant> values;
   QStringList strValues;
@@ -330,13 +331,10 @@ void QgsExpressionBuilderWidget::fillFieldValues( const QString& fieldName, int 
       strValue = value.toString();
     else
       strValue = "'" + value.toString().replace( "'", "''" ) + "'";
-    mValueListWidget->addItem( strValue );
     strValues.append( strValue );
   }
+  mValuesModel->setStringList( strValues );
   mFieldValues[fieldName] = strValues;
-
-  mValueListWidget->setUpdatesEnabled( true );
-  mValueListWidget->blockSignals( false );
 }
 
 void QgsExpressionBuilderWidget::registerItem( QString group,
@@ -362,6 +360,7 @@ void QgsExpressionBuilderWidget::registerItem( QString group,
     newgroupNode->setData( group, Qt::UserRole );
     newgroupNode->setData( group == "Recent (Selection)" ? 2 : 1, QgsExpressionItem::CustomSortRole );
     newgroupNode->appendRow( item );
+    newgroupNode->setBackground( QBrush( QColor( "#eee" ) ) );
     mModel->appendRow( newgroupNode );
     mExpressionGroups.insert( group, newgroupNode );
   }
@@ -427,24 +426,19 @@ void QgsExpressionBuilderWidget::updateFunctionTree()
   mModel->clear();
   mExpressionGroups.clear();
   // TODO Can we move this stuff to QgsExpression, like the functions?
-  registerItem( "Operators", "+", " + ", tr( "Addition operator" ) );
-  registerItem( "Operators", "-", " - ", tr( "Subtraction operator" ) );
-  registerItem( "Operators", "*", " * ", tr( "Multiplication operator" ) );
-  registerItem( "Operators", "/", " / ", tr( "Division operator" ) );
-  registerItem( "Operators", "%", " % ", tr( "Modulo operator" ) );
-  registerItem( "Operators", "^", " ^ ", tr( "Power operator" ) );
-  registerItem( "Operators", "=", " = ", tr( "Equal operator" ) );
-  registerItem( "Operators", ">", " > ", tr( "Greater as operator" ) );
-  registerItem( "Operators", "<", " < ", tr( "Less than operator" ) );
-  registerItem( "Operators", "<>", " <> ", tr( "Unequal operator" ) );
-  registerItem( "Operators", "<=", " <= ", tr( "Less or equal operator" ) );
-  registerItem( "Operators", ">=", " >= ", tr( "Greater or equal operator" ) );
-  registerItem( "Operators", "||", " || ",
-                QString( "<b>|| %1</b><br><i>%2</i><br><i>%3:</i>%4" )
-                .arg( tr( "(String Concatenation)" ) )
-                .arg( tr( "Joins two values together into a string" ) )
-                .arg( tr( "Usage" ) )
-                .arg( tr( "'Dia' || Diameter" ) ) );
+  registerItem( "Operators", "+", " + " );
+  registerItem( "Operators", "-", " - " );
+  registerItem( "Operators", "*", " * " );
+  registerItem( "Operators", "/", " / " );
+  registerItem( "Operators", "%", " % " );
+  registerItem( "Operators", "^", " ^ " );
+  registerItem( "Operators", "=", " = " );
+  registerItem( "Operators", ">", " > " );
+  registerItem( "Operators", "<", " < " );
+  registerItem( "Operators", "<>", " <> " );
+  registerItem( "Operators", "<=", " <= " );
+  registerItem( "Operators", ">=", " >= " );
+  registerItem( "Operators", "||", " || " );
   registerItem( "Operators", "IN", " IN " );
   registerItem( "Operators", "LIKE", " LIKE " );
   registerItem( "Operators", "ILIKE", " ILIKE " );
@@ -454,9 +448,7 @@ void QgsExpressionBuilderWidget::updateFunctionTree()
   registerItem( "Operators", "NOT", " NOT " );
 
   QString casestring = "CASE WHEN condition THEN result END";
-  QString caseelsestring = "CASE WHEN condition THEN result ELSE result END";
   registerItem( "Conditionals", "CASE", casestring );
-  registerItem( "Conditionals", "CASE ELSE", caseelsestring );
 
   registerItem( "Fields and Values", "NULL", "NULL" );
 
@@ -635,6 +627,12 @@ void QgsExpressionBuilderWidget::on_txtSearchEdit_textChanged()
     expressionTree->expandAll();
 }
 
+void QgsExpressionBuilderWidget::on_txtSearchEditValues_textChanged()
+{
+  mProxyValues->setFilterCaseSensitivity( Qt::CaseInsensitive );
+  mProxyValues->setFilterWildcard( txtSearchEditValues->text() );
+}
+
 void QgsExpressionBuilderWidget::on_lblPreview_linkActivated( QString link )
 {
   Q_UNUSED( link );
@@ -644,10 +642,10 @@ void QgsExpressionBuilderWidget::on_lblPreview_linkActivated( QString link )
   mv->exec();
 }
 
-void QgsExpressionBuilderWidget::on_mValueListWidget_itemDoubleClicked( QListWidgetItem *item )
+void QgsExpressionBuilderWidget::on_mValuesListView_doubleClicked( const QModelIndex &index )
 {
   // Insert the item text or replace selected text
-  txtExpressionString->insertText( " " + item->text() + " " );
+  txtExpressionString->insertText( " " + index.data( Qt::DisplayRole ).toString() + " " );
   txtExpressionString->setFocus();
 }
 

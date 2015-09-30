@@ -182,6 +182,8 @@ QgsGrassModule::QgsGrassModule( QgsGrassTools *tools, QString moduleName, QgisIn
   QgsDebugMsg( "called" );
 
   setupUi( this );
+  // use fixed width font because module's output may be formated
+  mOutputTextBrowser->setStyleSheet( "font-family: Monospace; font-size: 9pt;" );
   lblModuleName->setText( tr( "Module: %1" ).arg( moduleName ) );
   mTools = tools;
   mIface = iface;
@@ -860,9 +862,7 @@ void QgsGrassModule::readStdout()
   while ( mProcess.canReadLine() )
   {
     QByteArray ba = mProcess.readLine();
-    //line = QString::fromUtf8( ba ).replace( '\n', "" );
     line = QString::fromLocal8Bit( ba ).replace( '\n', "" );
-    //QgsDebugMsg(QString("line: '%1'").arg(line));
 
     // GRASS_INFO_PERCENT is catched here only because of bugs in GRASS,
     // normaly it should be printed to stderr
@@ -873,7 +873,7 @@ void QgsGrassModule::readStdout()
     }
     else
     {
-      mOutputTextBrowser->append( "<pre>" + line + "</pre>" );
+      mOutputTextBrowser->append( line );
     }
   }
 }
@@ -883,48 +883,23 @@ void QgsGrassModule::readStderr()
   QgsDebugMsg( "called." );
 
   QString line;
-  QRegExp rxpercent( "GRASS_INFO_PERCENT: (\\d+)" );
-  QRegExp rxmessage( "GRASS_INFO_MESSAGE\\(\\d+,\\d+\\): (.*)" );
-  QRegExp rxwarning( "GRASS_INFO_WARNING\\(\\d+,\\d+\\): (.*)" );
-  QRegExp rxerror( "GRASS_INFO_ERROR\\(\\d+,\\d+\\): (.*)" );
-  QRegExp rxend( "GRASS_INFO_END\\(\\d+,\\d+\\)" );
 
   mProcess.setReadChannel( QProcess::StandardError );
   while ( mProcess.canReadLine() )
   {
     QByteArray ba = mProcess.readLine();
-    //line = QString::fromUtf8( ba ).replace( '\n', "" );
     line = QString::fromLocal8Bit( ba ).replace( '\n', "" );
-    //QgsDebugMsg(QString("line: '%1'").arg(line));
 
-    if ( rxpercent.indexIn( line ) != -1 )
+    QString text, html;
+    int percent;
+    QgsGrass::ModuleOutput type =  QgsGrass::parseModuleOutput( line, text, html, percent );
+    if ( type == QgsGrass::OutputPercent )
     {
-      int progress = rxpercent.cap( 1 ).toInt();
-      mProgressBar->setValue( progress );
+      mProgressBar->setValue( percent );
     }
-    else if ( rxmessage.indexIn( line ) != -1 )
+    else if ( type == QgsGrass::OutputMessage || type == QgsGrass::OutputWarning || type == QgsGrass::OutputError )
     {
-      mOutputTextBrowser->append( "<pre>" + rxmessage.cap( 1 ) + "</pre>" );
-    }
-    else if ( rxwarning.indexIn( line ) != -1 )
-    {
-      QString warn = rxwarning.cap( 1 );
-      QString img = QgsApplication::pkgDataPath() + "/themes/default/grass/grass_module_warning.png";
-      mOutputTextBrowser->append( "<img src=\"" + img + "\">" + warn );
-    }
-    else if ( rxerror.indexIn( line ) != -1 )
-    {
-      QString error = rxerror.cap( 1 );
-      QString img = QgsApplication::pkgDataPath() + "/themes/default/grass/grass_module_error.png";
-      mOutputTextBrowser->append( "<img src=\"" + img + "\">" + error );
-    }
-    else if ( rxend.indexIn( line ) != -1 )
-    {
-      // Do nothing
-    }
-    else
-    {
-      mOutputTextBrowser->append( "<pre>" + line + "</pre>" );
+      mOutputTextBrowser->append( html );
     }
   }
 }

@@ -100,13 +100,20 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     /** Query options used when the mode is snap to current layer */
     void defaultSettings( int& type, double& tolerance, QgsTolerance::UnitType& unit );
 
+    /**
+     * Configures how a certain layer should be handled in a snapping operation
+     */
     struct LayerConfig
     {
-      LayerConfig( QgsVectorLayer* l, int t, double tol, QgsTolerance::UnitType u ) : layer( l ), type( t ), tolerance( tol ), unit( u ) {}
+      LayerConfig( QgsVectorLayer* l, QgsPointLocator::Types t, double tol, QgsTolerance::UnitType u ) : layer( l ), type( t ), tolerance( tol ), unit( u ) {}
 
+      //! The layer to configure.
       QgsVectorLayer* layer;
-      int type;
+      //! To which geometry properties of this layers a snapping should happen.
+      QgsPointLocator::Types type;
+      //! The range around snapping targets in which snapping should occur.
       double tolerance;
+      //! The units in which the tolerance is specified.
       QgsTolerance::UnitType unit;
     };
 
@@ -172,6 +179,9 @@ class CORE_EXPORT QgsSnappingUtils : public QObject
     LocatorsMap mTemporaryLocators;
     //! list of layer IDs that are too large to be indexed (hybrid strategy will use temporary locators for those)
     QSet<QString> mHybridNonindexableLayers;
+
+    //! internal flag that an indexing process is going on. Prevents starting two processes in parallel.
+    bool mIsIndexing;
 };
 
 

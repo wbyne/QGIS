@@ -6,6 +6,7 @@
 %Import QtGui/QtGuimod.sip
 %Import QtXml/QtXmlmod.sip
 %Import QtNetwork/QtNetworkmod.sip
+%Import QtSql/QtSqlmod.sip
 
 %Include conversions.sip
 %Include qgsexception.sip
@@ -131,6 +132,12 @@
 %Include qgsvectorlayerfeatureiterator.sip
 %Include qgsvisibilitypresetcollection.sip
 %Include qgslayerdefinition.sip
+
+%Include auth/qgsauthcertutils.sip
+%Include auth/qgsauthconfig.sip
+// %Include auth/qgsauthcrypto.sip
+%Include auth/qgsauthmanager.sip
+%Include auth/qgsauthmethod.sip
 
 %Include composer/qgsaddremoveitemcommand.sip
 %Include composer/qgsaddremovemultiframecommand.sip

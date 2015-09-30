@@ -24,13 +24,13 @@
 #include <QPlainTextDocumentLayout>
 #include <QSortFilterProxyModel>
 
+#include "qgisapp.h"
 #include "qgsbrowsermodel.h"
 #include "qgsbrowsertreeview.h"
 #include "qgslogger.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsrasterlayer.h"
 #include "qgsvectorlayer.h"
-#include "qgisapp.h"
 #include "qgsproject.h"
 
 // browser layer properties dialog
@@ -200,7 +200,10 @@ class QgsBrowserTreeFilterProxyModel : public QSortFilterProxyModel
       if ( mFilter == "" || !mModel ) return true;
 
       QModelIndex sourceIndex = mModel->index( sourceRow, 0, sourceParent );
-      return filterAcceptsItem( sourceIndex ) || filterAcceptsAncestor( sourceIndex ) || filterAcceptsDescendant( sourceIndex );
+      // also look into the comment column
+      QModelIndex commentIndex = mModel->index( sourceRow, 1, sourceParent );
+      return filterAcceptsItem( sourceIndex ) || filterAcceptsAncestor( sourceIndex ) || filterAcceptsDescendant( sourceIndex ) ||
+             filterAcceptsItem( commentIndex ) || filterAcceptsAncestor( commentIndex ) || filterAcceptsDescendant( commentIndex );
     }
 
     // returns true if at least one ancestor is accepted by filter
@@ -228,6 +231,11 @@ class QgsBrowserTreeFilterProxyModel : public QSortFilterProxyModel
       {
         QgsDebugMsg( QString( "i = %1" ).arg( i ) );
         QModelIndex sourceChildIndex = mModel->index( i, 0, sourceIndex );
+        if ( filterAcceptsItem( sourceChildIndex ) )
+          return true;
+        if ( filterAcceptsDescendant( sourceChildIndex ) )
+          return true;
+        sourceChildIndex = mModel->index( i, 1, sourceIndex );
         if ( filterAcceptsItem( sourceChildIndex ) )
           return true;
         if ( filterAcceptsDescendant( sourceChildIndex ) )
@@ -273,18 +281,37 @@ QgsBrowserPropertiesWidget::QgsBrowserPropertiesWidget( QWidget* parent ) :
 {
 }
 
+void QgsBrowserPropertiesWidget::setWidget( QWidget* paramWidget )
+{
+  QVBoxLayout *layout = new QVBoxLayout( this );
+  paramWidget->setParent( this );
+  layout->addWidget( paramWidget );
+}
+
 QgsBrowserPropertiesWidget* QgsBrowserPropertiesWidget::createWidget( QgsDataItem* item, QWidget* parent )
 {
   QgsBrowserPropertiesWidget* propertiesWidget = 0;
-  if ( item->type() == QgsDataItem::Layer )
-  {
-    propertiesWidget = new QgsBrowserLayerProperties( parent );
-    propertiesWidget->setItem( item );
-  }
-  else if ( item->type() == QgsDataItem::Directory )
+  // In general, we would like to show all items' paramWidget, but top level items like
+  // WMS etc. have currently too large widgets which do not fit well to browser properties widget
+  if ( item->type() == QgsDataItem::Directory )
   {
     propertiesWidget = new QgsBrowserDirectoryProperties( parent );
     propertiesWidget->setItem( item );
+  }
+  else if ( item->type() == QgsDataItem::Layer )
+  {
+    // prefer item's widget over standard layer widget
+    QWidget *paramWidget = item->paramWidget();
+    if ( paramWidget )
+    {
+      propertiesWidget = new QgsBrowserPropertiesWidget( parent );
+      propertiesWidget->setWidget( paramWidget );
+    }
+    else
+    {
+      propertiesWidget = new QgsBrowserLayerProperties( parent );
+      propertiesWidget->setItem( item );
+    }
   }
   return propertiesWidget;
 }
@@ -532,6 +559,7 @@ void QgsBrowserDockWidget::showEvent( QShowEvent * e )
     // provide a horizontal scroll bar instead of using ellipse (...) for longer items
     mBrowserView->setTextElideMode( Qt::ElideNone );
     mBrowserView->header()->setResizeMode( 0, QHeaderView::ResizeToContents );
+    mBrowserView->header()->setResizeMode( 1, QHeaderView::ResizeToContents );
     mBrowserView->header()->setStretchLastSection( false );
 
     // selectionModel is created when model is set on tree

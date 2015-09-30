@@ -30,6 +30,7 @@ QgsSnappingUtils::QgsSnappingUtils( QObject* parent )
     , mDefaultTolerance( 10 )
     , mDefaultUnit( QgsTolerance::Pixels )
     , mSnapOnIntersection( false )
+    , mIsIndexing( false )
 {
   connect( QgsMapLayerRegistry::instance(), SIGNAL( layersWillBeRemoved( QStringList ) ), this, SLOT( onLayersWillBeRemoved( QStringList ) ) );
 }
@@ -306,6 +307,10 @@ QgsPointLocator::Match QgsSnappingUtils::snapToMap( const QgsPoint& pointMap, Qg
 
 void QgsSnappingUtils::prepareIndex( const QList<QgsVectorLayer*>& layers )
 {
+  if ( mIsIndexing )
+    return;
+  mIsIndexing = true;
+
   // check if we need to build any index
   QList<QgsVectorLayer*> layersToIndex;
   Q_FOREACH ( QgsVectorLayer* vl, layers )
@@ -329,6 +334,7 @@ void QgsSnappingUtils::prepareIndex( const QList<QgsVectorLayer*>& layers )
     prepareIndexProgress( ++i );
   }
   QgsDebugMsg( QString( "Prepare index total: %1 ms" ).arg( t.elapsed() ) );
+  mIsIndexing = false;
 }
 
 
@@ -449,9 +455,11 @@ void QgsSnappingUtils::readConfigFromProject()
     if ( !vlayer || !vlayer->hasGeometryType() )
       continue;
 
-    int t = ( *snapIt == "to_vertex" ? QgsPointLocator::Vertex :
-              ( *snapIt == "to_segment" ? QgsPointLocator::Edge :
-                QgsPointLocator::Vertex | QgsPointLocator::Edge ) );
+    QgsPointLocator::Types t( *snapIt == "to_vertex" ? QgsPointLocator::Vertex :
+                              ( *snapIt == "to_segment" ? QgsPointLocator::Edge :
+                                QgsPointLocator::Vertex | QgsPointLocator::Edge
+                              )
+                            );
     mLayers.append( LayerConfig( vlayer, t, tolIt->toDouble(), ( QgsTolerance::UnitType ) tolUnitIt->toInt() ) );
   }
 

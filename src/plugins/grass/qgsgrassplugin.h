@@ -26,6 +26,7 @@ class QgsGrassRegion;
 
 class QgsMapCanvas;
 class QgsMapLayer;
+class QgsMapTool;
 class QgsRubberBand;
 class QgsVectorLayer;
 
@@ -84,6 +85,8 @@ class QgsGrassPlugin : public QObject, public QgisPlugin
     void unload() override;
     //! show the help document
     void help();
+    //! Gisbase changed by user
+    void onGisbaseChanged();
     //! Display current region
     void displayRegion();
     //! Switch region on/off
@@ -117,7 +120,16 @@ class QgsGrassPlugin : public QObject, public QgisPlugin
     void onEditingStarted();
     void onEditingStopped();
     void onCurrentLayerChanged( QgsMapLayer* layer );
+
+    // Start editing tools
+    void addFeature();
+
+    // Called when new layer was created in browser
+    void onNewLayer( QString uri, QString name );
+
   private:
+    void resetEditActions();
+
     //! Pointer to our toolbar
     QToolBar *mToolBarPointer;
     //! Pointer to the QGIS interface object
@@ -143,7 +155,21 @@ class QgsGrassPlugin : public QObject, public QgisPlugin
     QAction *mNewMapsetAction;
     QAction *mCloseMapsetAction;
     QAction *mOpenToolsAction;
-    QAction *mNewVectorAction;
+    QAction *mOptionsAction;
+
+    // Editing    static bool mNonInitializable;
+    QAction *mAddFeatureAction;
+    QAction *mAddPointAction;
+    QAction *mAddLineAction;
+    QAction *mAddBoundaryAction;
+    QAction *mAddCentroidAction;
+    QAction *mAddAreaAction;
+
+    QgsMapTool *mAddPoint;
+    QgsMapTool *mAddLine;
+    QgsMapTool *mAddBoundary;
+    QgsMapTool *mAddCentroid;
+    QgsMapTool *mAddArea;
 
     // Names of layer styles before editing started
     QMap<QgsVectorLayer *, QString> mOldStyles;

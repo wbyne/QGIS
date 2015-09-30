@@ -120,7 +120,7 @@ bool QgsGrassVectorMap::openMap()
   {
     QgsDebugMsg( "Cannot find GRASS vector" );
     QgsGrass::unlock();
-    return -1;
+    return false;
   }
 
   // Read the time of vector dir before Vect_open_old, because it may take long time (when the vector
@@ -150,7 +150,7 @@ bool QgsGrassVectorMap::openMap()
   {
     QgsDebugMsg( "Cannot open GRASS vector head" );
     QgsGrass::unlock();
-    return -1;
+    return false;
   }
   else if ( level == 1 )
   {
@@ -161,7 +161,7 @@ bool QgsGrassVectorMap::openMap()
     if ( ret == QMessageBox::Cancel )
     {
       QgsGrass::unlock();
-      return -1;
+      return false;
     }
   }
 
@@ -175,7 +175,7 @@ bool QgsGrassVectorMap::openMap()
   {
     QgsGrass::warning( QString( "Cannot open GRASS vector: %1" ).arg( e.what() ) );
     QgsGrass::unlock();
-    return -1;
+    return false;
   }
 
   if ( level == 1 )
@@ -193,7 +193,7 @@ bool QgsGrassVectorMap::openMap()
     {
       QgsGrass::warning( QString( "Cannot build topology: %1" ).arg( e.what() ) );
       QgsGrass::unlock();
-      return -1;
+      return false;
     }
   }
   QgsDebugMsg( "GRASS map successfully opened" );
@@ -282,9 +282,16 @@ bool QgsGrassVectorMap::startEdit()
   QgsDebugMsg( QString( "Vector successfully reopened for update mOldNumLines = %1" ).arg( mOldNumLines ) );
 
   mIsEdited = true;
+
+  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
+  {
+    l->startEdit();
+  }
+
   mValid = true;
   QgsGrass::unlock();
   unlockOpenClose();
+  emit dataChanged();
   return true;
 }
 
@@ -303,9 +310,15 @@ bool QgsGrassVectorMap::closeEdit( bool newMap )
   closeAllIterators(); // blocking
 
   QgsGrass::lock();
+  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
+  {
+    l->closeEdit();
+  }
+
   mOldLids.clear();
   mNewLids.clear();
   mOldGeometries.clear();
+  mNewCats.clear();
 
   // Mapset must be set before Vect_close()
   QgsGrass::setMapset( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset() );
@@ -341,9 +354,11 @@ bool QgsGrassVectorMap::closeEdit( bool newMap )
 
   closeMap();
   openMap();
+  reloadLayers();
   mVersion++;
   unlockOpenClose();
 
+  emit dataChanged();
   QgsDebugMsg( "edit closed" );
   return mValid;
 }
@@ -380,6 +395,15 @@ QgsGrassVectorMapLayer * QgsGrassVectorMap::openLayer( int field )
   unlockOpenClose();
   unlockOpenCloseLayer();
   return layer;
+}
+
+void QgsGrassVectorMap::reloadLayers()
+{
+  QgsDebugMsg( "entered" );
+  foreach ( QgsGrassVectorMapLayer *l, mLayers )
+  {
+    l->load();
+  }
 }
 
 void QgsGrassVectorMap::closeLayer( QgsGrassVectorMapLayer * layer )
@@ -447,7 +471,9 @@ void QgsGrassVectorMap::update()
   closeAllIterators(); // blocking
   closeMap();
   openMap();
+  reloadLayers();
   unlockOpenClose();
+  emit dataChanged();
 }
 
 bool QgsGrassVectorMap::mapOutdated()
@@ -682,4 +708,48 @@ QgsGrassVectorMap * QgsGrassVectorMapStore::openMap( const QgsGrassObject & gras
 
   mMutex.unlock();
   return map;
+}
+
+QgsGrassVectorMap::TopoSymbol QgsGrassVectorMap::topoSymbol( int lid )
+{
+  int type = Vect_read_line( mMap, 0, 0, lid );
+
+  TopoSymbol symbol = TopoUndefined;
+  if ( type == GV_POINT )
+  {
+    symbol = TopoPoint;
+  }
+  else if ( type == GV_CENTROID )
+  {
+    int area = Vect_get_centroid_area( mMap, lid );
+    if ( area == 0 )
+      symbol = TopoCentroidOut;
+    else if ( area > 0 )
+      symbol = TopoCentroidIn;
+    else
+      symbol = TopoCentroidDupl; /* area < 0 */
+  }
+  else if ( type == GV_LINE )
+  {
+    symbol = TopoLine;
+  }
+  else if ( type == GV_BOUNDARY )
+  {
+    int left, right;
+    Vect_get_line_areas( mMap, lid, &left, &right );
+    if ( left != 0 && right != 0 )
+    {
+      symbol = TopoBoundary2;
+    }
+    else if ( left == 0 && right == 0 )
+    {
+      symbol = TopoBoundary0;
+    }
+    else
+    {
+      symbol = TopoBoundary1;
+    }
+  }
+  QgsDebugMsgLevel( QString( "lid = %1 type = %2 symbol = %3" ).arg( lid ).arg( type ).arg( symbol ), 3 );
+  return symbol;
 }

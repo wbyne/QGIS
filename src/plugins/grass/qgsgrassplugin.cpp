@@ -19,6 +19,7 @@
 #include "qgsgrass.h"
 #include "qgsgrassprovider.h"
 
+#include "qgsgrassaddfeature.h"
 #include "qgsgrasseditrenderer.h"
 #include "qgsgrassnewmapset.h"
 #include "qgsgrassregion.h"
@@ -80,7 +81,17 @@ QgsGrassPlugin::QgsGrassPlugin( QgisInterface * theQgisInterFace )
     , mNewMapsetAction( 0 )
     , mCloseMapsetAction( 0 )
     , mOpenToolsAction( 0 )
-    , mNewVectorAction( 0 )
+    , mAddFeatureAction( 0 )
+    , mAddPointAction( 0 )
+    , mAddLineAction( 0 )
+    , mAddBoundaryAction( 0 )
+    , mAddCentroidAction( 0 )
+    , mAddAreaAction( 0 )
+    , mAddPoint( 0 )
+    , mAddLine( 0 )
+    , mAddBoundary( 0 )
+    , mAddCentroid( 0 )
+    , mAddArea()
 {
 }
 
@@ -91,7 +102,6 @@ QgsGrassPlugin::~QgsGrassPlugin()
   // -> do not call mTools here
   //if ( mTools )
   //  mTools->closeTools();
-  disconnect( QgsGrass::instance(), SIGNAL( mapsetChanged() ), this, SLOT( mapsetChanged() ) );
   QgsGrass::instance()->closeMapsetWarn();
 }
 
@@ -131,25 +141,11 @@ int QgsGrassPlugin::type()
  */
 void QgsGrassPlugin::initGui()
 {
-  if ( !QgsGrass::init() )
-  {
-    qGisInterface->messageBar()->pushMessage( tr( "GRASS error" ), QgsGrass::errorMessage(), QgsMessageBar::WARNING );
-    // TODO: add a widget with warning
-    return;
-  }
-
   mToolBarPointer = 0;
   mTools = 0;
   mNewMapset = 0;
 
   mCanvas = qGisInterface->mapCanvas();
-  QWidget* qgis = qGisInterface->mainWindow();
-
-  connect( mCanvas, SIGNAL( destinationCrsChanged() ), this, SLOT( setTransform() ) );
-
-  // Connect project
-  connect( qgis, SIGNAL( projectRead() ), this, SLOT( projectRead() ) );
-  connect( qgis, SIGNAL( newProject() ), this, SLOT( newProject() ) );
 
   // Create region rubber band
   mRegionBand = new QgsRubberBand( mCanvas, QGis::Polygon );
@@ -164,7 +160,7 @@ void QgsGrassPlugin::initGui()
   mCloseMapsetAction->setObjectName( "mCloseMapsetAction" );
 
   mOpenToolsAction = new QAction( QIcon(), tr( "Open GRASS Tools" ), this );
-  mOpenToolsAction->setObjectName( "mOpenToolsAction" );
+  mOpenToolsAction->setObjectName( "mAddPolygonActionmOpenToolsAction" );
   mOpenToolsAction->setWhatsThis( tr( "Open GRASS tools" ) );
 
   mRegionAction = new QAction( QIcon(), tr( "Display Current Grass Region" ), this );
@@ -172,24 +168,25 @@ void QgsGrassPlugin::initGui()
   mRegionAction->setWhatsThis( tr( "Displays the current GRASS region as a rectangle on the map canvas" ) );
   mRegionAction->setCheckable( true );
 
-  mNewVectorAction = new QAction( QIcon(), tr( "Create New Grass Vector" ), this );
-  mNewVectorAction->setObjectName( "mNewVectorAction" );
+  mOptionsAction = new QAction( QIcon(), tr( "GRASS Options" ), this );
+  mOptionsAction->setObjectName( "mOptionsAction" );
 
-  // Connect the action
-  connect( mOpenToolsAction, SIGNAL( triggered() ), this, SLOT( openTools() ) );
-  connect( mNewVectorAction, SIGNAL( triggered() ), this, SLOT( newVector() ) );
-  connect( mRegionAction, SIGNAL( toggled( bool ) ), this, SLOT( switchRegion( bool ) ) );
+  // Connect the actions
   connect( mOpenMapsetAction, SIGNAL( triggered() ), this, SLOT( openMapset() ) );
   connect( mNewMapsetAction, SIGNAL( triggered() ), this, SLOT( newMapset() ) );
   connect( mCloseMapsetAction, SIGNAL( triggered() ), SLOT( closeMapset() ) );
+  connect( mOpenToolsAction, SIGNAL( triggered() ), this, SLOT( openTools() ) );
+  connect( mRegionAction, SIGNAL( toggled( bool ) ), this, SLOT( switchRegion( bool ) ) );
+  connect( mOptionsAction, SIGNAL( triggered() ), QgsGrass::instance(), SLOT( openOptions() ) );
 
   // Add actions to a GRASS plugin menu
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mOpenMapsetAction );
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mNewMapsetAction );
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mCloseMapsetAction );
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mNewVectorAction );
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mOpenToolsAction );
-  qGisInterface->addPluginToMenu( tr( "&GRASS" ), mRegionAction );
+  QString menu = tr( "&GRASS" );
+  qGisInterface->addPluginToMenu( menu, mOpenMapsetAction );
+  qGisInterface->addPluginToMenu( menu, mNewMapsetAction );
+  qGisInterface->addPluginToMenu( menu, mCloseMapsetAction );
+  qGisInterface->addPluginToMenu( menu, mOpenToolsAction );
+  qGisInterface->addPluginToMenu( menu, mRegionAction );
+  qGisInterface->addPluginToMenu( menu, mOptionsAction );
 
   // Add the toolbar to the main window
   mToolBarPointer = qGisInterface->addToolBar( tr( "GRASS" ) );
@@ -200,21 +197,83 @@ void QgsGrassPlugin::initGui()
   mToolBarPointer->addAction( mNewMapsetAction );
   mToolBarPointer->addAction( mCloseMapsetAction );
   mToolBarPointer->addSeparator();
-  mToolBarPointer->addAction( mNewVectorAction );
   mToolBarPointer->addAction( mOpenToolsAction );
   mToolBarPointer->addAction( mRegionAction );
+
+  // Editing
+  mAddPointAction = new QAction( QgsApplication::getThemeIcon( "/mActionCapturePoint.png" ), tr( "Add Point" ), this );
+  mAddPointAction->setObjectName( "mAddPointAction" );
+  mAddPointAction->setCheckable( true );
+
+  mAddLineAction = new QAction( QgsApplication::getThemeIcon( "/mActionCaptureLine.png" ), tr( "Add Line" ), this );
+  mAddLineAction->setObjectName( "mAddLineAction" );
+  mAddLineAction->setCheckable( true );
+
+  mAddBoundaryAction = new QAction( getThemeIcon( "mActionCaptureBoundary.png" ), tr( "Add Boundary" ), this );
+  mAddBoundaryAction->setObjectName( "mAddBoundaryAction" );
+  mAddBoundaryAction->setCheckable( true );
+
+  mAddCentroidAction = new QAction( getThemeIcon( "mActionCaptureCentroid.png" ), tr( "Add Centroid" ), this );
+  mAddCentroidAction->setObjectName( "mAddCentroidAction" );
+  mAddCentroidAction->setCheckable( true );
+
+  mAddAreaAction = new QAction( QgsApplication::getThemeIcon( "/mActionCapturePolygon.png" ), tr( "Add Area" ), this );
+  mAddAreaAction->setObjectName( "mAddAreaAction" );
+  mAddAreaAction->setCheckable( true );
+
+  connect( mAddPointAction, SIGNAL( triggered() ), SLOT( addFeature() ) );
+  connect( mAddLineAction, SIGNAL( triggered() ), SLOT( addFeature() ) );
+  connect( mAddBoundaryAction, SIGNAL( triggered() ), SLOT( addFeature() ) );
+  connect( mAddCentroidAction, SIGNAL( triggered() ), SLOT( addFeature() ) );
+  connect( mAddAreaAction, SIGNAL( triggered() ), SLOT( addFeature() ) );
+
+  mAddFeatureAction = qGisInterface->actionAddFeature();
+
+  mAddFeatureAction->actionGroup()->addAction( mAddPointAction );
+  mAddFeatureAction->actionGroup()->addAction( mAddLineAction );
+  mAddFeatureAction->actionGroup()->addAction( mAddBoundaryAction );
+  mAddFeatureAction->actionGroup()->addAction( mAddCentroidAction );
+  mAddFeatureAction->actionGroup()->addAction( mAddAreaAction );
+
+  qGisInterface->digitizeToolBar()->insertAction( mAddFeatureAction, mAddPointAction );
+  qGisInterface->digitizeToolBar()->insertAction( mAddFeatureAction, mAddLineAction );
+  qGisInterface->digitizeToolBar()->insertAction( mAddFeatureAction, mAddBoundaryAction );
+  qGisInterface->digitizeToolBar()->insertAction( mAddFeatureAction, mAddCentroidAction );
+  qGisInterface->digitizeToolBar()->insertAction( mAddFeatureAction, mAddAreaAction );
+
+  resetEditActions();
+
+  mAddPoint = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CapturePoint );
+  mAddPoint->setAction( mAddPointAction );
+  mAddLine = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CaptureLine );
+  mAddLine->setAction( mAddLineAction );
+  mAddBoundary = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CaptureLine );
+  mAddBoundary->setAction( mAddBoundaryAction );
+  mAddCentroid = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CapturePoint );
+  mAddCentroid->setAction( mAddCentroidAction );
+  mAddArea = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CapturePolygon );
+  mAddArea->setAction( mAddAreaAction );
+
+  // Connect project
+  QWidget* qgis = qGisInterface->mainWindow();
+  connect( qgis, SIGNAL( projectRead() ), this, SLOT( projectRead() ) );
+  connect( qgis, SIGNAL( newProject() ), this, SLOT( newProject() ) );
 
   // Set icons to current theme
   setCurrentTheme( "" );
   // Connect theme change signal
   connect( qGisInterface, SIGNAL( currentThemeChanged( QString ) ), this, SLOT( setCurrentTheme( QString ) ) );
 
+  connect( mCanvas, SIGNAL( destinationCrsChanged() ), this, SLOT( setTransform() ) );
+
   // Connect display region
   connect( mCanvas, SIGNAL( renderComplete( QPainter * ) ), this, SLOT( postRender( QPainter * ) ) );
 
+  connect( QgsGrass::instance(), SIGNAL( gisbaseChanged() ), SLOT( onGisbaseChanged() ) );
   connect( QgsGrass::instance(), SIGNAL( mapsetChanged() ), SLOT( mapsetChanged() ) );
   connect( QgsGrass::instance(), SIGNAL( regionChanged() ), SLOT( displayRegion() ) );
   connect( QgsGrass::instance(), SIGNAL( regionPenChanged() ), SLOT( displayRegion() ) );
+  connect( QgsGrass::instance(), SIGNAL( newLayer( QString, QString ) ), SLOT( onNewLayer( QString, QString ) ) );
 
   // Connect start/stop editing
   connect( QgsMapLayerRegistry::instance(), SIGNAL( layerWasAdded( QgsMapLayer* ) ), this, SLOT( onLayerWasAdded( QgsMapLayer* ) ) );
@@ -228,7 +287,34 @@ void QgsGrassPlugin::initGui()
   mTools = new QgsGrassTools( qGisInterface, qGisInterface->mainWindow() );
   qGisInterface->addDockWidget( Qt::RightDockWidgetArea, mTools );
 
+  onGisbaseChanged();
+}
 
+void QgsGrassPlugin::onGisbaseChanged()
+{
+  QgsDebugMsg( "entered" );
+  if ( !QgsGrass::init() )
+  {
+    // TODO: save init error and get it here more reliably
+    qGisInterface->messageBar()->pushMessage( tr( "GRASS error" ), QgsGrass::errorMessage(), QgsMessageBar::WARNING );
+
+    mOpenToolsAction->setDisabled( false ); // allow to open to see that tools are disabled
+    mRegionAction->setDisabled( true );
+    mOpenMapsetAction->setDisabled( true );
+    mCloseMapsetAction->setDisabled( true );
+
+    mTools->setDisabled( true );
+  }
+  else
+  {
+    mOpenToolsAction->setDisabled( false );
+    mRegionAction->setDisabled( !QgsGrass::activeMode() );
+    mOpenMapsetAction->setDisabled( false );
+    mNewMapsetAction->setDisabled( false );
+    mCloseMapsetAction->setDisabled( !QgsGrass::activeMode() );
+
+    mTools->setDisabled( false );
+  }
 }
 
 void QgsGrassPlugin::onLayerWasAdded( QgsMapLayer* theMapLayer )
@@ -249,6 +335,37 @@ void QgsGrassPlugin::onCurrentLayerChanged( QgsMapLayer* layer )
 {
   Q_UNUSED( layer );
   QgsDebugMsg( "Entered" );
+  resetEditActions();
+}
+
+void QgsGrassPlugin::resetEditActions()
+{
+  QgsDebugMsg( "Entered" );
+
+  QgsGrassProvider* grassProvider = 0;
+  QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( qGisInterface->activeLayer() );
+  if ( vectorLayer )
+  {
+    grassProvider = dynamic_cast<QgsGrassProvider*>( vectorLayer->dataProvider() );
+  }
+  if ( grassProvider && vectorLayer->editBuffer() )
+  {
+    mAddFeatureAction->setVisible( false );
+    mAddPointAction->setVisible( true );
+    mAddLineAction->setVisible( true );
+    mAddBoundaryAction->setVisible( true );
+    mAddCentroidAction->setVisible( true );
+    mAddAreaAction->setVisible( true );
+  }
+  else
+  {
+    mAddFeatureAction->setVisible( true );
+    mAddPointAction->setVisible( false );
+    mAddLineAction->setVisible( false );
+    mAddBoundaryAction->setVisible( false );
+    mAddCentroidAction->setVisible( false );
+    mAddAreaAction->setVisible( false );
+  }
 }
 
 void QgsGrassPlugin::onEditingStarted()
@@ -298,6 +415,8 @@ void QgsGrassPlugin::onEditingStarted()
   vectorLayer->updateFields();
 
   connect( vectorLayer, SIGNAL( editingStopped() ), SLOT( onEditingStopped() ) );
+
+  resetEditActions();
 }
 
 void QgsGrassPlugin::onEditingStopped()
@@ -313,6 +432,48 @@ void QgsGrassPlugin::onEditingStopped()
       vectorLayer->styleManager()->setCurrentStyle( style );
     }
   }
+  resetEditActions();
+}
+
+void QgsGrassPlugin::addFeature()
+{
+  QgsDebugMsg( "entered" );
+  QgsGrassProvider* grassProvider = 0;
+  QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( qGisInterface->activeLayer() );
+  if ( vectorLayer )
+  {
+    grassProvider = dynamic_cast<QgsGrassProvider*>( vectorLayer->dataProvider() );
+  }
+  if ( !grassProvider )
+  {
+    QgsDebugMsg( "grassProvider is null" );
+    return;
+  }
+  if ( sender() == mAddPointAction )
+  {
+    qGisInterface->mapCanvas()->setMapTool( mAddPoint );
+    grassProvider->setNewFeatureType( GV_POINT );
+  }
+  else if ( sender() == mAddLineAction )
+  {
+    qGisInterface->mapCanvas()->setMapTool( mAddLine );
+    grassProvider->setNewFeatureType( GV_LINE );
+  }
+  else if ( sender() == mAddBoundaryAction )
+  {
+    qGisInterface->mapCanvas()->setMapTool( mAddBoundary );
+    grassProvider->setNewFeatureType( GV_BOUNDARY );
+  }
+  else if ( sender() == mAddCentroidAction )
+  {
+    qGisInterface->mapCanvas()->setMapTool( mAddCentroid );
+    grassProvider->setNewFeatureType( GV_CENTROID );
+  }
+  else if ( sender() == mAddAreaAction )
+  {
+    qGisInterface->mapCanvas()->setMapTool( mAddArea );
+    grassProvider->setNewFeatureType( GV_AREA );
+  }
 }
 
 void QgsGrassPlugin::mapsetChanged()
@@ -323,13 +484,11 @@ void QgsGrassPlugin::mapsetChanged()
     mRegionAction->setEnabled( false );
     mRegionBand->reset();
     mCloseMapsetAction->setEnabled( false );
-    mNewVectorAction->setEnabled( false );
   }
   else
   {
     mRegionAction->setEnabled( true );
     mCloseMapsetAction->setEnabled( true );
-    mNewVectorAction->setEnabled( true );
 
     QSettings settings;
     bool on = settings.value( "/GRASS/region/on", true ).toBool();
@@ -362,14 +521,6 @@ void QgsGrassPlugin::mapsetChanged()
 // Open tools
 void QgsGrassPlugin::openTools()
 {
-#if 0
-  if ( !mTools )
-  {
-    mTools = new QgsGrassTools( qGisInterface, qGisInterface->mainWindow(), 0, Qt::Dialog );
-
-    connect( mTools, SIGNAL( regionChanged() ), this, SLOT( redrawRegion() ) );
-  }
-#endif
   mTools->show();
 }
 
@@ -430,6 +581,14 @@ void QgsGrassPlugin::newVector()
   }
 
   // TODO: start editing?
+}
+
+void QgsGrassPlugin::onNewLayer( QString uri, QString name )
+{
+  QgsDebugMsg( "uri = " + uri + " name = " + name );
+  QgsVectorLayer* vectorLayer = qGisInterface->addVectorLayer( uri, name, "grass" );
+  vectorLayer->startEditing();
+  qGisInterface->setActiveLayer( vectorLayer );
 }
 
 void QgsGrassPlugin::postRender( QPainter *painter )
@@ -593,8 +752,44 @@ void QgsGrassPlugin::newProject()
 // Unload the plugin by cleaning up the GUI
 void QgsGrassPlugin::unload()
 {
+  mAddFeatureAction->setVisible( true ); // restore QGIS add feature action
+
   // Close mapset
   QgsGrass::instance()->closeMapsetWarn();
+
+  // disconnect slots of QgsGrassPlugin so they're not fired also after unload
+  QWidget* qgis = qGisInterface->mainWindow();
+  disconnect( qgis, SIGNAL( projectRead() ), this, SLOT( projectRead() ) );
+  disconnect( qgis, SIGNAL( newProject() ), this, SLOT( newProject() ) );
+  disconnect( qGisInterface, SIGNAL( currentThemeChanged( QString ) ), this, SLOT( setCurrentTheme( QString ) ) );
+  disconnect( mCanvas, SIGNAL( destinationCrsChanged() ), this, SLOT( setTransform() ) );
+  disconnect( mCanvas, SIGNAL( renderComplete( QPainter * ) ), this, SLOT( postRender( QPainter * ) ) );
+
+  disconnect( QgsGrass::instance(), SIGNAL( gisbaseChanged() ), this, SLOT( onGisbaseChanged() ) );
+  disconnect( QgsGrass::instance(), SIGNAL( mapsetChanged() ), this, SLOT( mapsetChanged() ) );
+  disconnect( QgsGrass::instance(), SIGNAL( regionChanged() ), this, SLOT( displayRegion() ) );
+  disconnect( QgsGrass::instance(), SIGNAL( regionPenChanged() ), this, SLOT( displayRegion() ) );
+  disconnect( QgsGrass::instance(), SIGNAL( newLayer( QString, QString ) ), this, SLOT( onNewLayer( QString, QString ) ) );
+
+  disconnect( QgsMapLayerRegistry::instance(), SIGNAL( layerWasAdded( QgsMapLayer* ) ), this, SLOT( onLayerWasAdded( QgsMapLayer* ) ) );
+
+  disconnect( qGisInterface->layerTreeView(), SIGNAL( currentLayerChanged( QgsMapLayer* ) ),
+              this, SLOT( onCurrentLayerChanged( QgsMapLayer* ) ) );
+
+  foreach ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
+  {
+    if ( !layer || layer->type() != QgsMapLayer::VectorLayer )
+    {
+      continue;
+    }
+
+    QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( layer );
+    if ( vectorLayer && vectorLayer->providerType() == "grass" )
+    {
+      disconnect( vectorLayer, SIGNAL( editingStarted() ), this, SLOT( onEditingStarted() ) );
+      disconnect( vectorLayer, SIGNAL( editingStopped() ), this, SLOT( onEditingStopped() ) );
+    }
+  }
 
   // remove the GUI
   qGisInterface->removePluginMenu( tr( "&GRASS" ), mOpenMapsetAction );
@@ -602,24 +797,29 @@ void QgsGrassPlugin::unload()
   qGisInterface->removePluginMenu( tr( "&GRASS" ), mCloseMapsetAction );
   qGisInterface->removePluginMenu( tr( "&GRASS" ), mOpenToolsAction );
   qGisInterface->removePluginMenu( tr( "&GRASS" ), mRegionAction );
-  qGisInterface->removePluginMenu( tr( "&GRASS" ), mNewVectorAction );
+  qGisInterface->removePluginMenu( tr( "&GRASS" ), mOptionsAction );
 
   delete mOpenMapsetAction;
   delete mNewMapsetAction;
   delete mCloseMapsetAction;
   delete mOpenToolsAction;
   delete mRegionAction;
-  delete mNewVectorAction;
+  delete mOptionsAction;
+
+  delete mAddPointAction;
+  delete mAddLineAction;
+  delete mAddBoundaryAction;
+  delete mAddCentroidAction;
+  delete mAddAreaAction;
+
+  delete mAddPoint;
+  delete mAddLine;
+  delete mAddBoundary;
+  delete mAddCentroid;
+  delete mAddArea;
 
   delete mToolBarPointer;
   mToolBarPointer = 0;
-
-  // disconnect slots of QgsGrassPlugin so they're not fired also after unload
-  disconnect( mCanvas, SIGNAL( renderComplete( QPainter * ) ), this, SLOT( postRender( QPainter * ) ) );
-
-  QWidget* qgis = qGisInterface->mainWindow();
-  disconnect( qgis, SIGNAL( projectRead() ), this, SLOT( projectRead() ) );
-  disconnect( qgis, SIGNAL( newProject() ), this, SLOT( newProject() ) );
 
   delete mTools;
   mTools = 0;
@@ -634,12 +834,9 @@ void QgsGrassPlugin::setCurrentTheme( QString theThemeName )
     mOpenMapsetAction->setIcon( getThemeIcon( "grass_open_mapset.png" ) );
     mNewMapsetAction->setIcon( getThemeIcon( "grass_new_mapset.png" ) );
     mCloseMapsetAction->setIcon( getThemeIcon( "grass_close_mapset.png" ) );
-
     mOpenToolsAction->setIcon( getThemeIcon( "grass_tools.png" ) );
-
     mRegionAction->setIcon( getThemeIcon( "grass_region.png" ) );
-
-    mNewVectorAction->setIcon( getThemeIcon( "grass_new_vector_layer.png" ) );
+    mOptionsAction->setIcon( QgsApplication::getThemeIcon( "propertyicons/general.svg" ) );
   }
 }
 

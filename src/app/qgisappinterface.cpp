@@ -326,6 +326,12 @@ QgsMessageBar * QgisAppInterface::messageBar()
   return qgis->messageBar();
 }
 
+void QgisAppInterface::openMessageLog()
+{
+  qgis->openMessageLog();
+}
+
+
 void QgisAppInterface::addUserInputWidget( QWidget *widget )
 {
   qgis->addUserInputWidget( widget );
@@ -429,13 +435,16 @@ void QgisAppInterface::showLayerProperties( QgsMapLayer *l )
   }
 }
 
-void QgisAppInterface::showAttributeTable( QgsVectorLayer *l )
+QDialog* QgisAppInterface::showAttributeTable( QgsVectorLayer *l, const QString& filterExpression )
 {
   if ( l )
   {
     QgsAttributeTableDialog *dialog = new QgsAttributeTableDialog( l );
+    dialog->setFilterExpression( filterExpression );
     dialog->show();
+    return dialog;
   }
+  return 0;
 }
 
 void QgisAppInterface::addWindow( QAction *action )

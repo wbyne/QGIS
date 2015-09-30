@@ -88,6 +88,7 @@ void QgsComposition::init()
   mUseAdvancedEffects = true;
   mSnapToGrid = false;
   mGridVisible = false;
+  mPagesVisible = true;
   mSnapGridResolution = 0;
   mSnapGridOffsetX = 0;
   mSnapGridOffsetY = 0;
@@ -103,6 +104,11 @@ void QgsComposition::init()
   mPreventCursorChange = false;
   mItemsModel = 0;
   mUndoStack = new QUndoStack();
+
+  mResizeToContentsMarginTop = 0;
+  mResizeToContentsMarginRight = 0;
+  mResizeToContentsMarginBottom = 0;
+  mResizeToContentsMarginLeft = 0;
 
   //data defined strings
   mDataDefinedNames.insert( QgsComposerObject::PresetPaperSize, QString( "dataDefinedPaperSize" ) );
@@ -219,7 +225,7 @@ void QgsComposition::loadDefaults()
 
 void QgsComposition::updateBounds()
 {
-  setSceneRect( compositionBounds() );
+  setSceneRect( compositionBounds( false, 0.05 ) );
 }
 
 void QgsComposition::refreshItems()
@@ -288,10 +294,10 @@ void QgsComposition::refreshDataDefinedProperty( const QgsComposerObject::DataDe
   }
 }
 
-QRectF QgsComposition::compositionBounds() const
+QRectF QgsComposition::compositionBounds( bool ignorePages, double margin ) const
 {
   //start with an empty rectangle
-  QRectF bounds = QRectF( 0, 0, 0, 0 );
+  QRectF bounds;
 
   //add all QgsComposerItems and QgsPaperItems which are in the composition
   QList<QGraphicsItem *> itemList = items();
@@ -300,37 +306,75 @@ QRectF QgsComposition::compositionBounds() const
   {
     const QgsComposerItem* composerItem = dynamic_cast<const QgsComposerItem *>( *itemIt );
     const QgsPaperItem* paperItem = dynamic_cast<const QgsPaperItem*>( *itemIt );
-    if (( composerItem || paperItem ) )
+    if (( composerItem && ( !paperItem || !ignorePages ) ) )
     {
       //expand bounds with current item's bounds
-      bounds = bounds.united(( *itemIt )->sceneBoundingRect() );
+      if ( bounds.isValid() )
+        bounds = bounds.united(( *itemIt )->sceneBoundingRect() );
+      else
+        bounds = ( *itemIt )->sceneBoundingRect();
     }
   }
 
-  //finally, expand bounds out by 5% page size to give a bit of a margin
-  bounds.adjust( -mPageWidth * 0.05, -mPageWidth * 0.05, mPageWidth * 0.05, mPageWidth * 0.05 );
+  if ( bounds.isValid() && margin > 0.0 )
+  {
+    //finally, expand bounds out by specified margin of page size
+    bounds.adjust( -mPageWidth * margin, -mPageWidth * margin, mPageWidth * margin, mPageWidth * margin );
+  }
 
   return bounds;
 }
 
-void QgsComposition::setPaperSize( const double width, const double height )
+QRectF QgsComposition::pageItemBounds( int pageNumber, bool visibleOnly ) const
+{
+  //start with an empty rectangle
+  QRectF bounds;
+
+  //add all QgsComposerItems on page
+  QList<QGraphicsItem *> itemList = items();
+  QList<QGraphicsItem *>::iterator itemIt = itemList.begin();
+  for ( ; itemIt != itemList.end(); ++itemIt )
+  {
+    const QgsComposerItem* composerItem = dynamic_cast<const QgsComposerItem *>( *itemIt );
+    const QgsPaperItem* paperItem = dynamic_cast<const QgsPaperItem*>( *itemIt );
+    if ( composerItem && !paperItem && itemPageNumber( composerItem ) == pageNumber )
+    {
+      if ( visibleOnly && !composerItem->isVisible() )
+        continue;
+
+      //expand bounds with current item's bounds
+      if ( bounds.isValid() )
+        bounds = bounds.united(( *itemIt )->sceneBoundingRect() );
+      else
+        bounds = ( *itemIt )->sceneBoundingRect();
+    }
+  }
+
+  return bounds;
+}
+
+void QgsComposition::setPaperSize( const double width, const double height, bool keepRelativeItemPosition )
 {
   if ( width == mPageWidth && height == mPageHeight )
   {
     return;
   }
 
-  //update item positions
-  QList<QGraphicsItem *> itemList = items();
-  QList<QGraphicsItem *>::iterator itemIt = itemList.begin();
-  for ( ; itemIt != itemList.end(); ++itemIt )
+  if ( keepRelativeItemPosition )
   {
-    QgsComposerItem* composerItem = dynamic_cast<QgsComposerItem *>( *itemIt );
-    if ( composerItem )
+    //update item positions
+    QList<QGraphicsItem *> itemList = items();
+    QList<QGraphicsItem *>::iterator itemIt = itemList.begin();
+    for ( ; itemIt != itemList.end(); ++itemIt )
     {
-      composerItem->updatePagePos( width, height );
+      QgsComposerItem* composerItem = dynamic_cast<QgsComposerItem *>( *itemIt );
+      if ( composerItem )
+      {
+        composerItem->updatePagePos( width, height );
+      }
     }
   }
+
   //update guide positions and size
   QList< QGraphicsLineItem* >* guides = snapLines();
   QList< QGraphicsLineItem* >::iterator guideIt = guides->begin();
@@ -346,11 +390,19 @@ void QgsComposition::setPaperSize( const double width, const double height )
     else
     {
       //horizontal line
-      //move to new vertical position and change width of line
-      QPointF curPagePos = positionOnPage( line.p1() );
-      int curPage = pageNumberForPoint( line.p1() ) - 1;
-      double newY = curPage * ( height + spaceBetweenPages() ) + curPagePos.y();
-      ( *guideIt )->setLine( 0, newY, width, newY );
+      if ( keepRelativeItemPosition )
+      {
+        //move to new vertical position and change width of line
+        QPointF curPagePos = positionOnPage( line.p1() );
+        int curPage = pageNumberForPoint( line.p1() ) - 1;
+        double newY = curPage * ( height + spaceBetweenPages() ) + curPagePos.y();
+        ( *guideIt )->setLine( 0, newY, width, newY );
+      }
+      else
+      {
+        //just resize guide to new page size
+        ( *guideIt )->setLine( 0, line.y1(), width, line.y1() );
+      }
     }
   }
 
@@ -375,6 +427,66 @@ double QgsComposition::paperHeight() const
 double QgsComposition::paperWidth() const
 {
   return mPageWidth;
+}
+
+void QgsComposition::resizePageToContents( double marginTop, double marginRight, double marginBottom, double marginLeft )
+{
+  //calculate current bounds
+  QRectF bounds = compositionBounds( true, 0.0 );
+
+  setNumPages( 1 );
+  double newWidth = bounds.width() + marginLeft + marginRight;
+  double newHeight = bounds.height() + marginTop + marginBottom;
+  setPaperSize( newWidth, newHeight, false );
+
+  //also move all items so that top-left of bounds is at marginLeft, marginTop
+  double diffX = marginLeft - bounds.left();
+  double diffY = marginTop - bounds.top();
+
+  QList<QGraphicsItem *> itemList = items();
+  Q_FOREACH ( QGraphicsItem* item, itemList )
+  {
+    QgsComposerItem* composerItem = dynamic_cast<QgsComposerItem *>( item );
+    if ( composerItem )
+    {
+      const QgsPaperItem* paperItem = dynamic_cast<const QgsPaperItem*>( item );
+
+      if ( !paperItem )
+        composerItem->move( diffX, diffY );
+    }
+  }
+
+  //also move guides
+  Q_FOREACH ( QGraphicsLineItem* guide, mSnapLines )
+  {
+    QLineF line = guide->line();
+    if ( line.dx() == 0 )
+    {
+      //vertical line
+      guide->setLine( line.x1() + diffX, 0, line.x1() + diffX, newHeight );
+    }
+    else
+    {
+      //horizontal line
+      guide->setLine( 0, line.y1() + diffY, newWidth, line.y1() + diffY );
+    }
+  }
+}
+
+void QgsComposition::setResizeToContentsMargins( double marginTop, double marginRight, double marginBottom, double marginLeft )
+{
+  mResizeToContentsMarginTop = marginTop;
+  mResizeToContentsMarginRight = marginRight;
+  mResizeToContentsMarginBottom = marginBottom;
+  mResizeToContentsMarginLeft = marginLeft;
+}
+
+void QgsComposition::resizeToContentsMargins( double& marginTop, double& marginRight, double& marginBottom, double& marginLeft ) const
+{
+  marginTop = mResizeToContentsMarginTop;
+  marginRight = mResizeToContentsMarginRight;
+  marginBottom = mResizeToContentsMarginBottom;
+  marginLeft = mResizeToContentsMarginLeft;
 }
 
 void QgsComposition::setNumPages( const int pages )
@@ -800,6 +912,8 @@ bool QgsComposition::writeXML( QDomElement& composerElem, QDomDocument& doc )
   compositionElem.setAttribute( "snapGridOffsetX", QString::number( mSnapGridOffsetX ) );
   compositionElem.setAttribute( "snapGridOffsetY", QString::number( mSnapGridOffsetY ) );
 
+  compositionElem.setAttribute( "showPages", mPagesVisible );
+
   //custom snap lines
   QList< QGraphicsLineItem* >::const_iterator snapLineIt = mSnapLines.constBegin();
   for ( ; snapLineIt != mSnapLines.constEnd(); ++snapLineIt )
@@ -826,6 +940,11 @@ bool QgsComposition::writeXML( QDomElement& composerElem, QDomDocument& doc )
   compositionElem.setAttribute( "guidesVisible", mGuidesVisible ? 1 : 0 );
   compositionElem.setAttribute( "smartGuides", mSmartGuides ? 1 : 0 );
   compositionElem.setAttribute( "snapTolerancePixels", mSnapTolerance );
+
+  compositionElem.setAttribute( "resizeToContentsMarginTop", mResizeToContentsMarginTop );
+  compositionElem.setAttribute( "resizeToContentsMarginRight", mResizeToContentsMarginRight );
+  compositionElem.setAttribute( "resizeToContentsMarginBottom", mResizeToContentsMarginBottom );
+  compositionElem.setAttribute( "resizeToContentsMarginLeft", mResizeToContentsMarginLeft );
 
   //save items except paper items and frame items (they are saved with the corresponding multiframe)
   QList<QGraphicsItem*> itemList = items();
@@ -903,6 +1022,11 @@ bool QgsComposition::readXML( const QDomElement& compositionElem, const QDomDocu
   mSmartGuides = compositionElem.attribute( "smartGuides", "1" ).toInt() == 0 ? false : true;
   mSnapTolerance = compositionElem.attribute( "snapTolerancePixels", "10" ).toInt();
 
+  mResizeToContentsMarginTop = compositionElem.attribute( "resizeToContentsMarginTop", "0" ).toDouble();
+  mResizeToContentsMarginRight = compositionElem.attribute( "resizeToContentsMarginRight", "0" ).toDouble();
+  mResizeToContentsMarginBottom = compositionElem.attribute( "resizeToContentsMarginBottom", "0" ).toDouble();
+  mResizeToContentsMarginLeft = compositionElem.attribute( "resizeToContentsMarginLeft", "0" ).toDouble();
+
   //custom snap lines
   QDomNodeList snapLineNodes = compositionElem.elementsByTagName( "SnapLine" );
   for ( int i = 0; i < snapLineNodes.size(); ++i )
@@ -916,6 +1040,7 @@ bool QgsComposition::readXML( const QDomElement& compositionElem, const QDomDocu
     snapItem->setLine( x1, y1, x2, y2 );
   }
 
+  mPagesVisible = ( compositionElem.attribute( "showPages", "1" ) != "0" );
   mPrintAsRaster = compositionElem.attribute( "printAsRaster" ).toInt();
   mPrintResolution = compositionElem.attribute( "printResolution", "300" ).toInt();
 
@@ -1985,6 +2110,12 @@ void QgsComposition::setSnapLinesVisible( const bool visible )
   }
 }
 
+void QgsComposition::setPagesVisible( bool visible )
+{
+  mPagesVisible = visible;
+  update();
+}
+
 QGraphicsLineItem* QgsComposition::nearestSnapLine( const bool horizontal, const double x, const double y, const double tolerance,
     QList< QPair< QgsComposerItem*, QgsComposerItem::ItemPositionMode> >& snappedItems ) const
 {
@@ -2774,6 +2905,23 @@ QImage QgsComposition::printPageAsRaster( int page )
   return image;
 }
 
+QImage QgsComposition::renderRectAsRaster( const QRectF& rect )
+{
+  int width = ( int )( printResolution() * rect.width() / 25.4 );
+  int height = ( int )( printResolution() * rect.height() / 25.4 );
+  QImage image( QSize( width, height ), QImage::Format_ARGB32 );
+  if ( !image.isNull() )
+  {
+    image.setDotsPerMeterX( printResolution() / 25.4 * 1000 );
+    image.setDotsPerMeterY( printResolution() / 25.4 * 1000 );
+    image.fill( Qt::transparent );
+    QPainter imagePainter( &image );
+    renderRect( &imagePainter, rect );
+    if ( !imagePainter.isActive() ) return QImage();
+  }
+  return image;
+}
+
 void QgsComposition::renderPage( QPainter* p, int page )
 {
   if ( mPages.size() <= page )
@@ -2787,13 +2935,17 @@ void QgsComposition::renderPage( QPainter* p, int page )
     return;
   }
 
+  QRectF paperRect = QRectF( paperItem->pos().x(), paperItem->pos().y(), paperItem->rect().width(), paperItem->rect().height() );
+  renderRect( p, paperRect );
+}
+
+void QgsComposition::renderRect( QPainter* p, const QRectF& rect )
+{
   QPaintDevice* paintDevice = p->device();
   if ( !paintDevice )
   {
     return;
   }
-
-  QRectF paperRect = QRectF( paperItem->pos().x(), paperItem->pos().y(), paperItem->rect().width(), paperItem->rect().height() );
 
   QgsComposition::PlotStyle savedPlotStyle = mPlotStyle;
   mPlotStyle = QgsComposition::Print;
@@ -2801,7 +2953,7 @@ void QgsComposition::renderPage( QPainter* p, int page )
   setSnapLinesVisible( false );
   //hide background before rendering
   setBackgroundBrush( Qt::NoBrush );
-  render( p, QRectF( 0, 0, paintDevice->width(), paintDevice->height() ), paperRect );
+  render( p, QRectF( 0, 0, paintDevice->width(), paintDevice->height() ), rect );
   //show background after rendering
   setBackgroundBrush( QColor( 215, 215, 215 ) );
   setSnapLinesVisible( true );
@@ -2835,6 +2987,19 @@ QGraphicsView *QgsComposition::graphicsView() const
 
 void QgsComposition::computeWorldFileParameters( double& a, double& b, double& c, double& d, double& e, double& f ) const
 {
+  if ( !mWorldFileMap )
+  {
+    return;
+  }
+
+  int pageNumber = mWorldFileMap->page() - 1;
+  double pageY = pageNumber * ( mPageHeight + mSpaceBetweenPages );
+  QRectF pageRect( 0, pageY, mPageWidth, mPageHeight );
+  computeWorldFileParameters( pageRect, a, b, c, d, e, f );
+}
+
+void QgsComposition::computeWorldFileParameters( const QRectF& exportRegion, double& a, double& b, double& c, double& d, double& e, double& f ) const
+{
   // World file parameters : affine transformation parameters from pixel coordinates to map coordinates
 
   if ( !mWorldFileMap )
@@ -2842,8 +3007,8 @@ void QgsComposition::computeWorldFileParameters( double& a, double& b, double& c
     return;
   }
 
-  double destinationHeight = paperHeight();
-  double destinationWidth = paperWidth();
+  double destinationHeight = exportRegion.height();
+  double destinationWidth = exportRegion.width();
 
   QRectF mapItemSceneRect = mWorldFileMap->mapRectToScene( mWorldFileMap->rect() );
   QgsRectangle mapExtent = *mWorldFileMap->currentMapExtent();
@@ -2856,10 +3021,14 @@ void QgsComposition::computeWorldFileParameters( double& a, double& b, double& c
   double xCenter = mapExtent.center().x();
   double yCenter = mapExtent.center().y();
 
-  // get the extent (in map units) for the page
-  QPointF mapItemPosOnPage = mWorldFileMap->pagePos();
-  double xmin = mapExtent.xMinimum() - mapItemPosOnPage.x() * xRatio;
-  double ymax = mapExtent.yMaximum() + mapItemPosOnPage.y() * yRatio;
+  // get the extent (in map units) for the region
+  QPointF mapItemPos = mWorldFileMap->pos();
+  //adjust item position so it is relative to export region
+  mapItemPos.rx() -= exportRegion.left();
+  mapItemPos.ry() -= exportRegion.top();
+
+  double xmin = mapExtent.xMinimum() - mapItemPos.x() * xRatio;
+  double ymax = mapExtent.yMaximum() + mapItemPos.y() * yRatio;
   QgsRectangle paperExtent( xmin, ymax - destinationHeight * yRatio, xmin + destinationWidth * xRatio, ymax );
 
   double X0 = paperExtent.xMinimum();

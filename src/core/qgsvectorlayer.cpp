@@ -69,6 +69,7 @@
 #include "qgsvectorlayereditutils.h"
 #include "qgsvectorlayerfeatureiterator.h"
 #include "qgsvectorlayerjoinbuffer.h"
+#include "qgsvectorlayerlabeling.h"
 #include "qgsvectorlayerrenderer.h"
 #include "qgsvectorlayerundocommand.h"
 #include "qgspointv2.h"
@@ -131,6 +132,7 @@ QgsVectorLayer::QgsVectorLayer( QString vectorLayerPath,
     , mRendererV2( NULL )
     , mLabel( 0 )
     , mLabelOn( false )
+    , mLabeling( new QgsVectorLayerSimpleLabeling )
     , mLabelFontNotFoundNotified( false )
     , mFeatureBlendMode( QPainter::CompositionMode_SourceOver ) // Default to normal feature blending
     , mLayerTransparency( 0 )
@@ -184,7 +186,8 @@ QgsVectorLayer::~QgsVectorLayer()
   delete mJoinBuffer;
   delete mExpressionFieldBuffer;
   delete mCache;
-  delete mLabel;
+  delete mLabel;  // old deprecated implementation
+  delete mLabeling;
   delete mDiagramLayerSettings;
   delete mDiagramRenderer;
 
@@ -665,7 +668,16 @@ QgsRectangle QgsVectorLayer::boundingBoxOfSelected()
 
 bool QgsVectorLayer::labelsEnabled() const
 {
-  return customProperty( "labeling/enabled", QVariant( false ) ).toBool();
+  if ( !mLabeling )
+    return false;
+
+  // for simple labeling the mode can be "no labels" - so we need to check
+  // in properties whether we are really enabled or not
+  if ( mLabeling->type() == "simple" )
+    return customProperty( "labeling/enabled", QVariant( false ) ).toBool();
+
+  // for other labeling implementations we always assume that labeling is enabled
+  return true;
 }
 
 bool QgsVectorLayer::diagramsEnabled() const
@@ -805,7 +817,7 @@ QgsRectangle QgsVectorLayer::extent()
     QgsDebugMsg( "invoked with null mDataProvider" );
   }
 
-  if ( mDataProvider && mEditBuffer && mEditBuffer->mDeletedFeatureIds.isEmpty() && mEditBuffer->mChangedGeometries.isEmpty() )
+  if ( mDataProvider && ( !mEditBuffer || ( mEditBuffer->mDeletedFeatureIds.isEmpty() && mEditBuffer->mChangedGeometries.isEmpty() ) ) )
   {
     mDataProvider->updateExtents();
 
@@ -817,12 +829,15 @@ QgsRectangle QgsVectorLayer::extent()
       rect.combineExtentWith( &r );
     }
 
-    for ( QgsFeatureMap::iterator it = mEditBuffer->mAddedFeatures.begin(); it != mEditBuffer->mAddedFeatures.end(); ++it )
+    if ( mEditBuffer )
     {
-      if ( it->constGeometry() )
+      for ( QgsFeatureMap::iterator it = mEditBuffer->mAddedFeatures.begin(); it != mEditBuffer->mAddedFeatures.end(); ++it )
       {
-        QgsRectangle r = it->constGeometry()->boundingBox();
-        rect.combineExtentWith( &r );
+        if ( it->constGeometry() )
+        {
+          QgsRectangle r = it->constGeometry()->boundingBox();
+          rect.combineExtentWith( &r );
+        }
       }
     }
   }
@@ -1228,6 +1243,15 @@ bool QgsVectorLayer::hasLabelsEnabled( void ) const
   return mLabelOn;
 }
 
+void QgsVectorLayer::setLabeling( QgsAbstractVectorLayerLabeling* labeling )
+{
+  if ( mLabeling == labeling )
+    return;
+
+  delete mLabeling;
+  mLabeling = labeling;
+}
+
 bool QgsVectorLayer::startEditing()
 {
   if ( !mDataProvider )
@@ -1599,6 +1623,13 @@ bool QgsVectorLayer::readSymbology( const QDomNode& node, QString& errorMessage 
       setRendererV2( r );
     }
 
+    QDomElement labelingElement = node.firstChildElement( "labeling" );
+    if ( !labelingElement.isNull() )
+    {
+      QgsAbstractVectorLayerLabeling* l = QgsAbstractVectorLayerLabeling::create( labelingElement );
+      setLabeling( l ? l : new QgsVectorLayerSimpleLabeling );
+    }
+
     // get and set the display field if it exists.
     QDomNode displayFieldNode = node.namedItem( "displayfield" );
     if ( !displayFieldNode.isNull() )
@@ -1871,6 +1902,12 @@ bool QgsVectorLayer::writeSymbology( QDomNode& node, QDomDocument& doc, QString&
   {
     QDomElement rendererElement = mRendererV2->save( doc );
     node.appendChild( rendererElement );
+
+    if ( mLabeling )
+    {
+      QDomElement labelingElement = mLabeling->save( doc );
+      node.appendChild( labelingElement );
+    }
 
     // use scale dependent visibility flag
     if ( mLabel )
@@ -2926,6 +2963,7 @@ const QList< QgsVectorJoinInfo > QgsVectorLayer::vectorJoins() const
 
 int QgsVectorLayer::addExpressionField( const QString& exp, const QgsField& fld )
 {
+  emit beforeAddingExpressionField( fld.name() );
   mExpressionFieldBuffer->addExpression( exp, fld );
   updateFields();
   int idx = mUpdatedFields.indexFromName( fld.name() );
@@ -2935,6 +2973,7 @@ int QgsVectorLayer::addExpressionField( const QString& exp, const QgsField& fld 
 
 void QgsVectorLayer::removeExpressionField( int index )
 {
+  emit beforeRemovingExpressionField( index );
   int oi = mUpdatedFields.fieldOriginIndex( index );
   mExpressionFieldBuffer->removeExpression( oi );
   updateFields();

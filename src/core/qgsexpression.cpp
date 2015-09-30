@@ -38,6 +38,12 @@
 #include "qgsexpressioncontext.h"
 #include "qgsproject.h"
 #include "qgsstringutils.h"
+#include "qgsgeometrycollectionv2.h"
+#include "qgspointv2.h"
+
+#if QT_VERSION < 0x050000
+#include <qtextdocument.h>
+#endif
 
 // from parser
 extern QgsExpression::Node* parseExpression( const QString& str, QString& parserErrorMsg );
@@ -65,13 +71,13 @@ QgsExpression::Interval QgsExpression::Interval::fromString( QString string )
   }
 
   QMap<int, QStringList> map;
-  map.insert( 1, QStringList() << "second" << "seconds" << QObject::tr( "second|seconds", "list of words separated by | which reference years" ).split( "|" ) );
-  map.insert( 0 + MINUTE, QStringList() << "minute" << "minutes" << QObject::tr( "minute|minutes", "list of words separated by | which reference minutes" ).split( "|" ) );
-  map.insert( 0 + HOUR, QStringList() << "hour" << "hours" << QObject::tr( "hour|hours", "list of words separated by | which reference minutes hours" ).split( "|" ) );
-  map.insert( 0 + DAY, QStringList() << "day" << "days" << QObject::tr( "day|days", "list of words separated by | which reference days" ).split( "|" ) );
-  map.insert( 0 + WEEKS, QStringList() << "week" << "weeks" << QObject::tr( "week|weeks", "wordlist separated by | which reference weeks" ).split( "|" ) );
-  map.insert( 0 + MONTHS, QStringList() << "month" << "months" << QObject::tr( "month|months", "list of words separated by | which reference months" ).split( "|" ) );
-  map.insert( 0 + YEARS, QStringList() << "year" << "years" << QObject::tr( "year|years", "list of words separated by | which reference years" ).split( "|" ) );
+  map.insert( 1, QStringList() << "second" << "seconds" << tr( "second|seconds", "list of words separated by | which reference years" ).split( "|" ) );
+  map.insert( 0 + MINUTE, QStringList() << "minute" << "minutes" << tr( "minute|minutes", "list of words separated by | which reference minutes" ).split( "|" ) );
+  map.insert( 0 + HOUR, QStringList() << "hour" << "hours" << tr( "hour|hours", "list of words separated by | which reference minutes hours" ).split( "|" ) );
+  map.insert( 0 + DAY, QStringList() << "day" << "days" << tr( "day|days", "list of words separated by | which reference days" ).split( "|" ) );
+  map.insert( 0 + WEEKS, QStringList() << "week" << "weeks" << tr( "week|weeks", "wordlist separated by | which reference weeks" ).split( "|" ) );
+  map.insert( 0 + MONTHS, QStringList() << "month" << "months" << tr( "month|months", "list of words separated by | which reference months" ).split( "|" ) );
+  map.insert( 0 + YEARS, QStringList() << "year" << "years" << tr( "year|years", "list of words separated by | which reference years" ).split( "|" ) );
 
   Q_FOREACH ( const QString& match, list )
   {
@@ -771,9 +777,22 @@ static QVariant fcnWordwrap( const QVariantList& values, const QgsExpressionCont
 
 static QVariant fcnLength( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
 {
+  // two variants, one for geometry, one for string
+  if ( values.at( 0 ).canConvert<QgsGeometry>() )
+  {
+    //geometry variant
+    QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+    if ( geom.type() != QGis::Line )
+      return QVariant();
+
+    return QVariant( geom.length() );
+  }
+
+  //otherwise fall back to string variant
   QString str = getStringValue( values.at( 0 ), parent );
   return QVariant( str.length() );
 }
+
 static QVariant fcnReplace( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
 {
   QString str = getStringValue( values.at( 0 ), parent );
@@ -1049,6 +1068,20 @@ static QVariant fcnAge( const QVariantList& values, const QgsExpressionContext*,
   return QVariant::fromValue( QgsExpression::Interval( seconds ) );
 }
 
+static QVariant fcnDayOfWeek( const QVariantList& values, const QgsExpressionContext*, QgsExpression *parent )
+{
+  if ( !values.at( 0 ).canConvert<QDate>() )
+    return QVariant();
+
+  QDate date = getDateValue( values.at( 0 ), parent );
+  if ( !date.isValid() )
+    return QVariant();
+
+  // return dayOfWeek() % 7 so that values range from 0 (sun) to 6 (sat)
+  // (to match PostgreSQL behaviour)
+  return date.dayOfWeek() % 7;
+}
+
 static QVariant fcnDay( const QVariantList& values, const QgsExpressionContext*, QgsExpression *parent )
 {
   QVariant value = values.at( 0 );
@@ -1171,6 +1204,7 @@ static QVariant fcnX( const QVariantList&, const QgsExpressionContext* context, 
     return g->asPoint().x();
   }
 }
+
 static QVariant fcnY( const QVariantList&, const QgsExpressionContext* context, QgsExpression* )
 {
   FEAT_FROM_CONTEXT( context, f );
@@ -1183,6 +1217,106 @@ static QVariant fcnY( const QVariantList&, const QgsExpressionContext* context, 
   {
     return g->asPoint().y();
   }
+}
+
+static QVariant fcnGeomX( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+  if ( geom.isEmpty() )
+    return QVariant();
+
+  //if single point, return the point's x coordinate
+  if ( geom.type() == QGis::Point && !geom.isMultipart() )
+  {
+    return geom.asPoint().x();
+  }
+
+  //otherwise return centroid x
+  QgsGeometry* centroid = geom.centroid();
+  QVariant result( centroid->asPoint().x() );
+  delete centroid;
+  return result;
+}
+
+static QVariant fcnGeomY( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+  if ( geom.isEmpty() )
+    return QVariant();
+
+  //if single point, return the point's y coordinate
+  if ( geom.type() == QGis::Point && !geom.isMultipart() )
+  {
+    return geom.asPoint().y();
+  }
+
+  //otherwise return centroid y
+  QgsGeometry* centroid = geom.centroid();
+  QVariant result( centroid->asPoint().y() );
+  delete centroid;
+  return result;
+}
+
+static QVariant fcnPointN( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+
+  if ( geom.isEmpty() )
+    return QVariant();
+
+  //idx is 1 based
+  int idx = getIntValue( values.at( 1 ), parent ) - 1;
+
+  QgsVertexId vId;
+  if ( idx < 0 || !geom.vertexIdFromVertexNr( idx, vId ) )
+  {
+    parent->setEvalErrorString( QObject::tr( "Point index is out of range" ) );
+    return QVariant();
+  }
+
+  QgsPointV2 point = geom.geometry()->vertexAt( vId );
+  return QVariant::fromValue( QgsGeometry( new QgsPointV2( point ) ) );
+}
+
+static QVariant fcnStartPoint( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+
+  if ( geom.isEmpty() )
+    return QVariant();
+
+  QgsVertexId vId;
+  if ( !geom.vertexIdFromVertexNr( 0, vId ) )
+  {
+    return QVariant();
+  }
+
+  QgsPointV2 point = geom.geometry()->vertexAt( vId );
+  return QVariant::fromValue( QgsGeometry( new QgsPointV2( point ) ) );
+}
+
+static QVariant fcnEndPoint( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+
+  if ( geom.isEmpty() )
+    return QVariant();
+
+  QgsVertexId vId;
+  if ( !geom.vertexIdFromVertexNr( geom.geometry()->nCoordinates() - 1, vId ) )
+  {
+    return QVariant();
+  }
+
+  QgsPointV2 point = geom.geometry()->vertexAt( vId );
+  return QVariant::fromValue( QgsGeometry( new QgsPointV2( point ) ) );
+}
+
+static QVariant fcnMakePoint( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  double x = getDoubleValue( values.at( 0 ), parent );
+  double y = getDoubleValue( values.at( 1 ), parent );
+  return QVariant::fromValue( QgsGeometry( new QgsPointV2( x, y ) ) );
 }
 
 static QVariant pointAt( const QVariantList& values, const QgsExpressionContext* context, QgsExpression* parent ) // helper function
@@ -1251,6 +1385,17 @@ static QVariant fcnGeomArea( const QVariantList&, const QgsExpressionContext* co
   QgsDistanceArea* calc = parent->geomCalculator();
   return QVariant( calc->measure( f.constGeometry() ) );
 }
+
+static QVariant fcnArea( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+
+  if ( geom.type() != QGis::Polygon )
+    return QVariant();
+
+  return QVariant( geom.area() );
+}
+
 static QVariant fcnGeomLength( const QVariantList&, const QgsExpressionContext* context, QgsExpression* parent )
 {
   FEAT_FROM_CONTEXT( context, f );
@@ -1258,12 +1403,30 @@ static QVariant fcnGeomLength( const QVariantList&, const QgsExpressionContext* 
   QgsDistanceArea* calc = parent->geomCalculator();
   return QVariant( calc->measure( f.constGeometry() ) );
 }
+
 static QVariant fcnGeomPerimeter( const QVariantList&, const QgsExpressionContext* context, QgsExpression* parent )
 {
   FEAT_FROM_CONTEXT( context, f );
   ENSURE_GEOM_TYPE( f, g, QGis::Polygon );
   QgsDistanceArea* calc = parent->geomCalculator();
   return QVariant( calc->measurePerimeter( f.constGeometry() ) );
+}
+
+static QVariant fcnPerimeter( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+
+  if ( geom.type() != QGis::Polygon )
+    return QVariant();
+
+  //length for polygons = perimeter
+  return QVariant( geom.length() );
+}
+
+static QVariant fcnGeomNumPoints( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
+{
+  QgsGeometry geom = getGeometry( values.at( 0 ), parent );
+  return QVariant( geom.isEmpty() ? 0 : geom.geometry()->nCoordinates() );
 }
 
 static QVariant fcnBounds( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
@@ -1686,6 +1849,96 @@ static QVariant fncColorCmyka( const QVariantList &values, const QgsExpressionCo
   return QgsSymbolLayerV2Utils::encodeColor( color );
 }
 
+static QVariant fncColorPart( const QVariantList &values, const QgsExpressionContext*, QgsExpression *parent )
+{
+  QColor color = QgsSymbolLayerV2Utils::decodeColor( values.at( 0 ).toString() );
+  if ( ! color.isValid() )
+  {
+    parent->setEvalErrorString( QObject::tr( "Cannot convert '%1' to color" ).arg( values.at( 0 ).toString() ) );
+    return QVariant();
+  }
+
+  QString part = getStringValue( values.at( 1 ), parent );
+  if ( part.compare( QLatin1String( "red" ), Qt::CaseInsensitive ) == 0 )
+    return color.red();
+  else if ( part.compare( QLatin1String( "green" ), Qt::CaseInsensitive ) == 0 )
+    return color.green();
+  else if ( part.compare( QLatin1String( "blue" ), Qt::CaseInsensitive ) == 0 )
+    return color.blue();
+  else if ( part.compare( QLatin1String( "alpha" ), Qt::CaseInsensitive ) == 0 )
+    return color.alpha();
+  else if ( part.compare( QLatin1String( "hue" ), Qt::CaseInsensitive ) == 0 )
+    return color.hsvHueF() * 360;
+  else if ( part.compare( QLatin1String( "saturation" ), Qt::CaseInsensitive ) == 0 )
+    return color.hsvSaturationF() * 100;
+  else if ( part.compare( QLatin1String( "value" ), Qt::CaseInsensitive ) == 0 )
+    return color.valueF() * 100;
+  else if ( part.compare( QLatin1String( "hsl_hue" ), Qt::CaseInsensitive ) == 0 )
+    return color.hslHueF() * 360;
+  else if ( part.compare( QLatin1String( "hsl_saturation" ), Qt::CaseInsensitive ) == 0 )
+    return color.hslSaturationF() * 100;
+  else if ( part.compare( QLatin1String( "lightness" ), Qt::CaseInsensitive ) == 0 )
+    return color.lightnessF() * 100;
+  else if ( part.compare( QLatin1String( "cyan" ), Qt::CaseInsensitive ) == 0 )
+    return color.cyanF() * 100;
+  else if ( part.compare( QLatin1String( "magenta" ), Qt::CaseInsensitive ) == 0 )
+    return color.magentaF() * 100;
+  else if ( part.compare( QLatin1String( "yellow" ), Qt::CaseInsensitive ) == 0 )
+    return color.yellowF() * 100;
+  else if ( part.compare( QLatin1String( "black" ), Qt::CaseInsensitive ) == 0 )
+    return color.blackF() * 100;
+
+  parent->setEvalErrorString( QObject::tr( "Unknown color component '%1'" ).arg( part ) );
+  return QVariant();
+}
+
+static QVariant fncSetColorPart( const QVariantList &values, const QgsExpressionContext*, QgsExpression *parent )
+{
+  QColor color = QgsSymbolLayerV2Utils::decodeColor( values.at( 0 ).toString() );
+  if ( ! color.isValid() )
+  {
+    parent->setEvalErrorString( QObject::tr( "Cannot convert '%1' to color" ).arg( values.at( 0 ).toString() ) );
+    return QVariant();
+  }
+
+  QString part = getStringValue( values.at( 1 ), parent );
+  int value = getIntValue( values.at( 2 ), parent );
+  if ( part.compare( QLatin1String( "red" ), Qt::CaseInsensitive ) == 0 )
+    color.setRed( value );
+  else if ( part.compare( QLatin1String( "green" ), Qt::CaseInsensitive ) == 0 )
+    color.setGreen( value );
+  else if ( part.compare( QLatin1String( "blue" ), Qt::CaseInsensitive ) == 0 )
+    color.setBlue( value );
+  else if ( part.compare( QLatin1String( "alpha" ), Qt::CaseInsensitive ) == 0 )
+    color.setAlpha( value );
+  else if ( part.compare( QLatin1String( "hue" ), Qt::CaseInsensitive ) == 0 )
+    color.setHsv( value, color.hsvSaturation(), color.value(), color.alpha() );
+  else if ( part.compare( QLatin1String( "saturation" ), Qt::CaseInsensitive ) == 0 )
+    color.setHsvF( color.hsvHueF(), value / 100.0, color.valueF(), color.alphaF() );
+  else if ( part.compare( QLatin1String( "value" ), Qt::CaseInsensitive ) == 0 )
+    color.setHsvF( color.hsvHueF(), color.hsvSaturationF(), value / 100.0, color.alphaF() );
+  else if ( part.compare( QLatin1String( "hsl_hue" ), Qt::CaseInsensitive ) == 0 )
+    color.setHsl( value, color.hslSaturation(), color.lightness(), color.alpha() );
+  else if ( part.compare( QLatin1String( "hsl_saturation" ), Qt::CaseInsensitive ) == 0 )
+    color.setHslF( color.hslHueF(), value / 100.0, color.lightnessF(), color.alphaF() );
+  else if ( part.compare( QLatin1String( "lightness" ), Qt::CaseInsensitive ) == 0 )
+    color.setHslF( color.hslHueF(), color.hslSaturationF(), value / 100.0, color.alphaF() );
+  else if ( part.compare( QLatin1String( "cyan" ), Qt::CaseInsensitive ) == 0 )
+    color.setCmykF( value / 100.0, color.magentaF(), color.yellowF(), color.blackF(), color.alphaF() );
+  else if ( part.compare( QLatin1String( "magenta" ), Qt::CaseInsensitive ) == 0 )
+    color.setCmykF( color.cyanF(), value / 100.0, color.yellowF(), color.blackF(), color.alphaF() );
+  else if ( part.compare( QLatin1String( "yellow" ), Qt::CaseInsensitive ) == 0 )
+    color.setCmykF( color.cyanF(), color.magentaF(), value / 100.0, color.blackF(), color.alphaF() );
+  else if ( part.compare( QLatin1String( "black" ), Qt::CaseInsensitive ) == 0 )
+    color.setCmykF( color.cyanF(), color.magentaF(), color.yellowF(), value / 100.0, color.alphaF() );
+  else
+  {
+    parent->setEvalErrorString( QObject::tr( "Unknown color component '%1'" ).arg( part ) );
+    return QVariant();
+  }
+  return QgsSymbolLayerV2Utils::encodeColor( color );
+}
+
 static QVariant fcnSpecialColumn( const QVariantList& values, const QgsExpressionContext*, QgsExpression* parent )
 {
   QString varName = getStringValue( values.at( 0 ), parent );
@@ -1901,7 +2154,7 @@ const QStringList& QgsExpression::BuiltinFunctions()
     << "todatetime" << "to_datetime" << "todate" << "to_date"
     << "totime" << "to_time" << "tointerval" << "to_interval"
     << "coalesce" << "if" << "regexp_match" << "age" << "year"
-    << "month" << "week" << "day" << "hour"
+    << "month" << "week" << "day" << "hour" << "day_of_week"
     << "minute" << "second" << "lower" << "upper"
     << "title" << "length" << "replace" << "trim" << "wordwrap"
     << "regexp_replace" << "regexp_substr"
@@ -1910,10 +2163,11 @@ const QStringList& QgsExpression::BuiltinFunctions()
     << "format_number" << "format_date"
     << "color_rgb" << "color_rgba" << "ramp_color"
     << "color_hsl" << "color_hsla" << "color_hsv" << "color_hsva"
-    << "color_cymk" << "color_cymka"
-    << "xat" << "yat" << "$area"
-    << "$length" << "$perimeter" << "$x" << "$y"
-    << "x_at" << "xat" << "y_at" << "yat" << "x_min" << "xmin" << "x_max" << "xmax"
+    << "color_cmyk" << "color_cmyka" << "color_part" << "set_color_part"
+    << "xat" << "yat" << "$area" << "area" << "perimeter"
+    << "$length" << "$perimeter" << "x" << "y" << "$x" << "$y" << "num_points"
+    << "point_n" << "start_point" << "end_point" << "make_point"
+    << "$x_at" << "x_at" << "xat" << "$y_at" << "y_at" << "yat" << "x_min" << "xmin" << "x_max" << "xmax"
     << "y_min" << "ymin" << "y_max" << "ymax" << "geom_from_wkt" << "geomFromWKT"
     << "geom_from_gml" << "geomFromGML" << "intersects_bbox" << "bbox"
     << "disjoint" << "intersects" << "touches" << "crosses" << "contains"
@@ -1970,7 +2224,7 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "to_time", 1, fcnToTime, "Conversions", QString(), false, QStringList(), false, QStringList() << "totime" )
     << new StaticFunction( "to_interval", 1, fcnToInterval, "Conversions", QString(), false, QStringList(), false, QStringList() << "tointerval" )
     << new StaticFunction( "coalesce", -1, fcnCoalesce, "Conditionals", QString(), false, QStringList(), false, QStringList(), true )
-    << new StaticFunction( "if", 3, fcnIf, "Conditionals", "", False, QStringList(), true )
+    << new StaticFunction( "if", 3, fcnIf, "Conditionals", QString(), False, QStringList(), true )
     << new StaticFunction( "regexp_match", 2, fcnRegexpMatch, "Conditionals" )
     << new StaticFunction( "now", 0, fcnNow, "Date and Time", QString(), false, QStringList(), false, QStringList() << "$now" )
     << new StaticFunction( "age", 2, fcnAge, "Date and Time" )
@@ -1981,6 +2235,7 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "hour", 1, fcnHour, "Date and Time" )
     << new StaticFunction( "minute", 1, fcnMinute, "Date and Time" )
     << new StaticFunction( "second", 1, fcnSeconds, "Date and Time" )
+    << new StaticFunction( "day_of_week", 1, fcnDayOfWeek, "Date and Time" )
     << new StaticFunction( "lower", 1, fcnLower, "String" )
     << new StaticFunction( "upper", 1, fcnUpper, "String" )
     << new StaticFunction( "title", 1, fcnTitle, "String" )
@@ -2013,18 +2268,28 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "color_hsva", 4, fncColorHsva, "Color" )
     << new StaticFunction( "color_cmyk", 4, fcnColorCmyk, "Color" )
     << new StaticFunction( "color_cmyka", 5, fncColorCmyka, "Color" )
-    << new StaticFunction( "$geometry", 0, fcnGeometry, "GeometryGroup", "", true )
-    << new StaticFunction( "$area", 0, fcnGeomArea, "GeometryGroup", "", true )
-    << new StaticFunction( "$length", 0, fcnGeomLength, "GeometryGroup", "", true )
-    << new StaticFunction( "$perimeter", 0, fcnGeomPerimeter, "GeometryGroup", "", true )
-    << new StaticFunction( "$x", 0, fcnX, "GeometryGroup", "", true )
-    << new StaticFunction( "$y", 0, fcnY, "GeometryGroup", "", true )
-    << new StaticFunction( "x_at", 1, fcnXat, "GeometryGroup", "", true, QStringList(), false, QStringList() << "xat" )
-    << new StaticFunction( "y_at", 1, fcnYat, "GeometryGroup", "", true, QStringList(), false, QStringList() << "yat" )
-    << new StaticFunction( "x_min", 1, fcnXMin, "GeometryGroup", "", true, QStringList(), false, QStringList() << "xmin" )
-    << new StaticFunction( "x_max", 1, fcnXMax, "GeometryGroup", "", true, QStringList(), false, QStringList() << "xmax" )
-    << new StaticFunction( "y_min", 1, fcnYMin, "GeometryGroup", "", true, QStringList(), false, QStringList() << "ymin" )
-    << new StaticFunction( "y_max", 1, fcnYMax, "GeometryGroup", "", true, QStringList(), false, QStringList() << "ymax" )
+    << new StaticFunction( "color_part", 2, fncColorPart, "Color" )
+    << new StaticFunction( "set_color_part", 3, fncSetColorPart, "Color" )
+    << new StaticFunction( "$geometry", 0, fcnGeometry, "GeometryGroup", QString(), true )
+    << new StaticFunction( "$area", 0, fcnGeomArea, "GeometryGroup", QString(), true )
+    << new StaticFunction( "area", 1, fcnArea, "GeometryGroup" )
+    << new StaticFunction( "$length", 0, fcnGeomLength, "GeometryGroup", QString(), true )
+    << new StaticFunction( "$perimeter", 0, fcnGeomPerimeter, "GeometryGroup", QString(), true )
+    << new StaticFunction( "perimeter", 1, fcnPerimeter, "GeometryGroup" )
+    << new StaticFunction( "$x", 0, fcnX, "GeometryGroup", QString(), true )
+    << new StaticFunction( "$y", 0, fcnY, "GeometryGroup", QString(), true )
+    << new StaticFunction( "x", 1, fcnGeomX, "GeometryGroup" )
+    << new StaticFunction( "y", 1, fcnGeomY, "GeometryGroup" )
+    << new StaticFunction( "point_n", 2, fcnPointN, "GeometryGroup" )
+    << new StaticFunction( "start_point", 1, fcnStartPoint, "GeometryGroup" )
+    << new StaticFunction( "end_point", 1, fcnEndPoint, "GeometryGroup" )
+    << new StaticFunction( "make_point", 2, fcnMakePoint, "GeometryGroup" )
+    << new StaticFunction( "$x_at", 1, fcnXat, "GeometryGroup", QString(), true, QStringList(), false, QStringList() << "xat" << "x_at" )
+    << new StaticFunction( "$y_at", 1, fcnYat, "GeometryGroup", QString(), true, QStringList(), false, QStringList() << "yat" << "y_at" )
+    << new StaticFunction( "x_min", 1, fcnXMin, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "xmin" )
+    << new StaticFunction( "x_max", 1, fcnXMax, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "xmax" )
+    << new StaticFunction( "y_min", 1, fcnYMin, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "ymin" )
+    << new StaticFunction( "y_max", 1, fcnYMax, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "ymax" )
     << new StaticFunction( "geom_from_wkt", 1, fcnGeomFromWKT, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "geomFromWKT" )
     << new StaticFunction( "geom_from_gml", 1, fcnGeomFromGML, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "geomFromGML" )
     << new StaticFunction( "intersects_bbox", 2, fcnBbox, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "bbox" )
@@ -2037,9 +2302,10 @@ const QList<QgsExpression::Function*>& QgsExpression::Functions()
     << new StaticFunction( "within", 2, fcnWithin, "GeometryGroup" )
     << new StaticFunction( "buffer", -1, fcnBuffer, "GeometryGroup" )
     << new StaticFunction( "centroid", 1, fcnCentroid, "GeometryGroup" )
-    << new StaticFunction( "bounds", 1, fcnBounds, "GeometryGroup", "", true )
-    << new StaticFunction( "bounds_width", 1, fcnBoundsWidth, "GeometryGroup", "", true )
-    << new StaticFunction( "bounds_height", 1, fcnBoundsHeight, "GeometryGroup", "", true )
+    << new StaticFunction( "bounds", 1, fcnBounds, "GeometryGroup" )
+    << new StaticFunction( "num_points", 1, fcnGeomNumPoints, "GeometryGroup" )
+    << new StaticFunction( "bounds_width", 1, fcnBoundsWidth, "GeometryGroup" )
+    << new StaticFunction( "bounds_height", 1, fcnBoundsHeight, "GeometryGroup" )
     << new StaticFunction( "convex_hull", 1, fcnConvexHull, "GeometryGroup", QString(), false, QStringList(), false, QStringList() << "convexHull" )
     << new StaticFunction( "difference", 2, fcnDifference, "GeometryGroup" )
     << new StaticFunction( "distance", 2, fcnDistance, "GeometryGroup" )
@@ -2283,7 +2549,7 @@ bool QgsExpression::prepare( const QgsExpressionContext *context )
 
   if ( !mRootNode )
   {
-    mEvalErrorString = QObject::tr( "No root node! Parsing failed?" );
+    mEvalErrorString = tr( "No root node! Parsing failed?" );
     return false;
   }
 
@@ -2295,7 +2561,7 @@ QVariant QgsExpression::evaluate( const QgsFeature* f )
   mEvalErrorString = QString();
   if ( !mRootNode )
   {
-    mEvalErrorString = QObject::tr( "No root node! Parsing failed?" );
+    mEvalErrorString = tr( "No root node! Parsing failed?" );
     return QVariant();
   }
 
@@ -2334,7 +2600,7 @@ QVariant QgsExpression::evaluate()
   mEvalErrorString = QString();
   if ( !mRootNode )
   {
-    mEvalErrorString = QObject::tr( "No root node! Parsing failed?" );
+    mEvalErrorString = tr( "No root node! Parsing failed?" );
     return QVariant();
   }
 
@@ -2346,7 +2612,7 @@ QVariant QgsExpression::evaluate( const QgsExpressionContext *context )
   mEvalErrorString = QString();
   if ( !mRootNode )
   {
-    mEvalErrorString = QObject::tr( "No root node! Parsing failed?" );
+    mEvalErrorString = tr( "No root node! Parsing failed?" );
     return QVariant();
   }
 
@@ -2356,7 +2622,7 @@ QVariant QgsExpression::evaluate( const QgsExpressionContext *context )
 QString QgsExpression::dump() const
 {
   if ( !mRootNode )
-    return QObject::tr( "(no root)" );
+    return tr( "(no root)" );
 
   return mRootNode->dump();
 }
@@ -2514,7 +2780,7 @@ QVariant QgsExpression::NodeUnaryOperator::eval( QgsExpression *parent, const Qg
       else if ( isDoubleSafe( val ) )
         return QVariant( - getDoubleValue( val, parent ) );
       else
-        SET_EVAL_ERROR( QObject::tr( "Unary minus only for numeric values." ) );
+        SET_EVAL_ERROR( tr( "Unary minus only for numeric values." ) );
       break;
     default:
       Q_ASSERT( 0 && "unknown unary operation" );
@@ -2575,7 +2841,7 @@ QVariant QgsExpression::NodeBinaryOperator::eval( QgsExpression *parent, const Q
         QgsExpression::Interval iL = getInterval( vR, parent ); ENSURE_NO_EVAL_ERROR;
         if ( mOp == boDiv || mOp == boMul || mOp == boMod )
         {
-          parent->setEvalErrorString( QObject::tr( "Can't preform /, *, or % on DateTime and Interval" ) );
+          parent->setEvalErrorString( tr( "Can't preform /, *, or % on DateTime and Interval" ) );
           return QVariant();
         }
         return QVariant( computeDateTimeFromInterval( dL, &iL ) );
@@ -3058,7 +3324,7 @@ QString QgsExpression::NodeLiteral::dump() const
     case QVariant::Double: return QString::number( mValue.toDouble() );
     case QVariant::String: return quotedString( mValue.toString() );
     case QVariant::Bool: return mValue.toBool() ? "TRUE" : "FALSE";
-    default: return QObject::tr( "[unsupported type;%1; value:%2]" ).arg( mValue.typeName() ).arg( mValue.toString() );
+    default: return tr( "[unsupported type;%1; value:%2]" ).arg( mValue.typeName() ).arg( mValue.toString() );
   }
 }
 
@@ -3093,7 +3359,7 @@ bool QgsExpression::NodeColumnRef::prepare( QgsExpression *parent, const QgsExpr
       return true;
     }
   }
-  parent->mEvalErrorString = QObject::tr( "Column '%1' not found" ).arg( mName );
+  parent->mEvalErrorString = tr( "Column '%1' not found" ).arg( mName );
   mIndex = -1;
   return false;
 }
@@ -3189,10 +3455,120 @@ bool QgsExpression::NodeCondition::needsGeometry() const
   return false;
 }
 
+
 QString QgsExpression::helptext( QString name )
 {
   QgsExpression::initFunctionHelp();
-  return gFunctionHelpTexts.value( name, QObject::tr( "function help for %1 missing" ).arg( name ) );
+
+  if ( !gFunctionHelpTexts.contains( name ) )
+    return tr( "function help for %1 missing" ).arg( name );
+
+  const Help &f = gFunctionHelpTexts[ name ];
+
+  name = f.mName;
+  if ( f.mType == tr( "group" ) )
+    name = group( name );
+
+#if QT_VERSION < 0x050000
+  name = Qt::escape( name );
+#else
+  name = name.toHtmlEscaped();
+#endif
+
+  QString helpContents( QString( "<h3>%1</h3>\n<div class=\"description\"><p>%2</p></div>" )
+                        .arg( tr( "%1 %2" ).arg( f.mType ).arg( name ) )
+                        .arg( f.mDescription ) );
+
+  Q_FOREACH ( const HelpVariant &v, f.mVariants )
+  {
+    if ( f.mVariants.size() > 1 )
+    {
+      helpContents += QString( "<h3>%1</h3>\n<div class=\"description\">%2</p></div>" ).arg( v.mName ).arg( v.mDescription );
+    }
+
+    if ( f.mType != tr( "group" ) )
+      helpContents += QString( "<h4>%1</h4>\n<div class=\"syntax\">\n" ).arg( tr( "Syntax" ) );
+
+    if ( f.mType == tr( "operator" ) )
+    {
+      if ( v.mArguments.size() == 1 )
+      {
+        helpContents += QString( "<code><span class=\"functionname\">%1</span> <span class=\"argument\">%2</span></code>" )
+                        .arg( name ).arg( v.mArguments[0].mArg );
+      }
+      else if ( v.mArguments.size() == 2 )
+      {
+        helpContents += QString( "<code><span class=\"argument\">%1</span> <span class=\"functionname\">%2</span> <span class=\"argument\">%3</span></code>" )
+                        .arg( v.mArguments[0].mArg ).arg( name ).arg( v.mArguments[1].mArg );
+      }
+    }
+    else if ( f.mType != tr( "group" ) )
+    {
+      helpContents += QString( "<code><span class=\"functionname\">%1</span>" ).arg( name );
+
+      if ( f.mType == tr( "function" ) && ( f.mName[0] != '$' || v.mArguments.size() > 0 || v.mVariableLenArguments ) )
+      {
+        helpContents += "(";
+
+        QString delim;
+        Q_FOREACH ( const HelpArg &a, v.mArguments )
+        {
+          helpContents += delim;
+          delim = ", ";
+          if ( !a.mDescOnly )
+            helpContents += QString( "<span class=\"argument\">%1</span>" ).arg( a.mArg );
+        }
+
+        if ( v.mVariableLenArguments )
+        {
+          helpContents += "...";
+        }
+
+        helpContents += ")";
+      }
+
+      helpContents += "</code>";
+    }
+
+    if ( v.mArguments.size() > 0 )
+    {
+      helpContents += QString( "<h4>%1</h4>\n<div class=\"arguments\">\n<table>" ).arg( tr( "Arguments" ) );
+
+      Q_FOREACH ( const HelpArg &a, v.mArguments )
+      {
+        if ( a.mSyntaxOnly )
+          continue;
+
+        helpContents += QString( "<tr><td class=\"argument\">%1</td><td>%2</td></tr>" ).arg( a.mArg ).arg( a.mDescription );
+      }
+
+      helpContents += "</table>\n</div>\n";
+    }
+
+    if ( v.mExamples.size() > 0 )
+    {
+      helpContents += QString( "<h4>%1</h4>\n<div class=\"examples\">\n<ul>\n" ).arg( tr( "Examples" ) );
+
+      Q_FOREACH ( const HelpExample &e, v.mExamples )
+      {
+        helpContents += "<li><code>" + e.mExpression + "</code> &rarr; <code>" + e.mReturns + "</code>";
+
+        if ( !e.mNote.isEmpty() )
+          helpContents += QString( " (%1)" ).arg( e.mNote );
+
+        helpContents += "</li>\n";
+      }
+
+      helpContents += "</ul>\n</div>\n";
+    }
+
+    if ( !v.mNotes.isEmpty() )
+    {
+      helpContents += QString( "<h4>%1</h4>\n<div class=\"notes\"><p>%2</p></div>\n" ).arg( tr( "Notes" ) ).arg( v.mNotes );
+    }
+  }
+
+  return helpContents;
 }
 
 QHash<QString, QString> QgsExpression::gVariableHelpTexts;
@@ -3280,18 +3656,20 @@ QString QgsExpression::group( QString name )
 {
   if ( gGroups.isEmpty() )
   {
-    gGroups.insert( "General", QObject::tr( "General" ) );
-    gGroups.insert( "Operators", QObject::tr( "Operators" ) );
-    gGroups.insert( "Conditionals", QObject::tr( "Conditionals" ) );
-    gGroups.insert( "Fields and Values", QObject::tr( "Fields and Values" ) );
-    gGroups.insert( "Math", QObject::tr( "Math" ) );
-    gGroups.insert( "Conversions", QObject::tr( "Conversions" ) );
-    gGroups.insert( "Date and Time", QObject::tr( "Date and Time" ) );
-    gGroups.insert( "String", QObject::tr( "String" ) );
-    gGroups.insert( "Color", QObject::tr( "Color" ) );
-    gGroups.insert( "GeometryGroup", QObject::tr( "Geometry" ) );
-    gGroups.insert( "Record", QObject::tr( "Record" ) );
-    gGroups.insert( "Variables", QObject::tr( "Variables" ) );
+    gGroups.insert( "General", tr( "General" ) );
+    gGroups.insert( "Operators", tr( "Operators" ) );
+    gGroups.insert( "Conditionals", tr( "Conditionals" ) );
+    gGroups.insert( "Fields and Values", tr( "Fields and Values" ) );
+    gGroups.insert( "Math", tr( "Math" ) );
+    gGroups.insert( "Conversions", tr( "Conversions" ) );
+    gGroups.insert( "Date and Time", tr( "Date and Time" ) );
+    gGroups.insert( "String", tr( "String" ) );
+    gGroups.insert( "Color", tr( "Color" ) );
+    gGroups.insert( "GeometryGroup", tr( "Geometry" ) );
+    gGroups.insert( "Record", tr( "Record" ) );
+    gGroups.insert( "Variables", tr( "Variables" ) );
+    gGroups.insert( "Fuzzy Matching", tr( "Fuzzy Matching" ) );
+    gGroups.insert( "Recent (%1)", tr( "Recent (%1)" ) );
   }
 
   //return the translated name for this group. If group does not

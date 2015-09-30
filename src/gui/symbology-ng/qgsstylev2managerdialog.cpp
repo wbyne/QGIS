@@ -185,6 +185,9 @@ void QgsStyleV2ManagerDialog::on_tabItemType_currentChanged( int )
   // when in Color Ramp tab, add menu to add item button
   if ( currentItemType() == 3 )
   {
+    btnShare->menu()->actions().at( 0 )->setVisible( false );
+    btnShare->menu()->actions().at( 1 )->setVisible( false );
+
     QStringList rampTypes;
     rampTypes << tr( "Gradient" ) << tr( "Random" ) << tr( "ColorBrewer" );
     rampTypes << tr( "cpt-city" ); // todo, only for rasters?
@@ -199,6 +202,9 @@ void QgsStyleV2ManagerDialog::on_tabItemType_currentChanged( int )
   }
   else
   {
+    btnShare->menu()->actions().at( 0 )->setVisible( true );
+    btnShare->menu()->actions().at( 1 )->setVisible( true );
+
     if ( btnAddItem->menu() )
     {
       disconnect( btnAddItem->menu(), SIGNAL( triggered( QAction* ) ),
