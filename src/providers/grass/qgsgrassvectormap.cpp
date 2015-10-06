@@ -283,12 +283,9 @@ bool QgsGrassVectorMap::startEdit()
 
   mIsEdited = true;
 
-  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
-  {
-    l->startEdit();
-  }
-
   mValid = true;
+  printDebug();
+
   QgsGrass::unlock();
   unlockOpenClose();
   emit dataChanged();
@@ -310,10 +307,6 @@ bool QgsGrassVectorMap::closeEdit( bool newMap )
   closeAllIterators(); // blocking
 
   QgsGrass::lock();
-  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
-  {
-    l->closeEdit();
-  }
 
   mOldLids.clear();
   mNewLids.clear();
@@ -381,6 +374,10 @@ QgsGrassVectorMapLayer * QgsGrassVectorMap::openLayer( int field )
     {
       QgsDebugMsg( "Layer exists" );
       layer = l;
+      if ( layer->userCount() == 0 )
+      {
+        layer->load();
+      }
     }
   }
 
@@ -527,6 +524,35 @@ QString QgsGrassVectorMap::toString()
   return mGrassObject.mapsetPath() + "/" +  mGrassObject.name();
 }
 
+void QgsGrassVectorMap::printDebug()
+{
+  QgsDebugMsg( "entered" );
+  if ( !mValid || !mMap )
+  {
+    QgsDebugMsg( "map not valid" );
+    return;
+  }
+  G_TRY
+  {
+#ifdef QGISDEBUG
+    int ncidx = Vect_cidx_get_num_fields( mMap );
+    QgsDebugMsg( QString( "ncidx = %1" ).arg( ncidx ) );
+
+    for ( int i = 0; i < ncidx; i++ )
+    {
+      int layer = Vect_cidx_get_field_number( mMap, i );
+      int ncats = Vect_cidx_get_num_cats_by_index( mMap, i );
+      QgsDebugMsg( QString( "i = %1 layer = %2 ncats = %3" ).arg( i ).arg( layer ).arg( ncats ) );
+    }
+#endif
+  }
+  G_CATCH( QgsGrass::Exception &e )
+  {
+    Q_UNUSED( e )
+    QgsDebugMsg( "Cannot read info from map: " + QString( e.what() ) );
+  }
+}
+
 void QgsGrassVectorMap::lockOpenClose()
 {
   QgsDebugMsg( "lockOpenClose" );
@@ -582,6 +608,7 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::lineGeometry( int id )
 
   int type = Vect_read_line( mMap, points, 0, id );
   QList<QgsPointV2> pointList;
+  pointList.reserve( points->n_points );
   for ( int i = 0; i < points->n_points; i++ )
   {
     pointList << QgsPointV2( is3d() ? QgsWKBTypes::PointZ : QgsWKBTypes::Point, points->x[i], points->y[i], points->z[i] );
@@ -626,9 +653,14 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::areaGeometry( int id )
   QgsPolygonV2 * polygon = new QgsPolygonV2();
 
   struct line_pnts *points = Vect_new_line_struct();
+  QgsDebugMsgLevel( QString( "points= %1" ).arg(( long )points ), 3 );
+  // Vect_get_area_points and Vect_get_isle_pointsis using static variable -> lock
+  // TODO: Faster to lock the whole feature iterator? Maybe only for areas?
+  QgsGrass::lock();
   Vect_get_area_points( mMap, id, points );
 
   QList<QgsPointV2> pointList;
+  pointList.reserve( points->n_points );
   for ( int i = 0; i < points->n_points; i++ )
   {
     pointList << QgsPointV2( is3d() ? QgsWKBTypes::PointZ : QgsWKBTypes::Point, points->x[i], points->y[i], points->z[i] );
@@ -645,6 +677,7 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::areaGeometry( int id )
     int isle = Vect_get_area_isle( mMap, id, i );
     Vect_get_isle_points( mMap, isle, points );
 
+    pointList.reserve( points->n_points );
     for ( int i = 0; i < points->n_points; i++ )
     {
       pointList <<  QgsPointV2( is3d() ? QgsWKBTypes::PointZ : QgsWKBTypes::Point, points->x[i], points->y[i], points->z[i] );
@@ -653,6 +686,7 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::areaGeometry( int id )
     ring->setPoints( pointList );
     polygon->addInteriorRing( ring );
   }
+  QgsGrass::unlock();
   Vect_destroy_line_struct( points );
   return polygon;
 }

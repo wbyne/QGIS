@@ -213,7 +213,7 @@ class CORE_EXPORT QgsSymbolV2
      * @note added in QGIS 2.9
      * @see setClipFeaturesToExtent
      */
-    double clipFeaturesToExtent() const { return mClipFeaturesToExtent; }
+    bool clipFeaturesToExtent() const { return mClipFeaturesToExtent; }
 
     QSet<QString> usedAttributes() const;
 
@@ -253,6 +253,13 @@ class CORE_EXPORT QgsSymbolV2RenderContext
 
     QgsRenderContext& renderContext() { return mRenderContext; }
     const QgsRenderContext& renderContext() const { return mRenderContext; }
+
+    /** Sets the original value variable value for data defined symbology
+     * @param value value for original value variable. This usually represents the symbol property value
+     * before any data defined overrides have been applied.
+     * @note added in QGIS 2.12
+     */
+    void setOriginalValueVariable( const QVariant& value );
 
     QgsSymbolV2::OutputUnit outputUnit() const { return mOutputUnit; }
     void setOutputUnit( QgsSymbolV2::OutputUnit u ) { mOutputUnit = u; }

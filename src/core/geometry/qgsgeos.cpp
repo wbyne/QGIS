@@ -100,7 +100,7 @@ static GEOSInit geosinit;
 class GEOSGeomScopedPtr
 {
   public:
-    GEOSGeomScopedPtr( GEOSGeometry* geom = 0 ) : mGeom( geom ) {}
+    explicit GEOSGeomScopedPtr( GEOSGeometry* geom = 0 ) : mGeom( geom ) {}
     ~GEOSGeomScopedPtr() { GEOSGeom_destroy_r( geosinit.ctxt, mGeom ); }
     GEOSGeometry* get() const { return mGeom; }
     operator bool() const { return mGeom != 0; }
@@ -114,7 +114,7 @@ class GEOSGeomScopedPtr
     GEOSGeometry* mGeom;
 };
 
-QgsGeos::QgsGeos( const QgsAbstractGeometryV2* geometry, int precision ): QgsGeometryEngine( geometry ), mGeos( 0 ), mGeosPrepared( 0 )
+QgsGeos::QgsGeos( const QgsAbstractGeometryV2* geometry, int precision ) : QgsGeometryEngine( geometry ), mGeos( 0 ), mGeosPrepared( 0 )
 {
 #if defined(HAVE_GEOS_CPP) || defined(HAVE_GEOS_CAPI_PRECISION_MODEL)
   double prec = qPow( 10, -precision );
@@ -561,6 +561,7 @@ int QgsGeos::splitLinearGeometry( GEOSGeometry* splitLine, QList<QgsAbstractGeom
   if ( splitType == GEOS_MULTILINESTRING )
   {
     int nGeoms = GEOSGetNumGeometries_r( geosinit.ctxt, splitGeom );
+    lineGeoms.reserve( nGeoms );
     for ( int i = 0; i < nGeoms; ++i )
       lineGeoms << GEOSGeom_clone_r( geosinit.ctxt, GEOSGetGeometryN_r( geosinit.ctxt, splitGeom, i ) );
 
@@ -930,6 +931,7 @@ QgsLineStringV2* QgsGeos::sequenceToLinestring( const GEOSGeometry* geos, bool h
   const GEOSCoordSequence* cs = GEOSGeom_getCoordSeq_r( geosinit.ctxt, geos );
   unsigned int nPoints;
   GEOSCoordSeq_getSize_r( geosinit.ctxt, cs, &nPoints );
+  pts.reserve( nPoints );
   for ( unsigned int i = 0; i < nPoints; ++i )
   {
     pts.push_back( coordSeqPoint( cs, i, hasZ, hasM ) );
@@ -1063,7 +1065,7 @@ QgsAbstractGeometryV2* QgsGeos::overlay( const QgsAbstractGeometryV2& geom, Over
     return 0;
   }
 
-  GEOSGeomScopedPtr geosGeom = getReducedGeometry( asGeos( &geom ) );
+  GEOSGeomScopedPtr geosGeom( getReducedGeometry( asGeos( &geom ) ) );
   if ( !geosGeom )
   {
     return 0;
@@ -1081,8 +1083,22 @@ QgsAbstractGeometryV2* QgsGeos::overlay( const QgsAbstractGeometryV2& geom, Over
         opGeom.reset( GEOSDifference_r( geosinit.ctxt, mGeos, geosGeom.get() ) );
         break;
       case UNION:
-        opGeom.reset( GEOSUnion_r( geosinit.ctxt, mGeos, geosGeom.get() ) );
-        break;
+      {
+        GEOSGeometry *unionGeometry = GEOSUnion_r( geosinit.ctxt, mGeos, geosGeom.get() );
+
+        if ( unionGeometry && GEOSGeomTypeId_r( geosinit.ctxt, unionGeometry ) == GEOS_MULTILINESTRING )
+        {
+          GEOSGeometry *mergedLines = GEOSLineMerge_r( geosinit.ctxt, unionGeometry );
+          if ( mergedLines )
+          {
+            GEOSGeom_destroy_r( geosinit.ctxt, unionGeometry );
+            unionGeometry = mergedLines;
+          }
+        }
+
+        opGeom.reset( unionGeometry );
+      }
+      break;
       case SYMDIFFERENCE:
         opGeom.reset( GEOSSymDifference_r( geosinit.ctxt, mGeos, geosGeom.get() ) );
         break;
@@ -1109,7 +1125,7 @@ bool QgsGeos::relation( const QgsAbstractGeometryV2& geom, Relation r, QString* 
     return false;
   }
 
-  GEOSGeomScopedPtr geosGeom = getReducedGeometry( asGeos( &geom ) );
+  GEOSGeomScopedPtr geosGeom( getReducedGeometry( asGeos( &geom ) ) );
   if ( !geosGeom )
   {
     return false;
@@ -1366,7 +1382,7 @@ bool QgsGeos::isEqual( const QgsAbstractGeometryV2& geom, QString* errorMsg ) co
 
   try
   {
-    GEOSGeomScopedPtr geosGeom = getReducedGeometry( asGeos( &geom ) );
+    GEOSGeomScopedPtr geosGeom( getReducedGeometry( asGeos( &geom ) ) );
     if ( !geosGeom )
     {
       return false;

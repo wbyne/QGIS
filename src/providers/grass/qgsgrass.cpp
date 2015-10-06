@@ -1094,7 +1094,8 @@ QStringList QgsGrass::vectors( const QString& mapsetPath )
   QDir d = QDir( mapsetPath + "/vector" );
   d.setFilter( QDir::NoDotAndDotDot | QDir::Dirs );
 
-  for ( unsigned int i = 0; i < d.count(); i++ )
+  list.reserve( d.count() );
+  for ( unsigned int i = 0; i < d.count(); ++i )
   {
     /*
     if ( QFile::exists ( mapsetPath + "/vector/" + d[i] + "/head" ) )
@@ -1268,7 +1269,8 @@ QStringList QgsGrass::rasters( const QString& mapsetPath )
   QDir d = QDir( mapsetPath + "/cellhd" );
   d.setFilter( QDir::Files );
 
-  for ( unsigned int i = 0; i < d.count(); i++ )
+  list.reserve( d.count() );
+  for ( unsigned int i = 0; i < d.count(); ++i )
   {
     list.append( d[i] );
   }
@@ -1316,7 +1318,8 @@ QStringList QgsGrass::elements( const QString&  mapsetPath, const QString&  elem
     d.setFilter( QDir::Files );
   }
 
-  for ( unsigned int i = 0; i < d.count(); i++ )
+  list.reserve( d.count() );
+  for ( unsigned int i = 0; i < d.count(); ++i )
   {
     list.append( d[i] );
   }
@@ -1729,7 +1732,7 @@ QProcess *QgsGrass::startModule( const QString& gisdbase, const QString&  locati
   QString ownedMapset = mapset;
   if ( ownedMapset.isEmpty() )
   {
-    Q_FOREACH ( QString ms, mapsets( gisdbase, location ) )
+    Q_FOREACH ( const QString& ms, mapsets( gisdbase, location ) )
     {
       if ( isOwner( gisdbase, location, ms ) )
       {
@@ -1844,7 +1847,7 @@ QString QgsGrass::getInfo( const QString&  info, const QString&  gisdbase,
 }
 
 QgsCoordinateReferenceSystem QgsGrass::crs( const QString& gisdbase, const QString& location,
-    bool interactive )
+    QString &error )
 {
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
   QgsCoordinateReferenceSystem crs = QgsCoordinateReferenceSystem();
@@ -1857,10 +1860,8 @@ QgsCoordinateReferenceSystem QgsGrass::crs( const QString& gisdbase, const QStri
   }
   catch ( QgsGrass::Exception &e )
   {
-    if ( interactive )
-    {
-      warning( tr( "Cannot get projection " ) + "\n" + e.what() );
-    }
+    error = tr( "Cannot get projection " ) + "\n" + e.what();
+    QgsDebugMsg( error );
   }
 
   return crs;
@@ -1907,7 +1908,7 @@ QgsCoordinateReferenceSystem QgsGrass::crsDirect( const QString& gisdbase, const
 
 QgsRectangle QgsGrass::extent( const QString& gisdbase, const QString& location,
                                const QString& mapset, const QString& map,
-                               QgsGrassObject::Type type, bool interactive )
+                               QgsGrassObject::Type type, QString &error )
 {
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
 
@@ -1923,16 +1924,13 @@ QgsRectangle QgsGrass::extent( const QString& gisdbase, const QString& location,
   }
   catch ( QgsGrass::Exception &e )
   {
-    if ( interactive )
-    {
-      warning( tr( "Cannot get raster extent" ) + "\n" + e.what() );
-    }
+    error = tr( "Cannot get raster extent" ) + " : " + e.what();
   }
   return QgsRectangle( 0, 0, 0, 0 );
 }
 
-void QgsGrass::size( const QString& gisdbase, const QString& location,
-                     const QString& mapset, const QString& map, int *cols, int *rows )
+void QgsGrass::size( const QString& gisdbase, const QString& location, const QString& mapset,
+                     const QString& map, int *cols, int *rows, QString &error )
 {
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
 
@@ -1951,7 +1949,8 @@ void QgsGrass::size( const QString& gisdbase, const QString& location,
   }
   catch ( QgsGrass::Exception &e )
   {
-    warning( tr( "Cannot get raster extent" ) + "\n" + e.what() );
+    error = tr( "Cannot get raster extent" ) + " : " + e.what();
+    QgsDebugMsg( error );
   }
 
   QgsDebugMsg( QString( "raster size = %1 %2" ).arg( *cols ).arg( *rows ) );
@@ -1963,7 +1962,7 @@ QHash<QString, QString> QgsGrass::info( const QString& gisdbase, const QString& 
                                         const QString& info,
                                         const QgsRectangle& extent,
                                         int sampleRows, int sampleCols,
-                                        int timeOut, bool interactive )
+                                        int timeOut, QString &error )
 {
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
   QHash<QString, QString> inf;
@@ -1987,15 +1986,14 @@ QHash<QString, QString> QgsGrass::info( const QString& gisdbase, const QString& 
   }
   catch ( QgsGrass::Exception &e )
   {
-    if ( interactive )
-    {
-      warning( tr( "Cannot get map info" ) + "\n" + e.what() );
-    }
+    error = tr( "Cannot get map info" ) + "\n" + e.what();
+    QgsDebugMsg( error );
   }
   return inf;
 }
 
-QList<QgsGrass::Color> QgsGrass::colors( QString gisdbase, QString location, QString mapset, QString map )
+QList<QgsGrass::Color> QgsGrass::colors( QString gisdbase, QString location, QString mapset,
+    QString map, QString& error )
 {
   QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
   QList<QgsGrass::Color> ct;
@@ -2019,7 +2017,8 @@ QList<QgsGrass::Color> QgsGrass::colors( QString gisdbase, QString location, QSt
   }
   catch ( QgsGrass::Exception &e )
   {
-    warning( tr( "Cannot get colors" ) + "\n" + e.what() );
+    error = tr( "Cannot get colors" ) + " : " + e.what();
+    QgsDebugMsg( error );
   }
   return ct;
 }
@@ -2193,7 +2192,7 @@ void QgsGrass::insertRow( dbDriver *driver, const QString tableName,
   }
 
   QStringList valuesStringList;
-  foreach ( QVariant attribute, attributes )
+  foreach ( const QVariant& attribute, attributes )
   {
     QString valueString;
 

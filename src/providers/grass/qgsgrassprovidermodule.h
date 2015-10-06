@@ -34,7 +34,7 @@ class QgsGrassItemActions : public QObject
 {
     Q_OBJECT
   public:
-    QgsGrassItemActions( QgsGrassObject grassObject, QObject *parent );
+    QgsGrassItemActions( QgsGrassObject grassObject, bool valid, QObject *parent );
 
     QList<QAction*> actions();
 
@@ -52,13 +52,15 @@ class QgsGrassItemActions : public QObject
     QString newVectorMap();
     void newLayer( QString type );
     QgsGrassObject mGrassObject;
+    // Grass object is valid
+    bool mValid;
 };
 
 class QgsGrassObjectItemBase
 {
   public:
     // actionsParent so that actions are moved to thread with item
-    QgsGrassObjectItemBase( QgsGrassObject grassObject );
+    explicit QgsGrassObjectItemBase( QgsGrassObject grassObject );
 
     bool equal( const QgsDataItem *other );
 
@@ -193,7 +195,7 @@ class QgsGrassImportItemWidget : public QWidget
 {
     Q_OBJECT
   public:
-    QgsGrassImportItemWidget( QWidget* parent  = 0 );
+    explicit QgsGrassImportItemWidget( QWidget* parent = 0 );
 
     void setHtml( const QString & html );
 

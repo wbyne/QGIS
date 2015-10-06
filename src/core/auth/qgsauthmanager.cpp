@@ -84,7 +84,14 @@ QSqlDatabase QgsAuthManager::authDbConnection() const
     authdb = QSqlDatabase::database( connectionname );
   }
   if ( !authdb.isOpen() )
-    ( void )authdb.open();
+  {
+    if ( !authdb.open() )
+    {
+      const char* err = QT_TR_NOOP( "Opening of authentication db FAILED" );
+      QgsDebugMsg( err );
+      emit messageOut( tr( err ), authManTag(), CRITICAL );
+    }
+  }
 
   return authdb;
 }
@@ -2321,7 +2328,7 @@ const QList<QSslCertificate> QgsAuthManager::getExtraFileCAs()
     filecerts = QgsAuthCertUtils::certsFromFile( cafile );
   }
   // only CAs or certs capable of signing other certs are allowed
-  Q_FOREACH ( QSslCertificate cert, filecerts )
+  Q_FOREACH ( const QSslCertificate& cert, filecerts )
   {
     if ( !allowinvalid.toBool() && !cert.isValid() )
     {
@@ -3232,7 +3239,13 @@ bool QgsAuthManager::authDbQuery( QSqlQuery *query ) const
     return false;
 
   query->setForwardOnly( true );
-  ( void )query->exec();
+  if ( !query->exec() )
+  {
+    const char* err = QT_TR_NOOP( "Auth db query exec() FAILED" );
+    QgsDebugMsg( err );
+    emit messageOut( tr( err ), authManTag(), WARNING );
+    return false;
+  }
 
   if ( query->lastError().isValid() )
   {

@@ -37,9 +37,10 @@
 #include <QTextEdit>
 
 //----------------------- QgsGrassItemActions ------------------------------
-QgsGrassItemActions::QgsGrassItemActions( QgsGrassObject grassObject, QObject *parent )
+QgsGrassItemActions::QgsGrassItemActions( QgsGrassObject grassObject, bool valid, QObject *parent )
     : QObject( parent )
     , mGrassObject( grassObject )
+    , mValid( valid )
 {
 }
 
@@ -79,7 +80,8 @@ QList<QAction*> QgsGrassItemActions::actions()
     list << deleteAction;
   }
 
-  if ( mGrassObject.type() == QgsGrassObject::Mapset || mGrassObject.type() == QgsGrassObject::Vector )
+  if (( mGrassObject.type() == QgsGrassObject::Mapset || mGrassObject.type() == QgsGrassObject::Vector )
+      && mValid )
   {
     // TODO: disable new layer actions on maps currently being edited
     QAction* newPointAction = new QAction( tr( "New Point Layer" ), this );
@@ -313,7 +315,7 @@ QgsGrassLocationItem::QgsGrassLocationItem( QgsDataItem* parent, QString dirPath
   QString gisdbase = dir.path();
 
   mGrassObject = QgsGrassObject( gisdbase, mName, "", "", QgsGrassObject::Location );
-  mActions = new QgsGrassItemActions( mGrassObject, this );
+  mActions = new QgsGrassItemActions( mGrassObject, true, this );
 
   mIconName = "grass_location.png";
 
@@ -328,7 +330,7 @@ QVector<QgsDataItem*>QgsGrassLocationItem::createChildren()
   QDir dir( mDirPath );
 
   QStringList entries = dir.entryList( QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name );
-  foreach ( QString name, entries )
+  foreach ( const QString& name, entries )
   {
     QString path = dir.absoluteFilePath( name );
 
@@ -360,7 +362,7 @@ QgsGrassMapsetItem::QgsGrassMapsetItem( QgsDataItem* parent, QString dirPath, QS
   QString gisdbase = dir.path();
 
   mGrassObject = QgsGrassObject( gisdbase, location, mName, "", QgsGrassObject::Mapset );
-  mActions = new QgsGrassItemActions( mGrassObject, this );
+  mActions = new QgsGrassItemActions( mGrassObject, true, this );
 
   mIconName = "grass_mapset.png";
 }
@@ -420,7 +422,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
   QVector<QgsDataItem*> items;
 
   QStringList vectorNames = QgsGrass::vectors( mDirPath );
-  Q_FOREACH ( QString name, vectorNames )
+  Q_FOREACH ( const QString& name, vectorNames )
   {
     if ( mRefreshLater )
     {
@@ -509,7 +511,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
       //map->setCapabilities( QgsDataItem::NoCapabilities ); // disable fertility
       map = new QgsGrassVectorItem( this, vectorObject, mapPath );
     }
-    foreach ( QString layerName, layerNames )
+    foreach ( const QString& layerName, layerNames )
     {
       // don't use QDir::separator(), windows work with '/' and backslash may be lost if
       // somewhere not properly escaped (there was bug in QgsMimeDataUtils for example)
@@ -548,7 +550,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
 
   QStringList rasterNames = QgsGrass::rasters( mDirPath );
 
-  foreach ( QString name, rasterNames )
+  foreach ( const QString& name, rasterNames )
   {
     if ( mRefreshLater )
     {
@@ -571,7 +573,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
   }
 
   QStringList groupNames = QgsGrass::groups( mDirPath );
-  foreach ( QString name, groupNames )
+  foreach ( const QString& name, groupNames )
   {
     if ( mRefreshLater )
     {
@@ -819,7 +821,7 @@ bool QgsGrassMapsetItem::handleDrop( const QMimeData * data, Qt::DropAction )
 
     // delete existing files (confirmed before in dialog)
     bool deleteOk = true;
-    foreach ( QString name, import->names() )
+    foreach ( const QString& name, import->names() )
     {
       QgsGrassObject obj( import->grassObject() );
       obj.setName( name );
@@ -920,7 +922,7 @@ QgsGrassObjectItem::QgsGrassObjectItem( QgsDataItem* parent, QgsGrassObject gras
     , mActions( 0 )
 {
   setState( Populated ); // no children, to show non expandable in browser
-  mActions = new QgsGrassItemActions( mGrassObject, this );
+  mActions = new QgsGrassItemActions( mGrassObject, true, this );
 }
 
 bool QgsGrassObjectItem::equal( const QgsDataItem *other )
@@ -946,7 +948,7 @@ QgsGrassVectorItem::QgsGrassVectorItem( QgsDataItem* parent, QgsGrassObject gras
     setState( Populated );
     setIconName( "/mIconDelete.png" );
   }
-  mActions = new QgsGrassItemActions( mGrassObject, this );
+  mActions = new QgsGrassItemActions( mGrassObject, mValid, this );
 
   QString watchPath = mGrassObject.mapsetPath() + "/vector/" + mGrassObject.name();
   QgsDebugMsg( "add watcher on " + watchPath );

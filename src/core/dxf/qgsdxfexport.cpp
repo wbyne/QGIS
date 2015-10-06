@@ -3602,7 +3602,7 @@ QgsRectangle QgsDxfExport::dxfExtent() const
   return extent;
 }
 
-void QgsDxfExport::addFeature( const QgsSymbolV2RenderContext& ctx, const QString& layer, const QgsSymbolLayerV2* symbolLayer, const QgsSymbolV2* symbol )
+void QgsDxfExport::addFeature( QgsSymbolV2RenderContext& ctx, const QString& layer, const QgsSymbolLayerV2* symbolLayer, const QgsSymbolV2* symbol )
 {
   const QgsFeature* fet = ctx.feature();
   if ( !fet )
@@ -3768,7 +3768,7 @@ void QgsDxfExport::addFeature( const QgsSymbolV2RenderContext& ctx, const QStrin
   }
 }
 
-QColor QgsDxfExport::colorFromSymbolLayer( const QgsSymbolLayerV2* symbolLayer, const QgsSymbolV2RenderContext& ctx )
+QColor QgsDxfExport::colorFromSymbolLayer( const QgsSymbolLayerV2* symbolLayer, QgsSymbolV2RenderContext &ctx )
 {
   if ( !symbolLayer )
     return QColor();
@@ -4127,7 +4127,7 @@ QString QgsDxfExport::layerName( const QString &id, const QgsFeature &f ) const
 
 QString QgsDxfExport::dxfEncoding( const QString &name )
 {
-  Q_FOREACH ( QByteArray codec, QTextCodec::availableCodecs() )
+  Q_FOREACH ( const QByteArray& codec, QTextCodec::availableCodecs() )
   {
     if ( name != codec )
       continue;

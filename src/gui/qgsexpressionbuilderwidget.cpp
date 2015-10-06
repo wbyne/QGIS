@@ -285,6 +285,7 @@ void QgsExpressionBuilderWidget::loadFieldNames( const QgsFields& fields )
 
   QStringList fieldNames;
   //Q_FOREACH ( const QgsField& field, fields )
+  fieldNames.reserve( fields.count() );
   for ( int i = 0; i < fields.count(); ++i )
   {
     QString fieldName = fields[i].name();
@@ -358,7 +359,8 @@ void QgsExpressionBuilderWidget::registerItem( QString group,
     // If the group doesn't exist yet we make it first.
     QgsExpressionItem *newgroupNode = new QgsExpressionItem( QgsExpression::group( group ), "", QgsExpressionItem::Header );
     newgroupNode->setData( group, Qt::UserRole );
-    newgroupNode->setData( group == "Recent (Selection)" ? 2 : 1, QgsExpressionItem::CustomSortRole );
+    //Recent group should always be last group
+    newgroupNode->setData( group.startsWith( "Recent (" ) ? 2 : 1, QgsExpressionItem::CustomSortRole );
     newgroupNode->appendRow( item );
     newgroupNode->setBackground( QBrush( QColor( "#eee" ) ) );
     mModel->appendRow( newgroupNode );
@@ -415,9 +417,11 @@ void QgsExpressionBuilderWidget::loadRecent( QString key )
   QSettings settings;
   QString location = QString( "/expressions/recent/%1" ).arg( key );
   QStringList expressions = settings.value( location ).toStringList();
+  int i = 0;
   Q_FOREACH ( const QString& expression, expressions )
   {
-    this->registerItem( name, expression, expression, expression );
+    this->registerItem( name, expression, expression, expression, QgsExpressionItem::ExpressionNode, false, i );
+    i++;
   }
 }
 

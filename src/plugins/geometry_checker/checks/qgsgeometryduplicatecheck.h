@@ -26,7 +26,7 @@ class QgsGeometryDuplicateCheckError : public QgsGeometryCheckError
              other->featureId() == featureId() &&
              // static_cast: since other->checker() == checker is only true if the types are actually the same
              static_cast<QgsGeometryDuplicateCheckError*>( other )->duplicates() == duplicates();
-  }
+    }
 
   private:
     QList<QgsFeatureId> mDuplicates;
@@ -47,7 +47,7 @@ class QgsGeometryDuplicateCheck : public QgsGeometryCheck
     Q_OBJECT
 
   public:
-    QgsGeometryDuplicateCheck( QgsFeaturePool* featurePool )
+    explicit QgsGeometryDuplicateCheck( QgsFeaturePool* featurePool )
         : QgsGeometryCheck( FeatureCheck, featurePool ) {}
     void collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter = 0, const QgsFeatureIds& ids = QgsFeatureIds() ) const override;
     void fixError( QgsGeometryCheckError* error, int method, int mergeAttributeIndex, Changes& changes ) const override;

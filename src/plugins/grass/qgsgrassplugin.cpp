@@ -81,6 +81,7 @@ QgsGrassPlugin::QgsGrassPlugin( QgisInterface * theQgisInterFace )
     , mNewMapsetAction( 0 )
     , mCloseMapsetAction( 0 )
     , mOpenToolsAction( 0 )
+    , mOptionsAction( 0 )
     , mAddFeatureAction( 0 )
     , mAddPointAction( 0 )
     , mAddLineAction( 0 )
@@ -587,8 +588,11 @@ void QgsGrassPlugin::onNewLayer( QString uri, QString name )
 {
   QgsDebugMsg( "uri = " + uri + " name = " + name );
   QgsVectorLayer* vectorLayer = qGisInterface->addVectorLayer( uri, name, "grass" );
-  vectorLayer->startEditing();
-  qGisInterface->setActiveLayer( vectorLayer );
+  if ( vectorLayer )
+  {
+    vectorLayer->startEditing();
+    qGisInterface->setActiveLayer( vectorLayer );
+  }
 }
 
 void QgsGrassPlugin::postRender( QPainter *painter )

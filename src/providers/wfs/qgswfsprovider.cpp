@@ -913,7 +913,7 @@ int QgsWFSProvider::readAttributesFromSchema( QDomDocument& schemaDoc, QString& 
 
     //find <complexType name=complexTypeType
     QDomNodeList complexTypeNodeList = schemaElement.elementsByTagNameNS( "http://www.w3.org/2001/XMLSchema", "complexType" );
-    for ( uint i = 0; i < complexTypeNodeList.length(); ++i )
+    for ( int i = 0; i < complexTypeNodeList.size(); ++i )
     {
       if ( complexTypeNodeList.at( i ).toElement().attribute( "name" ) == complexTypeType )
       {
@@ -937,7 +937,7 @@ int QgsWFSProvider::readAttributesFromSchema( QDomDocument& schemaDoc, QString& 
 
   bool foundGeometryAttribute = false;
 
-  for ( uint i = 0; i < attributeNodeList.length(); ++i )
+  for ( int i = 0; i < attributeNodeList.size(); ++i )
   {
     QDomElement attributeElement = attributeNodeList.at( i ).toElement();
     //attribute name
@@ -995,7 +995,6 @@ int QgsWFSProvider::guessAttributesFromFile( const QString& uri, QString& geomet
     return 2; //xml file not readable or not valid
   }
 
-
   //find gmlCollection element
   QDomElement featureCollectionElement = gmlDoc.documentElement();
 
@@ -1015,7 +1014,6 @@ int QgsWFSProvider::guessAttributesFromFile( const QString& uri, QString& geomet
   QString attributeText;
   QDomElement attributeChildElement;
   QString attributeChildLocalName;
-  bool foundGeometryAttribute = false;
 
   while ( !attributeNode.isNull() )//loop over attributes
   {
@@ -1043,10 +1041,7 @@ int QgsWFSProvider::guessAttributesFromFile( const QString& uri, QString& geomet
     attributeNode = attributeNode.nextSibling();
   }
 
-  if ( !foundGeometryAttribute )
-  {
-    geomType = QGis::WKBNoGeometry;
-  }
+  geomType = QGis::WKBNoGeometry;
 
   return 0;
 }

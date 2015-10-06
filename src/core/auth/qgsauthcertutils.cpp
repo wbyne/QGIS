@@ -24,7 +24,6 @@
 #include "qgsauthmanager.h"
 #include "qgslogger.h"
 
-
 QString QgsAuthCertUtils::getSslProtocolName( QSsl::SslProtocol protocol )
 {
   switch ( protocol )
@@ -49,7 +48,7 @@ QString QgsAuthCertUtils::getSslProtocolName( QSsl::SslProtocol protocol )
 QMap<QString, QSslCertificate> QgsAuthCertUtils::mapDigestToCerts( QList<QSslCertificate> certs )
 {
   QMap<QString, QSslCertificate> digestmap;
-  Q_FOREACH ( QSslCertificate cert, certs )
+  Q_FOREACH ( const QSslCertificate& cert, certs )
   {
     digestmap.insert( shaHexForCert( cert ), cert );
   }
@@ -59,9 +58,9 @@ QMap<QString, QSslCertificate> QgsAuthCertUtils::mapDigestToCerts( QList<QSslCer
 QMap<QString, QList<QSslCertificate> > QgsAuthCertUtils::certsGroupedByOrg( QList<QSslCertificate> certs )
 {
   QMap< QString, QList<QSslCertificate> > orgcerts;
-  Q_FOREACH ( QSslCertificate cert, certs )
+  Q_FOREACH ( const QSslCertificate& cert, certs )
   {
-    QString org( cert.subjectInfo( QSslCertificate::Organization ) );
+    QString org( SSL_SUBJECT_INFO( cert, QSslCertificate::Organization ) );
     if ( org.isEmpty() )
       org = "(Organization not defined)";
     QList<QSslCertificate> valist = orgcerts.contains( org ) ? orgcerts.value( org ) : QList<QSslCertificate>();
@@ -73,7 +72,7 @@ QMap<QString, QList<QSslCertificate> > QgsAuthCertUtils::certsGroupedByOrg( QLis
 QMap<QString, QgsAuthConfigSslServer> QgsAuthCertUtils::mapDigestToSslConfigs( QList<QgsAuthConfigSslServer> configs )
 {
   QMap<QString, QgsAuthConfigSslServer> digestmap;
-  Q_FOREACH ( QgsAuthConfigSslServer config, configs )
+  Q_FOREACH ( const QgsAuthConfigSslServer& config, configs )
   {
     digestmap.insert( shaHexForCert( config.sslCertificate() ), config );
   }
@@ -83,9 +82,10 @@ QMap<QString, QgsAuthConfigSslServer> QgsAuthCertUtils::mapDigestToSslConfigs( Q
 QMap<QString, QList<QgsAuthConfigSslServer> > QgsAuthCertUtils::sslConfigsGroupedByOrg( QList<QgsAuthConfigSslServer> configs )
 {
   QMap< QString, QList<QgsAuthConfigSslServer> > orgconfigs;
-  Q_FOREACH ( QgsAuthConfigSslServer config, configs )
+  Q_FOREACH ( const QgsAuthConfigSslServer& config, configs )
   {
-    QString org( config.sslCertificate().subjectInfo( QSslCertificate::Organization ) );
+    QString org( SSL_SUBJECT_INFO( config.sslCertificate(), QSslCertificate::Organization ) );
+
     if ( org.isEmpty() )
       org = QObject::tr( "(Organization not defined)" );
     QList<QgsAuthConfigSslServer> valist = orgconfigs.contains( org ) ? orgconfigs.value( org ) : QList<QgsAuthConfigSslServer>();
@@ -265,28 +265,28 @@ QString QgsAuthCertUtils::getCaSourceName( QgsAuthCertUtils::CaCertSource source
 
 QString QgsAuthCertUtils::resolvedCertName( const QSslCertificate &cert, bool issuer )
 {
-  QString name( issuer ? cert.issuerInfo( QSslCertificate::CommonName )
-                : cert.subjectInfo( QSslCertificate::CommonName ) );
+  QString name( issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::CommonName )
+                : SSL_SUBJECT_INFO( cert, QSslCertificate::CommonName ) );
 
   if ( name.isEmpty() )
-    name = issuer ? cert.issuerInfo( QSslCertificate::OrganizationalUnitName )
-           : cert.subjectInfo( QSslCertificate::OrganizationalUnitName );
+    name = issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::OrganizationalUnitName )
+           : SSL_SUBJECT_INFO( cert, QSslCertificate::OrganizationalUnitName );
 
   if ( name.isEmpty() )
-    name = issuer ? cert.issuerInfo( QSslCertificate::Organization )
-           : cert.subjectInfo( QSslCertificate::Organization );
+    name = issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::Organization )
+           : SSL_SUBJECT_INFO( cert, QSslCertificate::Organization );
 
   if ( name.isEmpty() )
-    name = issuer ? cert.issuerInfo( QSslCertificate::LocalityName )
-           : cert.subjectInfo( QSslCertificate::LocalityName );
+    name = issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::LocalityName )
+           : SSL_SUBJECT_INFO( cert, QSslCertificate::LocalityName );
 
   if ( name.isEmpty() )
-    name = issuer ? cert.issuerInfo( QSslCertificate::StateOrProvinceName )
-           : cert.subjectInfo( QSslCertificate::StateOrProvinceName );
+    name = issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::StateOrProvinceName )
+           : SSL_SUBJECT_INFO( cert, QSslCertificate::StateOrProvinceName );
 
   if ( name.isEmpty() )
-    name = issuer ? cert.issuerInfo( QSslCertificate::CountryName )
-           : cert.subjectInfo( QSslCertificate::CountryName );
+    name = issuer ? SSL_ISSUER_INFO( cert, QSslCertificate::CountryName )
+           : SSL_SUBJECT_INFO( cert, QSslCertificate::CountryName );
 
   return name;
 }
@@ -330,23 +330,23 @@ QString QgsAuthCertUtils::getCertDistinguishedName( const QSslCertificate &qcert
     dirname, "E", issuer ? acert.issuerInfo().value( QCA::Email )
     : acert.subjectInfo().value( QCA::Email ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "CN", issuer ? qcert.issuerInfo( QSslCertificate::CommonName )
-    : qcert.subjectInfo( QSslCertificate::CommonName ) );
+    dirname, "CN", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::CommonName )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::CommonName ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "OU", issuer ? qcert.subjectInfo( QSslCertificate::OrganizationalUnitName )
-    : qcert.subjectInfo( QSslCertificate::OrganizationalUnitName ) );
+    dirname, "OU", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::OrganizationalUnitName )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::OrganizationalUnitName ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "O", issuer ? qcert.subjectInfo( QSslCertificate::Organization )
-    : qcert.subjectInfo( QSslCertificate::Organization ) );
+    dirname, "O", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::Organization )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::Organization ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "L", issuer ? qcert.subjectInfo( QSslCertificate::LocalityName )
-    : qcert.subjectInfo( QSslCertificate::LocalityName ) );
+    dirname, "L", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::LocalityName )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::LocalityName ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "ST", issuer ? qcert.subjectInfo( QSslCertificate::StateOrProvinceName )
-    : qcert.subjectInfo( QSslCertificate::StateOrProvinceName ) );
+    dirname, "ST", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::StateOrProvinceName )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::StateOrProvinceName ) );
   QgsAuthCertUtils::appendDirSegment_(
-    dirname, "C", issuer ? qcert.subjectInfo( QSslCertificate::CountryName )
-    : qcert.subjectInfo( QSslCertificate::CountryName ) );
+    dirname, "C", issuer ? SSL_ISSUER_INFO( qcert, QSslCertificate::CountryName )
+    : SSL_SUBJECT_INFO( qcert, QSslCertificate::CountryName ) );
 
   return dirname.join( "," );
 }
@@ -371,6 +371,7 @@ QString QgsAuthCertUtils::getColonDelimited( const QString &txt )
   // 64321c05b0ebab8e2b67ec0d7d9e2b6d4bc3c303
   //   -> 64:32:1c:05:b0:eb:ab:8e:2b:67:ec:0d:7d:9e:2b:6d:4b:c3:c3:03
   QStringList sl;
+  sl.reserve( txt.size() );
   for ( int i = 0; i < txt.size(); i += 2 )
   {
     sl << txt.mid( i, ( i + 2 > txt.size() ) ? -1 : 2 );
@@ -593,7 +594,7 @@ QList<QgsAuthCertUtils::CertUsageType> QgsAuthCertUtils::certificateUsageTypes( 
   }
 
   QList<QCA::ConstraintType> certconsts = qcacert.constraints();
-  Q_FOREACH ( QCA::ConstraintType certconst, certconsts )
+  Q_FOREACH ( const QCA::ConstraintType& certconst, certconsts )
   {
     if ( certconst.known() == QCA::KeyCertificateSign )
     {

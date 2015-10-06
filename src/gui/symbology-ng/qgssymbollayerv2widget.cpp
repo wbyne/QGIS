@@ -73,6 +73,10 @@ static QgsExpressionContext _getExpressionContext( const void* context )
   if ( layer )
     expContext << QgsExpressionContextUtils::layerScope( layer );
 
+  //TODO - show actual value
+  expContext.setOriginalValueVariable( QVariant() );
+  expContext.setHighlightedVariables( QStringList() << QgsExpressionContext::EXPR_ORIGINAL_VALUE );
+
   return expContext;
 }
 
@@ -1569,7 +1573,7 @@ QgsSvgMarkerSymbolLayerV2Widget::~QgsSvgMarkerSymbolLayerV2Widget()
 class QgsSvgListModel : public QAbstractListModel
 {
   public:
-    QgsSvgListModel( QObject* parent ) : QAbstractListModel( parent )
+    explicit QgsSvgListModel( QObject* parent ) : QAbstractListModel( parent )
     {
       mSvgFiles = QgsSymbolLayerV2Utils::listSvgFiles();
     }
@@ -1624,7 +1628,7 @@ class QgsSvgListModel : public QAbstractListModel
 class QgsSvgGroupsModel : public QStandardItemModel
 {
   public:
-    QgsSvgGroupsModel( QObject* parent ) : QStandardItemModel( parent )
+    explicit QgsSvgGroupsModel( QObject* parent ) : QStandardItemModel( parent )
     {
       QStringList svgPaths = QgsApplication::svgPaths();
       QStandardItem *parentItem = invisibleRootItem();

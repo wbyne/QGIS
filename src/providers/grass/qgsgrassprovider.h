@@ -269,7 +269,7 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
      *   @return line number
      *   @return -1 error
      */
-    int rewriteLine( int line, int type, struct line_pnts *Points, struct line_cats *Cats );
+    int rewriteLine( int lid, int type, struct line_pnts *Points, struct line_cats *Cats );
 
     /** Delete line
      *   @return 0 OK
@@ -403,6 +403,9 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
   private:
     struct Map_info * map();
     void setMapset();
+    bool openLayer();
+    // update topo symbol of new features
+    void setAddedFeaturesSymbol();
 
     QgsGrassObject mGrassObject;
     // field part of layer or -1 if no field specified
@@ -420,8 +423,6 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     // Index for layerField in category index or -1 if no such field
     int mCidxFieldIndex;
-    // Number of records in field index
-    int mCidxFieldNumCats;
 
     bool mValid;
     long mNumberFeatures;
@@ -459,6 +460,10 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     //  next digitized feature GRASS type
     int mNewFeatureType;
+
+    // points and cats used only for editing
+    struct line_pnts *mPoints;
+    struct line_cats *mCats;
 
     friend class QgsGrassFeatureSource;
     friend class QgsGrassFeatureIterator;

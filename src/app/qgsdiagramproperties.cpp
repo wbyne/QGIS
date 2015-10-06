@@ -255,6 +255,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
       QSizeF size = settingList.at( 0 ).size;
       mBackgroundColorButton->setColor( settingList.at( 0 ).backgroundColor );
       mTransparencySpinBox->setValue( settingList.at( 0 ).transparency * 100.0 / 255.0 );
+      mTransparencySlider->setValue( mTransparencySpinBox->value() );
       mDiagramPenColorButton->setColor( settingList.at( 0 ).penColor );
       mPenWidthSpinBox->setValue( settingList.at( 0 ).penWidth );
       mDiagramSizeSpinBox->setValue(( size.width() + size.height() ) / 2.0 );
@@ -683,6 +684,9 @@ void QgsDiagramProperties::apply()
   QList<QColor> categoryColors;
   QList<QString> categoryAttributes;
   QList<QString> categoryLabels;
+  categoryColors.reserve( mDiagramAttributesTreeWidget->topLevelItemCount() );
+  categoryAttributes.reserve( mDiagramAttributesTreeWidget->topLevelItemCount() );
+  categoryLabels.reserve( mDiagramAttributesTreeWidget->topLevelItemCount() );
   for ( int i = 0; i < mDiagramAttributesTreeWidget->topLevelItemCount(); ++i )
   {
     QColor color = mDiagramAttributesTreeWidget->topLevelItem( i )->background( 1 ).color();

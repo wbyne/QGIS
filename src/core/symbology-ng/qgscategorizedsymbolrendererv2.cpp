@@ -22,6 +22,7 @@
 #include "qgspointdisplacementrenderer.h"
 #include "qgsinvertedpolygonrenderer.h"
 #include "qgspainteffect.h"
+#include "qgspainteffectregistry.h"
 #include "qgsscaleexpression.h"
 #include "qgsdatadefined.h"
 
@@ -521,6 +522,7 @@ QgsSymbolV2List QgsCategorizedSymbolRendererV2::symbols( QgsRenderContext &conte
 {
   Q_UNUSED( context );
   QgsSymbolV2List lst;
+  lst.reserve( mCategories.count() );
   for ( int i = 0; i < mCategories.count(); i++ )
     lst.append( mCategories[i].symbol() );
   return lst;
@@ -686,7 +688,7 @@ QDomElement QgsCategorizedSymbolRendererV2::save( QDomDocument& doc )
   sizeScaleElem.setAttribute( "scalemethod", QgsSymbolLayerV2Utils::encodeScaleMethod( mScaleMethod ) );
   rendererElem.appendChild( sizeScaleElem );
 
-  if ( mPaintEffect )
+  if ( mPaintEffect && !QgsPaintEffectRegistry::isDefaultStack( mPaintEffect ) )
     mPaintEffect->saveProperties( doc, rendererElem );
 
   return rendererElem;
@@ -696,6 +698,7 @@ QgsLegendSymbologyList QgsCategorizedSymbolRendererV2::legendSymbologyItems( QSi
 {
   QgsLegendSymbologyList lst;
   int count = categories().count();
+  lst.reserve( count );
   for ( int i = 0; i < count; i++ )
   {
     const QgsRendererCategoryV2& cat = categories()[i];

@@ -678,7 +678,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     struct RangeData
     {
       RangeData() { mMin = QVariant( 0 ); mMax = QVariant( 5 ); mStep = QVariant( 1 );}
-      RangeData( QVariant theMin, QVariant theMax, QVariant theStep )
+      RangeData( const QVariant& theMin, const QVariant& theMax, const QVariant& theStep )
           : mMin( theMin ), mMax( theMax ), mStep( theStep ) {}
 
       QVariant mMin;
@@ -1453,7 +1453,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     const QgsEditorWidgetConfig editorWidgetV2Config( int fieldIdx ) const;
 
     /**
-     * Get the configuration for the editor widget used to represent the field at the given index
+     * Get the configuration for the editor widget used to represent the field with the given name
      *
      * @param fieldName The name of the field
      *
