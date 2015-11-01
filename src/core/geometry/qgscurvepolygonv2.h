@@ -55,7 +55,7 @@ class CORE_EXPORT QgsCurvePolygonV2: public QgsSurfaceV2
 
     //surface interface
     virtual double area() const override;
-    virtual double length() const override;
+    virtual double perimeter() const override;
     QgsPointV2 pointOnSurface() const override;
     QgsPolygonV2* surfaceToPolygon() const override;
 
@@ -68,7 +68,7 @@ class CORE_EXPORT QgsCurvePolygonV2: public QgsSurfaceV2
     /** Sets exterior ring (takes ownership)*/
     void setExteriorRing( QgsCurveV2* ring );
     /** Sets all interior rings (takes ownership)*/
-    void setInteriorRings( QList<QgsCurveV2*> rings );
+    void setInteriorRings( const QList<QgsCurveV2*>& rings );
     /** Adds an interior ring to the geometry (takes ownership)*/
     void addInteriorRing( QgsCurveV2* ring );
     /** Removes ring. Exterior ring is 0, first interior ring 1, ...*/
@@ -102,6 +102,9 @@ class CORE_EXPORT QgsCurvePolygonV2: public QgsSurfaceV2
     virtual int ringCount( int /*part*/ = 0 ) const override { return ( mExteriorRing != 0 ) + mInteriorRings.size(); }
     virtual int partCount() const override { return ringCount() > 0 ? 1 : 0; }
     virtual QgsPointV2 vertexAt( const QgsVertexId& id ) const override;
+
+    virtual bool addZValue( double zValue = 0 ) override;
+    virtual bool addMValue( double mValue = 0 ) override;
 
   protected:
 

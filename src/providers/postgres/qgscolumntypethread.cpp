@@ -21,7 +21,7 @@ email                : jef at norbit dot de
 #include <QMetaType>
 #include <climits>
 
-QgsGeomColumnTypeThread::QgsGeomColumnTypeThread( QString name, bool useEstimatedMetaData, bool allowGeometrylessTables )
+QgsGeomColumnTypeThread::QgsGeomColumnTypeThread( const QString& name, bool useEstimatedMetaData, bool allowGeometrylessTables )
     : QThread()
     , mConn( 0 )
     , mName( name )
@@ -78,9 +78,9 @@ void QgsGeomColumnTypeThread::run()
     {
       emit progress( i++, n );
       emit progressMessage( tr( "Scanning column %1.%2.%3..." )
-                            .arg( layerProperty.schemaName )
-                            .arg( layerProperty.tableName )
-                            .arg( layerProperty.geometryColName ) );
+                            .arg( layerProperty.schemaName,
+                                  layerProperty.tableName,
+                                  layerProperty.geometryColName ) );
 
       if ( !layerProperty.geometryColName.isNull() &&
            ( layerProperty.types.value( 0, QGis::WKBUnknown ) == QGis::WKBUnknown ||
@@ -88,7 +88,7 @@ void QgsGeomColumnTypeThread::run()
       {
         if ( dontResolveType )
         {
-          QgsDebugMsg( QString( "skipping column %1.%2 without type constraint" ).arg( layerProperty.schemaName ).arg( layerProperty.tableName ) );
+          QgsDebugMsg( QString( "skipping column %1.%2 without type constraint" ).arg( layerProperty.schemaName, layerProperty.tableName ) );
           continue;
         }
 

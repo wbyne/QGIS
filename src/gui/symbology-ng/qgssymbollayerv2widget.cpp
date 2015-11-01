@@ -490,7 +490,7 @@ void QgsSimpleMarkerSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer
   mHorizontalAnchorComboBox->blockSignals( false );
   mVerticalAnchorComboBox->blockSignals( false );
 
-  registerDataDefinedButton( mNameDDBtn, "name", QgsDataDefinedButton::String, tr( "string " ) + QString( "[<b>square</b>|<b>rectangle</b>|<b>diamond</b>|"
+  registerDataDefinedButton( mNameDDBtn, "name", QgsDataDefinedButton::String, tr( "string " ) + QLatin1String( "[<b>square</b>|<b>rectangle</b>|<b>diamond</b>|"
                              "<b>pentagon</b>|<b>triangle</b>|<b>equilateral_triangle</b>|"
                              "<b>star</b>|<b>regular_star</b>|<b>arrow</b>|<b>filled_arrowhead</b>|"
                              "<b>circle</b>|<b>cross</b>|<b>x</b>|"
@@ -1437,7 +1437,7 @@ void QgsMarkerLineSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
 
   registerDataDefinedButton( mIntervalDDBtn, "interval", QgsDataDefinedButton::Double, QgsDataDefinedButton::doublePosDesc() );
   registerDataDefinedButton( mLineOffsetDDBtn, "offset", QgsDataDefinedButton::Double, QgsDataDefinedButton::doubleDesc() );
-  registerDataDefinedButton( mPlacementDDBtn, "placement", QgsDataDefinedButton::String, tr( "string " ) + QString( "[<b>vertex</b>|<b>lastvertex</b>|<b>firstvertex</b>|<b>centerpoint</b>]" ) );
+  registerDataDefinedButton( mPlacementDDBtn, "placement", QgsDataDefinedButton::String, tr( "string " ) + QLatin1String( "[<b>vertex</b>|<b>lastvertex</b>|<b>firstvertex</b>|<b>centerpoint</b>]" ) );
   registerDataDefinedButton( mOffsetAlongLineDDBtn, "offset_along_line", QgsDataDefinedButton::Double, QgsDataDefinedButton::doublePosDesc() );
 }
 
@@ -1579,7 +1579,7 @@ class QgsSvgListModel : public QAbstractListModel
     }
 
     // Constructor to create model for icons in a specific path
-    QgsSvgListModel( QObject* parent, QString path ) : QAbstractListModel( parent )
+    QgsSvgListModel( QObject* parent, const QString& path ) : QAbstractListModel( parent )
     {
       mSvgFiles = QgsSymbolLayerV2Utils::listSvgFilesAt( path );
     }
@@ -1603,7 +1603,18 @@ class QgsSvgListModel : public QAbstractListModel
           QColor fill, outline;
           double outlineWidth;
           bool fillParam, outlineParam, outlineWidthParam;
-          QgsSvgCache::instance()->containsParams( entry, fillParam, fill, outlineParam, outline, outlineWidthParam, outlineWidth );
+          bool hasDefaultFillColor = false, hasDefaultOutlineColor = false, hasDefaultOutlineWidth = false;
+          QgsSvgCache::instance()->containsParams( entry, fillParam, hasDefaultFillColor, fill,
+              outlineParam, hasDefaultOutlineColor, outline,
+              outlineWidthParam, hasDefaultOutlineWidth, outlineWidth );
+
+          //if defaults not set in symbol, use these values
+          if ( !hasDefaultFillColor )
+            fill = QColor( 200, 200, 200 );
+          if ( !hasDefaultOutlineColor )
+            outline = Qt::black;
+          if ( !hasDefaultOutlineWidth )
+            outlineWidth = 0.6;
 
           bool fitsInCache; // should always fit in cache at these sizes (i.e. under 559 px ^ 2, or half cache size)
           const QImage& img = QgsSvgCache::instance()->svgAsImage( entry, 30.0, fill, outline, outlineWidth, 3.5 /*appr. 88 dpi*/, 1.0, fitsInCache );
@@ -1716,7 +1727,10 @@ void QgsSvgMarkerSymbolLayerV2Widget::setGuiForSvg( const QgsSvgMarkerSymbolLaye
   bool hasFillParam, hasOutlineParam, hasOutlineWidthParam;
   QColor defaultFill, defaultOutline;
   double defaultOutlineWidth;
-  QgsSvgCache::instance()->containsParams( layer->path(), hasFillParam, defaultFill, hasOutlineParam, defaultOutline, hasOutlineWidthParam, defaultOutlineWidth );
+  bool hasDefaultFillColor, hasDefaultOutlineColor, hasDefaultOutlineWidth;
+  QgsSvgCache::instance()->containsParams( layer->path(), hasFillParam, hasDefaultFillColor, defaultFill,
+      hasOutlineParam, hasDefaultOutlineColor, defaultOutline,
+      hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
   mChangeColorButton->setEnabled( hasFillParam );
   mChangeBorderColorButton->setEnabled( hasOutlineParam );
   mBorderWidthSpinBox->setEnabled( hasOutlineWidthParam );
@@ -1727,7 +1741,7 @@ void QgsSvgMarkerSymbolLayerV2Widget::setGuiForSvg( const QgsSvgMarkerSymbolLaye
     {
       mChangeColorButton->setColor( layer->fillColor() );
     }
-    else
+    else if ( hasDefaultFillColor )
     {
       mChangeColorButton->setColor( defaultFill );
     }
@@ -1738,7 +1752,7 @@ void QgsSvgMarkerSymbolLayerV2Widget::setGuiForSvg( const QgsSvgMarkerSymbolLaye
     {
       mChangeBorderColorButton->setColor( layer->outlineColor() );
     }
-    else
+    else if ( hasDefaultOutlineColor )
     {
       mChangeBorderColorButton->setColor( defaultOutline );
     }
@@ -1834,7 +1848,7 @@ void QgsSvgMarkerSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
   setGuiForSvg( mLayer );
 
   registerDataDefinedButton( mSizeDDBtn, "size", QgsDataDefinedButton::Double, QgsDataDefinedButton::doublePosDesc() );
-  registerDataDefinedButton( mBorderWidthDDBtn, "outline-width", QgsDataDefinedButton::Double, QgsDataDefinedButton::doublePosDesc() );
+  registerDataDefinedButton( mBorderWidthDDBtn, "outline_width", QgsDataDefinedButton::Double, QgsDataDefinedButton::doublePosDesc() );
   registerDataDefinedButton( mAngleDDBtn, "angle", QgsDataDefinedButton::Double, QgsDataDefinedButton::double180RotDesc() );
   registerDataDefinedButton( mOffsetDDBtn, "offset", QgsDataDefinedButton::String, QgsDataDefinedButton::doubleXYDesc() );
   registerDataDefinedButton( mFilenameDDBtn, "name", QgsDataDefinedButton::String, QgsDataDefinedButton::filePathDesc() );
@@ -2195,18 +2209,21 @@ void QgsSVGFillSymbolLayerWidget::updateParamGui( bool resetValues )
   bool hasFillParam, hasOutlineParam, hasOutlineWidthParam;
   QColor defaultFill, defaultOutline;
   double defaultOutlineWidth;
-  QgsSvgCache::instance()->containsParams( mSVGLineEdit->text(), hasFillParam, defaultFill, hasOutlineParam, defaultOutline, hasOutlineWidthParam, defaultOutlineWidth );
-  if ( hasFillParam && resetValues )
+  bool hasDefaultFillColor, hasDefaultOutlineColor, hasDefaultOutlineWidth;
+  QgsSvgCache::instance()->containsParams( mSVGLineEdit->text(), hasFillParam, hasDefaultFillColor, defaultFill,
+      hasOutlineParam, hasDefaultOutlineColor, defaultOutline,
+      hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
+  if ( hasDefaultFillColor && resetValues )
   {
     mChangeColorButton->setColor( defaultFill );
   }
   mChangeColorButton->setEnabled( hasFillParam );
-  if ( hasOutlineParam && resetValues )
+  if ( hasDefaultOutlineColor && resetValues )
   {
     mChangeBorderColorButton->setColor( defaultOutline );
   }
   mChangeBorderColorButton->setEnabled( hasOutlineParam );
-  if ( hasOutlineWidthParam && resetValues )
+  if ( hasDefaultOutlineWidth && resetValues )
   {
     mBorderWidthSpinBox->setValue( defaultOutlineWidth );
   }

@@ -39,7 +39,7 @@ QgsRendererCategoryV2::QgsRendererCategoryV2()
 {
 }
 
-QgsRendererCategoryV2::QgsRendererCategoryV2( QVariant value, QgsSymbolV2* symbol, QString label, bool render )
+QgsRendererCategoryV2::QgsRendererCategoryV2( const QVariant& value, QgsSymbolV2* symbol, const QString& label, bool render )
     : mValue( value )
     , mSymbol( symbol )
     , mLabel( label )
@@ -111,7 +111,7 @@ void QgsRendererCategoryV2::setRenderState( bool render )
 
 QString QgsRendererCategoryV2::dump() const
 {
-  return QString( "%1::%2::%3:%4\n" ).arg( mValue.toString() ).arg( mLabel ).arg( mSymbol->dump() ).arg( mRender );
+  return QString( "%1::%2::%3:%4\n" ).arg( mValue.toString(), mLabel, mSymbol->dump() ).arg( mRender );
 }
 
 void QgsRendererCategoryV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
@@ -130,15 +130,15 @@ void QgsRendererCategoryV2::toSld( QDomDocument &doc, QDomElement &element, QgsS
 
   QDomElement descrElem = doc.createElement( "se:Description" );
   QDomElement titleElem = doc.createElement( "se:Title" );
-  QString descrStr = QString( "%1 is '%2'" ).arg( attrName ).arg( mValue.toString() );
+  QString descrStr = QString( "%1 is '%2'" ).arg( attrName, mValue.toString() );
   titleElem.appendChild( doc.createTextNode( !mLabel.isEmpty() ? mLabel : descrStr ) );
   descrElem.appendChild( titleElem );
   ruleElem.appendChild( descrElem );
 
   // create the ogc:Filter for the range
   QString filterFunc = QString( "%1 = '%2'" )
-                       .arg( attrName.replace( "\"", "\"\"" ) )
-                       .arg( mValue.toString().replace( "'", "''" ) );
+                       .arg( attrName.replace( "\"", "\"\"" ),
+                             mValue.toString().replace( "'", "''" ) );
   QgsSymbolLayerV2Utils::createFunctionElement( doc, ruleElem, filterFunc );
 
   mSymbol->toSld( doc, ruleElem, props );
@@ -146,7 +146,7 @@ void QgsRendererCategoryV2::toSld( QDomDocument &doc, QDomElement &element, QgsS
 
 ///////////////////
 
-QgsCategorizedSymbolRendererV2::QgsCategorizedSymbolRendererV2( QString attrName, QgsCategoryList categories )
+QgsCategorizedSymbolRendererV2::QgsCategorizedSymbolRendererV2( const QString& attrName, const QgsCategoryList& categories )
     : QgsFeatureRendererV2( "categorizedSymbol" )
     , mAttrName( attrName )
     , mCategories( categories )
@@ -182,7 +182,7 @@ void QgsCategorizedSymbolRendererV2::rebuildHash()
   }
 }
 
-QgsSymbolV2* QgsCategorizedSymbolRendererV2::symbolForValue( QVariant value )
+QgsSymbolV2* QgsCategorizedSymbolRendererV2::symbolForValue( const QVariant& value )
 {
   // TODO: special case for int, double
   QHash<QString, QgsSymbolV2*>::iterator it = mSymbolHash.find( value.isNull() ? "" : value.toString() );
@@ -266,7 +266,7 @@ QgsSymbolV2* QgsCategorizedSymbolRendererV2::originalSymbolForFeature( QgsFeatur
 }
 
 
-int QgsCategorizedSymbolRendererV2::categoryIndexForValue( QVariant val )
+int QgsCategorizedSymbolRendererV2::categoryIndexForValue( const QVariant& val )
 {
   for ( int i = 0; i < mCategories.count(); i++ )
   {
@@ -276,7 +276,7 @@ int QgsCategorizedSymbolRendererV2::categoryIndexForValue( QVariant val )
   return -1;
 }
 
-int QgsCategorizedSymbolRendererV2::categoryIndexForLabel( QString val )
+int QgsCategorizedSymbolRendererV2::categoryIndexForLabel( const QString& val )
 {
   int idx = -1;
   for ( int i = 0; i < mCategories.count(); i++ )
@@ -308,7 +308,7 @@ bool QgsCategorizedSymbolRendererV2::updateCategorySymbol( int catIndex, QgsSymb
   return true;
 }
 
-bool QgsCategorizedSymbolRendererV2::updateCategoryLabel( int catIndex, QString label )
+bool QgsCategorizedSymbolRendererV2::updateCategoryLabel( int catIndex, const QString& label )
 {
   if ( catIndex < 0 || catIndex >= mCategories.size() )
     return false;
@@ -708,7 +708,7 @@ QgsLegendSymbologyList QgsCategorizedSymbolRendererV2::legendSymbologyItems( QSi
   return lst;
 }
 
-QgsLegendSymbolList QgsCategorizedSymbolRendererV2::legendSymbolItems( double scaleDenominator, QString rule )
+QgsLegendSymbolList QgsCategorizedSymbolRendererV2::legendSymbolItems( double scaleDenominator, const QString& rule )
 {
   Q_UNUSED( scaleDenominator );
   QgsLegendSymbolList lst;
@@ -816,7 +816,7 @@ void QgsCategorizedSymbolRendererV2::updateColorRamp( QgsVectorColorRampV2* ramp
   }
 }
 
-void QgsCategorizedSymbolRendererV2::setRotationField( QString fieldOrExpression )
+void QgsCategorizedSymbolRendererV2::setRotationField( const QString& fieldOrExpression )
 {
   if ( mSourceSymbol && mSourceSymbol->type() == QgsSymbolV2::Marker )
   {
@@ -837,7 +837,7 @@ QString QgsCategorizedSymbolRendererV2::rotationField() const
   return QString();
 }
 
-void QgsCategorizedSymbolRendererV2::setSizeScaleField( QString fieldOrExpression )
+void QgsCategorizedSymbolRendererV2::setSizeScaleField( const QString& fieldOrExpression )
 {
   mSizeScale.reset( QgsSymbolLayerV2Utils::fieldOrExpressionToExpression( fieldOrExpression ) );
 }
@@ -874,7 +874,7 @@ bool QgsCategorizedSymbolRendererV2::legendSymbolItemsCheckable() const
   return true;
 }
 
-bool QgsCategorizedSymbolRendererV2::legendSymbolItemChecked( QString key )
+bool QgsCategorizedSymbolRendererV2::legendSymbolItemChecked( const QString& key )
 {
   bool ok;
   int index = key.toInt( &ok );
@@ -884,7 +884,7 @@ bool QgsCategorizedSymbolRendererV2::legendSymbolItemChecked( QString key )
     return true;
 }
 
-void QgsCategorizedSymbolRendererV2::checkLegendSymbolItem( QString key, bool state )
+void QgsCategorizedSymbolRendererV2::checkLegendSymbolItem( const QString& key, bool state )
 {
   bool ok;
   int index = key.toInt( &ok );

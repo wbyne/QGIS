@@ -139,7 +139,7 @@ QgsDataSourceURI::QgsDataSourceURI( QString uri )
       }
       else if ( pname == "type" )
       {
-        mWkbType = ( QGis::WkbType )QgsWKBTypes::parseType( pval );
+        mWkbType = QGis::fromNewWkbType( QgsWKBTypes::parseType( pval ) );
       }
       else if ( pname == "selectatid" )
       {
@@ -268,7 +268,7 @@ QString QgsDataSourceURI::username() const
   return mUsername;
 }
 
-void QgsDataSourceURI::setUsername( QString username )
+void QgsDataSourceURI::setUsername( const QString& username )
 {
   mUsername = username;
 }
@@ -293,7 +293,7 @@ QString QgsDataSourceURI::password() const
   return mPassword;
 }
 
-void QgsDataSourceURI::setPassword( QString password )
+void QgsDataSourceURI::setPassword( const QString& password )
 {
   mPassword = password;
 }
@@ -333,7 +333,7 @@ QString QgsDataSourceURI::keyColumn() const
   return mKeyColumn;
 }
 
-void QgsDataSourceURI::setKeyColumn( QString column )
+void QgsDataSourceURI::setKeyColumn( const QString& column )
 {
   mKeyColumn = column;
 }
@@ -359,7 +359,7 @@ bool QgsDataSourceURI::selectAtIdDisabled() const
   return mSelectAtIdDisabled;
 }
 
-void QgsDataSourceURI::setSql( QString sql )
+void QgsDataSourceURI::setSql( const QString& sql )
 {
   mSql = sql;
 }
@@ -369,7 +369,7 @@ void QgsDataSourceURI::clearSchema()
   mSchema = "";
 }
 
-void QgsDataSourceURI::setSchema( QString schema )
+void QgsDataSourceURI::setSchema( const QString& schema )
 {
   mSchema = schema;
 }
@@ -567,9 +567,9 @@ QString QgsDataSourceURI::uri( bool expandAuthConfig ) const
   columnName.replace( ")", "\\)" );
 
   theUri += QString( " table=%1%2 sql=%3" )
-            .arg( quotedTablename() )
-            .arg( mGeometryColumn.isNull() ? QString() : QString( " (%1)" ).arg( columnName ) )
-            .arg( mSql );
+            .arg( quotedTablename(),
+                  mGeometryColumn.isNull() ? QString() : QString( " (%1)" ).arg( columnName ),
+                  mSql );
 
   return theUri;
 }
@@ -608,8 +608,8 @@ QString QgsDataSourceURI::quotedTablename() const
 {
   if ( !mSchema.isEmpty() )
     return QString( "\"%1\".\"%2\"" )
-           .arg( escape( mSchema, '"' ) )
-           .arg( escape( mTable, '"' ) );
+           .arg( escape( mSchema, '"' ),
+                 escape( mTable, '"' ) );
   else
     return QString( "\"%1\"" )
            .arg( escape( mTable, '"' ) );
@@ -685,7 +685,7 @@ QString QgsDataSourceURI::srid() const
   return mSrid;
 }
 
-void QgsDataSourceURI::setSrid( QString srid )
+void QgsDataSourceURI::setSrid( const QString& srid )
 {
   mSrid = srid;
 }

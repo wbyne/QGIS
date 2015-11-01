@@ -1219,8 +1219,8 @@ int QgsWFSProvider::getFeaturesFromGML2( const QDomElement& wfsCollectionElement
             continue;
           }
 
-          const QgsField &fld = mFields[attr];
-          QgsDebugMsg( QString( "set attribute %1: type=%2 value=%3" ).arg( attr ).arg( QVariant::typeToName( fld.type() ) ).arg( currentAttributeElement.text() ) );
+          const QgsField &fld = mFields.at( attr );
+          QgsDebugMsg( QString( "set attribute %1: type=%2 value=%3" ).arg( attr ).arg( QVariant::typeToName( fld.type() ), currentAttributeElement.text() ) );
           f->setAttribute( attr, convertValue( fld.type(), currentAttributeElement.text() ) );
         }
         else //a geometry attribute
@@ -1242,7 +1242,7 @@ int QgsWFSProvider::getFeaturesFromGML2( const QDomElement& wfsCollectionElement
   return 0;
 }
 
-int QgsWFSProvider::readGML2Coordinates( std::list<QgsPoint>& coords, const QDomElement elem ) const
+int QgsWFSProvider::readGML2Coordinates( std::list<QgsPoint>& coords, const QDomElement& elem ) const
 {
   QString coordSeparator = ",";
   QString tupelSeparator = " ";
@@ -1416,7 +1416,7 @@ QDomElement QgsWFSProvider::createTransactionElement( QDomDocument& doc ) const
   transactionElem.setAttribute( "service", "WFS" );
   transactionElem.setAttribute( "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance" );
   transactionElem.setAttribute( "xsi:schemaLocation", mWfsNamespace + " "
-                                + dataSourceUri().replace( QString( "GetFeature" ), QString( "DescribeFeatureType" ) ) );
+                                + dataSourceUri().replace( QLatin1String( "GetFeature" ), QLatin1String( "DescribeFeatureType" ) ) );
 
   QString namespacePrefix = nameSpacePrefix( parameterFromUrl( "typename" ) );
   if ( !namespacePrefix.isEmpty() )
@@ -1518,7 +1518,7 @@ void QgsWFSProvider::getLayerCapabilities()
   mNetworkRequestFinished = false;
 
   QString uri = dataSourceUri();
-  uri.replace( QString( "GetFeature" ), QString( "GetCapabilities" ) );
+  uri.replace( QLatin1String( "GetFeature" ), QLatin1String( "GetCapabilities" ) );
   QUrl getCapabilitiesUrl( uri );
   getCapabilitiesUrl.removeQueryItem( "username" );
   getCapabilitiesUrl.removeQueryItem( "password" );
@@ -1653,7 +1653,7 @@ bool QgsWFSProvider::initGetRenderedOnly( const QgsRectangle &rect )
 }
 #endif
 
-QGis::WkbType QgsWFSProvider::geomTypeFromPropertyType( QString attName, QString propType )
+QGis::WkbType QgsWFSProvider::geomTypeFromPropertyType( const QString& attName, const QString& propType )
 {
   Q_UNUSED( attName );
   const QStringList geomTypes = ( QStringList()
@@ -1704,8 +1704,8 @@ void QgsWFSProvider::handleException( const QDomDocument& serverResponse )
   {
     QDomElement exception = exceptionElem.firstChildElement( "Exception" );
     pushError( tr( "WFS exception report (code=%1 text=%2)" )
-               .arg( exception.attribute( "exceptionCode", tr( "missing" ) ) )
-               .arg( exception.firstChildElement( "ExceptionText" ).text() )
+               .arg( exception.attribute( "exceptionCode", tr( "missing" ) ),
+                     exception.firstChildElement( "ExceptionText" ).text() )
              );
     return;
   }
@@ -1741,10 +1741,10 @@ void QgsWFSProvider::extendExtent( const QgsRectangle &extent )
 
   setDataSourceUri( dataSourceUri().replace( QRegExp( "BBOX=[^&]*" ),
                     QString( "BBOX=%1,%2,%3,%4" )
-                    .arg( qgsDoubleToString( mGetExtent.xMinimum() ) )
-                    .arg( qgsDoubleToString( mGetExtent.yMinimum() ) )
-                    .arg( qgsDoubleToString( mGetExtent.xMaximum() ) )
-                    .arg( qgsDoubleToString( mGetExtent.yMaximum() ) ) ) );
+                    .arg( qgsDoubleToString( mGetExtent.xMinimum() ),
+                          qgsDoubleToString( mGetExtent.yMinimum() ),
+                          qgsDoubleToString( mGetExtent.xMaximum() ),
+                          qgsDoubleToString( mGetExtent.yMaximum() ) ) ) );
 
   if ( !mPendingRetrieval )
   {

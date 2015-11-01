@@ -25,7 +25,7 @@
 // constructor used when the query builder must make its own
 // connection to the database
 QgsQueryBuilder::QgsQueryBuilder( QgsVectorLayer *layer,
-                                  QWidget *parent, Qt::WindowFlags fl )
+                                  QWidget *parent, const Qt::WindowFlags& fl )
     : QDialog( parent, fl )
     , mPreviousFieldRow( -1 )
     , mLayer( layer )
@@ -305,7 +305,7 @@ QString QgsQueryBuilder::sql()
   return txtSQL->text();
 }
 
-void QgsQueryBuilder::setSql( QString sqlStatement )
+void QgsQueryBuilder::setSql( const QString& sqlStatement )
 {
   txtSQL->setText( sqlStatement );
 }
@@ -325,7 +325,7 @@ void QgsQueryBuilder::on_lstFields_clicked( const QModelIndex &index )
 
 void QgsQueryBuilder::on_lstFields_doubleClicked( const QModelIndex &index )
 {
-  txtSQL->insertText( "\"" + mLayer->fields()[ mModelFields->data( index, Qt::UserRole+1 ).toInt()].name() + "\"" );
+  txtSQL->insertText( "\"" + mLayer->fields().at( mModelFields->data( index, Qt::UserRole + 1 ).toInt() ).name() + "\"" );
   txtSQL->setFocus();
 }
 
@@ -393,7 +393,7 @@ void QgsQueryBuilder::on_btnILike_clicked()
   txtSQL->setFocus();
 }
 
-void QgsQueryBuilder::setDatasourceDescription( QString uri )
+void QgsQueryBuilder::setDatasourceDescription( const QString& uri )
 {
   lblDataUri->setText( uri );
 }

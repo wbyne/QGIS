@@ -214,8 +214,8 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   mSaveEditsButton->setEnabled( mToggleEditingButton->isEnabled() && mLayer->isEditable() );
   mAddAttribute->setEnabled(( canChangeAttributes || canAddAttributes ) && mLayer->isEditable() );
   mDeleteSelectedButton->setEnabled( canDeleteFeatures && mLayer->isEditable() );
-  mAddFeature->setEnabled( canAddFeatures && mLayer->isEditable() && mLayer->geometryType() == QGis::NoGeometry );
-  mAddFeature->setHidden( !canAddFeatures || mLayer->geometryType() != QGis::NoGeometry );
+  mAddFeature->setEnabled( canAddFeatures && mLayer->isEditable() );
+  mAddFeature->setHidden( !canAddFeatures );
 
   mMainViewButtonGroup->setId( mTableViewButton, QgsDualView::AttributeTable );
   mMainViewButtonGroup->setId( mAttributeViewButton, QgsDualView::AttributeEditor );
@@ -280,7 +280,7 @@ void QgsAttributeTableDialog::updateTitle()
   mRunFieldCalcSelected->setEnabled( enabled );
 }
 
-void QgsAttributeTableDialog::updateButtonStatus( QString fieldName, bool isValid )
+void QgsAttributeTableDialog::updateButtonStatus( const QString& fieldName, bool isValid )
 {
   Q_UNUSED( fieldName );
   mRunFieldCalc->setEnabled( isValid );
@@ -362,7 +362,7 @@ void QgsAttributeTableDialog::updateFieldFromExpressionSelected()
   runFieldCalculation( mLayer, mFieldCombo->currentText(), mUpdateExpressionText->currentField(), filteredIds );
 }
 
-void QgsAttributeTableDialog::runFieldCalculation( QgsVectorLayer* layer, QString fieldName, QString expression, QgsFeatureIds filteredIds )
+void QgsAttributeTableDialog::runFieldCalculation( QgsVectorLayer* layer, const QString& fieldName, const QString& expression, const QgsFeatureIds& filteredIds )
 {
   QApplication::setOverrideCursor( Qt::WaitCursor );
 
@@ -389,7 +389,7 @@ void QgsAttributeTableDialog::runFieldCalculation( QgsVectorLayer* layer, QStrin
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::layerScope( layer );
 
-  QgsField fld = layer->fields()[ fieldindex ];
+  QgsField fld = layer->fields().at( fieldindex );
 
   //go through all the features and change the new attributes
   QgsFeatureIterator fit = layer->getFeatures( request );
@@ -666,7 +666,7 @@ void QgsAttributeTableDialog::editingToggled()
   bool canAddFeatures = mLayer->dataProvider()->capabilities() & QgsVectorDataProvider::AddFeatures;
   mAddAttribute->setEnabled(( canChangeAttributes || canAddAttributes ) && mLayer->isEditable() );
   mDeleteSelectedButton->setEnabled( canDeleteFeatures && mLayer->isEditable() );
-  mAddFeature->setEnabled( canAddFeatures && mLayer->isEditable() && mLayer->geometryType() == QGis::NoGeometry );
+  mAddFeature->setEnabled( canAddFeatures && mLayer->isEditable() );
 
   mUpdateExpressionBox->setVisible( mLayer->isEditable() );
   // not necessary to set table read only if layer is not editable
@@ -693,7 +693,7 @@ void QgsAttributeTableDialog::on_mAddAttribute_clicked()
     else
     {
       mLayer->destroyEditCommand();
-      QMessageBox::critical( this, tr( "Failed to add field" ), tr( "Failed to add field '%1' of type '%2'. Is the field name unique?" ).arg( dialog.field().name() ).arg( dialog.field().typeName() ) );
+      QMessageBox::critical( this, tr( "Failed to add field" ), tr( "Failed to add field '%1' of type '%2'. Is the field name unique?" ).arg( dialog.field().name(), dialog.field().typeName() ) );
     }
 
 
@@ -769,7 +769,7 @@ void QgsAttributeTableDialog::openConditionalStyles()
   mMainView->openConditionalStyles();
 }
 
-void QgsAttributeTableDialog::setFilterExpression( QString filterString )
+void QgsAttributeTableDialog::setFilterExpression( const QString& filterString )
 {
   if ( mCurrentSearchWidgetWrapper == 0 || !mCurrentSearchWidgetWrapper->applyDirectly() )
   {

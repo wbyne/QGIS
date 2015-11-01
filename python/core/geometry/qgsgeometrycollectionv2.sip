@@ -58,6 +58,7 @@ class QgsGeometryCollectionV2: public QgsAbstractGeometryV2
 
     virtual double length() const;
     virtual double area() const;
+    virtual double perimeter() const;
 
     bool hasCurvedSegments() const;
 
@@ -70,4 +71,15 @@ class QgsGeometryCollectionV2: public QgsAbstractGeometryV2
     virtual int ringCount(int part = 0) const;
     virtual int partCount() const;
     virtual QgsPointV2 vertexAt( const QgsVertexId& id ) const;
+
+    virtual bool addZValue( double zValue = 0 );
+    virtual bool addMValue( double mValue = 0 );
+
+  protected:
+
+    /** Returns whether child type names are omitted from Wkt representations of the collection
+     * @note added in QGIS 2.12
+     */
+    virtual bool wktOmitChildType() const;
+
 };

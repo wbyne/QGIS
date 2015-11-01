@@ -20,8 +20,11 @@ email                : marco.hugentobler at sourcepole dot com
 #include "qgscircularstringv2.h"
 #include "qgscompoundcurvev2.h"
 #include "qgslinestringv2.h"
+#include "qgsmultilinestringv2.h"
 #include "qgspointv2.h"
+#include "qgsmultipointv2.h"
 #include "qgspolygonv2.h"
+#include "qgsmultipolygonv2.h"
 #include "qgswkbptr.h"
 
 QgsGeometryCollectionV2::QgsGeometryCollectionV2(): QgsAbstractGeometryV2()
@@ -214,8 +217,10 @@ bool QgsGeometryCollectionV2::fromWkb( const unsigned char * wkb )
 
 bool QgsGeometryCollectionV2::fromWkt( const QString& wkt )
 {
-  return fromCollectionWkt( wkt, QList<QgsAbstractGeometryV2*>() << new QgsPointV2 << new QgsLineStringV2
-                            << new QgsCircularStringV2 << new QgsCompoundCurveV2, "GeometryCollection" );
+  return fromCollectionWkt( wkt, QList<QgsAbstractGeometryV2*>() << new QgsPointV2 << new QgsLineStringV2 << new QgsPolygonV2
+                            << new QgsCircularStringV2 << new QgsCompoundCurveV2
+                            << new QgsMultiPointV2 << new QgsMultiLineStringV2
+                            << new QgsMultiPolygonV2 << new QgsGeometryCollectionV2, "GeometryCollection" );
 }
 
 int QgsGeometryCollectionV2::wkbSize() const
@@ -259,11 +264,8 @@ QString QgsGeometryCollectionV2::asWkt( int precision ) const
   Q_FOREACH ( const QgsAbstractGeometryV2 *geom, mGeometries )
   {
     QString childWkt = geom->asWkt( precision );
-    if ( dynamic_cast<const QgsPointV2*>( geom ) ||
-         dynamic_cast<const QgsLineStringV2*>( geom ) ||
-         dynamic_cast<const QgsPolygonV2*>( geom ) )
+    if ( wktOmitChildType() )
     {
-      // Type names of linear geometries are omitted
       childWkt = childWkt.mid( childWkt.indexOf( "(" ) );
     }
     wkt += childWkt + ",";
@@ -452,6 +454,17 @@ double QgsGeometryCollectionV2::area() const
   return area;
 }
 
+double QgsGeometryCollectionV2::perimeter() const
+{
+  double perimeter = 0.0;
+  QVector< QgsAbstractGeometryV2* >::const_iterator geomIt = mGeometries.constBegin();
+  for ( ; geomIt != mGeometries.constEnd(); ++geomIt )
+  {
+    perimeter += ( *geomIt )->perimeter();
+  }
+  return perimeter;
+}
+
 bool QgsGeometryCollectionV2::fromCollectionWkt( const QString &wkt, const QList<QgsAbstractGeometryV2*>& subtypes, const QString& defaultChildWkbType )
 {
   clear();
@@ -462,7 +475,7 @@ bool QgsGeometryCollectionV2::fromCollectionWkt( const QString &wkt, const QList
     return false;
   mWkbType = parts.first;
 
-  QString defChildWkbType = QString( "%1%2%3 " ).arg( defaultChildWkbType ).arg( is3D() ? "Z" : "" ).arg( isMeasure() ? "M" : "" );
+  QString defChildWkbType = QString( "%1%2%3 " ).arg( defaultChildWkbType, is3D() ? "Z" : "", isMeasure() ? "M" : "" );
 
   Q_FOREACH ( const QString& childWkt, QgsGeometryUtils::wktGetChildBlocks( parts.second, defChildWkbType ) )
   {
@@ -489,6 +502,23 @@ bool QgsGeometryCollectionV2::fromCollectionWkt( const QString &wkt, const QList
     }
   }
   qDeleteAll( subtypes );
+
+  //scan through geometries and check if dimensionality of geometries is different to collection.
+  //if so, update the type dimensionality of the collection to match
+  bool hasZ = false;
+  bool hasM = false;
+  Q_FOREACH ( QgsAbstractGeometryV2* geom, mGeometries )
+  {
+    hasZ = hasZ || geom->is3D();
+    hasM = hasM || geom->isMeasure();
+    if ( hasZ && hasM )
+      break;
+  }
+  if ( hasZ )
+    addZValue( 0 );
+  if ( hasM )
+    addMValue( 0 );
+
   return true;
 }
 
@@ -536,4 +566,32 @@ double QgsGeometryCollectionV2::vertexAngle( const QgsVertexId& vertex ) const
   }
 
   return geom->vertexAngle( vertex );
+}
+
+bool QgsGeometryCollectionV2::addZValue( double zValue )
+{
+  if ( QgsWKBTypes::hasZ( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addZ( mWkbType );
+
+  Q_FOREACH ( QgsAbstractGeometryV2* geom, mGeometries )
+  {
+    geom->addZValue( zValue );
+  }
+  return true;
+}
+
+bool QgsGeometryCollectionV2::addMValue( double mValue )
+{
+  if ( QgsWKBTypes::hasM( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addM( mWkbType );
+
+  Q_FOREACH ( QgsAbstractGeometryV2* geom, mGeometries )
+  {
+    geom->addMValue( mValue );
+  }
+  return true;
 }

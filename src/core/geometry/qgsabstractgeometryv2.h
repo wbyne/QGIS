@@ -259,13 +259,21 @@ class CORE_EXPORT QgsAbstractGeometryV2
      */
     virtual bool deleteVertex( const QgsVertexId& position ) = 0;
 
-    /** Returns the length (or perimeter for area geometries) of the geometry.
-     * @see area
+    /** Returns the length of the geometry.
+     * @see area()
+     * @see perimeter()
      */
     virtual double length() const { return 0.0; }
 
+    /** Returns the perimeter of the geometry.
+     * @see area()
+     * @see length()
+     */
+    virtual double perimeter() const { return 0.0; }
+
     /** Returns the area of the geometry.
-     * @see length
+     * @see length()
+     * @see perimeter()
      */
     virtual double area() const { return 0.0; }
 
@@ -293,6 +301,22 @@ class CORE_EXPORT QgsAbstractGeometryV2
     virtual int vertexCount( int part = 0, int ring = 0 ) const = 0;
     virtual int ringCount( int part = 0 ) const = 0;
     virtual int partCount() const = 0;
+
+    /** Adds a z-dimension to the geometry, initialized to a preset value.
+     * @param zValue initial z-value for all nodes
+     * @returns true on success
+     * @note added in QGIS 2.12
+     * @see addMValue
+     */
+    virtual bool addZValue( double zValue = 0 ) = 0;
+
+    /** Adds a measure to the geometry, initialized to a preset value.
+     * @param mValue initial m-value for all nodes
+     * @returns true on success
+     * @note added in QGIS 2.12
+     * @see addZValue
+     */
+    virtual bool addMValue( double mValue = 0 ) = 0;
 
   protected:
     QgsWKBTypes::Type mWkbType;

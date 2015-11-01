@@ -44,10 +44,10 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
     ~QgsMapLayerRegistry();
 
     //! Retrieve a pointer to a loaded layer by id
-    QgsMapLayer *mapLayer( QString theLayerId );
+    QgsMapLayer *mapLayer( const QString& theLayerId );
 
     //! Retrieve a pointer to a loaded layer by name
-    QList<QgsMapLayer *> mapLayersByName( QString layerName );
+    QList<QgsMapLayer *> mapLayersByName( const QString& layerName );
 
     //! Retrieve the mapLayers collection (mainly intended for use by projection)
     const QMap<QString, QgsMapLayer*> & mapLayers();
@@ -74,7 +74,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      * @note As a side-effect QgsProject is made dirty.
      * @note takeOwner not available in python binding - always takes ownership
      */
-    QList<QgsMapLayer *> addMapLayers( QList<QgsMapLayer *> theMapLayers,
+    QList<QgsMapLayer *> addMapLayers( const QList<QgsMapLayer*>& theMapLayers,
                                        bool addToLegend = true,
                                        bool takeOwnership = true );
 
@@ -118,7 +118,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @note As a side-effect QgsProject is made dirty.
      */
-    void removeMapLayers( QStringList theLayerIds );
+    void removeMapLayers( const QStringList& theLayerIds );
 
     /**
      * @brief
@@ -163,7 +163,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @param theLayerIds  A list of ids of the layers which are removed.
      */
-    void layersWillBeRemoved( QStringList theLayerIds );
+    void layersWillBeRemoved( const QStringList& theLayerIds );
 
     /**
      * Emitted when a layer is removed from the registry
@@ -172,14 +172,14 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @note Consider using {@link layersWillBeRemoved()} instead
      */
-    void layerWillBeRemoved( QString theLayerId );
+    void layerWillBeRemoved( const QString& theLayerId );
 
     /**
      * Emitted after one or more layers were removed from the registry
      *
      * @param theLayerIds  A list of ids of the layers which were removed.
      */
-    void layersRemoved( QStringList theLayerIds );
+    void layersRemoved( const QStringList& theLayerIds );
 
     /**
      * Emitted after a layer was removed from the registry
@@ -188,7 +188,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @note Consider using {@link layersRemoved()} instead
      */
-    void layerRemoved( QString theLayerId );
+    void layerRemoved( const QString& theLayerId );
 
 
     /**
@@ -208,7 +208,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @see legendLayersAdded()
      */
-    void layersAdded( QList<QgsMapLayer *> theMapLayers );
+    void layersAdded( const QList<QgsMapLayer *>& theMapLayers );
 
     /**
      * Emitted when a layer is added to the registry.
@@ -227,7 +227,7 @@ class CORE_EXPORT QgsMapLayerRegistry : public QObject
      *
      * @param theMapLayers  The {@link QgsMapLayer}s which are added to the legend.
      */
-    void legendLayersAdded( QList<QgsMapLayer*> theMapLayers );
+    void legendLayersAdded( const QList<QgsMapLayer*>& theMapLayers );
 
   protected:
 #if 0

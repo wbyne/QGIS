@@ -108,31 +108,31 @@ void QgsRelation::writeXML( QDomNode &node, QDomDocument &doc ) const
   node.appendChild( elem );
 }
 
-void QgsRelation::setRelationId( QString id )
+void QgsRelation::setRelationId( const QString& id )
 {
   mRelationId = id;
 }
 
-void QgsRelation::setRelationName( QString name )
+void QgsRelation::setRelationName( const QString& name )
 {
   mRelationName = name;
 }
 
-void QgsRelation::setReferencingLayer( QString id )
+void QgsRelation::setReferencingLayer( const QString& id )
 {
   mReferencingLayerId = id;
 
   updateRelationStatus();
 }
 
-void QgsRelation::setReferencedLayer( QString id )
+void QgsRelation::setReferencedLayer( const QString& id )
 {
   mReferencedLayerId = id;
 
   updateRelationStatus();
 }
 
-void QgsRelation::addFieldPair( QString referencingField, QString referencedField )
+void QgsRelation::addFieldPair( const QString& referencingField, const QString& referencedField )
 {
   mFieldPairs << FieldPair( referencingField, referencedField );
   updateRelationStatus();
@@ -193,12 +193,12 @@ QgsFeatureRequest QgsRelation::getReferencedFeatureRequest( const QgsAttributes&
     if ( referencedField.type() == QVariant::String )
     {
       // Use quotes
-      conditions << QString( "\"%1\" = '%2'" ).arg( fieldPair.referencedField(), attributes[referencingIdx].toString() );
+      conditions << QString( "\"%1\" = '%2'" ).arg( fieldPair.referencedField(), attributes.at( referencingIdx ).toString() );
     }
     else
     {
       // No quotes
-      conditions << QString( "\"%1\" = %2" ).arg( fieldPair.referencedField(), attributes[referencingIdx].toString() );
+      conditions << QString( "\"%1\" = %2" ).arg( fieldPair.referencedField(), attributes.at( referencingIdx ).toString() );
     }
   }
 

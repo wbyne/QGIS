@@ -30,7 +30,7 @@
 
 #include <cmath>
 
-QgsSimpleLineSymbolLayerV2::QgsSimpleLineSymbolLayerV2( QColor color, double width, Qt::PenStyle penStyle )
+QgsSimpleLineSymbolLayerV2::QgsSimpleLineSymbolLayerV2( const QColor& color, double width, Qt::PenStyle penStyle )
     : mPenStyle( penStyle )
     , mPenJoinStyle( DEFAULT_SIMPLELINE_JOINSTYLE )
     , mPenCapStyle( DEFAULT_SIMPLELINE_CAPSTYLE )
@@ -370,7 +370,7 @@ QgsSymbolLayerV2* QgsSimpleLineSymbolLayerV2::clone() const
   return l;
 }
 
-void QgsSimpleLineSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsSimpleLineSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   if ( mPenStyle == Qt::NoPen )
     return;
@@ -1349,7 +1349,7 @@ QgsSymbolLayerV2* QgsMarkerLineSymbolLayerV2::clone() const
   return x;
 }
 
-void QgsMarkerLineSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsMarkerLineSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   for ( int i = 0; i < mMarker->symbolLayerCount(); i++ )
   {

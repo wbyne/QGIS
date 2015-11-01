@@ -49,6 +49,7 @@
 #include "qgssymbollayerv2utils.h"
 #include "qgscolordialog.h"
 #include "qgsexpressioncontext.h"
+#include "qgsmapoverviewcanvas.h"
 
 //qt includes
 #include <QInputDialog>
@@ -683,6 +684,8 @@ void QgsProjectProperties::apply()
   QgsProject::instance()->writeEntry( "Gui", "/CanvasColorGreenPart", myColor.green() );
   QgsProject::instance()->writeEntry( "Gui", "/CanvasColorBluePart", myColor.blue() );
   mMapCanvas->setCanvasColor( myColor );
+  QgisApp::instance()->mapOverviewCanvas()->setBackgroundColor( myColor );
+  QgisApp::instance()->mapOverviewCanvas()->refresh();
 
   //save project scales
   QStringList myScales;
@@ -1508,7 +1511,7 @@ void QgsProjectProperties::populateEllipsoidList()
   myItem.semiMinor = 0.0;
   mEllipsoidList.append( myItem );
 
-  myItem.acronym = QString( "PARAMETER:6370997:6370997" );
+  myItem.acronym = QLatin1String( "PARAMETER:6370997:6370997" );
   myItem.description = tr( "Parameters:" );
   myItem.semiMajor = 6370997.0;
   myItem.semiMinor = 6370997.0;

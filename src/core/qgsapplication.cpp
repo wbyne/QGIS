@@ -89,7 +89,7 @@ const char* QgsApplication::QGIS_APPLICATION_NAME = "QGIS2";
   so that platform-conditional code is minimized and paths are easier
   to change due to centralization.
 */
-QgsApplication::QgsApplication( int & argc, char ** argv, bool GUIenabled, QString customConfigPath )
+QgsApplication::QgsApplication( int & argc, char ** argv, bool GUIenabled, const QString& customConfigPath )
     : QApplication( argc, argv, GUIenabled )
 {
   init( customConfigPath ); // init can also be called directly by e.g. unit tests that don't inherit QApplication.
@@ -185,7 +185,7 @@ void QgsApplication::init( QString customConfigPath )
     ABISYM( mConfigPath ) = customConfigPath + "/"; // make sure trailing slash is included
   }
 
-  ABISYM( mDefaultSvgPaths ) << qgisSettingsDirPath() + QString( "svg/" );
+  ABISYM( mDefaultSvgPaths ) << qgisSettingsDirPath() + QLatin1String( "svg/" );
 
   ABISYM( mAuthDbDirPath ) = qgisSettingsDirPath();
   if ( getenv( "QGIS_AUTH_DB_DIR_PATH" ) )
@@ -196,6 +196,7 @@ void QgsApplication::init( QString customConfigPath )
 
   // store system environment variables passed to application, before they are adjusted
   QMap<QString, QString> systemEnvVarMap;
+  QString passfile( "QGIS_AUTH_PASSWORD_FILE" ); // QString, for comparison
   Q_FOREACH ( const QString &varStr, QProcess::systemEnvironment() )
   {
     int pos = varStr.indexOf( QLatin1Char( '=' ) );
@@ -203,7 +204,10 @@ void QgsApplication::init( QString customConfigPath )
       continue;
     QString varStrName = varStr.left( pos );
     QString varStrValue = varStr.mid( pos + 1 );
-    systemEnvVarMap.insert( varStrName, varStrValue );
+    if ( varStrName != passfile )
+    {
+      systemEnvVarMap.insert( varStrName, varStrValue );
+    }
   }
   ABISYM( mSystemEnvVars ) = systemEnvVarMap;
 
@@ -379,7 +383,7 @@ QString QgsApplication::activeThemePath()
 }
 
 
-QString QgsApplication::iconPath( QString iconFile )
+QString QgsApplication::iconPath( const QString& iconFile )
 {
   // try active theme
   QString path = activeThemePath();
@@ -524,18 +528,18 @@ QHash<QString, QString> QgsApplication::uiThemes()
 */
 QString QgsApplication::authorsFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/AUTHORS" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/AUTHORS" );
 }
 /*!
   Returns the path to the contributors file.
 */
 QString QgsApplication::contributorsFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/CONTRIBUTORS" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/CONTRIBUTORS" );
 }
 QString QgsApplication::developersMapFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/developersmap.html" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/developersmap.html" );
 }
 
 /*!
@@ -543,7 +547,7 @@ QString QgsApplication::developersMapFilePath()
 */
 QString QgsApplication::sponsorsFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/SPONSORS" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/SPONSORS" );
 }
 
 /*!
@@ -551,19 +555,19 @@ QString QgsApplication::sponsorsFilePath()
 */
 QString QgsApplication::donorsFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/DONORS" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/DONORS" );
 }
 
 /** Returns the path to the sponsors file. */
 QString QgsApplication::translatorsFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/TRANSLATORS" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/TRANSLATORS" );
 }
 
 /** Returns the path to the licence file. */
 QString QgsApplication::licenceFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/doc/LICENSE" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/doc/LICENSE" );
 }
 
 /*!
@@ -589,9 +593,9 @@ QString QgsApplication::helpAppPath()
 QString QgsApplication::i18nPath()
 {
   if ( ABISYM( mRunningFromBuildDir ) )
-    return ABISYM( mBuildOutputPath ) + QString( "/i18n" );
+    return ABISYM( mBuildOutputPath ) + QLatin1String( "/i18n" );
   else
-    return ABISYM( mPkgDataPath ) + QString( "/i18n/" );
+    return ABISYM( mPkgDataPath ) + QLatin1String( "/i18n/" );
 }
 
 /*!
@@ -599,7 +603,7 @@ QString QgsApplication::i18nPath()
 */
 QString QgsApplication::qgisMasterDbFilePath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/resources/qgis.db" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/resources/qgis.db" );
 }
 
 /*!
@@ -615,7 +619,7 @@ QString QgsApplication::qgisSettingsDirPath()
 */
 QString QgsApplication::qgisUserDbFilePath()
 {
-  return qgisSettingsDirPath() + QString( "qgis.db" );
+  return qgisSettingsDirPath() + QLatin1String( "qgis.db" );
 }
 
 /*!
@@ -623,7 +627,7 @@ QString QgsApplication::qgisUserDbFilePath()
 */
 QString QgsApplication::qgisAuthDbFilePath()
 {
-  return ABISYM( mAuthDbDirPath ) + QString( "qgis-auth.db" );
+  return ABISYM( mAuthDbDirPath ) + QLatin1String( "qgis-auth.db" );
 }
 
 /*!
@@ -639,7 +643,7 @@ QString QgsApplication::splashPath()
 */
 QString QgsApplication::iconsPath()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/images/icons/" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/images/icons/" );
 }
 /*!
   Returns the path to the srs.db file.
@@ -663,7 +667,7 @@ QString QgsApplication::srsDbFilePath()
   }
   else
   {
-    return ABISYM( mPkgDataPath ) + QString( "/resources/srs.db" );
+    return ABISYM( mPkgDataPath ) + QLatin1String( "/resources/srs.db" );
   }
 }
 
@@ -688,22 +692,22 @@ QStringList QgsApplication::svgPaths()
 
 QString QgsApplication::userStyleV2Path()
 {
-  return qgisSettingsDirPath() + QString( "symbology-ng-style.db" );
+  return qgisSettingsDirPath() + QLatin1String( "symbology-ng-style.db" );
 }
 
 QString QgsApplication::userThemesFolder()
 {
-  return qgisSettingsDirPath() + QString( "/themes" );
+  return qgisSettingsDirPath() + QLatin1String( "/themes" );
 }
 
 QString QgsApplication::defaultStyleV2Path()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/resources/symbology-ng-style.db" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/resources/symbology-ng-style.db" );
 }
 
 QString QgsApplication::defaultThemesFolder()
 {
-  return ABISYM( mPkgDataPath ) + QString( "/resources/themes" );
+  return ABISYM( mPkgDataPath ) + QLatin1String( "/resources/themes" );
 }
 
 QString QgsApplication::libraryPath()
@@ -762,15 +766,15 @@ QString QgsApplication::showSettings()
                         "SVG Search Paths:\t%8\n"
                         "User DB Path:\t%9\n"
                         "Auth DB Path:\t%10\n" )
-                    .arg( myEnvironmentVar )
-                    .arg( prefixPath() )
-                    .arg( pluginPath() )
-                    .arg( pkgDataPath() )
-                    .arg( themeName() )
-                    .arg( activeThemePath() )
-                    .arg( defaultThemePath() )
-                    .arg( svgPaths().join( tr( "\n\t\t", "match indentation of application state" ) ) )
-                    .arg( qgisMasterDbFilePath() )
+                    .arg( myEnvironmentVar,
+                          prefixPath(),
+                          pluginPath(),
+                          pkgDataPath(),
+                          themeName(),
+                          activeThemePath(),
+                          defaultThemePath(),
+                          svgPaths().join( tr( "\n\t\t", "match indentation of application state" ) ),
+                          qgisMasterDbFilePath() )
                     .arg( qgisAuthDbFilePath() );
   return myState;
 }
@@ -892,30 +896,32 @@ void QgsApplication::registerOgrDrivers()
   }
 }
 
-QString QgsApplication::absolutePathToRelativePath( QString aPath, QString targetPath )
+QString QgsApplication::absolutePathToRelativePath( const QString& aPath, const QString& targetPath )
 {
+  QString aPathUrl = aPath;
+  QString tPathUrl = targetPath;
 #if defined( Q_OS_WIN )
   const Qt::CaseSensitivity cs = Qt::CaseInsensitive;
 
-  aPath.replace( "\\", "/" );
-  if ( aPath.startsWith( "//" ) )
+  aPathUrl.replace( "\\", "/" );
+  if ( aPathUrl.startsWith( "//" ) )
   {
     // keep UNC prefix
-    aPath = "\\\\" + aPath.mid( 2 );
+    aPathUrl = "\\\\" + aPathUrl.mid( 2 );
   }
 
-  targetPath.replace( "\\", "/" );
-  if ( targetPath.startsWith( "//" ) )
+  tPathUrl.replace( "\\", "/" );
+  if ( tPathUrl.startsWith( "//" ) )
   {
     // keep UNC prefix
-    targetPath = "\\\\" + targetPath.mid( 2 );
+    tPathUrl = "\\\\" + tPathUrl.mid( 2 );
   }
 #else
   const Qt::CaseSensitivity cs = Qt::CaseSensitive;
 #endif
 
-  QStringList targetElems = targetPath.split( "/", QString::SkipEmptyParts );
-  QStringList aPathElems = aPath.split( "/", QString::SkipEmptyParts );
+  QStringList targetElems = tPathUrl.split( "/", QString::SkipEmptyParts );
+  QStringList aPathElems = aPathUrl.split( "/", QString::SkipEmptyParts );
 
   targetElems.removeAll( "." );
   aPathElems.removeAll( "." );
@@ -934,7 +940,7 @@ QString QgsApplication::absolutePathToRelativePath( QString aPath, QString targe
   if ( n == 0 )
   {
     // no common parts; might not even be a file
-    return aPath;
+    return aPathUrl;
   }
 
   if ( targetElems.size() > 0 )
@@ -955,7 +961,7 @@ QString QgsApplication::absolutePathToRelativePath( QString aPath, QString targe
   return aPathElems.join( "/" );
 }
 
-QString QgsApplication::relativePathToAbsolutePath( QString rpath, QString targetPath )
+QString QgsApplication::relativePathToAbsolutePath( const QString& rpath, const QString& targetPath )
 {
   // relative path should always start with ./ or ../
   if ( !rpath.startsWith( "./" ) && !rpath.startsWith( "../" ) )
@@ -963,15 +969,18 @@ QString QgsApplication::relativePathToAbsolutePath( QString rpath, QString targe
     return rpath;
   }
 
-#if defined(Q_OS_WIN)
-  rpath.replace( "\\", "/" );
-  targetPath.replace( "\\", "/" );
+  QString rPathUrl = rpath;
+  QString targetPathUrl = targetPath;
 
-  bool uncPath = targetPath.startsWith( "//" );
+#if defined(Q_OS_WIN)
+  rPathUrl.replace( "\\", "/" );
+  targetPathUrl.replace( "\\", "/" );
+
+  bool uncPath = targetPathUrl.startsWith( "//" );
 #endif
 
-  QStringList srcElems = rpath.split( "/", QString::SkipEmptyParts );
-  QStringList targetElems = targetPath.split( "/", QString::SkipEmptyParts );
+  QStringList srcElems = rPathUrl.split( "/", QString::SkipEmptyParts );
+  QStringList targetElems = targetPathUrl.split( "/", QString::SkipEmptyParts );
 
 #if defined(Q_OS_WIN)
   if ( uncPath )
@@ -1002,7 +1011,7 @@ QString QgsApplication::relativePathToAbsolutePath( QString rpath, QString targe
   return targetElems.join( "/" );
 }
 
-void QgsApplication::skipGdalDriver( QString theDriver )
+void QgsApplication::skipGdalDriver( const QString& theDriver )
 {
   if ( ABISYM( mGdalSkipList ).contains( theDriver ) || theDriver.isEmpty() )
   {
@@ -1012,7 +1021,7 @@ void QgsApplication::skipGdalDriver( QString theDriver )
   applyGdalSkippedDrivers();
 }
 
-void QgsApplication::restoreGdalDriver( QString theDriver )
+void QgsApplication::restoreGdalDriver( const QString& theDriver )
 {
   if ( !ABISYM( mGdalSkipList ).contains( theDriver ) )
   {
@@ -1049,7 +1058,7 @@ bool QgsApplication::createThemeFolder()
   return true;
 }
 
-void QgsApplication::copyPath( QString src, QString dst )
+void QgsApplication::copyPath( const QString& src, const QString& dst )
 {
   QDir dir( src );
   if ( ! dir.exists() )
@@ -1073,7 +1082,7 @@ bool QgsApplication::createDB( QString *errorMessage )
   // set a working directory up for gdal to write .aux.xml files into
   // for cases where the raster dir is read only to the user
   // if the env var is already set it will be used preferentially
-  QString myPamPath = qgisSettingsDirPath() + QString( "gdal_pam/" );
+  QString myPamPath = qgisSettingsDirPath() + QLatin1String( "gdal_pam/" );
   QDir myDir( myPamPath );
   if ( !myDir.exists() )
   {

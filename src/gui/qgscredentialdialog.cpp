@@ -29,7 +29,7 @@ static QString invalidStyle_( const QString& selector = "QLineEdit" )
   return QString( "%1{color: rgb(200, 0, 0);}" ).arg( selector );
 }
 
-QgsCredentialDialog::QgsCredentialDialog( QWidget *parent, Qt::WindowFlags fl )
+QgsCredentialDialog::QgsCredentialDialog( QWidget *parent, const Qt::WindowFlags& fl )
     : QDialog( parent, fl )
     , mOkButton( 0 )
 {
@@ -49,14 +49,14 @@ QgsCredentialDialog::~QgsCredentialDialog()
 {
 }
 
-bool QgsCredentialDialog::request( QString realm, QString &username, QString &password, QString message )
+bool QgsCredentialDialog::request( const QString& realm, QString &username, QString &password, const QString& message )
 {
   bool ok;
   if ( qApp->thread() != QThread::currentThread() )
   {
     QgsDebugMsg( "emitting signal" );
     emit credentialsRequested( realm, &username, &password, message, &ok );
-    QgsDebugMsg( QString( "signal returned %1 (username=%2, password=%3)" ).arg( ok ? "true" : "false" ).arg( username ).arg( password ) );
+    QgsDebugMsg( QString( "signal returned %1 (username=%2, password=%3)" ).arg( ok ? "true" : "false", username, password ) );
   }
   else
   {
@@ -65,7 +65,7 @@ bool QgsCredentialDialog::request( QString realm, QString &username, QString &pa
   return ok;
 }
 
-void QgsCredentialDialog::requestCredentials( QString realm, QString *username, QString *password, QString message, bool *ok )
+void QgsCredentialDialog::requestCredentials( const QString& realm, QString *username, QString *password, const QString& message, bool *ok )
 {
   QgsDebugMsg( "Entering." );
   stackedWidget->setCurrentIndex( 0 );
@@ -190,6 +190,11 @@ void QgsCredentialDialog::requestCredentialsMasterPassword( QString * password, 
     {
       break;
     }
+
+    if ( passfailed >= 5 )
+    {
+      break;
+    }
   }
 
   // don't leave master password in singleton's text field, or the ability to show it
@@ -200,11 +205,16 @@ void QgsCredentialDialog::requestCredentialsMasterPassword( QString * password, 
   chkbxEraseAuthDb->setChecked( false );
   lblSavedForSession->setVisible( true );
 
-  // reenable OK button or non-master-password requests will be blocked
+  // re-enable OK button or non-master-password requests will be blocked
   // needs to come after leMasterPass->clear() or textChanged auto-slot with disable it again
   mOkButton->setEnabled( true );
 
   QApplication::restoreOverrideCursor();
+
+  if ( passfailed >= 5 )
+  {
+    close();
+  }
 }
 
 void QgsCredentialDialog::on_chkMasterPassShow_stateChanged( int state )

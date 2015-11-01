@@ -315,7 +315,7 @@ bool QgsPythonUtilsImpl::runString( const QString& command, QString msgOnError, 
 
   QString str = "<font color=\"red\">" + msgOnError + "</font><br><pre>\n" + traceback + "\n</pre>"
                 + QObject::tr( "Python version:" ) + "<br>" + version + "<br><br>"
-                + QObject::tr( "QGIS version:" ) + "<br>" + QString( "%1 '%2', %3" ).arg( QGis::QGIS_VERSION ).arg( QGis::QGIS_RELEASE_NAME ).arg( QGis::QGIS_DEV_VERSION ) + "<br><br>"
+                + QObject::tr( "QGIS version:" ) + "<br>" + QString( "%1 '%2', %3" ).arg( QGis::QGIS_VERSION, QGis::QGIS_RELEASE_NAME, QGis::QGIS_DEV_VERSION ) + "<br><br>"
                 + QObject::tr( "Python path:" ) + "<br>" + path;
   str.replace( "\n", "<br>" ).replace( "  ", "&nbsp; " );
 
@@ -379,10 +379,15 @@ QString QgsPythonUtilsImpl::getTraceback()
     TRACEBACK_FETCH_ERROR( "getvalue() failed." );
 
   /* And it should be a string all ready to go - duplicate it. */
-  if ( !PyString_Check( obResult ) )
+  if ( !PyUnicode_Check( obResult ) )
     TRACEBACK_FETCH_ERROR( "getvalue() did not return a string" );
 
+#if PYTHON2
   result = PyString_AsString( obResult );
+#else
+  result = QString::fromUtf8( PyUnicode_AsUTF8( obResult ) );
+#endif
+
 
 done:
 
@@ -410,7 +415,6 @@ QString QgsPythonUtilsImpl::getTypeAsString( PyObject* obj )
 {
   if ( obj == NULL )
     return NULL;
-
   if ( PyClass_Check( obj ) )
   {
     QgsDebugMsg( "got class" );
@@ -515,7 +519,6 @@ QString QgsPythonUtilsImpl::PyObjectToQString( PyObject* obj )
     Py_XDECREF( obj_uni );
     return result;
   }
-
   // if conversion to unicode failed, try to convert it to classic string, i.e. str(obj)
   PyObject* obj_str = PyObject_Str( obj ); // new reference
   if ( obj_str )
@@ -609,7 +612,7 @@ QStringList QgsPythonUtilsImpl::pluginList()
   return output.split( QChar( '\n' ), QString::SkipEmptyParts );
 }
 
-QString QgsPythonUtilsImpl::getPluginMetadata( QString pluginName, QString function )
+QString QgsPythonUtilsImpl::getPluginMetadata( const QString& pluginName, const QString& function )
 {
   QString res;
   QString str = "qgis.utils.pluginMetadata('" + pluginName + "', '" + function + "')";
@@ -618,35 +621,35 @@ QString QgsPythonUtilsImpl::getPluginMetadata( QString pluginName, QString funct
   return res;
 }
 
-bool QgsPythonUtilsImpl::loadPlugin( QString packageName )
+bool QgsPythonUtilsImpl::loadPlugin( const QString& packageName )
 {
   QString output;
   evalString( "qgis.utils.loadPlugin('" + packageName + "')", output );
   return ( output == "True" );
 }
 
-bool QgsPythonUtilsImpl::startPlugin( QString packageName )
+bool QgsPythonUtilsImpl::startPlugin( const QString& packageName )
 {
   QString output;
   evalString( "qgis.utils.startPlugin('" + packageName + "')", output );
   return ( output == "True" );
 }
 
-bool QgsPythonUtilsImpl::canUninstallPlugin( QString packageName )
+bool QgsPythonUtilsImpl::canUninstallPlugin( const QString& packageName )
 {
   QString output;
   evalString( "qgis.utils.canUninstallPlugin('" + packageName + "')", output );
   return ( output == "True" );
 }
 
-bool QgsPythonUtilsImpl::unloadPlugin( QString packageName )
+bool QgsPythonUtilsImpl::unloadPlugin( const QString& packageName )
 {
   QString output;
   evalString( "qgis.utils.unloadPlugin('" + packageName + "')", output );
   return ( output == "True" );
 }
 
-bool QgsPythonUtilsImpl::isPluginLoaded( QString packageName )
+bool QgsPythonUtilsImpl::isPluginLoaded( const QString& packageName )
 {
   QString output;
   evalString( "qgis.utils.isPluginLoaded('" + packageName + "')", output );

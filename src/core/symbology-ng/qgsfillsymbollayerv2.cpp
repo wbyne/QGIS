@@ -31,7 +31,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 
-QgsSimpleFillSymbolLayerV2::QgsSimpleFillSymbolLayerV2( QColor color, Qt::BrushStyle style, QColor borderColor, Qt::PenStyle borderStyle, double borderWidth,
+QgsSimpleFillSymbolLayerV2::QgsSimpleFillSymbolLayerV2( const QColor& color, Qt::BrushStyle style, const QColor& borderColor, Qt::PenStyle borderStyle, double borderWidth,
     Qt::PenJoinStyle penJoinStyle )
     : mBrushStyle( style )
     , mBorderColor( borderColor )
@@ -323,7 +323,7 @@ QgsSymbolLayerV2* QgsSimpleFillSymbolLayerV2::clone() const
   return sl;
 }
 
-void QgsSimpleFillSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsSimpleFillSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   if ( mBrushStyle == Qt::NoBrush && mBorderStyle == Qt::NoPen )
     return;
@@ -446,7 +446,7 @@ Qt::BrushStyle QgsSimpleFillSymbolLayerV2::dxfBrushStyle() const
 
 //QgsGradientFillSymbolLayer
 
-QgsGradientFillSymbolLayerV2::QgsGradientFillSymbolLayerV2( QColor color, QColor color2,
+QgsGradientFillSymbolLayerV2::QgsGradientFillSymbolLayerV2( const QColor& color, const QColor& color2,
     GradientColorType colorType, GradientType gradientType,
     GradientCoordinateMode coordinateMode, GradientSpread spread )
     : mGradientColorType( colorType )
@@ -932,7 +932,7 @@ QgsMapUnitScale QgsGradientFillSymbolLayerV2::mapUnitScale() const
 
 //QgsShapeburstFillSymbolLayer
 
-QgsShapeburstFillSymbolLayerV2::QgsShapeburstFillSymbolLayerV2( QColor color, QColor color2, ShapeburstColorType colorType,
+QgsShapeburstFillSymbolLayerV2::QgsShapeburstFillSymbolLayerV2( const QColor& color, const QColor& color2, ShapeburstColorType colorType,
     int blurRadius, bool useWholeShape, double maxDistance ) :
 
     mBlurRadius( blurRadius ),
@@ -1712,6 +1712,9 @@ QgsSVGFillSymbolLayer::QgsSVGFillSymbolLayer( const QString& svgFilePath, double
   setSvgFilePath( svgFilePath );
   mOutlineWidth = 0.3;
   mAngle = angle;
+  mColor = QColor( 255, 255, 255 );
+  mSvgOutlineColor = QColor( 0, 0, 0 );
+  mSvgOutlineWidth = 0.2;
   setDefaultSvgParams();
   mSvgPattern = 0;
 }
@@ -1725,6 +1728,9 @@ QgsSVGFillSymbolLayer::QgsSVGFillSymbolLayer( const QByteArray& svgData, double 
   storeViewBox();
   mOutlineWidth = 0.3;
   mAngle = angle;
+  mColor = QColor( 255, 255, 255 );
+  mSvgOutlineColor = QColor( 0, 0, 0 );
+  mSvgOutlineWidth = 0.2;
   setSubSymbol( new QgsLineSymbolV2() );
   setDefaultSvgParams();
   mSvgPattern = 0;
@@ -1950,7 +1956,7 @@ void QgsSVGFillSymbolLayer::applyPattern( QBrush& brush, const QString& svgFileP
 void QgsSVGFillSymbolLayer::startRender( QgsSymbolV2RenderContext& context )
 {
 
-  applyPattern( mBrush, mSvgFilePath, mPatternWidth, mPatternWidthUnit, mSvgFillColor, mSvgOutlineColor, mSvgOutlineWidth, mSvgOutlineWidthUnit, context, mPatternWidthMapUnitScale, mSvgOutlineWidthMapUnitScale );
+  applyPattern( mBrush, mSvgFilePath, mPatternWidth, mPatternWidthUnit, mColor, mSvgOutlineColor, mSvgOutlineWidth, mSvgOutlineWidthUnit, context, mPatternWidthMapUnitScale, mSvgOutlineWidthMapUnitScale );
 
   if ( mOutline )
   {
@@ -1984,7 +1990,7 @@ QgsStringMap QgsSVGFillSymbolLayer::properties() const
   map.insert( "angle", QString::number( mAngle ) );
 
   //svg parameters
-  map.insert( "color", QgsSymbolLayerV2Utils::encodeColor( mSvgFillColor ) );
+  map.insert( "color", QgsSymbolLayerV2Utils::encodeColor( mColor ) );
   map.insert( "outline_color", QgsSymbolLayerV2Utils::encodeColor( mSvgOutlineColor ) );
   map.insert( "outline_width", QString::number( mSvgOutlineWidth ) );
 
@@ -2006,7 +2012,7 @@ QgsSymbolLayerV2* QgsSVGFillSymbolLayer::clone() const
   if ( !mSvgFilePath.isEmpty() )
   {
     clonedLayer = new QgsSVGFillSymbolLayer( mSvgFilePath, mPatternWidth, mAngle );
-    clonedLayer->setSvgFillColor( mSvgFillColor );
+    clonedLayer->setSvgFillColor( mColor );
     clonedLayer->setSvgOutlineColor( mSvgOutlineColor );
     clonedLayer->setSvgOutlineWidth( mSvgOutlineWidth );
   }
@@ -2031,7 +2037,7 @@ QgsSymbolLayerV2* QgsSVGFillSymbolLayer::clone() const
   return clonedLayer;
 }
 
-void QgsSVGFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsSVGFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   QDomElement symbolizerElem = doc.createElement( "se:PolygonSymbolizer" );
   if ( !props.value( "uom", "" ).isEmpty() )
@@ -2051,7 +2057,7 @@ void QgsSVGFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, QgsS
 
   if ( !mSvgFilePath.isEmpty() )
   {
-    QgsSymbolLayerV2Utils::externalGraphicToSld( doc, graphicElem, mSvgFilePath, "image/svg+xml", mSvgFillColor, mPatternWidth );
+    QgsSymbolLayerV2Utils::externalGraphicToSld( doc, graphicElem, mSvgFilePath, "image/svg+xml", mColor, mPatternWidth );
   }
   else
   {
@@ -2179,10 +2185,10 @@ void QgsSVGFillSymbolLayer::applyDataDefinedSettings( QgsSymbolV2RenderContext &
     context.setOriginalValueVariable( mSvgFilePath );
     svgFile = evaluateDataDefinedProperty( QgsSymbolLayerV2::EXPR_SVG_FILE, context, mSvgFilePath ).toString();
   }
-  QColor svgFillColor = mSvgFillColor;
+  QColor svgFillColor = mColor;
   if ( hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_SVG_FILL_COLOR ) )
   {
-    context.setOriginalValueVariable( QgsSymbolLayerV2Utils::encodeColor( mSvgFillColor ) );
+    context.setOriginalValueVariable( QgsSymbolLayerV2Utils::encodeColor( mColor ) );
     QString colorString = evaluateDataDefinedProperty( QgsSymbolLayerV2::EXPR_SVG_FILL_COLOR, context, QVariant(), &ok ).toString();
     if ( ok )
       svgFillColor = QgsSymbolLayerV2Utils::decodeColor( colorString );
@@ -2224,31 +2230,28 @@ void QgsSVGFillSymbolLayer::storeViewBox()
 
 void QgsSVGFillSymbolLayer::setDefaultSvgParams()
 {
-  //default values
-  mSvgFillColor = QColor( 0, 0, 0 );
-  mSvgOutlineColor = QColor( 0, 0, 0 );
-  mSvgOutlineWidth = 0.3;
-
   if ( mSvgFilePath.isEmpty() )
   {
     return;
   }
 
   bool hasFillParam, hasOutlineParam, hasOutlineWidthParam;
+  bool hasDefaultFillColor, hasDefaultOutlineColor, hasDefaultOutlineWidth;
   QColor defaultFillColor, defaultOutlineColor;
   double defaultOutlineWidth;
-  QgsSvgCache::instance()->containsParams( mSvgFilePath, hasFillParam, defaultFillColor, hasOutlineParam, defaultOutlineColor, hasOutlineWidthParam,
-      defaultOutlineWidth );
+  QgsSvgCache::instance()->containsParams( mSvgFilePath, hasFillParam, hasDefaultFillColor, defaultFillColor,
+      hasOutlineParam, hasDefaultOutlineColor, defaultOutlineColor,
+      hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
 
-  if ( hasFillParam )
+  if ( hasDefaultFillColor )
   {
-    mSvgFillColor = defaultFillColor;
+    mColor = defaultFillColor;
   }
-  if ( hasOutlineParam )
+  if ( hasDefaultOutlineColor )
   {
     mSvgOutlineColor = defaultOutlineColor;
   }
-  if ( hasOutlineWidthParam )
+  if ( hasDefaultOutlineWidth )
   {
     mSvgOutlineWidth = defaultOutlineWidth;
   }
@@ -2810,7 +2813,7 @@ QgsSymbolLayerV2* QgsLinePatternFillSymbolLayer::clone() const
   return clonedLayer;
 }
 
-void QgsLinePatternFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsLinePatternFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   QDomElement symbolizerElem = doc.createElement( "se:PolygonSymbolizer" );
   if ( !props.value( "uom", "" ).isEmpty() )
@@ -3222,7 +3225,7 @@ QgsSymbolLayerV2* QgsPointPatternFillSymbolLayer::clone() const
   return clonedLayer;
 }
 
-void QgsPointPatternFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsPointPatternFillSymbolLayer::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   for ( int i = 0; i < mMarkerSymbol->symbolLayerCount(); i++ )
   {
@@ -3405,7 +3408,7 @@ QgsSymbolLayerV2* QgsCentroidFillSymbolLayerV2::clone() const
   return x;
 }
 
-void QgsCentroidFillSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsCentroidFillSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   // SLD 1.0 specs says: "if a line, polygon, or raster geometry is
   // used with PointSymbolizer, then the semantic is to use the centroid

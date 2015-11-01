@@ -194,10 +194,12 @@ void QgsGrassPlugin::initGui()
   mToolBarPointer->setObjectName( "GRASS" );
 
   // Add to the toolbar
+#if 0
   mToolBarPointer->addAction( mOpenMapsetAction );
   mToolBarPointer->addAction( mNewMapsetAction );
   mToolBarPointer->addAction( mCloseMapsetAction );
   mToolBarPointer->addSeparator();
+#endif
   mToolBarPointer->addAction( mOpenToolsAction );
   mToolBarPointer->addAction( mRegionAction );
 
@@ -218,7 +220,7 @@ void QgsGrassPlugin::initGui()
   mAddCentroidAction->setObjectName( "mAddCentroidAction" );
   mAddCentroidAction->setCheckable( true );
 
-  mAddAreaAction = new QAction( QgsApplication::getThemeIcon( "/mActionCapturePolygon.png" ), tr( "Add Area" ), this );
+  mAddAreaAction = new QAction( QgsApplication::getThemeIcon( "/mActionCapturePolygon.png" ), tr( "Add Closed Boundary" ), this );
   mAddAreaAction->setObjectName( "mAddAreaAction" );
   mAddAreaAction->setCheckable( true );
 
@@ -255,6 +257,8 @@ void QgsGrassPlugin::initGui()
   mAddArea = new QgsGrassAddFeature( qGisInterface->mapCanvas(), QgsMapToolAdvancedDigitizing::CapturePolygon );
   mAddArea->setAction( mAddAreaAction );
 
+  connect( qGisInterface->actionSplitFeatures(), SIGNAL( triggered( bool ) ), SLOT( onSplitFeaturesTriggered( bool ) ) );
+
   // Connect project
   QWidget* qgis = qGisInterface->mainWindow();
   connect( qgis, SIGNAL( projectRead() ), this, SLOT( projectRead() ) );
@@ -282,13 +286,22 @@ void QgsGrassPlugin::initGui()
   connect( qGisInterface->layerTreeView(), SIGNAL( currentLayerChanged( QgsMapLayer* ) ),
            SLOT( onCurrentLayerChanged( QgsMapLayer* ) ) );
 
-  mapsetChanged();
-
   // open tools when plugin is loaded so that main app restores tools dock widget state
   mTools = new QgsGrassTools( qGisInterface, qGisInterface->mainWindow() );
   qGisInterface->addDockWidget( Qt::RightDockWidgetArea, mTools );
 
+  // add edit renderer immediately so that if project was saved during editing, the layer can be loaded
+  if ( !QgsRendererV2Registry::instance()->renderersList().contains( "grassEdit" ) )
+  {
+    QgsRendererV2Registry::instance()->addRenderer( new QgsRendererV2Metadata( "grassEdit",
+        QObject::tr( "GRASS Edit" ),
+        QgsGrassEditRenderer::create,
+        QIcon(),
+        QgsGrassEditRendererWidget::create ) );
+  }
+
   onGisbaseChanged();
+  mapsetChanged();
 }
 
 void QgsGrassPlugin::onGisbaseChanged()
@@ -297,13 +310,15 @@ void QgsGrassPlugin::onGisbaseChanged()
   if ( !QgsGrass::init() )
   {
     // TODO: save init error and get it here more reliably
-    qGisInterface->messageBar()->pushMessage( tr( "GRASS error" ), QgsGrass::errorMessage(), QgsMessageBar::WARNING );
+    QString error = tr( "GRASS init error" );
+    qGisInterface->messageBar()->pushMessage( error, QgsGrass::initError(), QgsMessageBar::WARNING );
 
     mOpenToolsAction->setDisabled( false ); // allow to open to see that tools are disabled
     mRegionAction->setDisabled( true );
     mOpenMapsetAction->setDisabled( true );
     mCloseMapsetAction->setDisabled( true );
 
+    mTools->setWindowTitle( error + " : " + QgsGrass::initError() );
     mTools->setDisabled( true );
   }
   else
@@ -315,6 +330,7 @@ void QgsGrassPlugin::onGisbaseChanged()
     mCloseMapsetAction->setDisabled( !QgsGrass::activeMode() );
 
     mTools->setDisabled( false );
+    mTools->resetTitle();
   }
 }
 
@@ -352,6 +368,7 @@ void QgsGrassPlugin::resetEditActions()
   if ( grassProvider && vectorLayer->editBuffer() )
   {
     mAddFeatureAction->setVisible( false );
+    qGisInterface->actionSaveActiveLayerEdits()->setVisible( false );
     mAddPointAction->setVisible( true );
     mAddLineAction->setVisible( true );
     mAddBoundaryAction->setVisible( true );
@@ -361,6 +378,7 @@ void QgsGrassPlugin::resetEditActions()
   else
   {
     mAddFeatureAction->setVisible( true );
+    qGisInterface->actionSaveActiveLayerEdits()->setVisible( true );
     mAddPointAction->setVisible( false );
     mAddLineAction->setVisible( false );
     mAddBoundaryAction->setVisible( false );
@@ -382,15 +400,8 @@ void QgsGrassPlugin::onEditingStarted()
   if ( !grassProvider )
     return;
 
-  QgsRendererV2Registry::instance()->addRenderer( new QgsRendererV2Metadata( "grassEdit",
-      QObject::tr( "GRASS Edit" ),
-      QgsGrassEditRenderer::create,
-      QIcon(),
-      QgsGrassEditRendererWidget::create ) );
-
-  QgsGrassEditRenderer *renderer = new QgsGrassEditRenderer();
-
   mOldStyles[vectorLayer] = vectorLayer->styleManager()->currentStyle();
+  mFormSuppress[vectorLayer] = vectorLayer->featureFormSuppress();
 
   // Because the edit style may be stored to project:
   // - do not translate because it may be loaded in QGIS running with different language
@@ -409,6 +420,9 @@ void QgsGrassPlugin::onEditingStarted()
 
     //vectorLayer->styleManager()->addStyle( editStyleName, QgsMapLayerStyle() );
     vectorLayer->styleManager()->setCurrentStyle( editStyleName );
+
+    QgsGrassEditRenderer *renderer = new QgsGrassEditRenderer();
+
     vectorLayer->setRendererV2( renderer );
   }
 
@@ -416,6 +430,7 @@ void QgsGrassPlugin::onEditingStarted()
   vectorLayer->updateFields();
 
   connect( vectorLayer, SIGNAL( editingStopped() ), SLOT( onEditingStopped() ) );
+  connect( grassProvider, SIGNAL( fieldsChanged() ), SLOT( onFieldsChanged() ) );
 
   resetEditActions();
 }
@@ -436,6 +451,35 @@ void QgsGrassPlugin::onEditingStopped()
   resetEditActions();
 }
 
+void QgsGrassPlugin::onFieldsChanged()
+{
+  QgsDebugMsg( "entered" );
+  QgsGrassProvider* grassProvider = dynamic_cast<QgsGrassProvider*>( sender() );
+  if ( !grassProvider )
+  {
+    return;
+  }
+  QString uri = grassProvider->dataSourceUri();
+  uri.remove( QRegExp( "[^_]*$" ) );
+  QgsDebugMsg( "uri = " + uri );
+  Q_FOREACH ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
+  {
+    if ( !layer || layer->type() != QgsMapLayer::VectorLayer )
+    {
+      continue;
+    }
+
+    QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( layer );
+    if ( vectorLayer && vectorLayer->providerType() == "grass" &&  vectorLayer->dataProvider() )
+    {
+      if ( vectorLayer->dataProvider()->dataSourceUri().startsWith( uri ) )
+      {
+        vectorLayer->updateFields();
+      }
+    }
+  }
+}
+
 void QgsGrassPlugin::addFeature()
 {
   QgsDebugMsg( "entered" );
@@ -450,6 +494,7 @@ void QgsGrassPlugin::addFeature()
     QgsDebugMsg( "grassProvider is null" );
     return;
   }
+  QgsVectorLayer::FeatureFormSuppress formSuppress = mFormSuppress.value( vectorLayer );
   if ( sender() == mAddPointAction )
   {
     qGisInterface->mapCanvas()->setMapTool( mAddPoint );
@@ -464,6 +509,7 @@ void QgsGrassPlugin::addFeature()
   {
     qGisInterface->mapCanvas()->setMapTool( mAddBoundary );
     grassProvider->setNewFeatureType( GV_BOUNDARY );
+    formSuppress = QgsVectorLayer::SuppressOn;
   }
   else if ( sender() == mAddCentroidAction )
   {
@@ -474,6 +520,28 @@ void QgsGrassPlugin::addFeature()
   {
     qGisInterface->mapCanvas()->setMapTool( mAddArea );
     grassProvider->setNewFeatureType( GV_AREA );
+    formSuppress = QgsVectorLayer::SuppressOn;
+  }
+  vectorLayer->setFeatureFormSuppress( formSuppress );
+}
+
+void QgsGrassPlugin::onSplitFeaturesTriggered( bool checked )
+{
+  QgsDebugMsg( "entered" );
+  if ( checked )
+  {
+    QgsGrassProvider* grassProvider = 0;
+    QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( qGisInterface->activeLayer() );
+    if ( vectorLayer )
+    {
+      grassProvider = dynamic_cast<QgsGrassProvider*>( vectorLayer->dataProvider() );
+    }
+    if ( !grassProvider )
+    {
+      QgsDebugMsg( "grassProvider is null" );
+      return;
+    }
+    grassProvider->setNewFeatureType( QgsGrassProvider::LAST_TYPE );
   }
 }
 
@@ -780,7 +848,7 @@ void QgsGrassPlugin::unload()
   disconnect( qGisInterface->layerTreeView(), SIGNAL( currentLayerChanged( QgsMapLayer* ) ),
               this, SLOT( onCurrentLayerChanged( QgsMapLayer* ) ) );
 
-  foreach ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
+  Q_FOREACH ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
   {
     if ( !layer || layer->type() != QgsMapLayer::VectorLayer )
     {

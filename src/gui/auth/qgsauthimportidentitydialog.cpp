@@ -52,19 +52,52 @@ static QByteArray fileData_( const QString& path, bool astext = false )
 QgsAuthImportIdentityDialog::QgsAuthImportIdentityDialog( QgsAuthImportIdentityDialog::IdentityType identitytype,
     QWidget *parent )
     : QDialog( parent )
+    , mIdentityType( CertIdentity )
     , mPkiBundle( QgsPkiBundle() )
+    , mDisabled( false )
+    , mAuthNotifyLayout( 0 )
+    , mAuthNotify( 0 )
 {
-  setupUi( this );
-  connect( buttonBox, SIGNAL( rejected() ), this, SLOT( close() ) );
-  connect( buttonBox, SIGNAL( accepted() ), this, SLOT( accept() ) );
+  if ( QgsAuthManager::instance()->isDisabled() )
+  {
+    mDisabled = true;
+    mAuthNotifyLayout = new QVBoxLayout;
+    this->setLayout( mAuthNotifyLayout );
+    mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
+    mAuthNotifyLayout->addWidget( mAuthNotify );
+  }
+  else
+  {
+    setupUi( this );
+    connect( buttonBox, SIGNAL( rejected() ), this, SLOT( close() ) );
+    connect( buttonBox, SIGNAL( accepted() ), this, SLOT( accept() ) );
 
-  mIdentityType = identitytype;
+    mIdentityType = identitytype;
 
-  populateIdentityType();
+    populateIdentityType();
+  }
 }
 
 QgsAuthImportIdentityDialog::~QgsAuthImportIdentityDialog()
 {
+}
+
+QgsAuthImportIdentityDialog::IdentityType QgsAuthImportIdentityDialog::identityType()
+{
+  if ( mDisabled )
+  {
+    return QgsAuthImportIdentityDialog::CertIdentity;
+  }
+  return mIdentityType;
+}
+
+const QPair<QSslCertificate, QSslKey> QgsAuthImportIdentityDialog::certBundleToImport()
+{
+  if ( mDisabled )
+  {
+    return qMakePair( QSslCertificate(), QSslKey() );
+  }
+  return mCertBundle;
 }
 
 void QgsAuthImportIdentityDialog::populateIdentityType()
@@ -268,7 +301,7 @@ bool QgsAuthImportIdentityDialog::validatePkiPaths()
   QDateTime startdate( clientcert.effectiveDate() );
   QDateTime enddate( clientcert.expiryDate() );
 
-  writeValidation( tr( "%1 thru %2" ).arg( startdate.toString() ).arg( enddate.toString() ),
+  writeValidation( tr( "%1 thru %2" ).arg( startdate.toString(), enddate.toString() ),
                    ( isvalid ? Valid : Invalid ) );
   //TODO: set enabled on cert info button, relative to cert validity
 
@@ -386,7 +419,7 @@ bool QgsAuthImportIdentityDialog::validatePkiPkcs12()
   QDateTime now( QDateTime::currentDateTime() );
   bool bundlevalid = ( now >= startdate && now <= enddate );
 
-  writeValidation( tr( "%1 thru %2" ).arg( startdate.toString() ).arg( enddate.toString() ),
+  writeValidation( tr( "%1 thru %2" ).arg( startdate.toString(), enddate.toString() ),
                    ( bundlevalid ? Valid : Invalid ) );
 
   if ( bundlevalid )

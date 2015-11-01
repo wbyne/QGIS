@@ -34,9 +34,10 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
       TopoUndefined = 0,
       TopoPoint,
       TopoLine,
-      TopoBoundary0,
-      TopoBoundary1,
-      TopoBoundary2,
+      TopoBoundaryError, // both sides  topology broken
+      TopoBoundaryErrorLeft, // left side topology broken
+      TopoBoundaryErrorRight, // right side topology broken
+      TopoBoundaryOk,
       TopoCentroidIn,
       TopoCentroidOut,
       TopoCentroidDupl,
@@ -53,6 +54,7 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
     bool isValid() const { return mValid; }
     bool isFrozen() const { return mFrozen; }
     bool isEdited() const { return mIsEdited; }
+    bool isOpen() const { return mOpen; }
     int version() const { return mVersion; }
     int oldNumLines() const { return mOldNumLines; }
     // number of instances using this map
@@ -79,7 +81,7 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
     QHash<int, int> & newLids() { return mNewLids; }
     QHash<int, QgsAbstractGeometryV2*> & oldGeometries() { return mOldGeometries; }
     QHash<int, int> & oldTypes() { return mOldTypes; }
-    QHash<int, int> & newCats() { return mNewCats; }
+    QHash<QgsFeatureId, int> & newCats() { return mNewCats; }
 
     /** Get geometry of line.
      * @return geometry (point,line or polygon(GV_FACE)) or 0 */
@@ -149,7 +151,7 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
     /** Close all iterators. Connected to iterators in different threads with Qt::BlockingQueuedConnection */
     void closeIterators();
 
-    /** Emited when data were reloaded */
+    /** Emitted when data were reloaded */
     void dataChanged();
 
   private:
@@ -191,7 +193,7 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
     QHash<int, int> mOldTypes;
     // New categories attached to new features or old features without category
     // fid -> cat, the fid may be old fid without category or new (negative) feature id
-    QHash<int, int> mNewCats;
+    QHash<QgsFeatureId, int> mNewCats;
 
     // Mutex used to avoid concurrent read/write, used only in editing mode
     QMutex mReadWriteMutex;
@@ -203,13 +205,17 @@ class GRASS_LIB_EXPORT QgsGrassVectorMap : public QObject
     QMutex mOpenCloseLayerMutex;
 };
 
-class QgsGrassVectorMapStore
+class GRASS_LIB_EXPORT QgsGrassVectorMapStore
 {
   public:
     QgsGrassVectorMapStore();
     ~QgsGrassVectorMapStore();
 
     static QgsGrassVectorMapStore *instance();
+
+    // Default instance may be overriden explicitly to avoid (temporarily) to share maps by providers
+    // This is only used for editing test to have an independent map
+    static void setStore( QgsGrassVectorMapStore * store ) { mStore = store; }
 
     /** Open map.
      *  @param grassObject
@@ -222,6 +228,8 @@ class QgsGrassVectorMapStore
 
     // Lock open/close map
     QMutex mMutex;
+
+    static QgsGrassVectorMapStore * mStore;
 };
 
 #endif // QGSGRASSVECTORMAP_H

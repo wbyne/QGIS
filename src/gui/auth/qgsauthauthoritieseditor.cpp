@@ -48,11 +48,13 @@ QgsAuthAuthoritiesEditor::QgsAuthAuthoritiesEditor( QWidget *parent )
     , mDbCaSecItem( 0 )
     , mDefaultTrustPolicy( QgsAuthCertUtils::DefaultTrust )
     , mUtilitiesMenu( 0 )
+    , mDisabled( false )
     , mActionDefaultTrustPolicy( 0 )
     , mActionShowTrustedCAs( 0 )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
+    mDisabled = true;
     mAuthNotifyLayout = new QVBoxLayout;
     this->setLayout( mAuthNotifyLayout );
     mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
@@ -205,7 +207,7 @@ void QgsAuthAuthoritiesEditor::populateRootCaCerts()
   mRootCaSecItem->setExpanded( expanded );
 }
 
-void QgsAuthAuthoritiesEditor::populateCaCertsSection( QTreeWidgetItem* item, QList<QSslCertificate> certs,
+void QgsAuthAuthoritiesEditor::populateCaCertsSection( QTreeWidgetItem* item, const QList<QSslCertificate>& certs,
     QgsAuthAuthoritiesEditor::CaType catype )
 {
   if ( btnGroupByOrg->isChecked() )
@@ -218,7 +220,7 @@ void QgsAuthAuthoritiesEditor::populateCaCertsSection( QTreeWidgetItem* item, QL
   }
 }
 
-void QgsAuthAuthoritiesEditor::appendCertsToGroup( QList<QSslCertificate> certs,
+void QgsAuthAuthoritiesEditor::appendCertsToGroup( const QList<QSslCertificate>& certs,
     QgsAuthAuthoritiesEditor::CaType catype,
     QTreeWidgetItem *parent )
 {
@@ -257,7 +259,7 @@ void QgsAuthAuthoritiesEditor::appendCertsToGroup( QList<QSslCertificate> certs,
   parent->sortChildren( 0, Qt::AscendingOrder );
 }
 
-void QgsAuthAuthoritiesEditor::appendCertsToItem( QList<QSslCertificate> certs,
+void QgsAuthAuthoritiesEditor::appendCertsToItem( const QList<QSslCertificate>& certs,
     QgsAuthAuthoritiesEditor::CaType catype,
     QTreeWidgetItem *parent )
 {
@@ -775,7 +777,10 @@ void QgsAuthAuthoritiesEditor::authMessageOut( const QString& message, const QSt
 
 void QgsAuthAuthoritiesEditor::showEvent( QShowEvent * e )
 {
-  treeWidgetCAs->setFocus();
+  if ( !mDisabled )
+  {
+    treeWidgetCAs->setFocus();
+  }
   QWidget::showEvent( e );
 }
 

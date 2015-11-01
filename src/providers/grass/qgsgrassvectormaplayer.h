@@ -51,6 +51,9 @@ class GRASS_LIB_EXPORT QgsGrassVectorMapLayer : public QObject
     bool isValid() const { return mValid; }
     QgsGrassVectorMap *map() { return mMap; }
 
+    /** Category index index */
+    int cidxFieldIndex();
+
     /** Current number of cats in cat index, changing during editing */
     int cidxFieldNumCats();
 
@@ -58,6 +61,10 @@ class GRASS_LIB_EXPORT QgsGrassVectorMapLayer : public QObject
      * Does not reflect add/delete column.
      * Original fields must be returned by provider fields() */
     QgsFields & fields() { return mFields; }
+
+    /** Current fields, as modified during editing, it contains cat field, without topo field.
+     *  This fields are used by layers which are not editied to reflect current state of editing. */
+    QgsFields & tableFields() { return mTableFields; }
 
     static QStringList fieldNames( QgsFields & fields );
 
@@ -113,7 +120,7 @@ class GRASS_LIB_EXPORT QgsGrassVectorMapLayer : public QObject
      *  @param cat
      *  @param nullValues override all values, if false, only non empty values are used for update
      */
-    void updateAttributes( int cat, const QgsFeature &feature, QString &error, bool nullValues = false );
+    void updateAttributes( int cat, QgsFeature &feature, QString &error, bool nullValues = false );
 
     /** Delete attributes from the table
      *   @param cat
@@ -152,6 +159,9 @@ class GRASS_LIB_EXPORT QgsGrassVectorMapLayer : public QObject
     // update fields to real state
     void updateFields();
 
+    // for debug only
+    void printCachedAttributes();
+
   private:
     QString quotedValue( QVariant value );
     dbDriver * openDriver( QString &error );
@@ -159,7 +169,6 @@ class GRASS_LIB_EXPORT QgsGrassVectorMapLayer : public QObject
     int mField;
     bool mValid;
     QgsGrassVectorMap *mMap;
-    int mCidxFieldIndex;
     struct field_info *mFieldInfo;
     dbDriver *mDriver;
 

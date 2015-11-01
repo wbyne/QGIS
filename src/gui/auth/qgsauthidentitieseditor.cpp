@@ -32,12 +32,14 @@
 
 QgsAuthIdentitiesEditor::QgsAuthIdentitiesEditor( QWidget *parent )
     : QWidget( parent )
+    , mDisabled( false )
     , mAuthNotifyLayout( 0 )
     , mAuthNotify( 0 )
     , mRootCertIdentItem( 0 )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
+    mDisabled = true;
     mAuthNotifyLayout = new QVBoxLayout;
     this->setLayout( mAuthNotifyLayout );
     mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
@@ -128,7 +130,7 @@ void QgsAuthIdentitiesEditor::refreshIdentitiesView()
   populateIdentitiesView();
 }
 
-void QgsAuthIdentitiesEditor::populateIdentitiesSection( QTreeWidgetItem *item, QList<QSslCertificate> certs,
+void QgsAuthIdentitiesEditor::populateIdentitiesSection( QTreeWidgetItem *item, const QList<QSslCertificate>& certs,
     QgsAuthIdentitiesEditor::IdentityType identype )
 {
   if ( btnGroupByOrg->isChecked() )
@@ -141,7 +143,7 @@ void QgsAuthIdentitiesEditor::populateIdentitiesSection( QTreeWidgetItem *item, 
   }
 }
 
-void QgsAuthIdentitiesEditor::appendIdentitiesToGroup( QList<QSslCertificate> certs,
+void QgsAuthIdentitiesEditor::appendIdentitiesToGroup( const QList<QSslCertificate>& certs,
     QgsAuthIdentitiesEditor::IdentityType identype,
     QTreeWidgetItem *parent )
 {
@@ -180,7 +182,7 @@ void QgsAuthIdentitiesEditor::appendIdentitiesToGroup( QList<QSslCertificate> ce
   parent->sortChildren( 0, Qt::AscendingOrder );
 }
 
-void QgsAuthIdentitiesEditor::appendIdentitiesToItem( QList<QSslCertificate> certs,
+void QgsAuthIdentitiesEditor::appendIdentitiesToItem( const QList<QSslCertificate>& certs,
     QgsAuthIdentitiesEditor::IdentityType identype,
     QTreeWidgetItem *parent )
 {
@@ -389,7 +391,10 @@ void QgsAuthIdentitiesEditor::authMessageOut( const QString& message, const QStr
 
 void QgsAuthIdentitiesEditor::showEvent( QShowEvent * e )
 {
-  treeIdentities->setFocus();
+  if ( !mDisabled )
+  {
+    treeIdentities->setFocus();
+  }
   QWidget::showEvent( e );
 }
 

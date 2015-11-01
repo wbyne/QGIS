@@ -446,7 +446,7 @@ struct QgsWmsAuthorization
     }
     else if ( !mUserName.isNull() || !mPassword.isNull() )
     {
-      request.setRawHeader( "Authorization", "Basic " + QString( "%1:%2" ).arg( mUserName ).arg( mPassword ).toAscii().toBase64() );
+      request.setRawHeader( "Authorization", "Basic " + QString( "%1:%2" ).arg( mUserName, mPassword ).toAscii().toBase64() );
     }
 
     if ( !mReferer.isNull() )
@@ -475,7 +475,7 @@ class QgsWmsSettings
 {
   public:
 
-    bool parseUri( QString uriString );
+    bool parseUri( const QString& uriString );
 
     QString baseUrl() const { return mBaseUrl; }
     QgsWmsAuthorization authorization() const { return mAuth; }
@@ -614,7 +614,7 @@ class QgsWmsCapabilities
     void parseKeywords( const QDomNode &e, QStringList &keywords );
     void parseTheme( const QDomElement &e, QgsWmtsTheme &t );
 
-    QString nodeAttribute( const QDomElement &e, QString name, QString defValue = QString::null );
+    QString nodeAttribute( const QDomElement &e, const QString& name, const QString& defValue = QString::null );
 
     /**
      * In case no bounding box is present in WMTS capabilities, try to estimate it from tile matrix sets.

@@ -553,7 +553,7 @@ void TestQgsWcsPublicServers::test()
   }
 }
 
-void TestQgsWcsPublicServers::writeReport( QString theReport )
+void TestQgsWcsPublicServers::writeReport( const QString& theReport )
 {
   QString myReportFile = mCacheDir.absolutePath() + "/index.html";
   QFile myFile( myReportFile );
@@ -618,7 +618,7 @@ void TestQgsWcsPublicServers::report()
       QDir myVersionDir( myVersionDirPath );
 
       QString myVersion = myVersionLog.value( "version" );
-      myServerReport += QString( "<h3><a href='%1'>Version: %2</a></h3>" ).arg( myVersionLog.value( "getCapabilitiesUrl" ) ).arg( myVersion.isEmpty() ? "(empty)" : myVersion );
+      myServerReport += QString( "<h3><a href='%1'>Version: %2</a></h3>" ).arg( myVersionLog.value( "getCapabilitiesUrl" ), myVersion.isEmpty() ? "(empty)" : myVersion );
 
       if ( !myVersionLog.value( "error" ).isEmpty() )
       {
@@ -648,7 +648,7 @@ void TestQgsWcsPublicServers::report()
           myVersionReport += "<tr>";
 
           QStringList myValues;
-          myValues << QString( "<a href='%1'>%2</a>" ).arg( myLog.value( "describeCoverageUrl" ) ).arg( myLog.value( "identifier" ) );
+          myValues << QString( "<a href='%1'>%2</a>" ).arg( myLog.value( "describeCoverageUrl" ), myLog.value( "identifier" ) );
           //myValues << myLog.value( "hasSize" );
           myVersionReport += cells( myValues, "", 1, 2 );
           myValues.clear();
@@ -793,7 +793,7 @@ void TestQgsWcsPublicServers::report()
   writeReport( myRep );
 }
 
-QMap<QString, QString> TestQgsWcsPublicServers::readLog( QString theFileName )
+QMap<QString, QString> TestQgsWcsPublicServers::readLog( const QString& theFileName )
 {
   QMap<QString, QString> myMap;
 
@@ -811,7 +811,7 @@ QMap<QString, QString> TestQgsWcsPublicServers::readLog( QString theFileName )
   return myMap;
 }
 
-QString TestQgsWcsPublicServers::error( QString theMessage )
+QString TestQgsWcsPublicServers::error( const QString& theMessage )
 {
   QString myRow = "<font class='errmsg'>Error: ";
   myRow += theMessage;
@@ -819,7 +819,7 @@ QString TestQgsWcsPublicServers::error( QString theMessage )
   return myRow;
 }
 
-QString TestQgsWcsPublicServers::cells( QStringList theValues, QString theClass, int colspan, int rowspan )
+QString TestQgsWcsPublicServers::cells( const QStringList& theValues, const QString& theClass, int colspan, int rowspan )
 {
   QString myRow;
   for ( int i = 0; i < theValues.size(); i++ )
@@ -834,12 +834,12 @@ QString TestQgsWcsPublicServers::cells( QStringList theValues, QString theClass,
     {
       rowspanStr = QString( "rowspan=%1" ).arg( rowspan );
     }
-    myRow += QString( "<td class='cell %1' %2 %3>%4</td>" ).arg( theClass ).arg( colspanStr ).arg( rowspanStr ).arg( val );
+    myRow += QString( "<td class='cell %1' %2 %3>%4</td>" ).arg( theClass, colspanStr, rowspanStr, val );
   }
   return myRow;
 }
 
-QString TestQgsWcsPublicServers::row( QStringList theValues, QString theClass )
+QString TestQgsWcsPublicServers::row( const QStringList& theValues, const QString& theClass )
 {
   QString myRow = "<tr>";
   for ( int i = 0; i < theValues.size(); i++ )
@@ -850,7 +850,7 @@ QString TestQgsWcsPublicServers::row( QStringList theValues, QString theClass )
     {
       colspan = QString( "colspan=%1" ).arg( mHead.size() - theValues.size() + 1 );
     }
-    myRow += QString( "<td class='cell %1' %2>%3</td>" ).arg( theClass ).arg( colspan ).arg( val );
+    myRow += QString( "<td class='cell %1' %2>%3</td>" ).arg( theClass, colspan, val );
   }
   myRow += "</tr>\n";
   return myRow;

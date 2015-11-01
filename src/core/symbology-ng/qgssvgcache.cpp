@@ -227,9 +227,30 @@ QgsSvgCacheEntry* QgsSvgCache::insertSVG( const QString& file, double size, cons
 void QgsSvgCache::containsParams( const QString& path, bool& hasFillParam, QColor& defaultFillColor, bool& hasOutlineParam, QColor& defaultOutlineColor,
                                   bool& hasOutlineWidthParam, double& defaultOutlineWidth ) const
 {
-  defaultFillColor = QColor( Qt::black );
+  bool hasDefaultFillColor = false;
+  bool hasDefaultOutlineColor = false;
+  bool hasDefaultOutlineWidth = false;
+
+  containsParams( path, hasFillParam, hasDefaultFillColor, defaultFillColor,
+                  hasOutlineParam, hasDefaultOutlineColor, defaultOutlineColor,
+                  hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
+}
+
+void QgsSvgCache::containsParams( const QString& path,
+                                  bool& hasFillParam, bool& hasDefaultFillParam, QColor& defaultFillColor,
+                                  bool& hasOutlineParam, bool& hasDefaultOutlineColor, QColor& defaultOutlineColor,
+                                  bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth ) const
+{
+  hasFillParam = false;
+  hasOutlineParam = false;
+  hasOutlineWidthParam = false;
+  defaultFillColor = QColor( Qt::white );
   defaultOutlineColor = QColor( Qt::black );
-  defaultOutlineWidth = 1.0;
+  defaultOutlineWidth = 0.2;
+
+  hasDefaultFillParam = false;
+  hasDefaultOutlineColor = false;
+  hasDefaultOutlineWidth = false;
 
   QDomDocument svgDoc;
   if ( !svgDoc.setContent( getImageData( path ) ) )
@@ -238,7 +259,9 @@ void QgsSvgCache::containsParams( const QString& path, bool& hasFillParam, QColo
   }
 
   QDomElement docElem = svgDoc.documentElement();
-  containsElemParams( docElem, hasFillParam, defaultFillColor, hasOutlineParam, defaultOutlineColor, hasOutlineWidthParam, defaultOutlineWidth );
+  containsElemParams( docElem, hasFillParam, hasDefaultFillParam, defaultFillColor,
+                      hasOutlineParam, hasDefaultOutlineColor, defaultOutlineColor,
+                      hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
 }
 
 void QgsSvgCache::replaceParamsAndCacheSvg( QgsSvgCacheEntry* entry )
@@ -256,10 +279,54 @@ void QgsSvgCache::replaceParamsAndCacheSvg( QgsSvgCacheEntry* entry )
 
   //replace fill color, outline color, outline with in all nodes
   QDomElement docElem = svgDoc.documentElement();
-  replaceElemParams( docElem, entry->fill, entry->outline, entry->outlineWidth );
+
+  double sizeScaleFactor = calcSizeScaleFactor( entry, docElem );
+  replaceElemParams( docElem, entry->fill, entry->outline, entry->outlineWidth * sizeScaleFactor );
 
   entry->svgContent = svgDoc.toByteArray();
   mTotalSize += entry->svgContent.size();
+}
+
+double QgsSvgCache::calcSizeScaleFactor( QgsSvgCacheEntry* entry, const QDomElement& docElem ) const
+{
+  QString viewBox;
+
+  //bad size
+  if ( !entry || entry->size == 0 )
+    return 1.0;
+
+  //find svg viewbox attribute
+  //first check if docElem is svg element
+  if ( docElem.tagName() == "svg" )
+  {
+    viewBox = docElem.attribute( "viewBox", QString() );
+  }
+  else
+  {
+    QDomElement svgElem = docElem.firstChildElement( "svg" ) ;
+    if ( !svgElem.isNull() )
+    {
+      viewBox = svgElem.attribute( "viewBox", QString() );
+    }
+  }
+
+  //could not find valid viewbox attribute
+  if ( viewBox.isEmpty() )
+    return 1.0;
+
+  //width should be 3rd element in a 4 part space delimited string
+  QStringList parts = viewBox.split( " " );
+  if ( parts.count() != 4 )
+    return 1.0;
+
+  bool widthOk = false;
+  double width = parts.at( 2 ).toDouble( &widthOk );
+  if ( widthOk )
+  {
+    return width / entry->size ;
+  }
+
+  return 1.0;
 }
 
 QByteArray QgsSvgCache::getImageData( const QString &path ) const
@@ -333,7 +400,7 @@ QByteArray QgsSvgCache::getImageData( const QString &path ) const
 
     if ( reply->error() != QNetworkReply::NoError )
     {
-      QgsMessageLog::logMessage( tr( "SVG request failed [error: %1 - url: %2]" ).arg( reply->errorString() ).arg( reply->url().toString() ), tr( "SVG" ) );
+      QgsMessageLog::logMessage( tr( "SVG request failed [error: %1 - url: %2]" ).arg( reply->errorString(), reply->url().toString() ), tr( "SVG" ) );
 
       reply->deleteLater();
       return QByteArray();
@@ -585,8 +652,8 @@ void QgsSvgCache::replaceElemParams( QDomElement& elem, const QColor& fill, cons
   }
 }
 
-void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillParam, QColor& defaultFill, bool& hasOutlineParam, QColor& defaultOutline,
-                                      bool& hasOutlineWidthParam, double& defaultOutlineWidth ) const
+void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillParam, bool& hasDefaultFill, QColor& defaultFill, bool& hasOutlineParam, bool& hasDefaultOutline, QColor& defaultOutline,
+                                      bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth ) const
 {
   if ( elem.isNull() )
   {
@@ -628,6 +695,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
           if ( valueSplit.size() > 1 )
           {
             defaultFill = QColor( valueSplit.at( 1 ) );
+            hasDefaultFill = true;
           }
         }
         else if ( !hasOutlineParam && value.startsWith( "param(outline)" ) )
@@ -636,6 +704,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
           if ( valueSplit.size() > 1 )
           {
             defaultOutline = QColor( valueSplit.at( 1 ) );
+            hasDefaultOutline = true;
           }
         }
         else if ( !hasOutlineWidthParam && value.startsWith( "param(outline-width)" ) )
@@ -644,6 +713,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
           if ( valueSplit.size() > 1 )
           {
             defaultOutlineWidth = valueSplit.at( 1 ).toDouble();
+            hasDefaultOutlineWidth = true;
           }
         }
       }
@@ -658,6 +728,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
         if ( valueSplit.size() > 1 )
         {
           defaultFill = QColor( valueSplit.at( 1 ) );
+          hasDefaultFill = true;
         }
       }
       else if ( !hasOutlineParam && value.startsWith( "param(outline)" ) )
@@ -666,6 +737,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
         if ( valueSplit.size() > 1 )
         {
           defaultOutline = QColor( valueSplit.at( 1 ) );
+          hasDefaultOutline = true;
         }
       }
       else if ( !hasOutlineWidthParam && value.startsWith( "param(outline-width)" ) )
@@ -674,6 +746,7 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
         if ( valueSplit.size() > 1 )
         {
           defaultOutlineWidth = valueSplit.at( 1 ).toDouble();
+          hasDefaultOutlineWidth = true;
         }
       }
     }
@@ -685,11 +758,13 @@ void QgsSvgCache::containsElemParams( const QDomElement& elem, bool& hasFillPara
   for ( int i = 0; i < nChildren; ++i )
   {
     QDomElement childElem = childList.at( i ).toElement();
-    containsElemParams( childElem, hasFillParam, defaultFill, hasOutlineParam, defaultOutline, hasOutlineWidthParam, defaultOutlineWidth );
+    containsElemParams( childElem, hasFillParam, hasDefaultFill, defaultFill,
+                        hasOutlineParam, hasDefaultOutline, defaultOutline,
+                        hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth );
   }
 }
 
-void QgsSvgCache::removeCacheEntry( QString s, QgsSvgCacheEntry* entry )
+void QgsSvgCache::removeCacheEntry( const QString& s, QgsSvgCacheEntry* entry )
 {
   delete entry;
   mEntryLookup.remove( s, entry );

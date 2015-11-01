@@ -31,7 +31,7 @@
 #include "qgslogger.h"
 
 QgsSearchQueryBuilder::QgsSearchQueryBuilder( QgsVectorLayer* layer,
-    QWidget *parent, Qt::WindowFlags fl )
+    QWidget *parent, const Qt::WindowFlags& fl )
     : QDialog( parent, fl ), mLayer( layer )
 {
   setupUi( this );
@@ -114,7 +114,7 @@ void QgsSearchQueryBuilder::getFieldValues( int limit )
   // determine the field type
   QString fieldName = mModelFields->data( lstFields->currentIndex() ).toString();
   int fieldIndex = mFieldMap[fieldName];
-  QgsField field = mLayer->fields()[fieldIndex];//provider->fields()[fieldIndex];
+  QgsField field = mLayer->fields().at( fieldIndex );//provider->fields().at( fieldIndex );
   bool numeric = ( field.type() == QVariant::Int || field.type() == QVariant::Double );
 
   QgsFeature feat;
@@ -183,7 +183,7 @@ void QgsSearchQueryBuilder::on_btnTest_clicked()
 }
 
 // This method tests the number of records that would be returned
-long QgsSearchQueryBuilder::countRecords( QString searchString )
+long QgsSearchQueryBuilder::countRecords( const QString& searchString )
 {
   QgsExpression search( searchString );
   if ( search.hasParserError() )
@@ -307,7 +307,7 @@ QString QgsSearchQueryBuilder::searchString()
   return txtSQL->text();
 }
 
-void QgsSearchQueryBuilder::setSearchString( QString searchString )
+void QgsSearchQueryBuilder::setSearchString( const QString& searchString )
 {
   txtSQL->setText( searchString );
 }

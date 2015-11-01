@@ -48,53 +48,68 @@ static void removeChildren_( QTreeWidgetItem* item )
   }
 }
 
-QgsAuthCertInfo::QgsAuthCertInfo( QSslCertificate cert,
+QgsAuthCertInfo::QgsAuthCertInfo( const QSslCertificate& cert,
                                   bool manageCertTrust,
                                   QWidget *parent ,
-                                  QList<QSslCertificate> connectionCAs )
+                                  const QList<QSslCertificate>& connectionCAs )
     : QWidget( parent )
     , mConnectionCAs( connectionCAs )
     , mDefaultItemForeground( QBrush() )
     , mManageTrust( manageCertTrust )
     , mTrustCacheRebuilt( false )
+    , mDefaultTrustPolicy( QgsAuthCertUtils::DefaultTrust )
+    , mCurrentTrustPolicy( QgsAuthCertUtils::DefaultTrust )
     , mSecGeneral( 0 )
     , mSecDetails( 0 )
+    , mSecPemText( 0 )
     , mGrpSubj( 0 )
     , mGrpIssu( 0 )
     , mGrpCert( 0 )
     , mGrpPkey( 0 )
     , mGrpExts( 0 )
+    , mAuthNotifyLayout( 0 )
+    , mAuthNotify( 0 )
 {
-  setupUi( this );
+  if ( QgsAuthManager::instance()->isDisabled() )
+  {
+    mAuthNotifyLayout = new QVBoxLayout;
+    this->setLayout( mAuthNotifyLayout );
+    mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
+    mAuthNotifyLayout->addWidget( mAuthNotify );
+  }
+  else
+  {
+    setupUi( this );
 
-  lblError->setHidden( true );
+    lblError->setHidden( true );
 
-  treeHierarchy->setRootIsDecorated( false );
+    treeHierarchy->setRootIsDecorated( false );
 
-  connect( treeHierarchy, SIGNAL( currentItemChanged( QTreeWidgetItem *, QTreeWidgetItem * ) ),
-           this, SLOT( currentCertItemChanged( QTreeWidgetItem*, QTreeWidgetItem* ) ) );
+    connect( treeHierarchy, SIGNAL( currentItemChanged( QTreeWidgetItem *, QTreeWidgetItem * ) ),
+             this, SLOT( currentCertItemChanged( QTreeWidgetItem*, QTreeWidgetItem* ) ) );
 
-  mCaCertsCache = QgsAuthManager::instance()->getCaCertsCache();
+    mCaCertsCache = QgsAuthManager::instance()->getCaCertsCache();
 
-  setUpCertDetailsTree();
+    setUpCertDetailsTree();
 
-  grpbxTrust->setVisible( mManageTrust );
+    grpbxTrust->setVisible( mManageTrust );
 
-  // trust policy is still queried, even if not managing the policy, so public getter will work
-  mDefaultTrustPolicy = QgsAuthManager::instance()->defaultCertTrustPolicy();
-  mCurrentTrustPolicy = QgsAuthCertUtils::DefaultTrust;
+    // trust policy is still queried, even if not managing the policy, so public getter will work
+    mDefaultTrustPolicy = QgsAuthManager::instance()->defaultCertTrustPolicy();
+    mCurrentTrustPolicy = QgsAuthCertUtils::DefaultTrust;
 
-  bool res;
-  res = populateQcaCertCollection();
-  if ( res )
-    res = setQcaCertificate( cert );
-  if ( res )
-    res = populateCertChain();
-  if ( res )
-    setCertHierarchy();
+    bool res;
+    res = populateQcaCertCollection();
+    if ( res )
+      res = setQcaCertificate( cert );
+    if ( res )
+      res = populateCertChain();
+    if ( res )
+      setCertHierarchy();
 
-  connect( cmbbxTrust, SIGNAL( currentIndexChanged( int ) ),
-           this, SLOT( currentPolicyIndexChanged( int ) ) );
+    connect( cmbbxTrust, SIGNAL( currentIndexChanged( int ) ),
+             this, SLOT( currentPolicyIndexChanged( int ) ) );
+  }
 }
 
 QgsAuthCertInfo::~QgsAuthCertInfo()
@@ -160,7 +175,7 @@ bool QgsAuthCertInfo::populateQcaCertCollection()
   return true;
 }
 
-bool QgsAuthCertInfo::setQcaCertificate( QSslCertificate cert )
+bool QgsAuthCertInfo::setQcaCertificate( const QSslCertificate& cert )
 {
   QCA::ConvertResult res;
   mCert = QCA::Certificate::fromPEM( cert.toPem(), &res, QString( "qca-ossl" ) );
@@ -385,7 +400,7 @@ QTreeWidgetItem * QgsAuthCertInfo::addGroupItem( QTreeWidgetItem *parent, const 
 }
 
 void QgsAuthCertInfo::addFieldItem( QTreeWidgetItem *parent, const QString &field, const QString &value,
-                                    QgsAuthCertInfo::FieldWidget wdgt, QColor color )
+                                    QgsAuthCertInfo::FieldWidget wdgt, const QColor& color )
 {
   if ( value.isEmpty() )
     return;
@@ -480,8 +495,8 @@ void QgsAuthCertInfo::populateInfoGeneralSection()
   if (( isissuer || isca ) && isselfsigned )
   {
     certype = QString( "%1 %2" )
-              .arg( tr( "Root" ) )
-              .arg( QgsAuthCertUtils::certificateUsageTypeString( QgsAuthCertUtils::CertAuthorityUsage ) );
+              .arg( tr( "Root" ),
+                    QgsAuthCertUtils::certificateUsageTypeString( QgsAuthCertUtils::CertAuthorityUsage ) );
   }
   if ( isselfsigned )
   {
@@ -506,7 +521,7 @@ void QgsAuthCertInfo::populateInfoGeneralSection()
   QString alg( pubkey.algorithm() == QSsl::Rsa ? "RSA" : "DSA" );
   int bitsize( pubkey.length() );
   addFieldItem( mSecGeneral, tr( "Public key" ),
-                QString( "%1, %2 bits" ).arg( alg ).arg( bitsize == -1 ? QString( "?" ) : QString::number( bitsize ) ),
+                QString( "%1, %2 bits" ).arg( alg, bitsize == -1 ? QString( "?" ) : QString::number( bitsize ) ),
                 LineEdit );
   addFieldItem( mSecGeneral, tr( "Signature algorithm" ),
                 QgsAuthCertUtils::qcaSignatureAlgorithm( mCurrentACert.signatureAlgorithm() ),
@@ -904,7 +919,7 @@ void QgsAuthCertInfo::decorateCertTreeItem( const QSslCertificate &cert,
 QgsAuthCertInfoDialog::QgsAuthCertInfoDialog( const QSslCertificate& cert,
     bool manageCertTrust,
     QWidget *parent ,
-    QList<QSslCertificate> connectionCAs )
+    const QList<QSslCertificate>& connectionCAs )
     : QDialog( parent )
     , mCertInfoWdgt( 0 )
 {

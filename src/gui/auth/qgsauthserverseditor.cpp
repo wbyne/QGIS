@@ -30,12 +30,14 @@
 
 QgsAuthServersEditor::QgsAuthServersEditor( QWidget *parent )
     : QWidget( parent )
+    , mDisabled( false )
     , mAuthNotifyLayout( 0 )
     , mAuthNotify( 0 )
     , mRootSslConfigItem( 0 )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
+    mDisabled = true;
     mAuthNotifyLayout = new QVBoxLayout;
     this->setLayout( mAuthNotifyLayout );
     mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
@@ -128,7 +130,7 @@ void QgsAuthServersEditor::refreshSslConfigsView()
 }
 
 void QgsAuthServersEditor::populateSslConfigsSection( QTreeWidgetItem *item,
-    QList<QgsAuthConfigSslServer> configs,
+    const QList<QgsAuthConfigSslServer>& configs,
     QgsAuthServersEditor::ConfigType conftype )
 {
   if ( btnGroupByOrg->isChecked() )
@@ -141,7 +143,7 @@ void QgsAuthServersEditor::populateSslConfigsSection( QTreeWidgetItem *item,
   }
 }
 
-void QgsAuthServersEditor::appendSslConfigsToGroup( QList<QgsAuthConfigSslServer> configs,
+void QgsAuthServersEditor::appendSslConfigsToGroup( const QList<QgsAuthConfigSslServer>& configs,
     QgsAuthServersEditor::ConfigType conftype,
     QTreeWidgetItem *parent )
 {
@@ -180,7 +182,7 @@ void QgsAuthServersEditor::appendSslConfigsToGroup( QList<QgsAuthConfigSslServer
   parent->sortChildren( 0, Qt::AscendingOrder );
 }
 
-void QgsAuthServersEditor::appendSslConfigsToItem( QList<QgsAuthConfigSslServer> configs,
+void QgsAuthServersEditor::appendSslConfigsToItem( const QList<QgsAuthConfigSslServer>& configs,
     QgsAuthServersEditor::ConfigType conftype,
     QTreeWidgetItem *parent )
 {
@@ -312,7 +314,7 @@ void QgsAuthServersEditor::on_btnRemoveServer_clicked()
   if ( !QgsAuthManager::instance()->existsSslCertCustomConfig( digest, hostport ) )
   {
     QgsDebugMsg( QString( "SSL custom config does not exist in database for host:port, id %1:" )
-                 .arg( hostport ).arg( digest ) );
+                 .arg( hostport, digest ) );
     return;
   }
 
@@ -330,7 +332,7 @@ void QgsAuthServersEditor::on_btnRemoveServer_clicked()
   if ( !QgsAuthManager::instance()->removeSslCertCustomConfig( digest, hostport ) )
   {
     messageBar()->pushMessage( tr( "ERROR removing SSL custom config from authentication database for host:port, id %1:" )
-                               .arg( hostport ).arg( digest ),
+                               .arg( hostport, digest ),
                                QgsMessageBar::CRITICAL );
     return;
   }
@@ -404,7 +406,10 @@ void QgsAuthServersEditor::authMessageOut( const QString& message, const QString
 
 void QgsAuthServersEditor::showEvent( QShowEvent *e )
 {
-  treeServerConfigs->setFocus();
+  if ( !mDisabled )
+  {
+    treeServerConfigs->setFocus();
+  }
   QWidget::showEvent( e );
 }
 

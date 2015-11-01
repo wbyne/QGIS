@@ -115,6 +115,7 @@ TARGET_LINK_LIBRARIES(qgis_server
   ${FCGI_LIBRARY}
   ${POSTGRES_LIBRARY}
   ${GDAL_LIBRARY}
+  ${QCA_LIBRARY}
 )
 
 IF (WITH_BINDINGS)
@@ -160,16 +161,24 @@ ADD_EXECUTABLE(qgis_mapserv.fcgi
   ${qgis_mapserv_TESTRCC_SRCS}
   )
 
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${GDAL_INCLUDE_DIR}
   ${FCGI_INCLUDE_DIR}
   ${GEOS_INCLUDE_DIR}
   ${PROJ_INCLUDE_DIR}
   ${POSTGRES_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
   ${QT_INCLUDE_DIR}
   ${QGIS_INCLUDE_DIR}
+  ${QCA_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(
   ../core
+  ../core/auth
   ../core/dxf
   ../core/geometry
   ../core/raster
@@ -192,6 +201,7 @@ TARGET_LINK_LIBRARIES(qgis_mapserv.fcgi
   ${FCGI_LIBRARY}
   ${POSTGRES_LIBRARY}
   ${GDAL_LIBRARY}
+  ${QCA_LIBRARY}
 )
 
 ########################################################

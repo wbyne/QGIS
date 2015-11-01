@@ -68,7 +68,7 @@ QgsGrassVectorMap::~QgsGrassVectorMap()
 int QgsGrassVectorMap::userCount() const
 {
   int count = 0;
-  foreach ( QgsGrassVectorMapLayer *layer, mLayers )
+  Q_FOREACH ( QgsGrassVectorMapLayer *layer, mLayers )
   {
     count += layer->userCount();
   }
@@ -93,7 +93,7 @@ bool QgsGrassVectorMap::open()
 void QgsGrassVectorMap::close()
 {
   QgsDebugMsg( toString() );
-  if ( mOpen )
+  if ( !mOpen )
   {
     QgsDebugMsg( "is not open" );
     return;
@@ -136,7 +136,7 @@ bool QgsGrassVectorMap::openMap()
   int level = -1;
   G_TRY
   {
-    //Vect_set_open_level( 2 );
+    Vect_set_open_level( 2 );
     level = Vect_open_old_head( mMap, mGrassObject.name().toUtf8().data(), mGrassObject.mapset().toUtf8().data() );
     Vect_close( mMap );
   }
@@ -235,6 +235,7 @@ bool QgsGrassVectorMap::startEdit()
   G_TRY
   {
     Vect_close( mMap );
+    Vect_set_open_level( 2 );
     level = Vect_open_update( mMap, mGrassObject.name().toUtf8().data(), mGrassObject.mapset().toUtf8().data() );
     if ( level < 2 )
     {
@@ -368,7 +369,7 @@ QgsGrassVectorMapLayer * QgsGrassVectorMap::openLayer( int field )
   lockOpenClose();
   QgsGrassVectorMapLayer *layer = 0;
   // Check if this layer is already open
-  foreach ( QgsGrassVectorMapLayer *l, mLayers )
+  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
   {
     if ( l->field() == field )
     {
@@ -397,7 +398,7 @@ QgsGrassVectorMapLayer * QgsGrassVectorMap::openLayer( int field )
 void QgsGrassVectorMap::reloadLayers()
 {
   QgsDebugMsg( "entered" );
-  foreach ( QgsGrassVectorMapLayer *l, mLayers )
+  Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
   {
     l->load();
   }
@@ -405,7 +406,7 @@ void QgsGrassVectorMap::reloadLayers()
 
 void QgsGrassVectorMap::closeLayer( QgsGrassVectorMapLayer * layer )
 {
-  if ( !layer || !layer->map() )
+  if ( !layer )
   {
     return;
   }
@@ -420,11 +421,13 @@ void QgsGrassVectorMap::closeLayer( QgsGrassVectorMapLayer * layer )
     QgsDebugMsg( "No more users -> clear" );
     layer->clear();
   }
-  if ( layer->map()->userCount() == 0 )
+
+  QgsDebugMsg( QString( "%1 map users" ).arg( userCount() ) );
+  if ( userCount() == 0 )
   {
-    QgsDebugMsg( "No more map users -> close" );
     // TODO: attention about dead lock, probably move to QgsGrassVectorMapStore
-    //layer->map()->close();
+    //QgsDebugMsg( "No more map users -> close" );
+    //close();
   }
 
   QgsDebugMsg( "layer closed" );
@@ -607,6 +610,13 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::lineGeometry( int id )
   struct line_pnts *points = Vect_new_line_struct();
 
   int type = Vect_read_line( mMap, points, 0, id );
+  QgsDebugMsgLevel( QString( "type = %1 n_points = %2" ).arg( type ).arg( points->n_points ), 3 );
+  if ( points->n_points == 0 )
+  {
+    Vect_destroy_line_struct( points );
+    return 0;
+  }
+
   QList<QgsPointV2> pointList;
   pointList.reserve( points->n_points );
   for ( int i = 0; i < points->n_points; i++ )
@@ -702,6 +712,8 @@ void QgsGrassVectorMap::closeAllIterators()
 }
 
 //------------------------------------ QgsGrassVectorMapStore ------------------------------------
+QgsGrassVectorMapStore * QgsGrassVectorMapStore::mStore = 0;
+
 QgsGrassVectorMapStore::QgsGrassVectorMapStore()
 {
 }
@@ -714,6 +726,10 @@ QgsGrassVectorMapStore::~QgsGrassVectorMapStore()
 QgsGrassVectorMapStore *QgsGrassVectorMapStore::instance()
 {
   static QgsGrassVectorMapStore instance;
+  if ( mStore )
+  {
+    return mStore;
+  }
   return &instance;
 }
 
@@ -725,12 +741,16 @@ QgsGrassVectorMap * QgsGrassVectorMapStore::openMap( const QgsGrassObject & gras
   QgsGrassVectorMap *map = 0;
 
   // Check if this map is already open
-  foreach ( QgsGrassVectorMap *m, mMaps )
+  Q_FOREACH ( QgsGrassVectorMap *m, mMaps )
   {
     if ( m->grassObject() == grassObject )
     {
-      QgsDebugMsg( "The map is already open" );
+      QgsDebugMsg( "The map already exists" );
       map = m;
+      if ( !map->isOpen() )
+      {
+        map->open();
+      }
     }
   }
 
@@ -773,15 +793,19 @@ QgsGrassVectorMap::TopoSymbol QgsGrassVectorMap::topoSymbol( int lid )
     Vect_get_line_areas( mMap, lid, &left, &right );
     if ( left != 0 && right != 0 )
     {
-      symbol = TopoBoundary2;
+      symbol = TopoBoundaryOk;
     }
     else if ( left == 0 && right == 0 )
     {
-      symbol = TopoBoundary0;
+      symbol = TopoBoundaryError;
     }
-    else
+    else if ( left == 0 )
     {
-      symbol = TopoBoundary1;
+      symbol = TopoBoundaryErrorLeft;
+    }
+    else if ( right == 0 )
+    {
+      symbol = TopoBoundaryErrorRight;
     }
   }
   QgsDebugMsgLevel( QString( "lid = %1 type = %2 symbol = %3" ).arg( lid ).arg( type ).arg( symbol ), 3 );

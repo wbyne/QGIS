@@ -82,7 +82,7 @@ QString QgsGrassModule::findExec( QString file )
 
 #ifdef Q_OS_WIN
   // On windows try .bat first
-  foreach ( QString path, QgsGrass::grassModulesPaths() )
+  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
   {
     QString full = path + "/" + file + ".bat";
     if ( QFile::exists( full ) )
@@ -92,7 +92,7 @@ QString QgsGrassModule::findExec( QString file )
   }
 
   // .exe next
-  foreach ( QString path, QgsGrass::grassModulesPaths() )
+  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
   {
     QString full = path + "/" + file + ".exe";
     if ( QFile::exists( full ) )
@@ -105,7 +105,7 @@ QString QgsGrassModule::findExec( QString file )
 #endif
 
   // Search for module
-  foreach ( const QString& path, QgsGrass::grassModulesPaths() )
+  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
   {
     QString full = path + "/" + file;
     if ( QFile::exists( full ) )
@@ -352,7 +352,7 @@ QPixmap QgsGrassModule::pixmap( QString path, int height )
 {
   //QgsDebugMsg( QString( "path = %1" ).arg( path ) );
 
-  std::vector<QPixmap> pixmaps;
+  QList<QPixmap> pixmaps;
 
   // Create vector of available pictures
   int cnt = 1;
@@ -383,7 +383,7 @@ QPixmap QgsGrassModule::pixmap( QString path, int height )
       pic.render( &painter );
       painter.end();
 
-      pixmaps.push_back( pixmap );
+      pixmaps << pixmap;
     }
     else // PNG
     {
@@ -410,9 +410,14 @@ QPixmap QgsGrassModule::pixmap( QString path, int height )
     cnt++;
   }
 
+  if ( pixmaps.isEmpty() )
+  {
+    return QPixmap();
+  }
+
   // Get total width
   int width = 0;
-  for ( unsigned int i = 0; i < pixmaps.size(); i++ )
+  for ( int i = 0; i < pixmaps.size(); i++ )
   {
     width += pixmaps[i].width();
   }
@@ -514,7 +519,7 @@ QPixmap QgsGrassModule::pixmap( QString path, int height )
   painter.setRenderHint( QPainter::Antialiasing );
 
   int pos = 0;
-  for ( unsigned int i = 0; i < pixmaps.size(); i++ )
+  for ( int i = 0; i < pixmaps.size(); i++ )
   {
     if ( i == 1 && pixmaps.size() == 3 )   // +
     {
@@ -625,13 +630,15 @@ void QgsGrassModule::run()
         if ( ret == QMessageBox::Cancel )
           return;
 
-        // r.mapcalc does not use standard parser
-        if ( typeid( *mOptions ) != typeid( QgsGrassMapcalc ) )
+#if GRASS_VERSION_MAJOR < 7
+        // r.mapcalc does not use standard parser (does not accept --o) in GRASS 6
+        if ( mXName != "r.mapcalc" )
         {
           arguments.append( "--o" );
-          //mProcess.addArgument( "--o" );
-          //command.append ( " --o" );
         }
+#else
+        arguments.append( "--o" );
+#endif
       }
     }
 
@@ -644,6 +651,7 @@ void QgsGrassModule::run()
     mViewButton->setEnabled( false );
 
     QStringList list = mOptions->arguments();
+    list << arguments;
 
     QStringList argumentsHtml;
     for ( QStringList::Iterator it = list.begin(); it != list.end(); ++it )
@@ -712,7 +720,7 @@ void QgsGrassModule::run()
 
       // Print some important variables
       variables << "QGIS_PREFIX_PATH" << "QGIS_GRASS_CRS" << "GRASS_REGION";
-      foreach ( const QString& v, variables )
+      Q_FOREACH ( const QString& v, variables )
       {
         mOutputTextBrowser->append( v + "=" + environment.value( v ) + "<BR>" );
       }
@@ -833,8 +841,8 @@ void QgsGrassModule::finished( int exitCode, QProcess::ExitStatus exitStatus )
       mOutputTextBrowser->append( tr( "<B>Successfully finished</B>" ) );
       mProgressBar->setValue( 100 );
       mSuccess = true;
-      mViewButton->setEnabled( true );
-      mOptions->thawOutput();
+      mViewButton->setEnabled( !mOutputVector.isEmpty() || !mOutputRaster.isEmpty() );
+      mOptions->freezeOutput( false );
       mCanvas->refresh();
     }
     else

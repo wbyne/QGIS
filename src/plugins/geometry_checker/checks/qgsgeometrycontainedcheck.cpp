@@ -12,7 +12,7 @@
 void QgsGeometryContainedCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  foreach ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -21,10 +21,10 @@ void QgsGeometryContainedCheck::collectErrors( QList<QgsGeometryCheckError*>& er
       continue;
     }
 
-    QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::precision() );
+    QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
 
     QgsFeatureIds ids = mFeaturePool->getIntersects( feature.geometry()->geometry()->boundingBox() );
-    foreach ( const QgsFeatureId& otherid, ids )
+    Q_FOREACH ( const QgsFeatureId& otherid, ids )
     {
       if ( otherid == featureid )
       {
@@ -64,7 +64,7 @@ void QgsGeometryContainedCheck::fixError( QgsGeometryCheckError* error, int meth
   }
 
   // Check if error still applies
-  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::precision() );
+  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
 
   if ( !geomEngine->within( *otherFeature.geometry()->geometry() ) )
   {

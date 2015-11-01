@@ -29,7 +29,7 @@
 
 QGISEXTERN bool deleteLayer( const QString& dbPath, const QString& tableName, QString& errCause );
 
-QgsSLLayerItem::QgsSLLayerItem( QgsDataItem* parent, QString name, QString path, QString uri, LayerType layerType )
+QgsSLLayerItem::QgsSLLayerItem( QgsDataItem* parent, const QString& name, const QString& path, const QString& uri, LayerType layerType )
     : QgsLayerItem( parent, name, path, uri, layerType, "spatialite" )
 {
   setState( Populated ); // no children are expected
@@ -69,7 +69,7 @@ void QgsSLLayerItem::deleteLayer()
 
 // ------
 
-QgsSLConnectionItem::QgsSLConnectionItem( QgsDataItem* parent, QString name, QString path )
+QgsSLConnectionItem::QgsSLConnectionItem( QgsDataItem* parent, const QString& name, const QString& path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mDbPath = QgsSpatiaLiteConnection::connectionPath( name );
@@ -80,7 +80,7 @@ QgsSLConnectionItem::~QgsSLConnectionItem()
 {
 }
 
-static QgsLayerItem::LayerType _layerTypeFromDb( QString dbType )
+static QgsLayerItem::LayerType _layerTypeFromDb( const QString& dbType )
 {
   if ( dbType == "POINT" || dbType == "MULTIPOINT" )
   {
@@ -124,7 +124,7 @@ QVector<QgsDataItem*> QgsSLConnectionItem::createChildren()
     }
     QString msgDetails = connection.errorMessage();
     if ( !msgDetails.isEmpty() )
-      msg = QString( "%1 (%2)" ).arg( msg ).arg( msgDetails );
+      msg = QString( "%1 (%2)" ).arg( msg, msgDetails );
     children.append( new QgsErrorItem( this, msg, mPath + "/error" ) );
     return children;
   }
@@ -220,7 +220,7 @@ bool QgsSLConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
         importResults.append( tr( "%1: OK!" ).arg( u.name ) );
       else
       {
-        importResults.append( QString( "%1: %2" ).arg( u.name ).arg( importError ) );
+        importResults.append( QString( "%1: %2" ).arg( u.name, importError ) );
         hasError = true;
       }
     }
@@ -254,7 +254,7 @@ bool QgsSLConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
 
 // ---------------------------------------------------------------------------
 
-QgsSLRootItem::QgsSLRootItem( QgsDataItem* parent, QString name, QString path )
+QgsSLRootItem::QgsSLRootItem( QgsDataItem* parent, const QString& name, const QString& path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mCapabilities |= Fast;
@@ -354,7 +354,7 @@ QGISEXTERN int dataCapabilities()
   return  QgsDataProvider::Database;
 }
 
-QGISEXTERN QgsDataItem * dataItem( QString thePath, QgsDataItem* parentItem )
+QGISEXTERN QgsDataItem * dataItem( const QString& thePath, QgsDataItem* parentItem )
 {
   Q_UNUSED( thePath );
   return new QgsSLRootItem( parentItem, "SpatiaLite", "spatialite:" );

@@ -87,47 +87,59 @@ QgsAuthSslImportDialog::QgsAuthSslImportDialog( QWidget *parent )
     , mTimer( 0 )
     , mSslErrors( QList<QSslError>() )
     , mTrustedCAs( QList<QSslCertificate>() )
+    , mAuthNotifyLayout( 0 )
+    , mAuthNotify( 0 )
 {
-  setupUi( this );
-  QStyle *style = QApplication::style();
-  lblWarningIcon->setPixmap( style->standardIcon( QStyle::SP_MessageBoxWarning ).pixmap( 48, 48 ) );
-  lblWarningIcon->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Fixed );
+  if ( QgsAuthManager::instance()->isDisabled() )
+  {
+    mAuthNotifyLayout = new QVBoxLayout;
+    this->setLayout( mAuthNotifyLayout );
+    mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
+    mAuthNotifyLayout->addWidget( mAuthNotify );
+  }
+  else
+  {
+    setupUi( this );
+    QStyle *style = QApplication::style();
+    lblWarningIcon->setPixmap( style->standardIcon( QStyle::SP_MessageBoxWarning ).pixmap( 48, 48 ) );
+    lblWarningIcon->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Fixed );
 
-  closeButton()->setDefault( false );
-  saveButton()->setEnabled( false );
+    closeButton()->setDefault( false );
+    saveButton()->setEnabled( false );
 
-  leServer->setSelection( 0, leServer->text().size() );
-  pteSessionStatus->setReadOnly( true );
-  spinbxTimeout->setValue( 15 );
+    leServer->setSelection( 0, leServer->text().size() );
+    pteSessionStatus->setReadOnly( true );
+    spinbxTimeout->setValue( 15 );
 
-  grpbxServer->setCollapsed( false );
-  radioServerImport->setChecked( true );
-  frameServerImport->setEnabled( true );
-  radioFileImport->setChecked( false );
-  frameFileImport->setEnabled( false );
+    grpbxServer->setCollapsed( false );
+    radioServerImport->setChecked( true );
+    frameServerImport->setEnabled( true );
+    radioFileImport->setChecked( false );
+    frameFileImport->setEnabled( false );
 
-  connect( radioServerImport, SIGNAL( toggled( bool ) ),
-           this, SLOT( radioServerImportToggled( bool ) ) );
-  connect( radioFileImport, SIGNAL( toggled( bool ) ),
-           this, SLOT( radioFileImportToggled( bool ) ) );
+    connect( radioServerImport, SIGNAL( toggled( bool ) ),
+             this, SLOT( radioServerImportToggled( bool ) ) );
+    connect( radioFileImport, SIGNAL( toggled( bool ) ),
+             this, SLOT( radioFileImportToggled( bool ) ) );
 
-  connect( leServer, SIGNAL( textChanged( QString ) ),
-           this, SLOT( updateEnabledState() ) );
-  connect( btnConnect, SIGNAL( clicked() ),
-           this, SLOT( secureConnect() ) );
-  connect( leServer, SIGNAL( returnPressed() ),
-           btnConnect, SLOT( click() ) );
+    connect( leServer, SIGNAL( textChanged( QString ) ),
+             this, SLOT( updateEnabledState() ) );
+    connect( btnConnect, SIGNAL( clicked() ),
+             this, SLOT( secureConnect() ) );
+    connect( leServer, SIGNAL( returnPressed() ),
+             btnConnect, SLOT( click() ) );
 
-  connect( buttonBox, SIGNAL( accepted() ),
-           this, SLOT( accept() ) );
-  connect( buttonBox, SIGNAL( rejected() ),
-           this, SLOT( reject() ) );
+    connect( buttonBox, SIGNAL( accepted() ),
+             this, SLOT( accept() ) );
+    connect( buttonBox, SIGNAL( rejected() ),
+             this, SLOT( reject() ) );
 
-  connect( wdgtSslConfig, SIGNAL( readyToSaveChanged( bool ) ),
-           this, SLOT( widgetReadyToSaveChanged( bool ) ) );
-  wdgtSslConfig->setEnabled( false );
+    connect( wdgtSslConfig, SIGNAL( readyToSaveChanged( bool ) ),
+             this, SLOT( widgetReadyToSaveChanged( bool ) ) );
+    wdgtSslConfig->setEnabled( false );
 
-  mTrustedCAs = QgsAuthManager::instance()->getTrustedCaCertsCache();
+    mTrustedCAs = QgsAuthManager::instance()->getTrustedCaCertsCache();
+  }
 }
 
 QgsAuthSslImportDialog::~QgsAuthSslImportDialog()
@@ -236,13 +248,13 @@ void QgsAuthSslImportDialog::socketEncrypted()
 
   appendString( tr( "Socket ENCRYPTED" ) );
 
-  appendString( QString( "%1: %2" ).arg( tr( "Protocol" ) )
-                .arg( QgsAuthCertUtils::getSslProtocolName( mSocket->protocol() ) ) );
+  appendString( QString( "%1: %2" ).arg( tr( "Protocol" ),
+                                         QgsAuthCertUtils::getSslProtocolName( mSocket->protocol() ) ) );
 
   QSslCipher ciph = mSocket->sessionCipher();
   QString cipher = QString( "%1: %2, %3 (%4/%5)" )
-                   .arg( tr( "Session cipher" ) ).arg( ciph.authenticationMethod() )
-                   .arg( ciph.name() ).arg( ciph.usedBits() ).arg( ciph.supportedBits() );
+                   .arg( tr( "Session cipher" ), ciph.authenticationMethod(), ciph.name() )
+                   .arg( ciph.usedBits() ).arg( ciph.supportedBits() );
   appendString( cipher );
 
 
@@ -269,7 +281,7 @@ void QgsAuthSslImportDialog::socketError( QAbstractSocket::SocketError err )
   Q_UNUSED( err );
   if ( mSocket )
   {
-    appendString( QString( "%1: %2" ).arg( tr( "Socket ERROR" ) ).arg( mSocket->errorString() ) );
+    appendString( QString( "%1: %2" ).arg( tr( "Socket ERROR" ), mSocket->errorString() ) );
   }
 }
 
@@ -307,7 +319,7 @@ void QgsAuthSslImportDialog::sslErrors( const QList<QSslError> &errors )
   connect( ui.certificateChainButton, SIGNAL( clicked() ),
            this, SLOT( showCertificateInfo() ) );
 
-  foreach ( const QSslError &error, errors )
+  Q_FOREACH ( const QSslError &error, errors )
   {
     ui.sslErrorList->addItem( error.errorString() );
   }

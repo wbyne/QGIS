@@ -135,8 +135,11 @@ void QgsMeasureDialog::mouseMove( QgsPoint &point )
 
     // Set moving
     QTreeWidgetItem *item = mTable->topLevelItem( mTable->topLevelItemCount() - 1 );
-    item->setText( 0, QLocale::system().toString( d, 'f', mDecimalPlaces ) );
-    QgsDebugMsg( QString( "Final result is %1" ).arg( item->text( 0 ) ) );
+    if ( item )
+    {
+      item->setText( 0, QLocale::system().toString( d, 'f', mDecimalPlaces ) );
+      QgsDebugMsg( QString( "Final result is %1" ).arg( item->text( 0 ) ) );
+    }
   }
 }
 
@@ -280,7 +283,7 @@ void QgsMeasureDialog::updateUi()
 
   if (( mCanvasUnits == QGis::Meters && mDisplayUnits == QGis::Feet ) || ( mCanvasUnits == QGis::Feet && mDisplayUnits == QGis::Meters ) )
   {
-    toolTip += "<br> * " + tr( "Finally, the value is converted from %1 to %2." ).arg( QGis::tr( mCanvasUnits ) ).arg( QGis::tr( mDisplayUnits ) );
+    toolTip += "<br> * " + tr( "Finally, the value is converted from %1 to %2." ).arg( QGis::tr( mCanvasUnits ), QGis::tr( mDisplayUnits ) );
   }
 
   editTotal->setToolTip( toolTip );

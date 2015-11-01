@@ -165,22 +165,33 @@ bool QgsGrassObject::setFromUri( const QString& uri )
 
 QString QgsGrassObject::elementShort() const
 {
-  if ( mType == Raster )
+  return elementShort( mType );
+}
+
+QString QgsGrassObject::elementShort( Type type )
+{
+  if ( type == Raster )
 #if GRASS_VERSION_MAJOR < 7
     return "rast";
 #else
     return "raster";
 #endif
-  else if ( mType == Group )
+  else if ( type == Group )
     return "group";
-  else if ( mType == Vector )
+  else if ( type == Vector )
 #if GRASS_VERSION_MAJOR < 7
     return "vect";
 #else
     return "vector";
 #endif
-  else if ( mType == Region )
+  else if ( type == Region )
     return "region";
+  else if ( type == Strds )
+    return "strds";
+  else if ( type == Stvds )
+    return "stvds";
+  else if ( type == Str3ds )
+    return "str3ds";
   else
     return "";
 }
@@ -262,6 +273,11 @@ bool QgsGrassObject::operator==( const QgsGrassObject& other ) const
          && mName == other.mName && mType == other.mType;
 }
 
+QgsGrass::QgsGrass()
+    : mMapsetSearchPathWatcher( 0 )
+{
+}
+
 QString QgsGrass::pathSeparator()
 {
 #ifdef Q_OS_WIN
@@ -316,8 +332,8 @@ bool QgsGrass::init( void )
   lock();
   QgsDebugMsg( "do init" );
 
-  // Is it active mode ?
   active = false;
+  // Is it active mode ?
   if ( getenv( "GISRC" ) )
   {
     G_TRY
@@ -345,8 +361,8 @@ bool QgsGrass::init( void )
   }
   G_CATCH( QgsGrass::Exception &e )
   {
-    error_message = tr( "Problem in GRASS initialization, GRASS provider and plugin will not work" ) + " : " + e.what();
-    QgsDebugMsg( error_message );
+    mInitError = tr( "Problem in GRASS initialization, GRASS provider and plugin will not work" ) + " : " + e.what();
+    QgsDebugMsg( mInitError );
     mNonInitializable = true;
     unlock();
     return false;
@@ -368,8 +384,8 @@ bool QgsGrass::init( void )
   if ( !isValidGrassBaseDir( gisbase() ) )
   {
     mNonInitializable = true;
-    error_message = tr( "GRASS was not found in '%1'(GISBASE), provider and plugin will not work." ).arg( gisbase() );
-    QgsDebugMsg( error_message );
+    mInitError = tr( "GRASS was not found in '%1' (GISBASE), provider and plugin will not work." ).arg( gisbase() );
+    QgsDebugMsg( mInitError );
 #if 0
     // TODO: how to emit message from provider (which does not know about QgisApp)
     QgisApp::instance()->messageBar()->pushMessage( tr( "GRASS error" ),
@@ -463,6 +479,14 @@ bool QgsGrass::init( void )
   }
 
   unlock();
+
+  // after unlock because it is using setMapset() which calls init()
+  if ( active )
+  {
+    QgsGrass::instance()->loadMapsetSearchPath(); // must be after G_no_gisinit()
+    QgsGrass::instance()->setMapsetSearchPathWatcher();
+  }
+
   return true;
 }
 
@@ -531,6 +555,11 @@ QString QgsGrass::getDefaultLocation()
   return defaultLocation;
 }
 
+QgsGrassObject QgsGrass::getDefaultLocationObject()
+{
+  return QgsGrassObject( defaultGisdbase, defaultLocation, "", "", QgsGrassObject::Location );
+}
+
 QString QgsGrass::getDefaultLocationPath()
 {
   if ( !active )
@@ -545,16 +574,30 @@ QString QgsGrass::getDefaultMapset()
   return defaultMapset;
 }
 
+QgsGrassObject QgsGrass::getDefaultMapsetObject()
+{
+  return QgsGrassObject( defaultGisdbase, defaultLocation, defaultMapset, "", QgsGrassObject::Mapset );
+}
+
+QString QgsGrass::getDefaultMapsetPath()
+{
+  return getDefaultLocationPath() + "/" + defaultMapset;
+}
+
 void QgsGrass::setLocation( QString gisdbase, QString location )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
   setMapset( gisdbase, location, "PERMANENT" );
 }
 
 void QgsGrass::setMapset( QString gisdbase, QString location, QString mapset )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2 mapset = %3" ).arg( gisdbase ).arg( location ).arg( mapset ) );
-  init();
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2 mapset = %3" ).arg( gisdbase, location, mapset ) );
+  if ( !init() )
+  {
+    QgsDebugMsg( QgsGrass::initError() );
+    return;
+  }
 
   // Set principal GRASS variables (in memory)
 #ifdef Q_OS_WIN
@@ -601,6 +644,109 @@ void QgsGrass::setMapset( QgsGrassObject grassObject )
   setMapset( grassObject.gisdbase(), grassObject.location(), grassObject.mapset() );
 }
 
+bool QgsGrass::isMapsetInSearchPath( QString mapset )
+{
+  return mMapsetSearchPath.contains( mapset );
+}
+
+void QgsGrass::loadMapsetSearchPath()
+{
+  QgsDebugMsg( "entered" );
+  // do not lock, it is called from locked function
+  QStringList oldMapsetSearchPath = mMapsetSearchPath;
+  mMapsetSearchPath.clear();
+  if ( !activeMode() )
+  {
+    QgsDebugMsg( "not active" );
+    emit mapsetSearchPathChanged();
+    return;
+  }
+  G_TRY
+  {
+    QgsGrass::setMapset( getDefaultGisdbase(), getDefaultLocation(), getDefaultMapset() );
+    const char *mapset = 0;
+#if GRASS_VERSION_MAJOR >= 7
+    G_reset_mapsets();
+    for ( int i = 0; ( mapset = G_get_mapset_name( i ) ); i++ )
+#else
+    int result = G_reset_mapsets();
+    Q_UNUSED( result );
+    for ( int i = 0; ( mapset = G__mapset_name( i ) ); i++ )
+#endif
+    {
+      QgsDebugMsg( QString( "mapset = %1" ).arg( mapset ) );
+      if ( G_is_mapset_in_search_path( mapset ) )
+      {
+        mMapsetSearchPath << mapset;
+      }
+    }
+  }
+  G_CATCH( QgsGrass::Exception &e )
+  {
+    QgsDebugMsg( "cannot load mapset search path: " + QString( e.what() ) );
+  }
+  QgsDebugMsg( "mMapsetSearchPath = " +  mMapsetSearchPath.join( "," ) );
+  if ( mMapsetSearchPath != oldMapsetSearchPath )
+  {
+    emit mapsetSearchPathChanged();
+  }
+}
+
+void QgsGrass::setMapsetSearchPathWatcher()
+{
+  QgsDebugMsg( "etered" );
+  if ( mMapsetSearchPathWatcher )
+  {
+    delete mMapsetSearchPathWatcher;
+    mMapsetSearchPathWatcher = 0;
+  }
+  if ( !activeMode() )
+  {
+    return;
+  }
+  mMapsetSearchPathWatcher = new QFileSystemWatcher( this );
+
+  QString searchFilePath = getDefaultMapsetPath() + "/SEARCH_PATH";
+
+  if ( QFileInfo( searchFilePath ).exists() )
+  {
+    QgsDebugMsg( "add watcher on SEARCH_PATH file " + searchFilePath );
+    mMapsetSearchPathWatcher->addPath( searchFilePath );
+    connect( mMapsetSearchPathWatcher, SIGNAL( fileChanged( const QString & ) ), SLOT( onSearchPathFileChanged( const QString & ) ) );
+  }
+  else
+  {
+    QgsDebugMsg( "add watcher on mapset " + getDefaultMapsetPath() );
+    mMapsetSearchPathWatcher->addPath( getDefaultMapsetPath() );
+    connect( mMapsetSearchPathWatcher, SIGNAL( directoryChanged( const QString & ) ), SLOT( onSearchPathFileChanged( const QString & ) ) );
+  }
+}
+
+void QgsGrass::onSearchPathFileChanged( const QString & path )
+{
+  QgsDebugMsg( "path = " + path );
+  QString searchFilePath = getDefaultMapsetPath() + "/SEARCH_PATH";
+  if ( path == searchFilePath )
+  {
+    // changed or removed
+    loadMapsetSearchPath();
+    if ( !QFileInfo( searchFilePath ).exists() ) // removed
+    {
+      // reset watcher to mapset
+      setMapsetSearchPathWatcher();
+    }
+  }
+  else
+  {
+    // mapset directory changed
+    if ( QFileInfo( searchFilePath ).exists() ) // search path file added
+    {
+      loadMapsetSearchPath();
+      setMapsetSearchPathWatcher();
+    }
+  }
+}
+
 jmp_buf QgsGrass::jumper;
 
 bool QgsGrass::mNonInitializable = false;
@@ -611,6 +757,7 @@ bool QgsGrass::active = 0;
 QgsGrass::GERROR QgsGrass::lastError = QgsGrass::OK;
 
 QString QgsGrass::error_message;
+QString QgsGrass::mInitError;
 
 QStringList QgsGrass::mGrassModulesPaths;
 QString QgsGrass::defaultGisdbase;
@@ -743,8 +890,8 @@ QString QgsGrass::openMapset( const QString& gisdbase,
 
   QString processResult = QString( "exitStatus=%1, exitCode=%2, errorCode=%3, error=%4 stdout=%5, stderr=%6" )
                           .arg( process.exitStatus() ).arg( process.exitCode() )
-                          .arg( process.error() ).arg( process.errorString() )
-                          .arg( process.readAllStandardOutput().data() ).arg( process.readAllStandardError().data() );
+                          .arg( process.error() ).arg( process.errorString(),
+                                                       process.readAllStandardOutput().data(), process.readAllStandardError().data() );
   QgsDebugMsg( "processResult: " + processResult );
 
   // lock exit code:
@@ -860,6 +1007,9 @@ QString QgsGrass::openMapset( const QString& gisdbase,
 
   active = true;
 
+  QgsGrass::instance()->loadMapsetSearchPath();
+  QgsGrass::instance()->setMapsetSearchPathWatcher();
+
 // closeMapset() added at the beginning
 #if 0
 #ifndef Q_OS_WIN
@@ -936,6 +1086,7 @@ QString QgsGrass::closeMapset()
     }
   }
 
+  QgsGrass::instance()->setMapsetSearchPathWatcher(); // unset watcher
   emit QgsGrass::instance()->mapsetChanged();
   return QString::null;
 }
@@ -986,7 +1137,7 @@ void QgsGrass::createMapset( const QString& gisdbase, const QString& location,
   QString dest = locationPath + "/" + mapset + "/WIND";
   if ( !QFile::copy( src, dest ) )
   {
-    error = tr( "Cannot copy %1 to %2" ).arg( src ).arg( dest );
+    error = tr( "Cannot copy %1 to %2" ).arg( src, dest );
   }
 }
 
@@ -1015,7 +1166,7 @@ QStringList QgsGrass::locations( const QString& gisdbase )
 
 QStringList QgsGrass::mapsets( const QString& gisdbase, const QString& locationName )
 {
-  QgsDebugMsg( QString( "gisbase = %1 locationName = %2" ).arg( gisdbase ).arg( locationName ) );
+  QgsDebugMsg( QString( "gisbase = %1 locationName = %2" ).arg( gisdbase, locationName ) );
 
   if ( gisdbase.isEmpty() || locationName.isEmpty() )
     return QStringList();
@@ -1134,7 +1285,7 @@ bool QgsGrass::topoVersion( const QString& gisdbase, const QString& location,
 QStringList QgsGrass::vectorLayers( const QString& gisdbase, const QString& location,
                                     const QString& mapset, const QString& mapName )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2 mapset = %3 mapName = %4" ).arg( gisdbase ).arg( location ).arg( mapset ).arg( mapName ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2 mapset = %3 mapName = %4" ).arg( gisdbase, location, mapset, mapName ) );
 
   QStringList list;
   QgsGrassVector vector( gisdbase, location, mapset, mapName );
@@ -1146,7 +1297,7 @@ QStringList QgsGrass::vectorLayers( const QString& gisdbase, const QString& loca
   QgsDebugMsg( "GRASS vector successfully opened" );
 
   // Get layers
-  foreach ( QgsGrassVectorLayer * layer, vector.layers() )
+  Q_FOREACH ( QgsGrassVectorLayer * layer, vector.layers() )
   {
     QString fs = QString::number( layer->number() );
     QgsDebugMsg( "layer number = " + fs );
@@ -1301,7 +1452,7 @@ QStringList QgsGrass::elements( const QString& gisdbase, const QString& location
 
 QStringList QgsGrass::elements( const QString&  mapsetPath, const QString&  element )
 {
-  QgsDebugMsg( QString( "mapsetPath = %1 element = %2" ).arg( mapsetPath ).arg( element ) );
+  QgsDebugMsg( QString( "mapsetPath = %1 element = %2" ).arg( mapsetPath, element ) );
 
   QStringList list;
 
@@ -1326,9 +1477,58 @@ QStringList QgsGrass::elements( const QString&  mapsetPath, const QString&  elem
   return list;
 }
 
-QStringList QgsGrass::grassObjects( const QString& mapsetPath, QgsGrassObject::Type type )
+QStringList QgsGrass::grassObjects( const QgsGrassObject& mapsetObject, QgsGrassObject::Type type )
 {
-  return QgsGrass::elements( mapsetPath, QgsGrassObject::dirName( type ) );
+  QgsDebugMsg( "mapsetPath = " + mapsetObject.mapsetPath() + " type = " +  QgsGrassObject::elementShort( type ) );
+  QTime time;
+  time.start();
+  QStringList list;
+  if ( !QDir( mapsetObject.mapsetPath() ).isReadable() )
+  {
+    QgsDebugMsg( "mapset is not readable" );
+    return QStringList();
+  }
+  else if ( type == QgsGrassObject::Strds || type == QgsGrassObject::Stvds || type == QgsGrassObject::Str3ds )
+  {
+#if GRASS_VERSION_MAJOR >= 7
+    QString cmd =  gisbase() + "/scripts/t.list";
+    QStringList arguments;
+
+    // Running t.list module is quite slow (about 500ms) -> check first if temporal db exists.
+    // Also, if tgis/sqlite.db does not exist, it is created by t.list for current mapset!
+    // If user is not owner of the mapset (even if has read permission) t.list fails because it checks ownership.
+    if ( !QFile( mapsetObject.mapsetPath() + "/tgis/sqlite.db" ).exists() )
+    {
+      QgsDebugMsg( "tgis/sqlite.db does not exist" );
+    }
+    else
+    {
+      arguments << "type=" + QgsGrassObject::elementShort( type );
+
+      int timeout = -1; // What timeout to use? It can take long time on network or database
+      QByteArray data = runModule( mapsetObject.gisdbase(), mapsetObject.location(), mapsetObject.mapset(), cmd, arguments, timeout, false );
+      Q_FOREACH ( QString fullName, QString::fromLocal8Bit( data ).split( '\n' ) )
+      {
+        fullName = fullName.trimmed();
+        if ( !fullName.isEmpty() )
+        {
+          QStringList nameMapset = fullName.split( "@" );
+          if ( nameMapset.value( 1 ) == mapsetObject.mapset() || nameMapset.value( 1 ).isEmpty() )
+          {
+            list << nameMapset.value( 0 );
+          }
+        }
+      }
+    }
+#endif
+  }
+  else
+  {
+    list = QgsGrass::elements( mapsetObject.mapsetPath(), QgsGrassObject::dirName( type ) );
+  }
+  QgsDebugMsg( "list = " + list.join( "," ) );
+  QgsDebugMsg( QString( "time (ms) = %1" ).arg( time.elapsed() ) );
+  return list;
 }
 
 bool QgsGrass::objectExists( const QgsGrassObject& grassObject )
@@ -1624,6 +1824,7 @@ bool QgsGrass::mapRegion( QgsGrassObject::Type type, QString gisdbase,
     G_TRY
     {
       Map = vectNewMapStruct();
+      Vect_set_open_level( 2 );
       level = Vect_open_old_head( Map, map.toUtf8().data(), mapset.toUtf8().data() );
     }
     G_CATCH( QgsGrass::Exception &e )
@@ -1707,7 +1908,7 @@ QProcess *QgsGrass::startModule( const QString& gisdbase, const QString&  locati
                                  const QString&  mapset, const QString& moduleName, const QStringList& arguments,
                                  QTemporaryFile &gisrcFile, bool qgisModule )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
   QProcess *process = new QProcess();
 
   QString module = moduleName;
@@ -1725,37 +1926,28 @@ QProcess *QgsGrass::startModule( const QString& gisdbase, const QString&  locati
     throw QgsGrass::Exception( QObject::tr( "Cannot open GISRC file" ) );
   }
 
-  QString error = tr( "Cannot start module" ) + "\n" + tr( "command: %1 %2" ).arg( module ).arg( arguments.join( " " ) );
-
-  // Modules must be run in a mapset owned by user, because each module calls G_gisinit()
-  // which checks if G_mapset() is owned by user.
-  QString ownedMapset = mapset;
-  if ( ownedMapset.isEmpty() )
-  {
-    Q_FOREACH ( const QString& ms, mapsets( gisdbase, location ) )
-    {
-      if ( isOwner( gisdbase, location, ms ) )
-      {
-        ownedMapset = ms;
-      }
-    }
-  }
-  if ( ownedMapset.isEmpty() )
-  {
-    throw QgsGrass::Exception( error + "\n" + tr( "Cannot find a mapset owned by current user" ) );
-  }
+  QString error = tr( "Cannot start module" ) + "\n" + tr( "command: %1 %2" ).arg( module, arguments.join( " " ) );
 
   QTextStream out( &gisrcFile );
   out << "GISDBASE: " << gisdbase << "\n";
   out << "LOCATION_NAME: " << location << "\n";
-  //out << "MAPSET: PERMANENT\n";
-  out << "MAPSET: " << ownedMapset << "\n";
+  if ( mapset.isEmpty() )
+  {
+    out << "MAPSET: PERMANENT\n";
+  }
+  else
+  {
+    out << "MAPSET: " << mapset << "\n";
+  }
   out.flush();
   QgsDebugMsg( gisrcFile.fileName() );
   gisrcFile.close();
   QStringList environment = QProcess::systemEnvironment();
   environment.append( "GISRC=" + gisrcFile.fileName() );
   environment.append( "GRASS_MESSAGE_FORMAT=gui" );
+  // Normaly modules must be run in a mapset owned by user, because each module calls G_gisinit()
+  // which checks if G_mapset() is owned by user. The check is disabled by GRASS_SKIP_MAPSET_OWNER_CHECK.
+  environment.append( "GRASS_SKIP_MAPSET_OWNER_CHECK=1" );
 
   process->setEnvironment( environment );
 
@@ -1773,7 +1965,9 @@ QByteArray QgsGrass::runModule( const QString& gisdbase, const QString&  locatio
                                 const QString& mapset, const QString&  moduleName,
                                 const QStringList& arguments, int timeOut, bool qgisModule )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2 timeOut = %3" ).arg( gisdbase ).arg( location ).arg( timeOut ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2 timeOut = %3" ).arg( gisdbase, location ).arg( timeOut ) );
+  QTime time;
+  time.start();
 
   QTemporaryFile gisrcFile;
   QProcess *process = startModule( gisdbase, location, mapset, moduleName, arguments, gisrcFile, qgisModule );
@@ -1785,11 +1979,12 @@ QByteArray QgsGrass::runModule( const QString& gisdbase, const QString&  locatio
 
     throw QgsGrass::Exception( QObject::tr( "Cannot run module" ) + "\n"
                                + QObject::tr( "command: %1 %2\nstdout: %3\nstderr: %4" )
-                               .arg( moduleName ).arg( arguments.join( " " ) )
-                               .arg( process->readAllStandardOutput().constData() )
-                               .arg( process->readAllStandardError().constData() ) );
+                               .arg( moduleName, arguments.join( " " ),
+                                     process->readAllStandardOutput().constData(),
+                                     process->readAllStandardError().constData() ) );
   }
   QByteArray data = process->readAllStandardOutput();
+  QgsDebugMsg( QString( "time (ms) = %1" ).arg( time.elapsed() ) );
   delete process;
   return data;
 }
@@ -1801,7 +1996,7 @@ QString QgsGrass::getInfo( const QString&  info, const QString&  gisdbase,
                            const QgsRectangle& extent, int sampleRows,
                            int sampleCols, int timeOut )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
 
   QStringList arguments;
 
@@ -1849,7 +2044,7 @@ QString QgsGrass::getInfo( const QString&  info, const QString&  gisdbase,
 QgsCoordinateReferenceSystem QgsGrass::crs( const QString& gisdbase, const QString& location,
     QString &error )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
   QgsCoordinateReferenceSystem crs = QgsCoordinateReferenceSystem();
   try
   {
@@ -1910,7 +2105,7 @@ QgsRectangle QgsGrass::extent( const QString& gisdbase, const QString& location,
                                const QString& mapset, const QString& map,
                                QgsGrassObject::Type type, QString &error )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
 
   try
   {
@@ -1932,7 +2127,7 @@ QgsRectangle QgsGrass::extent( const QString& gisdbase, const QString& location,
 void QgsGrass::size( const QString& gisdbase, const QString& location, const QString& mapset,
                      const QString& map, int *cols, int *rows, QString &error )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
 
   *cols = 0;
   *rows = 0;
@@ -1964,7 +2159,7 @@ QHash<QString, QString> QgsGrass::info( const QString& gisdbase, const QString& 
                                         int sampleRows, int sampleCols,
                                         int timeOut, QString &error )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
   QHash<QString, QString> inf;
 
   try
@@ -1995,7 +2190,7 @@ QHash<QString, QString> QgsGrass::info( const QString& gisdbase, const QString& 
 QList<QgsGrass::Color> QgsGrass::colors( QString gisdbase, QString location, QString mapset,
     QString map, QString& error )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
   QList<QgsGrass::Color> ct;
 
   try
@@ -2025,7 +2220,7 @@ QList<QgsGrass::Color> QgsGrass::colors( QString gisdbase, QString location, QSt
 
 QMap<QString, QString> QgsGrass::query( QString gisdbase, QString location, QString mapset, QString map, QgsGrassObject::Type type, double x, double y )
 {
-  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase ).arg( location ) );
+  QgsDebugMsg( QString( "gisdbase = %1 location = %2" ).arg( gisdbase, location ) );
 
   QMap<QString, QString> result;
   // TODO: multiple values (more rows)
@@ -2120,8 +2315,37 @@ bool QgsGrass::deleteObjectDialog( const QgsGrassObject & object )
   QgsDebugMsg( "entered" );
 
   return QMessageBox::question( 0, QObject::tr( "Delete confirmation" ),
-                                QObject::tr( "Are you sure you want to delete %1 %2?" ).arg( object.elementName() ).arg( object.name() ),
+                                QObject::tr( "Are you sure you want to delete %1 %2?" ).arg( object.elementName(), object.name() ),
                                 QMessageBox::Yes | QMessageBox::No ) == QMessageBox::Yes;
+}
+
+void QgsGrass::createVectorMap( const QgsGrassObject & object, QString &error )
+{
+  QgsDebugMsg( "entered" );
+
+  QgsGrass::setMapset( object );
+
+  struct Map_info *Map = 0;
+  QgsGrass::lock();
+  G_TRY
+  {
+    Map = vectNewMapStruct();
+    Vect_open_new( Map, object.name().toUtf8().data(), 0 );
+
+#if ( GRASS_VERSION_MAJOR == 6 && GRASS_VERSION_MINOR >= 4 ) || GRASS_VERSION_MAJOR > 6
+    Vect_build( Map );
+#else
+    Vect_build( Map, stderr );
+#endif
+    Vect_set_release_support( Map );
+    Vect_close( Map );
+  }
+  G_CATCH( QgsGrass::Exception &e )
+  {
+    error = tr( "Cannot create new vector: %1" ).arg( e.what() );
+  }
+  QgsGrass::vectDestroyMapStruct( Map );
+  QgsGrass::unlock();
 }
 
 void QgsGrass::createTable( dbDriver *driver, const QString tableName, const QgsFields &fields )
@@ -2169,7 +2393,7 @@ void QgsGrass::createTable( dbDriver *driver, const QString tableName, const Qgs
     }
     fieldsStringList <<  name + " " + typeName;
   }
-  QString sql = QString( "create table %1 (%2);" ).arg( tableName ).arg( fieldsStringList.join( ", " ) );
+  QString sql = QString( "create table %1 (%2);" ).arg( tableName, fieldsStringList.join( ", " ) );
 
   dbString dbstr;
   db_init_string( &dbstr );
@@ -2192,7 +2416,7 @@ void QgsGrass::insertRow( dbDriver *driver, const QString tableName,
   }
 
   QStringList valuesStringList;
-  foreach ( const QVariant& attribute, attributes )
+  Q_FOREACH ( const QVariant& attribute, attributes )
   {
     QString valueString;
 
@@ -2231,7 +2455,7 @@ void QgsGrass::insertRow( dbDriver *driver, const QString tableName,
 
     valuesStringList <<  valueString;
   }
-  QString sql = QString( "insert into %1 values (%2);" ).arg( tableName ).arg( valuesStringList.join( ", " ) );
+  QString sql = QString( "insert into %1 values (%2);" ).arg( tableName, valuesStringList.join( ", " ) );
 
   dbString dbstr;
   db_init_string( &dbstr );
@@ -2490,9 +2714,10 @@ void QgsGrass::setGisbase( bool custom, const QString &customDir )
   {
     mNonInitializable = false;
     initialized = false;
+    mInitError.clear();
     if ( !QgsGrass::init() )
     {
-      QgsDebugMsg( "cannot init : " + QgsGrass::errorMessage() );
+      QgsDebugMsg( "cannot init : " + QgsGrass::initError() );
     }
     emit gisbaseChanged();
   }
@@ -2665,7 +2890,7 @@ QgsGrass::ModuleOutput QgsGrass::parseModuleOutput( const QString & input, QStri
   QRegExp rxwarning( "GRASS_INFO_WARNING\\(\\d+,\\d+\\): (.*)" );
   QRegExp rxerror( "GRASS_INFO_ERROR\\(\\d+,\\d+\\): (.*)" );
   QRegExp rxend( "GRASS_INFO_END\\(\\d+,\\d+\\)" );
-  // GRASS added G_progress() which does not suport GRASS_MESSAGE_FORMAT=gui
+  // GRASS added G_progress() which does not support GRASS_MESSAGE_FORMAT=gui
   // and it is printing fprintf(stderr, "%10ld\b\b\b\b\b\b\b\b\b\b", n);
   // Ticket created https://trac.osgeo.org/grass/ticket/2751
   QRegExp rxprogress( " +(\\d+)\\b\\b\\b\\b\\b\\b\\b\\b\\b\\b" );

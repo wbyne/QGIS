@@ -21,10 +21,13 @@ INCLUDE_DIRECTORIES(
   ../../core
   ../../core/auth
   ../../core/raster
+  ../../core/geometry
   ../../gui
   ../../gui/auth
   ../gdal
   ${CMAKE_CURRENT_BINARY_DIR}/../../ui
+)
+INCLUDE_DIRECTORIES(SYSTEM
   ${GDAL_INCLUDE_DIR}
   ${QCA_INCLUDE_DIR}
 )

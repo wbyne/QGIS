@@ -947,7 +947,7 @@ int main( int argc, char *argv[] )
     }
     else
     {
-      qWarning( "loading of qgis translation failed [%s]", QString( "%1/qgis_%2" ).arg( i18nPath ).arg( myTranslationCode ).toLocal8Bit().constData() );
+      qWarning( "loading of qgis translation failed [%s]", QString( "%1/qgis_%2" ).arg( i18nPath, myTranslationCode ).toLocal8Bit().constData() );
     }
 
     /* Translation file for Qt.
@@ -961,7 +961,7 @@ int main( int argc, char *argv[] )
     }
     else
     {
-      qWarning( "loading of qt translation failed [%s]", QString( "%1/qt_%2" ).arg( QLibraryInfo::location( QLibraryInfo::TranslationsPath ) ).arg( myTranslationCode ).toLocal8Bit().constData() );
+      qWarning( "loading of qt translation failed [%s]", QString( "%1/qt_%2" ).arg( QLibraryInfo::location( QLibraryInfo::TranslationsPath ), myTranslationCode ).toLocal8Bit().constData() );
     }
   }
 
@@ -1003,7 +1003,7 @@ int main( int argc, char *argv[] )
 
   //set up splash screen
   QString mySplashPath( QgsCustomization::instance()->splashPath() );
-  QPixmap myPixmap( mySplashPath + QString( "splash.png" ) );
+  QPixmap myPixmap( mySplashPath + QLatin1String( "splash.png" ) );
   QSplashScreen *mypSplash = new QSplashScreen( myPixmap );
   if ( mySettings.value( "/qgis/hideSplash" ).toBool() || myHideSplash )
   {

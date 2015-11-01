@@ -859,7 +859,7 @@ QgsOptions::~QgsOptions()
 {
 }
 
-void QgsOptions::setCurrentPage( QString pageWidgetName )
+void QgsOptions::setCurrentPage( const QString& pageWidgetName )
 {
   //find the page with a matching widget name
   for ( int idx = 0; idx < mOptionsStackedWidget->count(); ++idx )
@@ -883,7 +883,7 @@ void QgsOptions::on_cbxProjectDefaultNew_toggled( bool checked )
 {
   if ( checked )
   {
-    QString fileName = QgsApplication::qgisSettingsDirPath() + QString( "project_default.qgs" );
+    QString fileName = QgsApplication::qgisSettingsDirPath() + QLatin1String( "project_default.qgs" );
     if ( ! QFile::exists( fileName ) )
     {
       QMessageBox::information( 0, tr( "Save default project" ), tr( "You must set a default project" ) );
@@ -894,7 +894,7 @@ void QgsOptions::on_cbxProjectDefaultNew_toggled( bool checked )
 
 void QgsOptions::on_pbnProjectDefaultSetCurrent_clicked()
 {
-  QString fileName = QgsApplication::qgisSettingsDirPath() + QString( "project_default.qgs" );
+  QString fileName = QgsApplication::qgisSettingsDirPath() + QLatin1String( "project_default.qgs" );
   if ( QgsProject::instance()->write( QFileInfo( fileName ) ) )
   {
     QMessageBox::information( 0, tr( "Save default project" ), tr( "Current project saved as default" ) );
@@ -907,7 +907,7 @@ void QgsOptions::on_pbnProjectDefaultSetCurrent_clicked()
 
 void QgsOptions::on_pbnProjectDefaultReset_clicked()
 {
-  QString fileName = QgsApplication::qgisSettingsDirPath() + QString( "project_default.qgs" );
+  QString fileName = QgsApplication::qgisSettingsDirPath() + QLatin1String( "project_default.qgs" );
   if ( QFile::exists( fileName ) )
   {
     QFile::remove( fileName );
@@ -927,7 +927,7 @@ void QgsOptions::on_pbnTemplateFolderBrowse_pressed()
 
 void QgsOptions::on_pbnTemplateFolderReset_pressed()
 {
-  leTemplateFolder->setText( QgsApplication::qgisSettingsDirPath() + QString( "project_templates" ) );
+  leTemplateFolder->setText( QgsApplication::qgisSettingsDirPath() + QLatin1String( "project_templates" ) );
 }
 
 void QgsOptions::iconSizeChanged( const QString &iconSize )
@@ -1416,12 +1416,12 @@ void QgsOptions::on_mCustomGroupBoxChkBx_clicked( bool chkd )
   mStyleSheetBuilder->buildStyleSheet( mStyleSheetNewOpts );
 }
 
-void QgsOptions::on_leProjectGlobalCrs_crsChanged( QgsCoordinateReferenceSystem crs )
+void QgsOptions::on_leProjectGlobalCrs_crsChanged( const QgsCoordinateReferenceSystem& crs )
 {
   mDefaultCrs = crs;
 }
 
-void QgsOptions::on_leLayerGlobalCrs_crsChanged( QgsCoordinateReferenceSystem crs )
+void QgsOptions::on_leLayerGlobalCrs_crsChanged( const QgsCoordinateReferenceSystem& crs )
 {
   mLayerDefaultCrs = crs;
 }
@@ -1521,7 +1521,7 @@ void QgsOptions::on_mCustomVariablesChkBx_toggled( bool chkd )
   mCustomVariablesTable->setEnabled( chkd );
 }
 
-void QgsOptions::addCustomEnvVarRow( QString varName, QString varVal, QString varApply )
+void QgsOptions::addCustomEnvVarRow( const QString& varName, const QString& varVal, const QString& varApply )
 {
   int rowCnt = mCustomVariablesTable->rowCount();
   mCustomVariablesTable->insertRow( rowCnt );
@@ -1748,7 +1748,7 @@ void QgsOptions::loadGdalDriverList()
       pszVirtualIO = "v";
     else
       pszVirtualIO = "";
-    myDriversFlags[myGdalDriverDescription] = QString( "%1%2" ).arg( pszRWFlag ).arg( pszVirtualIO );
+    myDriversFlags[myGdalDriverDescription] = QString( "%1%2" ).arg( pszRWFlag, pszVirtualIO );
 
     // get driver extensions and long name
     // the gdal provider can override/add extensions but there is no interface to query this
@@ -1924,7 +1924,7 @@ void QgsOptions::on_pbnExportScales_clicked()
   }
 }
 
-void QgsOptions::initContrastEnhancement( QComboBox *cbox, QString name, QString defaultVal )
+void QgsOptions::initContrastEnhancement( QComboBox *cbox, const QString& name, const QString& defaultVal )
 {
   QSettings settings;
 
@@ -1938,7 +1938,7 @@ void QgsOptions::initContrastEnhancement( QComboBox *cbox, QString name, QString
   cbox->setCurrentIndex( cbox->findData( contrastEnchacement ) );
 }
 
-void QgsOptions::saveContrastEnhancement( QComboBox *cbox, QString name )
+void QgsOptions::saveContrastEnhancement( QComboBox *cbox, const QString& name )
 {
   QSettings settings;
   QString value = cbox->itemData( cbox->currentIndex() ).toString();

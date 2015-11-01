@@ -45,6 +45,7 @@ QgsAtlasCompositionWidget::QgsAtlasCompositionWidget( QWidget* parent, QgsCompos
   mAtlasCoverageLayerComboBox->setFilters( QgsMapLayerProxyModel::VectorLayer );
 
   connect( mAtlasCoverageLayerComboBox, SIGNAL( layerChanged( QgsMapLayer* ) ), mAtlasSortFeatureKeyComboBox, SLOT( setLayer( QgsMapLayer* ) ) );
+  connect( mAtlasCoverageLayerComboBox, SIGNAL( layerChanged( QgsMapLayer* ) ), mPageNameWidget, SLOT( setLayer( QgsMapLayer* ) ) );
   connect( mAtlasCoverageLayerComboBox, SIGNAL( layerChanged( QgsMapLayer* ) ), this, SLOT( changeCoverageLayer( QgsMapLayer* ) ) );
   connect( mAtlasSortFeatureKeyComboBox, SIGNAL( fieldChanged( QString ) ), this, SLOT( changesSortFeatureField( QString ) ) );
   connect( mPageNameWidget, SIGNAL( fieldChanged( QString, bool ) ), this, SLOT( pageNameExpressionChanged( QString, bool ) ) );
@@ -117,8 +118,8 @@ void QgsAtlasCompositionWidget::on_mAtlasFilenamePatternEdit_editingFinished()
     QMessageBox::warning( this
                           , tr( "Could not evaluate filename pattern" )
                           , tr( "Could not set filename pattern as '%1'.\nParser error:\n%2" )
-                          .arg( mAtlasFilenamePatternEdit->text() )
-                          .arg( atlasMap->filenamePatternErrorString() )
+                          .arg( mAtlasFilenamePatternEdit->text(),
+                                atlasMap->filenamePatternErrorString() )
                         );
   }
 }
@@ -148,8 +149,8 @@ void QgsAtlasCompositionWidget::on_mAtlasFilenameExpressionButton_clicked()
         QMessageBox::warning( this
                               , tr( "Could not evaluate filename pattern" )
                               , tr( "Could not set filename pattern as '%1'.\nParser error:\n%2" )
-                              .arg( expression )
-                              .arg( atlasMap->filenamePatternErrorString() )
+                              .arg( expression,
+                                    atlasMap->filenamePatternErrorString() )
                             );
       }
     }
@@ -237,7 +238,7 @@ void QgsAtlasCompositionWidget::updateAtlasFeatures()
   }
 }
 
-void QgsAtlasCompositionWidget::changesSortFeatureField( QString fieldName )
+void QgsAtlasCompositionWidget::changesSortFeatureField( const QString& fieldName )
 {
   QgsAtlasComposition* atlasMap = &mComposition->atlasComposition();
   if ( !atlasMap )
@@ -270,7 +271,7 @@ void QgsAtlasCompositionWidget::on_mAtlasFeatureFilterCheckBox_stateChanged( int
   updateAtlasFeatures();
 }
 
-void QgsAtlasCompositionWidget::pageNameExpressionChanged( QString expression, bool valid )
+void QgsAtlasCompositionWidget::pageNameExpressionChanged( const QString& expression, bool valid )
 {
   QgsAtlasComposition* atlasMap = &mComposition->atlasComposition();
   if ( !atlasMap || ( !valid && !expression.isEmpty() ) )

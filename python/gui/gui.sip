@@ -77,6 +77,7 @@
 %Include qgsmapcanvasitem.sip
 %Include qgsmapcanvasmap.sip
 %Include qgsmapcanvassnapper.sip
+%Include qgsmapcanvassnappingutils.sip
 %Include qgsmaplayeractionregistry.sip
 %Include qgsmaplayercombobox.sip
 %Include qgsmaplayermodel.sip
@@ -187,6 +188,7 @@
 %Include symbology-ng/qgssinglesymbolrendererv2widget.sip
 %Include symbology-ng/qgssmartgroupeditordialog.sip
 %Include symbology-ng/qgsstylev2managerdialog.sip
+%Include symbology-ng/qgsstylev2groupselectiondialog.sip
 %Include symbology-ng/qgssymbollayerv2widget.sip
 %Include symbology-ng/qgssymbollevelsv2dialog.sip
 %Include symbology-ng/qgssymbolslistwidget.sip

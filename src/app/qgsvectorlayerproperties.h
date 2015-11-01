@@ -61,7 +61,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     void setRendererDirty( bool ) {}
 
     /** Sets the attribute that is used in the Identify Results dialog box*/
-    void setDisplayField( QString name );
+    void setDisplayField( const QString& name );
 
     /** Adds an attribute to the table (but does not commit it yet)
     @param field the field to add
@@ -104,7 +104,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
 
     void on_pbnQueryBuilder_clicked();
     void on_pbnIndex_clicked();
-    void on_mCrsSelector_crsChanged( QgsCoordinateReferenceSystem crs );
+    void on_mCrsSelector_crsChanged( const QgsCoordinateReferenceSystem& crs );
     void loadDefaultStyle_clicked();
     void saveDefaultStyle_clicked();
     void loadStyle_clicked();
@@ -124,8 +124,8 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
   signals:
 
     /** Emitted when changes to layer were saved to update legend */
-    void refreshLegend( QString layerID, bool expandItem );
-    void refreshLegend( QString layerID );
+    void refreshLegend( const QString& layerID, bool expandItem );
+    void refreshLegend( const QString& layerID );
 
     void toggleEditing( QgsMapLayer * );
 

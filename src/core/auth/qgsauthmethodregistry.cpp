@@ -35,13 +35,13 @@ typedef QString description_t();
 typedef bool    isauthmethod_t();
 
 
-QgsAuthMethodRegistry *QgsAuthMethodRegistry::instance( QString pluginPath )
+QgsAuthMethodRegistry *QgsAuthMethodRegistry::instance( const QString& pluginPath )
 {
   static QgsAuthMethodRegistry* sInstance( new QgsAuthMethodRegistry( pluginPath ) );
   return sInstance;
 }
 
-QgsAuthMethodRegistry::QgsAuthMethodRegistry( QString pluginPath )
+QgsAuthMethodRegistry::QgsAuthMethodRegistry( const QString& pluginPath )
 {
   // At startup, examine the libs in the qgis/lib dir and store those that
   // are an auth method shared lib
@@ -102,7 +102,7 @@ QgsAuthMethodRegistry::QgsAuthMethodRegistry( QString pluginPath )
     QLibrary myLib( fi.filePath() );
     if ( !myLib.load() )
     {
-      QgsDebugMsg( QString( "Checking %1: ...invalid (lib not loadable): %2" ).arg( myLib.fileName() ).arg( myLib.errorString() ) );
+      QgsDebugMsg( QString( "Checking %1: ...invalid (lib not loadable): %2" ).arg( myLib.fileName(), myLib.errorString() ) );
       continue;
     }
 
@@ -288,7 +288,7 @@ QgsAuthMethod *QgsAuthMethodRegistry::authMethod( const QString &authMethodKey )
   QgsDebugMsg( "Auth method library name is " + myLib.fileName() );
   if ( !myLib.load() )
   {
-    QgsMessageLog::logMessage( QObject::tr( "Failed to load %1: %2" ).arg( lib ).arg( myLib.errorString() ) );
+    QgsMessageLog::logMessage( QObject::tr( "Failed to load %1: %2" ).arg( lib, myLib.errorString() ) );
     return 0;
   }
 

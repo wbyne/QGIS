@@ -28,7 +28,7 @@
 QgsRasterLayerSaveAsDialog::QgsRasterLayerSaveAsDialog( QgsRasterLayer* rasterLayer,
     QgsRasterDataProvider* sourceProvider, const QgsRectangle& currentExtent,
     const QgsCoordinateReferenceSystem& layerCrs, const QgsCoordinateReferenceSystem& currentCrs,
-    QWidget* parent, Qt::WindowFlags f ) :
+    QWidget* parent, const Qt::WindowFlags& f ) :
     QDialog( parent, f )
     , mRasterLayer( rasterLayer ), mDataProvider( sourceProvider )
     , mCurrentExtent( currentExtent ), mLayerCrs( layerCrs )
@@ -178,7 +178,7 @@ void QgsRasterLayerSaveAsDialog::on_mBrowseButton_clicked()
       if ( !files.isEmpty() )
       {
         QMessageBox::StandardButton button = QMessageBox::warning( this, tr( "Warning" ),
-                                             tr( "The directory %1 contains files which will be overwritten: %2" ).arg( dir.absolutePath() ).arg( files.join( ", " ) ),
+                                             tr( "The directory %1 contains files which will be overwritten: %2" ).arg( dir.absolutePath(), files.join( ", " ) ),
                                              QMessageBox::Ok | QMessageBox::Cancel );
 
         if ( button == QMessageBox::Ok )
@@ -673,7 +673,7 @@ void QgsRasterLayerSaveAsDialog::populatePyramidsLevels()
     {
       if ( ! mPyramidsUseExistingCheckBox->isChecked() ||  myRasterPyramidIterator->exists )
       {
-        text += QString::number( myRasterPyramidIterator->xDim ) + QString( "x" ) +
+        text += QString::number( myRasterPyramidIterator->xDim ) + QLatin1String( "x" ) +
                 QString::number( myRasterPyramidIterator->yDim ) + " ";
       }
     }

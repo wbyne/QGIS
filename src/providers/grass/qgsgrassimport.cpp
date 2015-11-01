@@ -241,6 +241,14 @@ bool QgsGrassRasterImport::import()
     return false;
   }
 
+
+  struct Cell_head defaultWindow;
+  if ( !QgsGrass::defaultRegion( mGrassObject.gisdbase(), mGrassObject.location(), &defaultWindow ) )
+  {
+    setError( "Cannot get default window" );
+    return false;
+  }
+
   int redBand = 0;
   int greenBand = 0;
   int blueBand = 0;
@@ -326,6 +334,8 @@ bool QgsGrassRasterImport::import()
 
     QDataStream outStream( mProcess );
 
+    outStream << ( qint32 ) defaultWindow.proj;
+    outStream << ( qint32 ) defaultWindow.zone;
     outStream << mExtent << ( qint32 )mXSize << ( qint32 )mYSize;
     outStream << ( qint32 )qgis_out_type;
 
@@ -436,8 +446,8 @@ bool QgsGrassRasterImport::import()
 
     QString processResult = QString( "exitStatus=%1, exitCode=%2, error=%3, errorString=%4 stdout=%5, stderr=%6" )
                             .arg( mProcess->exitStatus() ).arg( mProcess->exitCode() )
-                            .arg( mProcess->error() ).arg( mProcess->errorString() )
-                            .arg( stdoutString.replace( "\n", ", " ) ).arg( stderrString.replace( "\n", ", " ) );
+                            .arg( mProcess->error() ).arg( mProcess->errorString(),
+                                                           stdoutString.replace( "\n", ", " ), stderrString.replace( "\n", ", " ) );
     QgsDebugMsg( "processResult: " + processResult );
 
     if ( mProcess->exitStatus() != QProcess::NormalExit )
@@ -515,7 +525,7 @@ QStringList QgsGrassRasterImport::names() const
   QStringList list;
   if ( mPipe && mPipe->provider() )
   {
-    foreach ( const QString& ext, extensions( mPipe->provider() ) )
+    Q_FOREACH ( const QString& ext, extensions( mPipe->provider() ) )
     {
       list << mGrassObject.name() + ext;
     }
@@ -598,19 +608,31 @@ bool QgsGrassVectorImport::import()
 
   outStream << mProvider->fields();
 
+  // FID may be 0, but cat should be >= 1 -> check if fid 0 exists
+  qint32 fidToCatPlus = 0;
+  QgsFeature feature;
+  QgsFeatureIterator iterator = mProvider->getFeatures( QgsFeatureRequest().setFilterFid( 0 ) );
+  if ( iterator.nextFeature( feature ) )
+  {
+    fidToCatPlus = 1;
+  }
+  iterator.close();
+  outStream << fidToCatPlus;
+
   qint32 featureCount = mProvider->featureCount();
   outStream << featureCount;
 
-  QgsFeatureIterator iterator = mProvider->getFeatures();
-  QgsFeature feature;
   mProgress->append( tr( "Writing features" ) );
   for ( int i = 0; i < ( isPolygon ? 2 : 1 ); i++ ) // two cycles with polygons
   {
+    iterator = mProvider->getFeatures();
+    // rewind does not work
+#if 0
     if ( i > 0 ) // second run for polygons
     {
-      //iterator.rewind(); // rewind does not work
-      iterator = mProvider->getFeatures();
+      iterator.rewind();
     }
+#endif
     QgsDebugMsg( "send features" );
     // Better to get real progress from module (without buffer)
 #if 0
@@ -681,8 +703,8 @@ bool QgsGrassVectorImport::import()
     QgsDebugMsg( "got feedback" );
 #endif
 #endif
+    iterator.close();
   }
-  iterator.close();
 
   // Close write channel before waiting for response to avoid stdin buffer problem on Windows
   mProcess->closeWriteChannel();
@@ -701,8 +723,8 @@ bool QgsGrassVectorImport::import()
 
   QString processResult = QString( "exitStatus=%1, exitCode=%2, error=%3, errorString=%4 stdout=%5, stderr=%6" )
                           .arg( mProcess->exitStatus() ).arg( mProcess->exitCode() )
-                          .arg( mProcess->error() ).arg( mProcess->errorString() )
-                          .arg( stdoutString.replace( "\n", ", " ) ).arg( stderrString.replace( "\n", ", " ) );
+                          .arg( mProcess->error() ).arg( mProcess->errorString(),
+                                                         stdoutString.replace( "\n", ", " ), stderrString.replace( "\n", ", " ) );
   QgsDebugMsg( "processResult: " + processResult );
 
   if ( mProcess->exitStatus() != QProcess::NormalExit )

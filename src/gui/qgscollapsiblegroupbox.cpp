@@ -187,7 +187,7 @@ void QgsCollapsibleGroupBoxBasic::changeEvent( QEvent *event )
     mCollapseButton->setEnabled( true );
 }
 
-void QgsCollapsibleGroupBoxBasic::setSyncGroup( QString grp )
+void QgsCollapsibleGroupBoxBasic::setSyncGroup( const QString& grp )
 {
   mSyncGroup = grp;
   QString tipTxt;
@@ -254,7 +254,7 @@ void QgsCollapsibleGroupBoxBasic::toggleCollapsed()
       if ( mSyncParent->parentWidget() )
       {
         // don't use whole app for grandparent (common for dialogs that use main window for parent)
-        if ( mSyncParent->parentWidget()->objectName() != QString( "QgisApp" ) )
+        if ( mSyncParent->parentWidget()->objectName() != QLatin1String( "QgisApp" ) )
         {
           mSyncParent = mSyncParent->parentWidget();
         }
@@ -371,7 +371,7 @@ void QgsCollapsibleGroupBoxBasic::updateStyle()
   }
 
   QgsDebugMsg( QString( "groupbox: %1 style: %2 offset: left=%3 top=%4 top2=%5" ).arg(
-                 objectName() ).arg( QApplication::style()->objectName() ).arg( offsetLeft ).arg( offsetTop ).arg( offsetTopTri ) );
+                 objectName(), QApplication::style()->objectName() ).arg( offsetLeft ).arg( offsetTop ).arg( offsetTopTri ) );
 
   // customize style sheet for collapse/expand button and force left-aligned title
   QString ss;

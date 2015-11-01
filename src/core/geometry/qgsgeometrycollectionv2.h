@@ -103,6 +103,7 @@ class CORE_EXPORT QgsGeometryCollectionV2: public QgsAbstractGeometryV2
 
     virtual double length() const override;
     virtual double area() const override;
+    virtual double perimeter() const override;
 
     bool hasCurvedSegments() const override;
 
@@ -119,8 +120,16 @@ class CORE_EXPORT QgsGeometryCollectionV2: public QgsAbstractGeometryV2
     virtual int partCount() const override { return mGeometries.size(); }
     virtual QgsPointV2 vertexAt( const QgsVertexId& id ) const override { return mGeometries[id.part]->vertexAt( id ); }
 
+    virtual bool addZValue( double zValue = 0 ) override;
+    virtual bool addMValue( double mValue = 0 ) override;
+
   protected:
     QVector< QgsAbstractGeometryV2* > mGeometries;
+
+    /** Returns whether child type names are omitted from Wkt representations of the collection
+     * @note added in QGIS 2.12
+     */
+    virtual bool wktOmitChildType() const { return false; }
 
     /** Reads a collection from a WKT string.
      */

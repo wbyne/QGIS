@@ -28,15 +28,17 @@
 
 
 QgsAuthTrustedCAsDialog::QgsAuthTrustedCAsDialog( QWidget *parent,
-    QList<QSslCertificate> trustedCAs )
+    const QList<QSslCertificate>& trustedCAs )
     : QDialog( parent )
     , mTrustedCAs( trustedCAs )
+    , mDisabled( false )
     , mAuthNotifyLayout( 0 )
     , mAuthNotify( 0 )
     , mRootCaSecItem( 0 )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
+    mDisabled = true;
     mAuthNotifyLayout = new QVBoxLayout;
     this->setLayout( mAuthNotifyLayout );
     mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
@@ -121,7 +123,7 @@ void QgsAuthTrustedCAsDialog::populateCaCertsView()
   populateCaCertsSection( mRootCaSecItem, mTrustedCAs, QgsAuthTrustedCAsDialog::CaCert );
 }
 
-void QgsAuthTrustedCAsDialog::populateCaCertsSection( QTreeWidgetItem* item, QList<QSslCertificate> certs,
+void QgsAuthTrustedCAsDialog::populateCaCertsSection( QTreeWidgetItem* item, const QList<QSslCertificate>& certs,
     QgsAuthTrustedCAsDialog::CaType catype )
 {
   if ( btnGroupByOrg->isChecked() )
@@ -134,7 +136,7 @@ void QgsAuthTrustedCAsDialog::populateCaCertsSection( QTreeWidgetItem* item, QLi
   }
 }
 
-void QgsAuthTrustedCAsDialog::appendCertsToGroup( QList<QSslCertificate> certs,
+void QgsAuthTrustedCAsDialog::appendCertsToGroup( const QList<QSslCertificate>& certs,
     QgsAuthTrustedCAsDialog::CaType catype,
     QTreeWidgetItem *parent )
 {
@@ -173,7 +175,7 @@ void QgsAuthTrustedCAsDialog::appendCertsToGroup( QList<QSslCertificate> certs,
   parent->sortChildren( 0, Qt::AscendingOrder );
 }
 
-void QgsAuthTrustedCAsDialog::appendCertsToItem( QList<QSslCertificate> certs,
+void QgsAuthTrustedCAsDialog::appendCertsToItem( const QList<QSslCertificate>& certs,
     QgsAuthTrustedCAsDialog::CaType catype,
     QTreeWidgetItem *parent )
 {
@@ -315,7 +317,10 @@ void QgsAuthTrustedCAsDialog::authMessageOut( const QString& message, const QStr
 
 void QgsAuthTrustedCAsDialog::showEvent( QShowEvent * e )
 {
-  treeTrustedCAs->setFocus();
+  if ( !mDisabled )
+  {
+    treeTrustedCAs->setFocus();
+  }
   QWidget::showEvent( e );
 }
 

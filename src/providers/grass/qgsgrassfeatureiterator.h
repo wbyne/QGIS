@@ -56,8 +56,6 @@ class GRASS_LIB_EXPORT QgsGrassFeatureSource : public QgsAbstractFeatureSource
 
     QGis::WkbType mQgisType; // WKBPoint, WKBLineString, ...
 
-    int mCidxFieldIndex;    // !UPDATE! Index for layerField in category index or -1 if no such field
-
     QgsFields mFields;
     QTextCodec* mEncoding;
 
@@ -86,14 +84,20 @@ class GRASS_LIB_EXPORT QgsGrassFeatureIterator : public QObject, public QgsAbstr
     //! end of iterating: free the resources / lock
     virtual bool close() override;
 
-    // create QgsFeatureId from GRASS geometry object id and cat
-    static QgsFeatureId makeFeatureId( int grassId, int cat );
+    // create QgsFeatureId from GRASS geometry object id, cat and layer number (editing)
+    static QgsFeatureId makeFeatureId( int grassId, int cat, int layer = 0 );
+
+    // Get layer number from QGIS fid
+    static int layerFromFid( QgsFeatureId fid );
 
     // Get GRASS line id from QGIS fid
     static int lidFromFid( QgsFeatureId fid );
 
     // Get GRASS cat from QGIS fid
     static int catFromFid( QgsFeatureId fid );
+
+    // get attribute value to be used in different layer when it is edited
+    static QVariant nonEditableValue( int layerNumber );
 
   public slots:
     /** Cancel iterator, iterator will be closed on next occasion, probably when next getFeature() gets called.

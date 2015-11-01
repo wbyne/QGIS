@@ -311,7 +311,7 @@ void QgsFieldsProperties::loadRelations()
     item->setFlags( Qt::ItemIsDragEnabled | Qt::ItemIsEnabled | Qt::ItemIsSelectable );
     mRelationsList->setItem( idx, RelLayerCol, item );
 
-    item = new QTableWidgetItem( relation.fieldPairs().first().referencingField() );
+    item = new QTableWidgetItem( relation.fieldPairs().at( 0 ).referencingField() );
     item->setFlags( Qt::ItemIsDragEnabled | Qt::ItemIsEnabled | Qt::ItemIsSelectable );
     mRelationsList->setItem( idx, RelFieldCol, item );
 
@@ -513,7 +513,7 @@ bool QgsFieldsProperties::addAttribute( const QgsField &field )
   else
   {
     mLayer->destroyEditCommand();
-    QMessageBox::critical( this, tr( "Failed to add field" ), tr( "Failed to add field '%1' of type '%2'. Is the field name unique?" ).arg( field.name() ).arg( field.typeName() ) );
+    QMessageBox::critical( this, tr( "Failed to add field" ), tr( "Failed to add field '%1' of type '%2'. Is the field name unique?" ).arg( field.name(), field.typeName() ) );
     return false;
   }
 }
@@ -538,7 +538,7 @@ QgsFieldsProperties::FieldConfig QgsFieldsProperties::configForRow( int row )
   return FieldConfig();
 }
 
-void QgsFieldsProperties::setConfigForRow( int row, QgsFieldsProperties::FieldConfig cfg )
+void QgsFieldsProperties::setConfigForRow( int row, const QgsFieldsProperties::FieldConfig& cfg )
 {
   Q_FOREACH ( QTableWidgetItem* wdg, mIndexedWidgets )
   {
@@ -916,7 +916,7 @@ QMimeData* QgsFieldsProperties::DragList::mimeData( const QList<QTableWidgetItem
  * DesignerTree implementation
  */
 
-QTreeWidgetItem* QgsFieldsProperties::DesignerTree::addContainer( QTreeWidgetItem* parent, QString title )
+QTreeWidgetItem* QgsFieldsProperties::DesignerTree::addContainer( QTreeWidgetItem* parent, const QString& title )
 {
   QTreeWidgetItem *newItem = new QTreeWidgetItem( QStringList() << title );
   newItem->setBackground( 0, QBrush( Qt::lightGray ) );

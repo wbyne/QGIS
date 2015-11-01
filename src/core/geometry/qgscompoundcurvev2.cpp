@@ -140,7 +140,7 @@ bool QgsCompoundCurveV2::fromWkt( const QString& wkt )
     return false;
   mWkbType = parts.first;
 
-  QString defaultChildWkbType = QString( "LineString%1%2" ).arg( is3D() ? "Z" : "" ).arg( isMeasure() ? "M" : "" );
+  QString defaultChildWkbType = QString( "LineString%1%2" ).arg( is3D() ? "Z" : "", isMeasure() ? "M" : "" );
 
   Q_FOREACH ( const QString& childWkt, QgsGeometryUtils::wktGetChildBlocks( parts.second, defaultChildWkbType ) )
   {
@@ -161,6 +161,23 @@ bool QgsCompoundCurveV2::fromWkt( const QString& wkt )
       return false;
     }
   }
+
+  //scan through curves and check if dimensionality of curves is different to compound curve.
+  //if so, update the type dimensionality of the compound curve to match
+  bool hasZ = false;
+  bool hasM = false;
+  Q_FOREACH ( const QgsCurveV2* curve, mCurves )
+  {
+    hasZ = hasZ || curve->is3D();
+    hasM = hasM || curve->isMeasure();
+    if ( hasZ && hasM )
+      break;
+  }
+  if ( hasZ )
+    addZValue( 0 );
+  if ( hasM )
+    addMValue( 0 );
+
   return true;
 }
 
@@ -606,5 +623,33 @@ double QgsCompoundCurveV2::vertexAngle( const QgsVertexId& vertex ) const
   {
     return 0.0;
   }
+}
+
+bool QgsCompoundCurveV2::addZValue( double zValue )
+{
+  if ( QgsWKBTypes::hasZ( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addZ( mWkbType );
+
+  Q_FOREACH ( QgsCurveV2* curve, mCurves )
+  {
+    curve->addZValue( zValue );
+  }
+  return true;
+}
+
+bool QgsCompoundCurveV2::addMValue( double mValue )
+{
+  if ( QgsWKBTypes::hasM( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addM( mWkbType );
+
+  Q_FOREACH ( QgsCurveV2* curve, mCurves )
+  {
+    curve->addMValue( mValue );
+  }
+  return true;
 }
 

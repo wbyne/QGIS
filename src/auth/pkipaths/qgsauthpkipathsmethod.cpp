@@ -48,7 +48,7 @@ QgsAuthPkiPathsMethod::QgsAuthPkiPathsMethod()
 
 QgsAuthPkiPathsMethod::~QgsAuthPkiPathsMethod()
 {
-  qDeleteAll( mPkiConfigBundleCache.values() );
+  qDeleteAll( mPkiConfigBundleCache );
   mPkiConfigBundleCache.clear();
 }
 
@@ -73,7 +73,7 @@ bool QgsAuthPkiPathsMethod::updateNetworkRequest( QNetworkRequest &request, cons
   Q_UNUSED( dataprovider )
 
   // TODO: is this too restrictive, to intercept only HTTPS connections?
-  if ( request.url().scheme().toLower() != QString( "https" ) )
+  if ( request.url().scheme().toLower() != QLatin1String( "https" ) )
   {
     QgsDebugMsg( QString( "Update request SSL config SKIPPED for authcfg %1: not HTTPS" ).arg( authcfg ) );
     return true;

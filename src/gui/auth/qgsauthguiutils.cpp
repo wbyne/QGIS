@@ -49,26 +49,26 @@ QColor QgsAuthGuiUtils::yellowColor()
 
 QString QgsAuthGuiUtils::greenTextStyleSheet( const QString &selector )
 {
-  return QString( "%1{color: %2;}" ).arg( selector ).arg( QgsAuthGuiUtils::greenColor().name() );
+  return QString( "%1{color: %2;}" ).arg( selector, QgsAuthGuiUtils::greenColor().name() );
 }
 
 QString QgsAuthGuiUtils::orangeTextStyleSheet( const QString &selector )
 {
-  return QString( "%1{color: %2;}" ).arg( selector ).arg( QgsAuthGuiUtils::orangeColor().name() );
+  return QString( "%1{color: %2;}" ).arg( selector, QgsAuthGuiUtils::orangeColor().name() );
 }
 
 QString QgsAuthGuiUtils::redTextStyleSheet( const QString &selector )
 {
-  return QString( "%1{color: %2;}" ).arg( selector ).arg( QgsAuthGuiUtils::redColor().name() );
+  return QString( "%1{color: %2;}" ).arg( selector, QgsAuthGuiUtils::redColor().name() );
 }
 
 bool QgsAuthGuiUtils::isDisabled( QgsMessageBar *msgbar, int timeout )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
-    msgbar->pushMessage( QgsAuthManager::instance()->authManTag(),
-                         QObject::tr( "DISABLED: QCA's OpenSSL plugin missing" ),
-                         QgsMessageBar::WARNING, timeout );
+    msgbar->pushMessage( QObject::tr( "Authentication System" ),
+                         QObject::tr( "DISABLED. Resources authenticating via the system can not be accessed" ),
+                         QgsMessageBar::CRITICAL, timeout );
     return true;
   }
   return false;

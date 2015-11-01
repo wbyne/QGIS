@@ -260,6 +260,26 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
   int cap = provider->capabilities();
   bool success = true;
 
+  //
+  // update geometries
+  //
+  if ( !mChangedGeometries.isEmpty() )
+  {
+    if (( cap & QgsVectorDataProvider::ChangeGeometries ) && provider->changeGeometryValues( mChangedGeometries ) )
+    {
+      commitErrors << tr( "SUCCESS: %n geometries were changed.", "changed geometries count", mChangedGeometries.size() );
+
+      emit committedGeometriesChanges( L->id(), mChangedGeometries );
+
+      mChangedGeometries.clear();
+    }
+    else
+    {
+      commitErrors << tr( "ERROR: %n geometries not changed.", "not changed geometries count", mChangedGeometries.size() );
+      success = false;
+    }
+  }
+
   QgsFields oldFields = L->fields();
 
   //
@@ -284,7 +304,7 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
       QString list = "ERROR: Pending attribute deletes:";
       Q_FOREACH ( int idx, mDeletedAttributeIds )
       {
-        list.append( " " + L->pendingFields()[idx].name() );
+        list.append( " " + L->pendingFields().at( idx ).name() );
       }
       commitErrors << list;
 #endif
@@ -338,8 +358,8 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
 
     for ( int i = 0; i < qMin( oldFields.count(), newFields.count() ); ++i )
     {
-      const QgsField& oldField = oldFields[i];
-      const QgsField& newField = newFields[i];
+      const QgsField& oldField = oldFields.at( i );
+      const QgsField& newField = newFields.at( i );
       if ( attributeChangesOk && oldField != newField )
       {
         commitErrors
@@ -347,17 +367,17 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
         << tr( "Provider: %1" ).arg( L->providerType() )
         << tr( "Storage: %1" ).arg( L->storageType() )
         << QString( "%1: name=%2 type=%3 typeName=%4 len=%5 precision=%6" )
-        .arg( tr( "expected field" ) )
-        .arg( oldField.name() )
-        .arg( QVariant::typeToName( oldField.type() ) )
-        .arg( oldField.typeName() )
+        .arg( tr( "expected field" ),
+              oldField.name(),
+              QVariant::typeToName( oldField.type() ),
+              oldField.typeName() )
         .arg( oldField.length() )
         .arg( oldField.precision() )
         << QString( "%1: name=%2 type=%3 typeName=%4 len=%5 precision=%6" )
-        .arg( tr( "retrieved field" ) )
-        .arg( newField.name() )
-        .arg( QVariant::typeToName( newField.type() ) )
-        .arg( newField.typeName() )
+        .arg( tr( "retrieved field" ),
+              newField.name(),
+              QVariant::typeToName( newField.type() ),
+              newField.typeName() )
         .arg( newField.length() )
         .arg( newField.precision() );
         attributeChangesOk = false;   // don't try attribute updates - they'll fail.
@@ -390,7 +410,7 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
           list.append( "\n  " + FID_TO_STRING( id ) + "[" );
           Q_FOREACH ( int idx, mChangedAttributeValues[ id ].keys() )
           {
-            list.append( QString( " %1:%2" ).arg( L->pendingFields()[idx].name() ).arg( mChangedAttributeValues[id][idx].toString() ) );
+            list.append( QString( " %1:%2" ).arg( L->pendingFields().at( idx ).name() ).arg( mChangedAttributeValues[id][idx].toString() ) );
           }
           list.append( " ]" );
         }
@@ -481,7 +501,7 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
             list.append( " " + FID_TO_STRING( f.id() ) + "[" );
             for ( int i = 0; i < L->pendingFields().size(); i++ )
             {
-              list.append( QString( " %1:%2" ).arg( L->pendingFields()[i].name() ).arg( f.attributes()[i].toString() ) );
+              list.append( QString( " %1:%2" ).arg( L->pendingFields().at( i ).name() ).arg( f.attributes()[i].toString() ) );
             }
             list.append( " ]" );
           }
@@ -500,26 +520,6 @@ bool QgsVectorLayerEditBuffer::commitChanges( QStringList& commitErrors )
   else
   {
     success = false;
-  }
-
-  //
-  // update geometries
-  //
-  if ( success && !mChangedGeometries.isEmpty() )
-  {
-    if (( cap & QgsVectorDataProvider::ChangeGeometries ) && provider->changeGeometryValues( mChangedGeometries ) )
-    {
-      commitErrors << tr( "SUCCESS: %n geometries were changed.", "changed geometries count", mChangedGeometries.size() );
-
-      emit committedGeometriesChanges( L->id(), mChangedGeometries );
-
-      mChangedGeometries.clear();
-    }
-    else
-    {
-      commitErrors << tr( "ERROR: %n geometries not changed.", "not changed geometries count", mChangedGeometries.size() );
-      success = false;
-    }
   }
 
   if ( !success && provider->hasErrors() )

@@ -94,7 +94,7 @@ class QgsGrassMapsetItem : public QgsDirectoryItem, public QgsGrassObjectItemBas
 
     QVector<QgsDataItem*> createChildren() override;
     virtual QList<QAction*> actions() override { return mActions->actions(); }
-    virtual bool acceptDrop() override { return true; }
+    virtual bool acceptDrop() override;
     virtual bool handleDrop( const QMimeData * data, Qt::DropAction action ) override;
 
   public slots:
@@ -227,7 +227,7 @@ class QgsGrassImportItem : public QgsDataItem, public QgsGrassObjectItemBase
 
   protected:
     // override refresh to keep Populating state
-    virtual void refresh( QVector<QgsDataItem*> children ) override { Q_UNUSED( children ); }
+    virtual void refresh( const QVector<QgsDataItem*>& children ) override { Q_UNUSED( children ); }
     //bool mDeleteAction;
     QgsGrassImport* mImport;
 

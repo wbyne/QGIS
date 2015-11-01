@@ -834,7 +834,7 @@ void QgsGeorefPluginGui::extentsChanged()
 }
 
 // Registry layer QGis
-void QgsGeorefPluginGui::layerWillBeRemoved( QString theLayerId )
+void QgsGeorefPluginGui::layerWillBeRemoved( const QString& theLayerId )
 {
   mAgainAddRaster = mLayer && mLayer->id().compare( theLayerId ) == 0;
 }
@@ -1125,7 +1125,7 @@ void QgsGeorefPluginGui::removeOldLayer()
   mCanvas->refresh();
 }
 
-void QgsGeorefPluginGui::updateIconTheme( QString theme )
+void QgsGeorefPluginGui::updateIconTheme( const QString& theme )
 {
   Q_UNUSED( theme );
   // File actions
@@ -1159,7 +1159,7 @@ void QgsGeorefPluginGui::updateIconTheme( QString theme )
 }
 
 // Mapcanvas Plugin
-void QgsGeorefPluginGui::addRaster( QString file )
+void QgsGeorefPluginGui::addRaster( const QString& file )
 {
   mLayer = new QgsRasterLayer( file, "Raster" );
 
@@ -1286,10 +1286,10 @@ void QgsGeorefPluginGui::saveGCPs()
     Q_FOREACH ( QgsGeorefDataPoint *pt, mPoints )
     {
       points << QString( "%1,%2,%3,%4,%5" )
-      .arg( qgsDoubleToString( pt->mapCoords().x() ) )
-      .arg( qgsDoubleToString( pt->mapCoords().y() ) )
-      .arg( qgsDoubleToString( pt->pixelCoords().x() ) )
-      .arg( qgsDoubleToString( pt->pixelCoords().y() ) )
+      .arg( qgsDoubleToString( pt->mapCoords().x() ),
+            qgsDoubleToString( pt->mapCoords().y() ),
+            qgsDoubleToString( pt->pixelCoords().x() ),
+            qgsDoubleToString( pt->pixelCoords().y() ) )
       .arg( pt->isEnabled() ) << endl;
     }
 
@@ -1419,7 +1419,7 @@ bool QgsGeorefPluginGui::georeference()
   return false;
 }
 
-bool QgsGeorefPluginGui::writeWorldFile( QgsPoint origin, double pixelXSize, double pixelYSize, double rotation )
+bool QgsGeorefPluginGui::writeWorldFile( const QgsPoint& origin, double pixelXSize, double pixelYSize, double rotation )
 {
   // write the world file
   QFile file( mWorldFileName );
@@ -1666,7 +1666,7 @@ bool QgsGeorefPluginGui::writePDFReportFile( const QString& fileName, const QgsG
   QGraphicsRectItem* previousItem = composerMap;
   if ( wldTransform )
   {
-    QString parameterTitle = tr( "Transformation parameters" ) + QString( " (" ) + convertTransformEnumToString( transform.transformParametrisation() ) + QString( ")" );
+    QString parameterTitle = tr( "Transformation parameters" ) + QLatin1String( " (" ) + convertTransformEnumToString( transform.transformParametrisation() ) + QLatin1String( ")" );
     parameterLabel = new QgsComposerLabel( composition );
     parameterLabel->setFont( titleFont );
     parameterLabel->setText( parameterTitle );
@@ -1874,7 +1874,7 @@ QString QgsGeorefPluginGui::generateGDALtranslateCommand( bool generateTFW )
   return gdalCommand.join( " " );
 }
 
-QString QgsGeorefPluginGui::generateGDALwarpCommand( QString resampling, QString compress,
+QString QgsGeorefPluginGui::generateGDALwarpCommand( const QString& resampling, const QString& compress,
     bool useZeroForTrans, int order, double targetResX, double targetResY )
 {
   QStringList gdalCommand;
@@ -2120,7 +2120,7 @@ QIcon QgsGeorefPluginGui::getThemeIcon( const QString &theName )
   }
 }
 
-bool QgsGeorefPluginGui::checkFileExisting( QString fileName, QString title, QString question )
+bool QgsGeorefPluginGui::checkFileExisting( const QString& fileName, const QString& title, const QString& question )
 {
   if ( !fileName.isEmpty() )
   {

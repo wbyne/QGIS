@@ -426,12 +426,12 @@ class CORE_EXPORT QgsComposition : public QGraphicsScene
         retrieve.
       @return QgsComposerItem pointer or 0 pointer if no such item exists.
      */
-    const QgsComposerItem* getComposerItemById( const QString theId ) const;
+    const QgsComposerItem* getComposerItemById( const QString& theId ) const;
 
     /** Returns a composer item given its unique identifier.
       @param theUuid A QString representing the UUID of the item to
       **/
-    const QgsComposerItem* getComposerItemByUuid( const QString theUuid ) const;
+    const QgsComposerItem* getComposerItemByUuid( const QString& theUuid ) const;
 
     int printResolution() const {return mPrintResolution;}
     void setPrintResolution( const int dpi );
@@ -1080,7 +1080,7 @@ class CORE_EXPORT QgsComposition : public QGraphicsScene
     void refreshItemsTriggered();
 
     /** Is emitted when the composition has an updated status bar message for the composer window*/
-    void statusMsgChanged( QString message );
+    void statusMsgChanged( const QString& message );
 
     friend class QgsComposerObject; //for accessing dataDefinedEvaluate, readDataDefinedPropertyMap and writeDataDefinedPropertyMap
     friend class QgsComposerModel; //for accessing updateZValues (should not be public)

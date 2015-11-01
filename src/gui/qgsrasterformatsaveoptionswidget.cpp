@@ -31,8 +31,8 @@
 
 QMap< QString, QStringList > QgsRasterFormatSaveOptionsWidget::mBuiltinProfiles;
 
-QgsRasterFormatSaveOptionsWidget::QgsRasterFormatSaveOptionsWidget( QWidget* parent, QString format,
-    QgsRasterFormatSaveOptionsWidget::Type type, QString provider )
+QgsRasterFormatSaveOptionsWidget::QgsRasterFormatSaveOptionsWidget( QWidget* parent, const QString& format,
+    QgsRasterFormatSaveOptionsWidget::Type type, const QString& provider )
     : QWidget( parent ), mFormat( format ), mProvider( provider ), mRasterLayer( 0 )
     , mRasterFileName( QString() ), mPyramids( false )
     , mPyramidsFormat( QgsRaster::PyramidsGTiff )
@@ -101,14 +101,14 @@ QgsRasterFormatSaveOptionsWidget::~QgsRasterFormatSaveOptionsWidget()
 {
 }
 
-void QgsRasterFormatSaveOptionsWidget::setFormat( QString format )
+void QgsRasterFormatSaveOptionsWidget::setFormat( const QString& format )
 {
   mFormat = format;
   updateControls();
   updateProfiles();
 }
 
-void QgsRasterFormatSaveOptionsWidget::setProvider( QString provider )
+void QgsRasterFormatSaveOptionsWidget::setProvider( const QString& provider )
 {
   mProvider = provider;
   updateControls();
@@ -234,8 +234,8 @@ void QgsRasterFormatSaveOptionsWidget::apply()
 }
 
 // typedefs for gdal provider function pointers
-typedef QString validateCreationOptionsFormat_t( const QStringList& createOptions, QString format );
-typedef QString helpCreationOptionsFormat_t( QString format );
+typedef QString validateCreationOptionsFormat_t( const QStringList& createOptions, const QString& format );
+typedef QString helpCreationOptionsFormat_t( const QString& format );
 
 void QgsRasterFormatSaveOptionsWidget::helpOptions()
 {
@@ -293,7 +293,7 @@ QString QgsRasterFormatSaveOptionsWidget::validateOptions( bool gui, bool report
   QStringList createOptions = options();
   QString message;
 
-  QgsDebugMsg( QString( "layer: [%1] file: [%2] format: [%3]" ).arg( mRasterLayer ? mRasterLayer->id() : "none" ).arg( mRasterFileName ).arg( mFormat ) );
+  QgsDebugMsg( QString( "layer: [%1] file: [%2] format: [%3]" ).arg( mRasterLayer ? mRasterLayer->id() : "none", mRasterFileName, mFormat ) );
   // if no rasterLayer is defined, but we have a raster fileName, then create a temp. rasterLayer to validate options
   // ideally we should keep it for future access, but this is trickier
   QgsRasterLayer* rasterLayer = mRasterLayer;
@@ -375,7 +375,7 @@ QString QgsRasterFormatSaveOptionsWidget::validateOptions( bool gui, bool report
     }
     else
     {
-      QMessageBox::warning( this, "", tr( "Invalid %1:\n\n%2\n\nClick on help button to get valid creation options for this format." ).arg( mPyramids ? tr( "pyramid creation option" ) : tr( "creation option" ) ).arg( message ), QMessageBox::Close );
+      QMessageBox::warning( this, "", tr( "Invalid %1:\n\n%2\n\nClick on help button to get valid creation options for this format." ).arg( mPyramids ? tr( "pyramid creation option" ) : tr( "creation option" ), message ), QMessageBox::Close );
     }
   }
 
@@ -496,13 +496,13 @@ QStringList QgsRasterFormatSaveOptionsWidget::options() const
   return mOptionsMap.value( currentProfileKey() ).trimmed().split( " ", QString::SkipEmptyParts );
 }
 
-QString QgsRasterFormatSaveOptionsWidget::createOptions( QString profileName ) const
+QString QgsRasterFormatSaveOptionsWidget::createOptions( const QString& profileName ) const
 {
   QSettings mySettings;
   return mySettings.value( settingsKey( profileName ), "" ).toString();
 }
 
-void QgsRasterFormatSaveOptionsWidget::deleteCreateOptions( QString profileName )
+void QgsRasterFormatSaveOptionsWidget::deleteCreateOptions( const QString& profileName )
 {
   QSettings mySettings;
   mySettings.remove( settingsKey( profileName ) );
@@ -516,7 +516,7 @@ void QgsRasterFormatSaveOptionsWidget::setCreateOptions()
   while ( i != mOptionsMap.end() )
   {
     setCreateOptions( i.key(), i.value() );
-    myProfiles += i.key() + QString( " " );
+    myProfiles += i.key() + QLatin1String( " " );
     ++i;
   }
   mySettings.setValue( mProvider + "/driverOptions/" + mFormat.toLower() + "/profiles",
@@ -525,13 +525,13 @@ void QgsRasterFormatSaveOptionsWidget::setCreateOptions()
                        currentProfileKey().trimmed() );
 }
 
-void QgsRasterFormatSaveOptionsWidget::setCreateOptions( QString profileName, QString options )
+void QgsRasterFormatSaveOptionsWidget::setCreateOptions( const QString& profileName, const QString& options )
 {
   QSettings mySettings;
   mySettings.setValue( settingsKey( profileName ), options.trimmed() );
 }
 
-void QgsRasterFormatSaveOptionsWidget::setCreateOptions( QString profileName, QStringList list )
+void QgsRasterFormatSaveOptionsWidget::setCreateOptions( const QString& profileName, const QStringList& list )
 {
   setCreateOptions( profileName, list.join( " " ) );
 }

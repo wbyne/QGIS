@@ -403,7 +403,7 @@ static bool _isChildOfNode( QgsLayerTreeNode* child, QgsLayerTreeNode* node )
   return _isChildOfNode( child->parent(), node );
 }
 
-static bool _isChildOfNodes( QgsLayerTreeNode* child, QList<QgsLayerTreeNode*> nodes )
+static bool _isChildOfNodes( QgsLayerTreeNode* child, const QList<QgsLayerTreeNode*>& nodes )
 {
   Q_FOREACH ( QgsLayerTreeNode* n, nodes )
   {
@@ -562,6 +562,7 @@ void QgsLayerTreeModel::setLegendFilterByMap( const QgsMapSettings* settings )
   if ( settings && settings->hasValidSettings() )
   {
     mLegendFilterByMapSettings.reset( new QgsMapSettings( *settings ) );
+    mLegendFilterByMapSettings->setLayerStyleOverrides( mLayerStyleOverrides );
     mLegendFilterByMapHitTest.reset( new QgsMapHitTest( *mLegendFilterByMapSettings ) );
     mLegendFilterByMapHitTest->run();
   }
@@ -976,7 +977,7 @@ bool QgsLayerTreeModel::removeRows( int row, int count, const QModelIndex& paren
   return false;
 }
 
-void QgsLayerTreeModel::setFlags( QgsLayerTreeModel::Flags f )
+void QgsLayerTreeModel::setFlags( const QgsLayerTreeModel::Flags& f )
 {
   mFlags = f;
 }
@@ -1030,7 +1031,7 @@ QList<QgsLayerTreeModelLegendNode*> QgsLayerTreeModel::filterLegendNodes( const 
       {
         if ( QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( node->layerNode()->layer() ) )
         {
-          if ( mLegendFilterByMapHitTest->symbolsForLayer( vl ).contains( ruleKey ) )
+          if ( mLegendFilterByMapHitTest->symbolVisible( ruleKey, vl ) )
             filtered << node;
         }
       }

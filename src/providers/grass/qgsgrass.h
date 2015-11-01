@@ -36,6 +36,7 @@ extern "C"
 #include "qgsfeature.h"
 #include "qgsfield.h"
 #include <qgsrectangle.h>
+#include <QFileSystemWatcher>
 #include <QProcess>
 #include <QString>
 #include <QMap>
@@ -80,7 +81,9 @@ class GRASS_LIB_EXPORT QgsGrassObject
 {
   public:
     //! Element type
-    enum Type { None, Location, Mapset, Raster, Group, Vector, Region };
+    enum Type { None, Location, Mapset, Raster, Group, Vector, Region,
+                Strds, Stvds, Str3ds
+            };
 
     QgsGrassObject() : mType( None ) {}
     QgsGrassObject( const QString& gisdbase, const QString& location = QString::null,
@@ -107,6 +110,7 @@ class GRASS_LIB_EXPORT QgsGrassObject
     // set from QGIS layer uri, returns true if set correctly, verifies also if location is a GRASS location
     bool setFromUri( const QString& uri );
     // element name used as modules param, e.g. g.remove element=name
+    static QString elementShort( Type type );
     QString elementShort() const;
     // descriptive full name
     QString elementName() const;
@@ -172,6 +176,8 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
       int red1, red2, green1, green2, blue1, blue2;
     };
 
+    QgsGrass();
+
     /** Get singleton instance of this class. Used as signals proxy between provider and plugin. */
     static QgsGrass* instance();
 
@@ -192,11 +198,18 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     //! Get default LOCATION_NAME, returns LOCATION_NAME name or empty string if not in active mode
     static QString getDefaultLocation();
 
+    static QgsGrassObject getDefaultLocationObject();
+
     //! Get default path to location (gisdbase/location) or empty string if not in active mode
     static QString getDefaultLocationPath();
 
     //! Get default MAPSET, returns MAPSET name or empty string if not in active mode
     static QString getDefaultMapset();
+
+    static QgsGrassObject getDefaultMapsetObject();
+
+    //! Get default path to MAPSET (gisdbase/location/mapset) or empty string if not in active mode
+    static QString getDefaultMapsetPath();
 
     //! Init or reset GRASS library
     /*!
@@ -217,6 +230,10 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
      * @param grassObject */
     static void setMapset( QgsGrassObject grassObject );
 
+    /** Check if mapset is in search pat set by g.mapsets
+     *  @return true if in search path */
+    bool isMapsetInSearchPath( QString mapset );
+
     //! Error codes returned by error()
     enum GERROR
     {
@@ -233,6 +250,9 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
 
     //! Get last error message
     static QString errorMessage( void );
+
+    //! Get initialization error
+    static QString initError() { return mInitError; }
 
     /** Test is current user is owner of mapset */
     static bool isOwner( const QString& gisdbase, const QString& location, const QString& mapset );
@@ -298,7 +318,7 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     static QStringList elements( const QString&  mapsetPath, const QString&  element );
 
     //! List of existing objects
-    static QStringList grassObjects( const QString& mapsetPath, QgsGrassObject::Type type );
+    static QStringList grassObjects( const QgsGrassObject& mapsetObject, QgsGrassObject::Type type );
 
     // returns true if object (vector, raster, region) exists
     static bool objectExists( const QgsGrassObject& grassObject );
@@ -459,6 +479,11 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
      */
     static bool deleteObjectDialog( const QgsGrassObject & object );
 
+    /** Create new vector map
+     * @param object GRASS object specifying location/mapset/map
+     * @param error */
+    static void createVectorMap( const QgsGrassObject & object, QString &error );
+
     /** Create new table. Throws  QgsGrass::Exception */
     static void createTable( dbDriver *driver, const QString tableName, const QgsFields &fields );
 
@@ -578,7 +603,7 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
      * @param input input string read from module stderr
      * @param text parsed text
      * @param html html formated parsed text, e.g. + icons
-     * @param value percent 0-100 or progress as absolut number if total is unknown*/
+     * @param value percent 0-100 or progress as absolute number if total is unknown*/
     static ModuleOutput parseModuleOutput( const QString & input, QString &text, QString &html, int &value );
 
   public slots:
@@ -587,12 +612,21 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
 
     void openOptions();
 
+    /** Read mapset search path from GRASS location */
+    void loadMapsetSearchPath();
+
+    void setMapsetSearchPathWatcher();
+    void onSearchPathFileChanged( const QString & path );
+
   signals:
     /** Signal emitted  when user changed GISBASE */
     void gisbaseChanged();
 
     /** Signal emitted after mapset was opened */
     void mapsetChanged();
+
+    /** Signal emitted when mapset search path changed (SEARCH_PATH file changed and it was loaded to mMapsetSearchPath) */
+    void mapsetSearchPathChanged();
 
     /** Emitted when path to modules config dir changed */
     void modulesConfigChanged();
@@ -601,7 +635,7 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     void modulesDebugChanged();
 
     /** Emitted when current region changed
-     *  TODO: currently only emited when writeRegion is called, add file system watcher
+     *  TODO: currently only emitted when writeRegion is called, add file system watcher
      *  to get also changes done outside QGIS or by modules.
      */
     void regionChanged();
@@ -622,9 +656,15 @@ class GRASS_LIB_EXPORT QgsGrass : public QObject
     static QString defaultLocation;
     static QString defaultMapset;
 
+    // Mapsets in current search path
+    QStringList mMapsetSearchPath;
+    QFileSystemWatcher *mMapsetSearchPathWatcher;
+
     /* last error in GRASS libraries */
     static GERROR lastError;         // static, because used in constructor
     static QString error_message;
+    // error set in init() if it failed
+    static QString mInitError;
 
     // G_set_error_routine has two versions of the function's first argument it expects:
     // - char* msg - older version

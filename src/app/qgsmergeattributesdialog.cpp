@@ -53,6 +53,8 @@ QgsMergeAttributesDialog::QgsMergeAttributesDialog( const QgsFeatureList &featur
 
   QSettings settings;
   restoreGeometry( settings.value( "/Windows/MergeAttributes/geometry" ).toByteArray() );
+
+  connect( mSkipAllButton, SIGNAL( clicked() ), this, SLOT( setAllToSkip() ) );
 }
 
 QgsMergeAttributesDialog::QgsMergeAttributesDialog()
@@ -125,10 +127,10 @@ void QgsMergeAttributesDialog::createTableWidgetContents()
     {
       int idx = mTableWidget->horizontalHeaderItem( j )->data( Qt::UserRole ).toInt();
 
-      QTableWidgetItem* attributeValItem = new QTableWidgetItem( attrs[idx].toString() );
+      QTableWidgetItem* attributeValItem = new QTableWidgetItem( attrs.at( idx ).toString() );
       attributeValItem->setFlags( Qt::ItemIsEnabled | Qt::ItemIsSelectable );
       mTableWidget->setItem( i + 1, j, attributeValItem );
-      mTableWidget->setCellWidget( i + 1, j, QgsAttributeEditor::createAttributeEditor( mTableWidget, NULL, mVectorLayer, idx, attrs[idx] ) );
+      mTableWidget->setCellWidget( i + 1, j, QgsAttributeEditor::createAttributeEditor( mTableWidget, NULL, mVectorLayer, idx, attrs.at( idx ) ) );
     }
   }
 
@@ -305,7 +307,7 @@ QVariant QgsMergeAttributesDialog::featureAttribute( int featureId, int col )
   }
   else
   {
-    return QVariant( mVectorLayer->fields()[col].type() );
+    return QVariant( mVectorLayer->fields().at( col ).type() );
   }
 }
 
@@ -331,7 +333,7 @@ QVariant QgsMergeAttributesDialog::minimumAttribute( int col )
 
   if ( numberOfConsideredFeatures < 1 )
   {
-    return QVariant( mVectorLayer->fields()[col].type() );
+    return QVariant( mVectorLayer->fields().at( col ).type() );
   }
 
   return QVariant( minimumValue );
@@ -359,7 +361,7 @@ QVariant QgsMergeAttributesDialog::maximumAttribute( int col )
 
   if ( numberOfConsideredFeatures < 1 )
   {
-    return QVariant( mVectorLayer->fields()[col].type() );
+    return QVariant( mVectorLayer->fields().at( col ).type() );
   }
 
   return QVariant( maximumValue );
@@ -384,7 +386,7 @@ QVariant QgsMergeAttributesDialog::meanAttribute( int col )
 
   if ( numberOfConsideredFeatures < 1 )
   {
-    return QVariant( mVectorLayer->fields()[col].type() );
+    return QVariant( mVectorLayer->fields().at( col ).type() );
   }
 
   double mean = sum / numberOfConsideredFeatures;
@@ -415,7 +417,7 @@ QVariant QgsMergeAttributesDialog::medianAttribute( int col )
 
   if ( size < 1 )
   {
-    return QVariant( mVectorLayer->fields()[col].type() );
+    return QVariant( mVectorLayer->fields().at( col ).type() );
   }
 
   bool even = ( size % 2 ) < 1;
@@ -586,8 +588,6 @@ QgsAttributes QgsMergeAttributesDialog::mergedAttributes() const
     return QgsAttributes();
   }
 
-  QgsFields fields = mVectorLayer->fields();
-
   QgsAttributes results( mTableWidget->columnCount() );
   for ( int i = 0; i < mTableWidget->columnCount(); i++ )
   {
@@ -604,7 +604,7 @@ QgsAttributes QgsMergeAttributesDialog::mergedAttributes() const
     if ( idx >= results.count() )
       results.resize( idx + 1 ); // make sure the results vector is long enough (maybe not necessary)
 
-    if ( comboBox->itemData( comboBox->currentIndex() ) != "skip" )
+    if ( comboBox->itemData( comboBox->currentIndex() ).toString() != "skip" )
     {
       results[idx] = currentItem->data( Qt::DisplayRole );
     }
@@ -615,4 +615,38 @@ QgsAttributes QgsMergeAttributesDialog::mergedAttributes() const
   }
 
   return results;
+}
+
+QSet<int> QgsMergeAttributesDialog::skippedAttributeIndexes() const
+{
+  QSet<int> skipped;
+  for ( int i = 0; i < mTableWidget->columnCount(); ++i )
+  {
+    QComboBox *comboBox = qobject_cast<QComboBox *>( mTableWidget->cellWidget( 0, i ) );
+    if ( !comboBox )
+    {
+      //something went wrong, better skip this attribute
+      skipped << i;
+      continue;
+    }
+
+    if ( comboBox->itemData( comboBox->currentIndex() ).toString() == "skip" )
+    {
+      skipped << i;
+    }
+  }
+
+  return skipped;
+}
+
+void QgsMergeAttributesDialog::setAllToSkip()
+{
+  for ( int i = 0; i < mTableWidget->columnCount(); ++i )
+  {
+    QComboBox* currentComboBox = qobject_cast<QComboBox *>( mTableWidget->cellWidget( 0, i ) );
+    if ( currentComboBox )
+    {
+      currentComboBox->setCurrentIndex( currentComboBox->findData( "skip" ) );
+    }
+  }
 }

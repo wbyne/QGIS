@@ -94,6 +94,19 @@ bool QgsPointV2::fromWkt( const QString& wkt )
     clear();
     return false;
   }
+  else if ( coordinates.size() == 3 && !is3D() && !isMeasure() )
+  {
+    // 3 dimensional coordinates, but not specifically marked as such. We allow this
+    // anyway and upgrade geometry to have Z dimension
+    mWkbType = QgsWKBTypes::addZ( mWkbType );
+  }
+  else if ( coordinates.size() >= 4 && ( !is3D() || !isMeasure() ) )
+  {
+    // 4 (or more) dimensional coordinates, but not specifically marked as such. We allow this
+    // anyway and upgrade geometry to have Z&M dimensions
+    mWkbType = QgsWKBTypes::addZ( mWkbType );
+    mWkbType = QgsWKBTypes::addM( mWkbType );
+  }
 
   int idx = 0;
   mX = coordinates[idx++].toDouble();
@@ -242,6 +255,26 @@ bool QgsPointV2::nextVertex( QgsVertexId& id, QgsPointV2& vertex ) const
   {
     return false;
   }
+}
+
+bool QgsPointV2::addZValue( double zValue )
+{
+  if ( QgsWKBTypes::hasZ( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addZ( mWkbType );
+  mZ = zValue;
+  return true;
+}
+
+bool QgsPointV2::addMValue( double mValue )
+{
+  if ( QgsWKBTypes::hasM( mWkbType ) )
+    return false;
+
+  mWkbType = QgsWKBTypes::addM( mWkbType );
+  mM = mValue;
+  return true;
 }
 
 void QgsPointV2::transform( const QTransform& t )

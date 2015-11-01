@@ -29,7 +29,7 @@ class QgsCurvePolygonV2: public QgsSurfaceV2
 
     //surface interface
     virtual double area() const;
-    virtual double length() const;
+    virtual double perimeter() const;
     QgsPointV2 pointOnSurface() const;
     QgsPolygonV2* surfaceToPolygon() const;
 
@@ -42,7 +42,7 @@ class QgsCurvePolygonV2: public QgsSurfaceV2
     /** Sets exterior ring (takes ownership)*/
     void setExteriorRing( QgsCurveV2* ring /Transfer/ );
     /** Sets interior rings (takes ownership)*/
-    void setInteriorRings( QList<QgsCurveV2*> rings );
+    void setInteriorRings( const QList<QgsCurveV2*>& rings );
     void addInteriorRing( QgsCurveV2* ring /Transfer/ );
     /** Removes ring. Exterior ring is 0, first interior ring 1, ...*/
     bool removeInteriorRing( int nr );
@@ -70,4 +70,7 @@ class QgsCurvePolygonV2: public QgsSurfaceV2
     virtual int vertexCount(int part = 0, int ring = 0) const;
     virtual int ringCount(int part = 0) const;
     virtual int partCount() const;
+
+    virtual bool addZValue( double zValue = 0 );
+    virtual bool addMValue( double mValue = 0 );
 };

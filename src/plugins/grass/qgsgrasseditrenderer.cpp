@@ -19,7 +19,9 @@
 #include "qgscategorizedsymbolrendererv2.h"
 #include "qgscategorizedsymbolrendererv2widget.h"
 #include "qgsfeature.h"
+#include "qgslinesymbollayerv2.h"
 #include "qgslogger.h"
+#include "qgsmarkersymbollayerv2.h"
 #include "qgsrendererv2registry.h"
 #include "qgssymbollayerv2.h"
 #include "qgssymbollayerv2utils.h"
@@ -34,34 +36,50 @@ QgsGrassEditRenderer::QgsGrassEditRenderer()
     , mMarkerRenderer( 0 )
 {
   QHash<int, QColor> colors;
-  colors.insert( QgsGrassVectorMap::TopoUndefined, QColor( 125, 125, 125 ) );
+  //colors.insert( QgsGrassVectorMap::TopoUndefined, QColor( 125, 125, 125 ) );
   colors.insert( QgsGrassVectorMap::TopoLine, QColor( Qt::black ) );
-  colors.insert( QgsGrassVectorMap::TopoBoundary0, QColor( Qt::red ) );
-  colors.insert( QgsGrassVectorMap::TopoBoundary1, QColor( 255, 125, 0 ) );
-  colors.insert( QgsGrassVectorMap::TopoBoundary2, QColor( Qt::green ) );
+  colors.insert( QgsGrassVectorMap::TopoBoundaryError, QColor( Qt::red ) );
+  colors.insert( QgsGrassVectorMap::TopoBoundaryErrorLeft, QColor( 255, 125, 0 ) );
+  colors.insert( QgsGrassVectorMap::TopoBoundaryErrorRight, QColor( 255, 125, 0 ) );
+  colors.insert( QgsGrassVectorMap::TopoBoundaryOk, QColor( Qt::green ) );
 
   QHash<int, QString> labels;
-  labels.insert( QgsGrassVectorMap::TopoUndefined, "Unknown type" );
+  //labels.insert( QgsGrassVectorMap::TopoUndefined, "Unknown type" );
   labels.insert( QgsGrassVectorMap::TopoLine, "Line" );
-  labels.insert( QgsGrassVectorMap::TopoBoundary0, "Boundary (isolated)" );
-  labels.insert( QgsGrassVectorMap::TopoBoundary1, "Boundary (area on one side)" );
-  labels.insert( QgsGrassVectorMap::TopoBoundary2, "Boundary (areas on both sides)" );
+  labels.insert( QgsGrassVectorMap::TopoBoundaryError, "Boundary (topological error on both sides)" );
+  labels.insert( QgsGrassVectorMap::TopoBoundaryErrorLeft, "Boundary (topological error on the left side)" );
+  labels.insert( QgsGrassVectorMap::TopoBoundaryErrorRight, "Boundary (topological error on the right side)" );
+  labels.insert( QgsGrassVectorMap::TopoBoundaryOk, "Boundary (correct)" );
 
   QgsCategoryList categoryList;
 
-  foreach ( int value, colors.keys() )
+  // first/last vertex marker to distinguish vertices from nodes
+  QgsMarkerLineSymbolLayerV2 * firstVertexMarkerLine = new QgsMarkerLineSymbolLayerV2( false );
+  QgsSimpleMarkerSymbolLayerV2 *markerSymbolLayer = new QgsSimpleMarkerSymbolLayerV2( "x", QColor( 255, 0, 0 ), QColor( 255, 0, 0 ), 2 );
+  markerSymbolLayer->setOutlineWidth( 0.5 );
+  QgsSymbolLayerV2List markerLayers;
+  markerLayers << markerSymbolLayer;
+  QgsMarkerSymbolV2 * markerSymbol = new QgsMarkerSymbolV2( markerLayers );
+  firstVertexMarkerLine->setSubSymbol( markerSymbol );
+  firstVertexMarkerLine->setPlacement( QgsMarkerLineSymbolLayerV2::FirstVertex );
+  QgsMarkerLineSymbolLayerV2 * lastVertexMarkerLine = static_cast<QgsMarkerLineSymbolLayerV2 *>( firstVertexMarkerLine->clone() );
+  lastVertexMarkerLine->setPlacement( QgsMarkerLineSymbolLayerV2::LastVertex );
+  Q_FOREACH ( int value, colors.keys() )
   {
     QgsSymbolV2 * symbol = QgsSymbolV2::defaultSymbol( QGis::Line );
     symbol->setColor( colors.value( value ) );
+    symbol->appendSymbolLayer( firstVertexMarkerLine->clone() );
+    symbol->appendSymbolLayer( lastVertexMarkerLine->clone() );
     categoryList << QgsRendererCategoryV2( QVariant( value ), symbol, labels.value( value ) );
   }
-
+  delete firstVertexMarkerLine;
+  delete lastVertexMarkerLine;
   mLineRenderer = new QgsCategorizedSymbolRendererV2( "topo_symbol", categoryList );
 
   colors.clear();
   labels.clear();
 
-  colors.insert( QgsGrassVectorMap::TopoPoint, QColor( 0, 0, 0 ) );
+  colors.insert( QgsGrassVectorMap::TopoPoint, QColor( 0, 255, 255 ) );
   colors.insert( QgsGrassVectorMap::TopoCentroidIn, QColor( 0, 255, 0 ) );
   colors.insert( QgsGrassVectorMap::TopoCentroidOut, QColor( 255, 0, 0 ) );
   colors.insert( QgsGrassVectorMap::TopoCentroidDupl, QColor( 255, 0, 255 ) );
@@ -73,7 +91,7 @@ QgsGrassEditRenderer::QgsGrassEditRenderer()
 
   categoryList.clear();
 
-  foreach ( int value, colors.keys() )
+  Q_FOREACH ( int value, colors.keys() )
   {
     QgsSymbolV2 * symbol = QgsSymbolV2::defaultSymbol( QGis::Point );
     symbol->setColor( colors.value( value ) );
@@ -85,6 +103,8 @@ QgsGrassEditRenderer::QgsGrassEditRenderer()
 
 QgsGrassEditRenderer::~QgsGrassEditRenderer()
 {
+  delete mMarkerRenderer;
+  delete mLineRenderer;
 }
 
 void QgsGrassEditRenderer::setLineRenderer( QgsFeatureRendererV2 *renderer )
@@ -111,8 +131,9 @@ QgsSymbolV2* QgsGrassEditRenderer::symbolForFeature( QgsFeature& feature, QgsRen
   {
     symbol = mMarkerRenderer->symbolForFeature( feature, context );
   }
-  else if ( symbolCode == QgsGrassVectorMap::TopoLine || symbolCode == QgsGrassVectorMap::TopoBoundary0 ||
-            symbolCode == QgsGrassVectorMap::TopoBoundary1 || symbolCode == QgsGrassVectorMap::TopoBoundary2 )
+  else if ( symbolCode == QgsGrassVectorMap::TopoLine || symbolCode == QgsGrassVectorMap::TopoBoundaryError ||
+            symbolCode == QgsGrassVectorMap::TopoBoundaryErrorLeft || symbolCode == QgsGrassVectorMap::TopoBoundaryErrorRight ||
+            symbolCode == QgsGrassVectorMap::TopoBoundaryOk )
   {
     symbol = mLineRenderer->symbolForFeature( feature, context );
   }
@@ -244,12 +265,14 @@ QgsRendererV2Widget* QgsGrassEditRendererWidget::create( QgsVectorLayer* layer, 
 QgsGrassEditRendererWidget::QgsGrassEditRendererWidget( QgsVectorLayer* layer, QgsStyleV2* style, QgsFeatureRendererV2* renderer )
     : QgsRendererV2Widget( layer, style )
     , mRenderer( 0 )
+    , mLineRendererWidget( 0 )
+    , mPointRendererWidget( 0 )
 {
   QgsDebugMsg( "entered" );
   mRenderer = dynamic_cast<QgsGrassEditRenderer*>( renderer->clone() );
   if ( !mRenderer )
   {
-    return;
+    mRenderer = new QgsGrassEditRenderer();
   }
 
   QVBoxLayout* layout = new QVBoxLayout( this );

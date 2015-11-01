@@ -70,7 +70,7 @@ void QgsGraduatedSymbolRendererV2Model::addClass( QgsSymbolV2* symbol )
   endInsertRows();
 }
 
-void QgsGraduatedSymbolRendererV2Model::addClass( QgsRendererRangeV2 range )
+void QgsGraduatedSymbolRendererV2Model::addClass( const QgsRendererRangeV2& range )
 {
   if ( !mRenderer )
   {
@@ -637,7 +637,7 @@ void QgsGraduatedSymbolRendererV2Widget::updateUiFromRenderer( bool updateCount 
   connectUpdateHandlers();
 }
 
-void QgsGraduatedSymbolRendererV2Widget::graduatedColumnChanged( QString field )
+void QgsGraduatedSymbolRendererV2Widget::graduatedColumnChanged( const QString& field )
 {
   mRenderer->setClassAttribute( field );
 }
@@ -804,6 +804,9 @@ void QgsGraduatedSymbolRendererV2Widget::changeGraduatedSymbol()
 
 void QgsGraduatedSymbolRendererV2Widget::updateGraduatedSymbolIcon()
 {
+  if ( !mGraduatedSymbol )
+    return;
+
   QIcon icon = QgsSymbolLayerV2Utils::symbolPreviewIcon( mGraduatedSymbol, btnChangeGraduatedSymbol->iconSize() );
   btnChangeGraduatedSymbol->setIcon( icon );
 }
@@ -1017,7 +1020,7 @@ void QgsGraduatedSymbolRendererV2Widget::changeCurrentValue( QStandardItem * ite
   }
 }
 
-void QgsGraduatedSymbolRendererV2Widget::sizeScaleFieldChanged( QString fldName )
+void QgsGraduatedSymbolRendererV2Widget::sizeScaleFieldChanged( const QString& fldName )
 {
   mRenderer->setSizeScaleField( fldName );
 }

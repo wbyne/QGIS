@@ -106,7 +106,7 @@ class QgsComposerMapGridStack : QgsComposerMapItemStack
 
     /** Calculates the maximum distance grids within the stack extend beyond the
      * QgsComposerMap's item rect. This method calculates the distance for each side of the
-     * map item seperately
+     * map item separately
      * @param top storage for top extension
      * @param right storage for right extension
      * @param bottom storage for bottom extension
@@ -303,7 +303,7 @@ class QgsComposerMapGrid : QgsComposerMapItem
 
     /** Calculates the maximum distance the grid extends beyond the
      * QgsComposerMap's item rect. This method calculates the distance for each side of the
-     * map item seperately
+     * map item separately
      * @param top storage for top extension
      * @param right storage for right extension
      * @param bottom storage for bottom extension
@@ -668,7 +668,7 @@ class QgsComposerMapGrid : QgsComposerMapItem
      * @see frameSideFlags
      * @see testFrameSideFlag
     */
-    void setFrameSideFlags( const FrameSideFlags flags );
+    void setFrameSideFlags( const FrameSideFlags& flags );
 
     /** Sets whether the grid frame is drawn for a certain side of the map item.
      * @param flag flag for grid frame side

@@ -296,8 +296,8 @@ void QgsVectorLayerLabelProvider::drawLabel( QgsRenderContext& context, pal::Lab
 
   //font
   QFont dFont = lf->definedFont();
-  QgsDebugMsgLevel( QString( "PAL font tmpLyr: %1, Style: %2" ).arg( tmpLyr.textFont.toString() ).arg( tmpLyr.textFont.styleName() ), 4 );
-  QgsDebugMsgLevel( QString( "PAL font definedFont: %1, Style: %2" ).arg( dFont.toString() ).arg( dFont.styleName() ), 4 );
+  QgsDebugMsgLevel( QString( "PAL font tmpLyr: %1, Style: %2" ).arg( tmpLyr.textFont.toString(), tmpLyr.textFont.styleName() ), 4 );
+  QgsDebugMsgLevel( QString( "PAL font definedFont: %1, Style: %2" ).arg( dFont.toString(), dFont.styleName() ), 4 );
   tmpLyr.textFont = dFont;
 
   if ( tmpLyr.multilineAlign == QgsPalLayerSettings::MultiFollowPlacement )
@@ -497,12 +497,12 @@ void QgsVectorLayerLabelProvider::drawLabelPrivate( pal::LabelPosition* label, Q
       if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolAbove )
       {
         prependSymb = true;
-        symb = symb + QString( "\n" );
+        symb = symb + QLatin1String( "\n" );
       }
       else if ( tmpLyr.placeDirectionSymbol == QgsPalLayerSettings::SymbolBelow )
       {
         prependSymb = false;
-        symb = QString( "\n" ) + symb;
+        symb = QLatin1String( "\n" ) + symb;
       }
 
       if ( prependSymb )

@@ -33,7 +33,7 @@ class QgsExpression;
 class CORE_EXPORT QgsSimpleLineSymbolLayerV2 : public QgsLineSymbolLayerV2
 {
   public:
-    QgsSimpleLineSymbolLayerV2( QColor color = DEFAULT_SIMPLELINE_COLOR,
+    QgsSimpleLineSymbolLayerV2( const QColor& color = DEFAULT_SIMPLELINE_COLOR,
                                 double width = DEFAULT_SIMPLELINE_WIDTH,
                                 Qt::PenStyle penStyle = DEFAULT_SIMPLELINE_PENSTYLE );
 
@@ -59,7 +59,7 @@ class CORE_EXPORT QgsSimpleLineSymbolLayerV2 : public QgsLineSymbolLayerV2
 
     QgsSymbolLayerV2* clone() const override;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const override;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const override;
 
     QString ogrFeatureStyle( double mmScaleFactor, double mapUnitScaleFactor ) const override;
 
@@ -173,7 +173,7 @@ class CORE_EXPORT QgsMarkerLineSymbolLayerV2 : public QgsLineSymbolLayerV2
 
     QgsSymbolLayerV2* clone() const override;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const override;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const override;
 
     void setColor( const QColor& color ) override;
 

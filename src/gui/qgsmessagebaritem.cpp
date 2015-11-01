@@ -154,7 +154,7 @@ void QgsMessageBarItem::writeContent()
       QString t = mTitle.trimmed();
       if ( !content.isEmpty() && !t.endsWith( ":" ) && !t.endsWith( ": " ) )
         t += ": ";
-      content.prepend( QString( "<b>" ) + t + " </b>" );
+      content.prepend( QLatin1String( "<b>" ) + t + " </b>" );
     }
     mTextEdit->setText( content );
   }
@@ -193,14 +193,14 @@ void QgsMessageBarItem::writeContent()
   mStyleSheet += "QLabel#mItemCount { font-style: italic; }";
 }
 
-QgsMessageBarItem* QgsMessageBarItem::setText( QString text )
+QgsMessageBarItem* QgsMessageBarItem::setText( const QString& text )
 {
   mText = text;
   writeContent();
   return this;
 }
 
-QgsMessageBarItem *QgsMessageBarItem::setTitle( QString title )
+QgsMessageBarItem *QgsMessageBarItem::setTitle( const QString& title )
 {
   mTitle = title;
   writeContent();

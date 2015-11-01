@@ -204,7 +204,7 @@ bool QgsFeature::setAttribute( int idx, const QVariant &value )
   return true;
 }
 
-bool QgsFeature::setAttribute( const QString& name, QVariant value )
+bool QgsFeature::setAttribute( const QString& name, const QVariant& value )
 {
   int fieldIdx = fieldNameIndex( name );
   if ( fieldIdx == -1 )
@@ -231,7 +231,7 @@ QVariant QgsFeature::attribute( int fieldIdx ) const
   if ( fieldIdx < 0 || fieldIdx >= d->attributes.count() )
     return QVariant();
 
-  return d->attributes[fieldIdx];
+  return d->attributes.at( fieldIdx );
 }
 
 
@@ -241,7 +241,7 @@ QVariant QgsFeature::attribute( const QString& name ) const
   if ( fieldIdx == -1 )
     return QVariant();
 
-  return d->attributes[fieldIdx];
+  return d->attributes.at( fieldIdx );
 }
 
 int QgsFeature::fieldNameIndex( const QString& fieldName ) const

@@ -7,6 +7,8 @@ INCLUDE_DIRECTORIES(
   ../../core/geometry
   ../../core/raster
   ../../gui
+)
+INCLUDE_DIRECTORIES (SYSTEM
   ${GDAL_INCLUDE_DIR}
   ${PROJ_INCLUDE_DIR}
   ${GEOS_INCLUDE_DIR}
@@ -21,6 +23,7 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
     SET(GRASS_PREFIX ${GRASS_PREFIX${GRASS_BUILD_VERSION}})
     SET(GRASS_MAJOR_VERSION ${GRASS_MAJOR_VERSION${GRASS_BUILD_VERSION}})
     SET(GRASS_MINOR_VERSION ${GRASS_MINOR_VERSION${GRASS_BUILD_VERSION}})
+    SET(GRASS_OFF_T_SIZE ${GRASS_OFF_T_SIZE${GRASS_BUILD_VERSION}})
 
     QT4_WRAP_CPP(GRASS_LIBRARY_MOC_SRCS
       ../qgsgrass.h
@@ -28,6 +31,7 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
       ../qgsgrassimport.h
       ../qgsgrassoptions.h
       ../qgsgrassprovider.h
+      ../qgsgrassrasterprovider.h
       ../qgsgrassvector.h
       ../qgsgrassvectormap.h
       ../qgsgrassvectormaplayer.h
@@ -35,11 +39,13 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
 
     SET (GRASS_LIBRARY_SRCS
       ../qgsgrass.cpp
+      ../qgsgrasswin.cpp
       ../qgsgrassdatafile.cpp
       ../qgsgrassfeatureiterator.cpp
       ../qgsgrassimport.cpp
       ../qgsgrassoptions.cpp
       ../qgsgrassprovider.cpp
+      ../qgsgrassrasterprovider.cpp
       ../qgsgrassvector.cpp
       ../qgsgrassvectormap.cpp
       ../qgsgrassvectormaplayer.cpp
@@ -55,6 +61,12 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
       ${GRASS_LIBRARY_UIS_H}
     )
 
+    IF(GRASS_OFF_T_SIZE)
+      SET(GRASS_OFF_T_SIZE_DEF "\"-DGRASS_OFF_T_SIZE=${GRASS_OFF_T_SIZE}\"")
+    ELSE(GRASS_OFF_T_SIZE)
+      SET(GRASS_OFF_T_SIZE_DEF "")
+    ENDIF(GRASS_OFF_T_SIZE)
+
     SET_TARGET_PROPERTIES(qgisgrass${GRASS_BUILD_VERSION} PROPERTIES
       CLEAN_DIRECT_OUTPUT 1
       FRAMEWORK 1
@@ -62,7 +74,7 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
       MACOSX_FRAMEWORK_INFO_PLIST "${CMAKE_SOURCE_DIR}/mac/framework.info.plist.in"
       MACOSX_FRAMEWORK_SHORT_VERSION_STRING ${COMPLETE_VERSION}
       MACOSX_FRAMEWORK_IDENTIFIER org.qgis.qgis2_grass
-      COMPILE_FLAGS "-DGRASS_BASE=\\\"${GRASS_PREFIX}\\\" \"-DGRASS_LIB_EXPORT=${DLLEXPORT}\" \"-DGRASS_EXPORT=${DLLIMPORT}\""
+      COMPILE_FLAGS "-DGRASS_BASE=\\\"${GRASS_PREFIX}\\\" \"-DGRASS_LIB_EXPORT=${DLLEXPORT}\" \"-DGRASS_EXPORT=${DLLIMPORT}\" ${GRASS_OFF_T_SIZE_DEF}"
     )
 
     IF (APPLE)
@@ -131,12 +143,17 @@ MACRO(ADD_GRASSLIB GRASS_BUILD_VERSION)
     #
     # grass raster provider
     #
-    QT4_WRAP_CPP(GRASS_RASTERPROVIDER_MOC_SRCS ../qgsgrassrasterprovider.h)
-    ADD_LIBRARY(grassrasterprovider${GRASS_BUILD_VERSION} MODULE ../qgsgrassrasterprovider.cpp ${GRASS_RASTERPROVIDER_MOC_SRCS})
+    SET (GRASS_RASTER_PROVIDER_SRCS
+      ../qgsgrassrasterprovidermodule.cpp
+    )
+    ADD_LIBRARY(grassrasterprovider${GRASS_BUILD_VERSION} MODULE ${GRASS_RASTER_PROVIDER_SRCS})
     SET_TARGET_PROPERTIES(grassrasterprovider${GRASS_BUILD_VERSION} PROPERTIES
       COMPILE_FLAGS "-DGRASS_BASE=\\\"${GRASS_PREFIX}\\\" \"-DGRASS_EXPORT=${DLLEXPORT}\" \"-DGRASS_LIB_EXPORT=${DLLIMPORT}\""
     )
-    TARGET_LINK_LIBRARIES(grassrasterprovider${GRASS_BUILD_VERSION} qgisgrass${GRASS_BUILD_VERSION} qgis_core)
+    TARGET_LINK_LIBRARIES(grassrasterprovider${GRASS_BUILD_VERSION} 
+      qgisgrass${GRASS_BUILD_VERSION} 
+      qgis_core
+    )
 
     # override default path where built files are put to allow running qgis without installing
     # the modules go under libexec subdir

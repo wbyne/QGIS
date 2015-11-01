@@ -44,7 +44,7 @@ QgsVectorLayerUndoCommandAddFeature::QgsVectorLayerUndoCommandAddFeature( QgsVec
 
 void QgsVectorLayerUndoCommandAddFeature::undo()
 {
-#ifdef QGISDEBUG
+#ifndef QT_NO_DEBUG
   QgsFeatureMap::const_iterator it = mBuffer->mAddedFeatures.find( mFeature.id() );
   Q_ASSERT( it != mBuffer->mAddedFeatures.end() );
 #endif
@@ -119,7 +119,7 @@ QgsVectorLayerUndoCommandChangeGeometry::QgsVectorLayerUndoCommandChangeGeometry
   {
     QgsFeatureMap::const_iterator it = mBuffer->mAddedFeatures.find( mFid );
     Q_ASSERT( it != mBuffer->mAddedFeatures.end() );
-    mOldGeom = new QgsGeometry( *it.value().constGeometry() );
+    mOldGeom = ( it.value().constGeometry() ? new QgsGeometry( *it.value().constGeometry() ) : 0 );
   }
   else
   {

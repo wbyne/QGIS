@@ -322,7 +322,7 @@ QgsGrassModuleOption::QgsGrassModuleOption( QgsGrassModule *module, QString key,
               if ( mControlType == ComboBox )
               {
                 mComboBox->addItem( desc );
-                if ( mAnswer.length() > 0 && desc == mAnswer )
+                if ( mAnswer.length() > 0 && val == mAnswer )
                 {
                   mComboBox->setCurrentIndex( mComboBox->count() - 1 );
                 }
@@ -888,7 +888,7 @@ void QgsGrassModuleGdalInput::updateQgisLayers()
     mLayerComboBox->addItem( tr( "Select a layer" ), QVariant() );
   }
 
-  foreach ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
+  Q_FOREACH ( QgsMapLayer *layer, QgsMapLayerRegistry::instance()->mapLayers().values() )
   {
     if ( !layer ) continue;
 
@@ -1078,7 +1078,7 @@ QgsGrassModuleField::QgsGrassModuleField( QgsGrassModule *module, QString key,
   // Validator is disabled to allow to enter also expressions
 #if 0
   QRegExp rx( "^[a-zA-Z_][a-zA-Z0-9_]*$" );
-  foreach ( QLineEdit *lineEdit, mLineEdits )
+  Q_FOREACH ( QLineEdit *lineEdit, mLineEdits )
   {
     lineEdit->setValidator( new QRegExpValidator( rx, this ) );
   }
@@ -1150,10 +1150,10 @@ void QgsGrassModuleVectorField::updateFields()
 
   for ( int i = 0; i < fields.size(); i++ )
   {
-    if ( mType.contains( fields[i].typeName() ) )
+    if ( mType.contains( fields.at( i ).typeName() ) )
     {
-      mFieldComboBox->addItem( fields[i].name() );
-      if ( fields[i].name() == current )
+      mFieldComboBox->addItem( fields.at( i ).name() );
+      if ( fields.at( i ).name() == current )
       {
         mFieldComboBox->setItemText( mFieldComboBox->currentIndex(), current );
       }

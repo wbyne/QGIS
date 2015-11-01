@@ -320,7 +320,7 @@ QgsSymbolLayerV2* QgsEllipseSymbolLayerV2::clone() const
   return QgsEllipseSymbolLayerV2::create( properties() );
 }
 
-void QgsEllipseSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsEllipseSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   QDomElement symbolizerElem = doc.createElement( "se:PointSymbolizer" );
   if ( !props.value( "uom", "" ).isEmpty() )
@@ -333,7 +333,7 @@ void QgsEllipseSymbolLayerV2::toSld( QDomDocument &doc, QDomElement &element, Qg
   writeSldMarker( doc, symbolizerElem, props );
 }
 
-void QgsEllipseSymbolLayerV2::writeSldMarker( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const
+void QgsEllipseSymbolLayerV2::writeSldMarker( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const
 {
   // <Graphic>
   QDomElement graphicElem = doc.createElement( "se:Graphic" );
@@ -363,7 +363,7 @@ void QgsEllipseSymbolLayerV2::writeSldMarker( QDomDocument &doc, QDomElement &el
   {
     // the symbol has an angle and the symbol layer have a rotation
     // property set
-    angleFunc = QString( "%1 + %2" ).arg( angleFunc ).arg( ddRotation->useExpression() ? ddRotation->expressionString() : ddRotation->field() );
+    angleFunc = QString( "%1 + %2" ).arg( angleFunc, ddRotation->useExpression() ? ddRotation->expressionString() : ddRotation->field() );
   }
   else if ( !qgsDoubleNear( mAngle, 0.0 ) )
   {

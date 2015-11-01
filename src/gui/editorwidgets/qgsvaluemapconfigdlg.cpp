@@ -113,7 +113,7 @@ void QgsValueMapConfigDlg::removeSelectedButtonPushed()
   }
   for ( i = 0; i < rowsToRemove.values().size(); i++ )
   {
-    tableWidget->removeRow( rowsToRemove.values()[i] - removed );
+    tableWidget->removeRow( rowsToRemove.values().at( i ) - removed );
     removed++;
   }
 }
@@ -171,7 +171,7 @@ void QgsValueMapConfigDlg::loadFromCSVButtonPushed()
   {
     QMessageBox::information( NULL,
                               tr( "Error" ),
-                              tr( "Could not open file %1\nError was:%2" ).arg( fileName ).arg( f.errorString() ),
+                              tr( "Could not open file %1\nError was:%2" ).arg( fileName, f.errorString() ),
                               QMessageBox::Cancel );
     return;
   }

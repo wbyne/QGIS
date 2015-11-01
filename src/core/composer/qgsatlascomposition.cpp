@@ -63,7 +63,7 @@ void QgsAtlasComposition::setEnabled( bool enabled )
   emit parameterChanged();
 }
 
-void QgsAtlasComposition::removeLayers( QStringList layers )
+void QgsAtlasComposition::removeLayers( const QStringList& layers )
 {
   if ( !mCoverageLayer )
   {
@@ -257,7 +257,7 @@ int QgsAtlasComposition::updateFeatures()
 
     if ( mSortFeatures && sortIdx != -1 )
     {
-      mFeatureKeys.insert( feat.id(), feat.attributes()[ sortIdx ] );
+      mFeatureKeys.insert( feat.id(), feat.attributes().at( sortIdx ) );
     }
   }
 
@@ -499,6 +499,8 @@ bool QgsAtlasComposition::prepareForFeature( const int featureI, const bool upda
 void QgsAtlasComposition::computeExtent( QgsComposerMap* map )
 {
   // compute the extent of the current feature, in the crs of the specified map
+  if ( !mCurrentFeature.constGeometry() )
+    return;
 
   const QgsCoordinateReferenceSystem& coverage_crs = mCoverageLayer->crs();
   // transformation needed for feature geometries
@@ -516,7 +518,7 @@ void QgsAtlasComposition::computeExtent( QgsComposerMap* map )
 
 void QgsAtlasComposition::prepareMap( QgsComposerMap* map )
 {
-  if ( !map->atlasDriven() )
+  if ( !map->atlasDriven() || mCoverageLayer->wkbType() == QGis::WKBNoGeometry )
   {
     return;
   }
@@ -642,7 +644,7 @@ void QgsAtlasComposition::prepareMap( QgsComposerMap* map )
   map->setNewAtlasFeatureExtent( newExtent );
 }
 
-const QString& QgsAtlasComposition::currentFilename() const
+QString QgsAtlasComposition::currentFilename() const
 {
   return mCurrentFilename;
 }

@@ -59,7 +59,7 @@ QgsProjectFileTransform::transform QgsProjectFileTransform::transformers[] =
   {PFV( 2, 2, 0 ), PFV( 2, 3, 0 ), &QgsProjectFileTransform::transform2200to2300},
 };
 
-bool QgsProjectFileTransform::updateRevision( QgsProjectVersion newVersion )
+bool QgsProjectFileTransform::updateRevision( const QgsProjectVersion& newVersion )
 {
   Q_UNUSED( newVersion );
   bool returnValue = false;
@@ -355,7 +355,7 @@ void QgsProjectFileTransform::transform0110to1000()
         int fieldNumber = classificationFieldElem.text().toInt();
         if ( fieldNumber >= 0 && fieldNumber < theFields.count() )
         {
-          QDomText fieldName = mDom.createTextNode( theFields[fieldNumber].name() );
+          QDomText fieldName = mDom.createTextNode( theFields.at( fieldNumber ).name() );
           QDomNode nameNode = classificationFieldElem.firstChild();
           classificationFieldElem.replaceChild( fieldName, nameNode );
         }

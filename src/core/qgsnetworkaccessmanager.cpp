@@ -71,7 +71,7 @@ class QgsNetworkProxyFactory : public QNetworkProxyFactory
       {
         if ( url.startsWith( exclude ) )
         {
-          QgsDebugMsg( QString( "using default proxy for %1 [exclude %2]" ).arg( url ).arg( exclude ) );
+          QgsDebugMsg( QString( "using default proxy for %1 [exclude %2]" ).arg( url, exclude ) );
           return QList<QNetworkProxy>() << QNetworkProxy();
         }
       }
@@ -147,11 +147,11 @@ void QgsNetworkAccessManager::setFallbackProxyAndExcludes( const QNetworkProxy &
                      proxy.type() == QNetworkProxy::HttpProxy ? "HttpProxy" :
                      proxy.type() == QNetworkProxy::HttpCachingProxy ? "HttpCachingProxy" :
                      proxy.type() == QNetworkProxy::FtpCachingProxy ? "FtpCachingProxy" :
-                     "Undefined" )
-               .arg( proxy.hostName() )
+                     "Undefined",
+                     proxy.hostName() )
                .arg( proxy.port() )
-               .arg( proxy.user() )
-               .arg( proxy.password().isEmpty() ? "not set" : "set" ) );
+               .arg( proxy.user(),
+                     proxy.password().isEmpty() ? "not set" : "set" ) );
 
   mFallbackProxy = proxy;
   mExcludedURLs = excludes;
@@ -171,18 +171,17 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
 
 #ifndef QT_NO_OPENSSL
   bool ishttps = pReq->url().scheme().toLower() == "https";
-  QgsAuthConfigSslServer servconfig;
-  if ( ishttps )
+  if ( ishttps && !QgsAuthManager::instance()->isDisabled() )
   {
+    QgsDebugMsg( "Adding trusted CA certs to request" );
+    QSslConfiguration sslconfig( pReq->sslConfiguration() );
+    sslconfig.setCaCertificates( QgsAuthManager::instance()->getTrustedCaCertsCache() );
+
     // check for SSL cert custom config
     QString hostport( QString( "%1:%2" )
                       .arg( pReq->url().host().trimmed() )
                       .arg( pReq->url().port() != -1 ? pReq->url().port() : 443 ) );
-    servconfig = QgsAuthManager::instance()->getSslCertCustomConfigByHost( hostport.trimmed() );
-
-    QgsDebugMsg( "Adding trusted CA certs to request" );
-    QSslConfiguration sslconfig( pReq->sslConfiguration() );
-    sslconfig.setCaCertificates( QgsAuthManager::instance()->getTrustedCaCertsCache() );
+    QgsAuthConfigSslServer servconfig = QgsAuthManager::instance()->getSslCertCustomConfigByHost( hostport.trimmed() );
     if ( !servconfig.isNull() )
     {
       QgsDebugMsg( QString( "Adding SSL custom config to request for %1" ).arg( hostport ) );
@@ -190,6 +189,7 @@ QNetworkReply *QgsNetworkAccessManager::createRequest( QNetworkAccessManager::Op
       sslconfig.setPeerVerifyMode( servconfig.sslPeerVerifyMode() );
       sslconfig.setPeerVerifyDepth( servconfig.sslPeerVerifyDepth() );
     }
+
     pReq->setSslConfiguration( sslconfig );
   }
 #endif
@@ -349,7 +349,7 @@ void QgsNetworkAccessManager::setupDefaultProxyAndCache()
       QgsDebugMsg( QString( "setting proxy %1 %2:%3 %4/%5" )
                    .arg( proxyType )
                    .arg( proxyHost ).arg( proxyPort )
-                   .arg( proxyUser ).arg( proxyPassword )
+                   .arg( proxyUser, proxyPassword )
                  );
       proxy = QNetworkProxy( proxyType, proxyHost, proxyPort, proxyUser, proxyPassword );
     }

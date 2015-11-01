@@ -161,7 +161,7 @@ static
 QgsProperty *addKey_( QString const &scope,
                       QString const &key,
                       QgsPropertyKey *rootProperty,
-                      QVariant value )
+                      const QVariant& value )
 {
   QStringList keySequence = makeKeyTokens_( scope, key );
 
@@ -367,7 +367,7 @@ void QgsProject::setTitle( const QString &title )
 }
 
 
-QString const &QgsProject::title() const
+QString QgsProject::title() const
 {
   return imp_->title;
 } // QgsProject::title() const
@@ -804,7 +804,7 @@ bool QgsProject::read()
 
     imp_->file.close();
 
-    setError( tr( "%1 for file %2" ).arg( errorString ).arg( imp_->file.fileName() ) );
+    setError( tr( "%1 for file %2" ).arg( errorString, imp_->file.fileName() ) );
 
     return false;
   }
@@ -1190,7 +1190,7 @@ QgsProject::writeEntry( QString const &scope, const QString &key,
 QStringList
 QgsProject::readListEntry( QString const &scope,
                            const QString &key,
-                           QStringList def,
+                           const QStringList& def,
                            bool *ok ) const
 {
   QgsProperty *property = findKey_( scope, key, imp_->properties_ );
@@ -1479,7 +1479,7 @@ QString QgsProject::readPath( QString src ) const
 }
 
 // return the absolute or relative path to write it to the project file
-QString QgsProject::writePath( QString src, QString relativeBasePath ) const
+QString QgsProject::writePath( const QString& src, const QString& relativeBasePath ) const
 {
   if ( readBoolEntry( "Paths", "/Absolute", false ) || src.isEmpty() )
   {
@@ -1573,7 +1573,7 @@ QString QgsProject::writePath( QString src, QString relativeBasePath ) const
   return vsiPrefix + srcElems.join( "/" );
 }
 
-void QgsProject::setError( QString errorMessage )
+void QgsProject::setError( const QString& errorMessage )
 {
   mErrorMessage = errorMessage;
 }
@@ -1990,7 +1990,7 @@ bool QgsProject::topologicalEditing() const
   return ( QgsProject::instance()->readNumEntry( "Digitizing", "/TopologicalEditing", 0 ) > 0 );
 }
 
-void QgsProjectBadLayerDefaultHandler::handleBadLayers( QList<QDomNode> /*layers*/, QDomDocument /*projectDom*/ )
+void QgsProjectBadLayerDefaultHandler::handleBadLayers( const QList<QDomNode>& /*layers*/, const QDomDocument& /*projectDom*/ )
 {
   // just ignore any bad layers
 }

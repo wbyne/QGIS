@@ -18,7 +18,12 @@ SET(AUTH_BASIC_UIS qgsauthbasicedit.ui)
 INCLUDE_DIRECTORIES (
   ../../core
   ../../core/auth
+  ../../core/geometry
+)
+INCLUDE_DIRECTORIES (SYSTEM
   ${QCA_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES (
   ../../gui
   ../../gui/auth
   ${CMAKE_CURRENT_BINARY_DIR}

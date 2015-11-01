@@ -108,6 +108,7 @@ QgsComposer::QgsComposer( QgisApp *qgis, const QString& title )
     , mTitle( title )
     , mQgis( qgis )
     , mPrinter( 0 )
+    , mSetPageOrientation( false )
     , mUndoView( 0 )
     , mAtlasFeatureAction( 0 )
 {
@@ -639,9 +640,6 @@ QgsComposer::QgsComposer( QgisApp *qgis, const QString& title )
   connect( atlasMap, SIGNAL( numberFeaturesChanged( int ) ), this, SLOT( updateAtlasPageComboBox( int ) ) );
   connect( atlasMap, SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( atlasFeatureChanged( QgsFeature* ) ) );
 
-  //default printer page setup
-  setPrinterPageDefaults();
-
   // Create size grip (needed by Mac OS X for QMainWindow if QStatusBar is not visible)
   //should not be needed now that composer has a status bar?
 #if 0
@@ -937,12 +935,12 @@ void QgsComposer::statusZoomCombo_zoomEntered()
   mView->setZoomLevel( zoom.toDouble() / 100 );
 }
 
-void QgsComposer::updateStatusCompositionMsg( QString message )
+void QgsComposer::updateStatusCompositionMsg( const QString& message )
 {
   mStatusCompositionLabel->setText( message );
 }
 
-void QgsComposer::updateStatusAtlasMsg( QString message )
+void QgsComposer::updateStatusAtlasMsg( const QString& message )
 {
   mStatusAtlasLabel->setText( message );
 }
@@ -1528,8 +1526,13 @@ void QgsComposer::setComposition( QgsComposition* composition )
   connect( atlasMap, SIGNAL( numberFeaturesChanged( int ) ), this, SLOT( updateAtlasPageComboBox( int ) ) );
   connect( atlasMap, SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( atlasFeatureChanged( QgsFeature* ) ) );
 
-  //default printer page setup
-  setPrinterPageDefaults();
+  mSetPageOrientation = false;
+  if ( mPrinter )
+  {
+    //if printer has already been created then we need to reset the page orientation to match
+    //new composition
+    setPrinterPageOrientation();
+  }
 }
 
 void QgsComposer::dockVisibilityChanged( bool visible )
@@ -1613,12 +1616,16 @@ void QgsComposer::exportCompositionAsPDF( QgsComposer::OutputMode mode )
     {
       outputFileName = file.path();
     }
-
+#ifdef Q_OS_MAC
+    mQgis->activateWindow();
+    this->raise();
+#endif
     outputFileName = QFileDialog::getSaveFileName(
                        this,
                        tr( "Save composition as" ),
                        outputFileName,
                        tr( "PDF Format" ) + " (*.pdf *.PDF)" );
+    this->activateWindow();
     if ( outputFileName.isEmpty() )
     {
       return;
@@ -1835,7 +1842,9 @@ void QgsComposer::printComposition( QgsComposer::OutputMode mode )
     mComposition->setUseAdvancedEffects( false );
   }
 
-  //orientation and page size are already set to QPrinter in the page setup dialog
+  //set printer page orientation
+  setPrinterPageOrientation();
+
   QPrintDialog printDialog( printer(), 0 );
   if ( printDialog.exec() != QDialog::Accepted )
   {
@@ -1990,7 +1999,12 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
       outputFileName = QDir( lastUsedDir ).filePath( atlasMap->currentFilename() );
     }
 
+#ifdef Q_OS_MAC
+    mQgis->activateWindow();
+    this->raise();
+#endif
     QPair<QString, QString> fileNExt = QgisGui::getSaveAsImageName( this, tr( "Save composition as" ), outputFileName );
+    this->activateWindow();
 
     if ( fileNExt.first.isEmpty() )
     {
@@ -2100,8 +2114,9 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
 
         QFileInfo fi( outputFilePath );
         // build the world file name
+        QString outputSuffix = fi.suffix();
         QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
-                                + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
+                                + outputSuffix.at( 0 ) + outputSuffix.at( fi.suffix().size() - 1 ) + "w";
 
         writeWorldFile( worldFileName, a, b, c, d, e, f );
       }
@@ -2320,8 +2335,9 @@ void QgsComposer::exportCompositionAsImage( QgsComposer::OutputMode mode )
 
           QFileInfo fi( imageFilename );
           // build the world file name
+          QString outputSuffix = fi.suffix();
           QString worldFileName = fi.absolutePath() + "/" + fi.baseName() + "."
-                                  + fi.suffix()[0] + fi.suffix()[fi.suffix().size()-1] + "w";
+                                  + outputSuffix.at( 0 ) + outputSuffix.at( fi.suffix().size() - 1 ) + "w";
 
           writeWorldFile( worldFileName, a, b, c, d, e, f );
         }
@@ -2444,11 +2460,16 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
     }
 
     // open file dialog
+#ifdef Q_OS_MAC
+    mQgis->activateWindow();
+    this->raise();
+#endif
     outputFileName = QFileDialog::getSaveFileName(
                        this,
                        tr( "Save composition as" ),
                        outputFileName,
                        tr( "SVG Format" ) + " (*.svg *.SVG)" );
+    this->activateWindow();
 
     if ( outputFileName.isEmpty() )
       return;
@@ -2978,6 +2999,10 @@ void QgsComposer::on_mActionSaveAsTemplate_triggered()
   //show file dialog
   QSettings settings;
   QString lastSaveDir = settings.value( "UI/lastComposerTemplateDir", "" ).toString();
+#ifdef Q_OS_MAC
+  mQgis->activateWindow();
+  this->raise();
+#endif
   QString saveFileName = QFileDialog::getSaveFileName(
                            this,
                            tr( "Save template" ),
@@ -3455,7 +3480,7 @@ void QgsComposer::createCompositionWidget()
   QgsCompositionWidget* compositionWidget = new QgsCompositionWidget( mGeneralDock, mComposition );
   connect( mComposition, SIGNAL( paperSizeChanged() ), compositionWidget, SLOT( displayCompositionWidthHeight() ) );
   connect( this, SIGNAL( printAsRasterChanged( bool ) ), compositionWidget, SLOT( setPrintAsRasterCheckBox( bool ) ) );
-  connect( compositionWidget, SIGNAL( pageOrientationChanged( QString ) ), this, SLOT( setPrinterPageOrientation( QString ) ) );
+  connect( compositionWidget, SIGNAL( pageOrientationChanged( QString ) ), this, SLOT( pageOrientationChanged( QString ) ) );
   mGeneralDock->setWidget( compositionWidget );
 }
 
@@ -3553,8 +3578,13 @@ void QgsComposer::readXML( const QDomElement& composerElem, const QDomDocument& 
   connect( atlasMap, SIGNAL( numberFeaturesChanged( int ) ), this, SLOT( updateAtlasPageComboBox( int ) ) );
   connect( atlasMap, SIGNAL( featureChanged( QgsFeature* ) ), this, SLOT( atlasFeatureChanged( QgsFeature* ) ) );
 
-  //default printer page setup
-  setPrinterPageDefaults();
+  mSetPageOrientation = false;
+  if ( mPrinter )
+  {
+    //if printer has already been created then we need to reset the page orientation to match
+    //new composition
+    setPrinterPageOrientation();
+  }
 
   //setup items tree view
   mItemsTreeView->setModel( mComposition->itemsModel() );
@@ -3896,6 +3926,8 @@ void QgsComposer::on_mActionPageSetup_triggered()
     return;
   }
 
+  //set printer page orientation
+  setPrinterPageOrientation();
   QPageSetupDialog pageSetupDialog( printer(), this );
   pageSetupDialog.exec();
 }
@@ -3994,7 +4026,7 @@ void QgsComposer::createComposerView()
   connect( tab, SIGNAL( activated() ), mActionHidePanels, SLOT( trigger() ) );
 }
 
-void QgsComposer::writeWorldFile( QString worldFileName, double a, double b, double c, double d, double e, double f ) const
+void QgsComposer::writeWorldFile( const QString& worldFileName, double a, double b, double c, double d, double e, double f ) const
 {
   QFile worldFile( worldFileName );
   if ( !worldFile.open( QIODevice::WriteOnly | QIODevice::Text ) )
@@ -4066,31 +4098,29 @@ void QgsComposer::updateAtlasMapLayerAction( QgsVectorLayer *coverageLayer )
   }
 }
 
-void QgsComposer::setPrinterPageOrientation( QString orientation )
+void QgsComposer::pageOrientationChanged( const QString& )
 {
-  if ( orientation == tr( "Landscape" ) )
-  {
-    printer()->setOrientation( QPrinter::Landscape );
-  }
-  else
-  {
-    printer()->setOrientation( QPrinter::Portrait );
-  }
+  mSetPageOrientation = false;
 }
 
-void QgsComposer::setPrinterPageDefaults()
+void QgsComposer::setPrinterPageOrientation()
 {
-  double paperWidth = mComposition->paperWidth();
-  double paperHeight = mComposition->paperHeight();
+  if ( !mSetPageOrientation )
+  {
+    double paperWidth = mComposition->paperWidth();
+    double paperHeight = mComposition->paperHeight();
 
-  //set printer page orientation
-  if ( paperWidth > paperHeight )
-  {
-    printer()->setOrientation( QPrinter::Landscape );
-  }
-  else
-  {
-    printer()->setOrientation( QPrinter::Portrait );
+    //set printer page orientation
+    if ( paperWidth > paperHeight )
+    {
+      printer()->setOrientation( QPrinter::Landscape );
+    }
+    else
+    {
+      printer()->setOrientation( QPrinter::Portrait );
+    }
+
+    mSetPageOrientation = true;
   }
 }
 

@@ -42,6 +42,8 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
   recentProjctsContainer->layout()->addWidget( recentProjectsTitle );
 
   QListView* recentProjectsListView = new QListView();
+  recentProjectsListView->setResizeMode( QListView::Adjust );
+
   mModel = new QgsWelcomePageItemsModel( recentProjectsListView );
   recentProjectsListView->setModel( mModel );
   recentProjectsListView->setItemDelegate( new QgsWelcomePageItemDelegate( recentProjectsListView ) );
@@ -85,8 +87,8 @@ void QgsWelcomePage::versionInfoReceived()
   {
     mVersionInformation->setVisible( true );
     mVersionInformation->setText( QString( "<b>%1</b>: %2" )
-                                  .arg( tr( "There is a new QGIS version available" ) )
-                                  .arg( versionInfo->downloadInfo() ) );
+                                  .arg( tr( "There is a new QGIS version available" ),
+                                        versionInfo->downloadInfo() ) );
     mVersionInformation->setStyleSheet( "QLabel{"
                                         "  background-color: #dddd00;"
                                         "  padding: 5px;"

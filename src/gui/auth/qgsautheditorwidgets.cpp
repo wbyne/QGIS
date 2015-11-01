@@ -30,12 +30,24 @@
 
 QgsAuthMethodPlugins::QgsAuthMethodPlugins( QWidget *parent )
     : QDialog( parent )
+    , mAuthNotifyLayout( 0 )
+    , mAuthNotify( 0 )
 {
-  setupUi( this );
-  connect( buttonBox, SIGNAL( rejected() ), this, SLOT( reject() ) );
+  if ( QgsAuthManager::instance()->isDisabled() )
+  {
+    mAuthNotifyLayout = new QVBoxLayout;
+    this->setLayout( mAuthNotifyLayout );
+    mAuthNotify = new QLabel( QgsAuthManager::instance()->disabledMessage(), this );
+    mAuthNotifyLayout->addWidget( mAuthNotify );
+  }
+  else
+  {
+    setupUi( this );
+    connect( buttonBox, SIGNAL( rejected() ), this, SLOT( reject() ) );
 
-  setupTable();
-  populateTable();
+    setupTable();
+    populateTable();
+  }
 }
 
 QgsAuthMethodPlugins::~QgsAuthMethodPlugins()
@@ -92,11 +104,25 @@ void QgsAuthMethodPlugins::populateTable()
 
 QgsAuthEditorWidgets::QgsAuthEditorWidgets( QWidget *parent )
     : QWidget( parent )
+    , mAuthUtilitiesMenu( 0 )
+    , mActionSetMasterPassword( 0 )
+    , mActionClearCachedMasterPassword( 0 )
+    , mActionResetMasterPassword( 0 )
+    , mActionClearCachedAuthConfigs( 0 )
+    , mActionRemoveAuthConfigs( 0 )
+    , mActionEraseAuthDatabase( 0 )
 {
   setupUi( this );
-  wdgtConfigEditor->setRelayMessages( false );
-  wdgtConfigEditor->setShowUtilitiesButton( false );
-  setupUtilitiesMenu();
+  if ( !QgsAuthManager::instance()->isDisabled() )
+  {
+    wdgtConfigEditor->setRelayMessages( false );
+    wdgtConfigEditor->setShowUtilitiesButton( false );
+    setupUtilitiesMenu();
+  }
+  else
+  {
+    grpbxManagers->setEnabled( false );
+  }
 }
 
 QgsAuthEditorWidgets::~QgsAuthEditorWidgets()

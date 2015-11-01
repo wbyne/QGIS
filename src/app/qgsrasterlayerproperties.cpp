@@ -193,13 +193,13 @@ QgsRasterLayerProperties::QgsRasterLayerProperties( QgsMapLayer* lyr, QgsMapCanv
       if ( myRasterPyramidIterator->exists )
       {
         lbxPyramidResolutions->addItem( new QListWidgetItem( myPyramidPixmap,
-                                        QString::number( myRasterPyramidIterator->xDim ) + QString( " x " ) +
+                                        QString::number( myRasterPyramidIterator->xDim ) + QLatin1String( " x " ) +
                                         QString::number( myRasterPyramidIterator->yDim ) ) );
       }
       else
       {
         lbxPyramidResolutions->addItem( new QListWidgetItem( myNoPyramidPixmap,
-                                        QString::number( myRasterPyramidIterator->xDim ) + QString( " x " ) +
+                                        QString::number( myRasterPyramidIterator->xDim ) + QLatin1String( " x " ) +
                                         QString::number( myRasterPyramidIterator->yDim ) ) );
       }
     }
@@ -232,9 +232,12 @@ QgsRasterLayerProperties::QgsRasterLayerProperties( QgsMapLayer* lyr, QgsMapCanv
   QString pyramidSentence4 = tr( "Please note that building internal pyramids may alter the original data file and once created they cannot be removed!" );
   QString pyramidSentence5 = tr( "Please note that building internal pyramids could corrupt your image - always make a backup of your data first!" );
 
-  tePyramidDescription->setHtml( pyramidFormat.arg( pyramidHeader ).arg( pyramidSentence1 )
-                                 .arg( pyramidSentence2 ).arg( pyramidSentence3 )
-                                 .arg( pyramidSentence4 ).arg( pyramidSentence5 ) );
+  tePyramidDescription->setHtml( pyramidFormat.arg( pyramidHeader,
+                                 pyramidSentence1,
+                                 pyramidSentence2,
+                                 pyramidSentence3,
+                                 pyramidSentence4,
+                                 pyramidSentence5 ) );
 
   tableTransparency->horizontalHeader()->setResizeMode( 0, QHeaderView::Stretch );
   tableTransparency->horizontalHeader()->setResizeMode( 1, QHeaderView::Stretch );
@@ -1038,13 +1041,13 @@ void QgsRasterLayerProperties::on_buttonBuildPyramids_clicked()
     if ( myRasterPyramidIterator->exists )
     {
       lbxPyramidResolutions->addItem( new QListWidgetItem( myPyramidPixmap,
-                                      QString::number( myRasterPyramidIterator->xDim ) + QString( " x " ) +
+                                      QString::number( myRasterPyramidIterator->xDim ) + QLatin1String( " x " ) +
                                       QString::number( myRasterPyramidIterator->yDim ) ) );
     }
     else
     {
       lbxPyramidResolutions->addItem( new QListWidgetItem( myNoPyramidPixmap,
-                                      QString::number( myRasterPyramidIterator->xDim ) + QString( " x " ) +
+                                      QString::number( myRasterPyramidIterator->xDim ) + QLatin1String( " x " ) +
                                       QString::number( myRasterPyramidIterator->yDim ) ) );
     }
   }
@@ -1105,7 +1108,7 @@ void QgsRasterLayerProperties::on_pbnAddValuesManually_clicked()
   tableTransparency->resizeRowsToContents();
 }
 
-void QgsRasterLayerProperties::on_mCrsSelector_crsChanged( QgsCoordinateReferenceSystem crs )
+void QgsRasterLayerProperties::on_mCrsSelector_crsChanged( const QgsCoordinateReferenceSystem& crs )
 {
   mRasterLayer->setCrs( crs );
 }

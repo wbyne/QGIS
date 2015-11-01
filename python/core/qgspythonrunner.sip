@@ -10,10 +10,10 @@ class QgsPythonRunner
     static bool isValid();
 
     /** Execute a python statement */
-    static bool run( QString command, QString messageOnError = QString() );
+    static bool run( const QString& command, const QString& messageOnError = QString() );
 
     /** Eval a python statement */
-    static bool eval( QString command, QString& result );
+    static bool eval( const QString& command, QString& result );
 
     /** Assign an instance of python runner so that run() can be used.
       This method should be called during app initialization.
@@ -25,7 +25,7 @@ class QgsPythonRunner
     QgsPythonRunner();
     virtual ~QgsPythonRunner();
 
-    virtual bool runCommand( QString command, QString messageOnError = QString() ) = 0;
+    virtual bool runCommand( const QString& command, const QString& messageOnError = QString() ) = 0;
 
-    virtual bool evalCommand( QString command, QString& result ) = 0;
+    virtual bool evalCommand( const QString& command, QString& result ) = 0;
 };

@@ -89,6 +89,8 @@ QgsFeatureRequest::~QgsFeatureRequest()
 
 QgsFeatureRequest& QgsFeatureRequest::setFilterRect( const QgsRectangle& rect )
 {
+  if ( mFilter == FilterNone )
+    mFilter = FilterRect;
   mFilterRect = rect;
   return *this;
 }
@@ -100,7 +102,7 @@ QgsFeatureRequest& QgsFeatureRequest::setFilterFid( QgsFeatureId fid )
   return *this;
 }
 
-QgsFeatureRequest&QgsFeatureRequest::setFilterFids( QgsFeatureIds fids )
+QgsFeatureRequest&QgsFeatureRequest::setFilterFids( const QgsFeatureIds& fids )
 {
   mFilter = FilterFids;
   mFilterFids = fids;
@@ -121,7 +123,7 @@ QgsFeatureRequest &QgsFeatureRequest::setExpressionContext( const QgsExpressionC
   return *this;
 }
 
-QgsFeatureRequest& QgsFeatureRequest::setFlags( QgsFeatureRequest::Flags flags )
+QgsFeatureRequest& QgsFeatureRequest::setFlags( const QgsFeatureRequest::Flags& flags )
 {
   mFlags = flags;
   return *this;

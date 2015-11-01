@@ -36,6 +36,8 @@ void QgsWelcomePageItemDelegate::paint( QPainter* painter, const QStyleOptionVie
   painter->save();
 
   QTextDocument doc;
+  QPixmap icon = qvariant_cast<QPixmap>( index.data( Qt::DecorationRole ) );
+
   QAbstractTextDocumentLayout::PaintContext ctx;
   QStyleOptionViewItemV4 optionV4 = option;
 
@@ -70,10 +72,12 @@ void QgsWelcomePageItemDelegate::paint( QPainter* painter, const QStyleOptionVie
   int titleSize = QApplication::fontMetrics().height() * 1.1;
   int textSize = titleSize * 0.85;
 
-  doc.setHtml( QString( "<div style='font-size:%1px;'><span style='font-size:%2px;font-weight:bold;'>%3</span><br>%4<br>%5</div>" ).arg( textSize ).arg( titleSize ).arg( index.data( QgsWelcomePageItemsModel::TitleRole ).toString() ).arg( index.data( QgsWelcomePageItemsModel::PathRole ).toString() ).arg( index.data( QgsWelcomePageItemsModel::CrsRole ).toString() ) );
-  doc.setTextWidth( 2800 );
+  doc.setHtml( QString( "<div style='font-size:%1px;'><span style='font-size:%2px;font-weight:bold;'>%3</span><br>%4<br>%5</div>" ).arg( textSize ).arg( titleSize )
+               .arg( index.data( QgsWelcomePageItemsModel::TitleRole ).toString(),
+                     index.data( QgsWelcomePageItemsModel::PathRole ).toString(),
+                     index.data( QgsWelcomePageItemsModel::CrsRole ).toString() ) );
+  doc.setTextWidth( option.rect.width() - ( !icon.isNull() ? icon.width() + 35 : 35 ) );
 
-  QPixmap icon = qvariant_cast<QPixmap>( index.data( Qt::DecorationRole ) );
   if ( !icon.isNull() )
   {
     painter->drawPixmap( option.rect.left() + 10, option.rect.top()  + 10, icon );
@@ -89,16 +93,28 @@ void QgsWelcomePageItemDelegate::paint( QPainter* painter, const QStyleOptionVie
 QSize QgsWelcomePageItemDelegate::sizeHint( const QStyleOptionViewItem & option, const QModelIndex & index ) const
 {
   QTextDocument doc;
+  QPixmap icon = qvariant_cast<QPixmap>( index.data( Qt::DecorationRole ) );
+
+  int width;
+  if ( option.rect.width() < 450 )
+  {
+    width = 450;
+  }
+  else
+  {
+    width = option.rect.width();
+  }
 
   int titleSize = QApplication::fontMetrics().height() * 1.1;
   int textSize = titleSize * 0.85;
 
-  doc.setHtml( QString( "<div style='font-size:%1px;'><span style='font-size:%2px;font-weight:bold;'>%3</span><br>%4<br>%5</div>" ).arg( textSize ).arg( titleSize ).arg( index.data( QgsWelcomePageItemsModel::TitleRole ).toString() ).arg( index.data( QgsWelcomePageItemsModel::PathRole ).toString() ).arg( index.data( QgsWelcomePageItemsModel::CrsRole ).toString() ) );
-  doc.setTextWidth( 2800 );
+  doc.setHtml( QString( "<div style='font-size:%1px;'><span style='font-size:%2px;font-weight:bold;'>%3</span><br>%4<br>%5</div>" ).arg( textSize ).arg( titleSize )
+               .arg( index.data( QgsWelcomePageItemsModel::TitleRole ).toString(),
+                     index.data( QgsWelcomePageItemsModel::PathRole ).toString(),
+                     index.data( QgsWelcomePageItemsModel::CrsRole ).toString() ) );
+  doc.setTextWidth( width - ( !icon.isNull() ? icon.width() + 35 : 35 ) );
 
-  QPixmap icon = qvariant_cast<QPixmap>( index.data( Qt::DecorationRole ) );
-
-  return QSize( option.rect.width(), qMax( doc.size().height() + 10, ( double )icon.height() ) + 20 );
+  return QSize( width, qMax(( double ) doc.size().height() + 10, ( double )icon.height() ) + 20 );
 }
 
 QgsWelcomePageItemsModel::QgsWelcomePageItemsModel( QObject* parent )
@@ -135,7 +151,7 @@ QVariant QgsWelcomePageItemsModel::data( const QModelIndex& index, int role ) co
       {
         QgsCoordinateReferenceSystem crs;
         crs.createFromOgcWmsCrs( mRecentProjects.at( index.row() ).crs );
-        return  QString( "%1 (%2)" ).arg( mRecentProjects.at( index.row() ).crs ).arg( crs.description() );
+        return  QString( "%1 (%2)" ).arg( mRecentProjects.at( index.row() ).crs, crs.description() );
       }
       else
       {

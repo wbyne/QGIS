@@ -49,14 +49,16 @@ class QgsAbstractGeometryV2
         sipClass = sipClass_QgsCurvePolygonV2;
       else if (dynamic_cast<QgsMultiPointV2*>(sipCpp) != NULL )
         sipClass = sipClass_QgsMultiPointV2;
-      else if (dynamic_cast<QgsLineStringV2*>(sipCpp) != NULL )
-        sipClass = sipClass_QgsLineStringV2;
+      else if (dynamic_cast<QgsMultiLineStringV2*>(sipCpp) != NULL )
+        sipClass = sipClass_QgsMultiLineStringV2;
       else if (dynamic_cast<QgsMultiPolygonV2*>(sipCpp) != NULL )
         sipClass = sipClass_QgsMultiPolygonV2;
       else if (dynamic_cast<QgsMultiSurfaceV2*>(sipCpp) != NULL )
         sipClass = sipClass_QgsMultiSurfaceV2;
       else if (dynamic_cast<QgsMultiCurveV2*>(sipCpp) != NULL )
         sipClass = sipClass_QgsMultiCurveV2;
+      else if (dynamic_cast<QgsGeometryCollectionV2*>(sipCpp) != NULL )
+        sipClass = sipClass_QgsGeometryCollectionV2;
       else
         sipClass = 0;
 %End
@@ -116,8 +118,22 @@ class QgsAbstractGeometryV2
     virtual bool moveVertex( const QgsVertexId& position, const QgsPointV2& newPos ) = 0;
     virtual bool deleteVertex( const QgsVertexId& position ) = 0;
 
-    /** Length for linear geometries,perimeter for area geometries*/
+    /** Returns the length of the geometry.
+     * @see area()
+     * @see perimeter()
+     */
     virtual double length() const;
+
+    /** Returns the perimeter of the geometry.
+     * @see area()
+     * @see length()
+     */
+    virtual double perimeter() const;
+
+    /** Returns the area of the geometry.
+     * @see length()
+     * @see perimeter()
+     */
     virtual double area() const;
 
     /** Returns the centroid of the geometry*/
@@ -134,4 +150,20 @@ class QgsAbstractGeometryV2
     virtual int vertexCount(int part = 0, int ring = 0) const = 0;
     virtual int ringCount(int part = 0) const = 0;
     virtual int partCount() const = 0;
+
+    /** Adds a z-dimension to the geometry, initialized to a preset value.
+     * @param zValue initial z-value for all nodes
+     * @returns true on success
+     * @note added in QGIS 2.12
+     * @see addMValue
+     */
+    virtual bool addZValue( double zValue = 0 ) = 0;
+
+    /** Adds a measure to the geometry, initialized to a preset value.
+     * @param mValue initial m-value for all nodes
+     * @returns true on success
+     * @note added in QGIS 2.12
+     * @see addZValue
+     */
+    virtual bool addMValue( double mValue = 0 ) = 0;
 };

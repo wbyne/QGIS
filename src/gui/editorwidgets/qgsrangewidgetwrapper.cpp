@@ -45,8 +45,8 @@ QWidget* QgsRangeWidgetWrapper::createWidget( QWidget* parent )
   }
   else
   {
-    QgsDebugMsg( QString( "%1" ).arg(( int )layer()->fields()[fieldIdx()].type() ) );
-    switch ( layer()->fields()[fieldIdx()].type() )
+    QgsDebugMsg( QString( "%1" ).arg(( int )layer()->fields().at( fieldIdx() ).type() ) );
+    switch ( layer()->fields().at( fieldIdx() ).type() )
     {
       case QVariant::Double:
       {
@@ -82,10 +82,10 @@ void QgsRangeWidgetWrapper::initWidget( QWidget* editor )
   if ( mDoubleSpinBox )
   {
     // set the precision if field is integer
-    int precision = layer()->fields()[fieldIdx()].precision();
+    int precision = layer()->fields().at( fieldIdx() ).precision();
     if ( precision > 0 )
     {
-      mDoubleSpinBox->setDecimals( layer()->fields()[fieldIdx()].precision() );
+      mDoubleSpinBox->setDecimals( layer()->fields().at( fieldIdx() ).precision() );
     }
 
     double minval = min.toDouble();
@@ -198,7 +198,7 @@ bool QgsRangeWidgetWrapper::valid()
   return mSlider || mDial || mQgsDial || mQgsSlider || mIntSpinBox || mDoubleSpinBox;
 }
 
-void QgsRangeWidgetWrapper::valueChanged( QVariant v )
+void QgsRangeWidgetWrapper::valueChanged( const QVariant& v )
 {
   if ( v.type() == QVariant::Int )
     valueChanged( v.toInt() );

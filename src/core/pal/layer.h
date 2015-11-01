@@ -48,11 +48,9 @@ namespace pal
   class LabelInfo;
 
   /**
-   * \brief A layer of spacial entites
-   *
-   * a layer is a bog of feature with some data which influence the labelling process
-   *
-   *  \author Maxence Laurent (maxence _dot_ laurent _at_ heig-vd _dot_ ch)
+   * \brief A set of features which influence the labelling process
+   * \class pal::Layer
+   * \note not available in Python bindings
    */
   class CORE_EXPORT Layer
   {
@@ -108,7 +106,7 @@ namespace pal
        * @param flags arrangement flags
        * @see arrangementFlags
        */
-      void setArrangementFlags( LineArrangementFlags flags ) { mArrangementFlags = flags; }
+      void setArrangementFlags( const LineArrangementFlags& flags ) { mArrangementFlags = flags; }
 
       /**
        * \brief Sets whether the layer is currently active.

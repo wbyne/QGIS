@@ -125,7 +125,7 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature& feature )
     QgsDebugMsgLevel( QString( "fetching %1 features." ).arg( mFeatureQueueSize ), 4 );
     if ( mConn->PQsendQuery( fetch ) == 0 ) // fetch features asynchronously
     {
-      QgsMessageLog::logMessage( QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName ).arg( mConn->PQerrorMessage() ), QObject::tr( "PostGIS" ) );
+      QgsMessageLog::logMessage( QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName, mConn->PQerrorMessage() ), QObject::tr( "PostGIS" ) );
     }
 
     QgsPostgresResult queryResult;
@@ -137,7 +137,7 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature& feature )
 
       if ( queryResult.PQresultStatus() != PGRES_TUPLES_OK )
       {
-        QgsMessageLog::logMessage( QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName ).arg( mConn->PQerrorMessage() ), QObject::tr( "PostGIS" ) );
+        QgsMessageLog::logMessage( QObject::tr( "Fetching from cursor %1 failed\nDatabase error: %2" ).arg( mCursorName, mConn->PQerrorMessage() ), QObject::tr( "PostGIS" ) );
         break;
       }
 
@@ -267,26 +267,26 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
   if ( mConn->majorVersion() < 2 )
   {
     qBox = QString( "setsrid('BOX3D(%1)'::box3d,%2)" )
-           .arg( rect.asWktCoordinates() )
-           .arg( mSource->mRequestedSrid.isEmpty() ? mSource->mDetectedSrid : mSource->mRequestedSrid );
+           .arg( rect.asWktCoordinates(),
+                 mSource->mRequestedSrid.isEmpty() ? mSource->mDetectedSrid : mSource->mRequestedSrid );
   }
   else
   {
     qBox = QString( "st_makeenvelope(%1,%2,%3,%4,%5)" )
-           .arg( qgsDoubleToString( rect.xMinimum() ) )
-           .arg( qgsDoubleToString( rect.yMinimum() ) )
-           .arg( qgsDoubleToString( rect.xMaximum() ) )
-           .arg( qgsDoubleToString( rect.yMaximum() ) )
-           .arg( mSource->mRequestedSrid.isEmpty() ? mSource->mDetectedSrid : mSource->mRequestedSrid );
+           .arg( qgsDoubleToString( rect.xMinimum() ),
+                 qgsDoubleToString( rect.yMinimum() ),
+                 qgsDoubleToString( rect.xMaximum() ),
+                 qgsDoubleToString( rect.yMaximum() ),
+                 mSource->mRequestedSrid.isEmpty() ? mSource->mDetectedSrid : mSource->mRequestedSrid );
   }
 
   bool castToGeometry = mSource->mSpatialColType == sctGeography ||
                         mSource->mSpatialColType == sctPcPatch;
 
   QString whereClause = QString( "%1%2 && %3" )
-                        .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ) )
-                        .arg( castToGeometry ? "::geometry" : "" )
-                        .arg( qBox );
+                        .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ),
+                              castToGeometry ? "::geometry" : "",
+                              qBox );
 
   if ( mRequest.flags() & QgsFeatureRequest::ExactIntersect )
   {
@@ -294,20 +294,20 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
     if ( mConn->majorVersion() >= 2 || ( mConn->majorVersion() == 1 && mConn->minorVersion() >= 5 ) )
       curveToLineFn = "st_curvetoline"; // st_ prefix is always used
     whereClause += QString( " AND %1(%2(%3%4),%5)" )
-                   .arg( mConn->majorVersion() < 2 ? "intersects" : "st_intersects" )
-                   .arg( curveToLineFn )
-                   .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ) )
-                   .arg( castToGeometry ? "::geometry" : "" )
-                   .arg( qBox );
+                   .arg( mConn->majorVersion() < 2 ? "intersects" : "st_intersects",
+                         curveToLineFn,
+                         QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ),
+                         castToGeometry ? "::geometry" : "",
+                         qBox );
   }
 
   if ( !mSource->mRequestedSrid.isEmpty() && ( mSource->mRequestedSrid != mSource->mDetectedSrid || mSource->mRequestedSrid.toInt() == 0 ) )
   {
     whereClause += QString( " AND %1(%2%3)=%4" )
-                   .arg( mConn->majorVersion() < 2 ? "srid" : "st_srid" )
-                   .arg( QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ) )
-                   .arg( castToGeometry ? "::geometry" : "" )
-                   .arg( mSource->mRequestedSrid );
+                   .arg( mConn->majorVersion() < 2 ? "srid" : "st_srid",
+                         QgsPostgresConn::quotedIdentifier( mSource->mGeometryColumn ),
+                         castToGeometry ? "::geometry" : "",
+                         mSource->mRequestedSrid );
   }
 
   if ( mSource->mRequestedGeomType != QGis::WKBUnknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
@@ -351,8 +351,8 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
                    // ST_Force2D since 2.1.0
                    : mConn->majorVersion() > 2 || mConn->minorVersion() > 0 ? "st_force2d"
                    // ST_Force_2D in 2.0.x
-                   : "st_force_2d" )
-             .arg( geom );
+                   : "st_force_2d",
+                   geom );
     }
 
     if ( !mRequest.simplifyMethod().forceLocalOptimization() &&
@@ -364,15 +364,15 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
       geom = QString( "%1(%2,%3)" )
              .arg( mRequest.simplifyMethod().methodType() == QgsSimplifyMethod::OptimizeForRendering
                    ? ( mConn->majorVersion() < 2 ? "snaptogrid" : "st_snaptogrid" )
-                       : ( mConn->majorVersion() < 2 ? "simplifypreservetopology" : "st_simplifypreservetopology" ) )
-                 .arg( geom )
+                       : ( mConn->majorVersion() < 2 ? "simplifypreservetopology" : "st_simplifypreservetopology" ),
+                       geom )
                  .arg( mRequest.simplifyMethod().tolerance() * 0.8 ); //-> Default factor for the maximum displacement distance for simplification, similar as GeoServer does
     }
 
     geom = QString( "%1(%2,'%3')" )
-           .arg( mConn->majorVersion() < 2 ? "asbinary" : "st_asbinary" )
-           .arg( geom )
-           .arg( QgsPostgresProvider::endianString() );
+           .arg( mConn->majorVersion() < 2 ? "asbinary" : "st_asbinary",
+                 geom,
+                 QgsPostgresProvider::endianString() );
 
     query += delim + geom;
     delim = ",";
@@ -391,14 +391,14 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
       break;
 
     case pktInt:
-      query += delim + QgsPostgresConn::quotedIdentifier( mSource->mFields[ mSource->mPrimaryKeyAttrs[0] ].name() );
+      query += delim + QgsPostgresConn::quotedIdentifier( mSource->mFields.at( mSource->mPrimaryKeyAttrs.at( 0 ) ).name() );
       delim = ",";
       break;
 
     case pktFidMap:
       Q_FOREACH ( int idx, mSource->mPrimaryKeyAttrs )
       {
-        query += delim + mConn->fieldExpression( mSource->mFields[idx] );
+        query += delim + mConn->fieldExpression( mSource->mFields.at( idx ) );
         delim = ",";
       }
       break;
@@ -415,7 +415,7 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
     if ( mSource->mPrimaryKeyAttrs.contains( idx ) )
       continue;
 
-    query += delim + mConn->fieldExpression( mSource->mFields[idx] );
+    query += delim + mConn->fieldExpression( mSource->mFields.at( idx ) );
   }
 
   query += " FROM " + mSource->mQuery;
@@ -451,57 +451,42 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
       memcpy( featureGeom, PQgetvalue( queryResult.result(), row, col ), returnedLength );
       memset( featureGeom + returnedLength, 0, 1 );
 
-      // modify 2.5D WKB types to make them compliant with OGR
       unsigned int wkbType;
       memcpy( &wkbType, featureGeom + 1, sizeof( wkbType ) );
-      wkbType = QgsPostgresConn::wkbTypeFromOgcWkbType( wkbType );
-      memcpy( featureGeom + 1, &wkbType, sizeof( wkbType ) );
+      QgsWKBTypes::Type newType = QgsPostgresConn::wkbTypeFromOgcWkbType( wkbType );
 
-      // change wkb type of inner geometries
-      if ( wkbType == QGis::WKBMultiPoint25D ||
-           wkbType == QGis::WKBMultiLineString25D ||
-           wkbType == QGis::WKBMultiPolygon25D )
+      if (( unsigned int )newType != wkbType )
+      {
+        // overwrite type
+        unsigned int n = newType;
+        memcpy( featureGeom + 1, &n, sizeof( n ) );
+      }
+
+      // PostGIS stores TIN as a collection of Triangles.
+      // Since Triangles are not supported, they have to be converted to Polygons
+      const int nDims = 2 + ( QgsWKBTypes::hasZ( newType ) ? 1 : 0 ) + ( QgsWKBTypes::hasM( newType ) ? 1 : 0 );
+      if ( wkbType % 1000 == 16 )
       {
         unsigned int numGeoms;
         memcpy( &numGeoms, featureGeom + 5, sizeof( unsigned int ) );
         unsigned char *wkb = featureGeom + 9;
         for ( unsigned int i = 0; i < numGeoms; ++i )
         {
-          unsigned int localType;
-          memcpy( &localType, wkb + 1, sizeof( localType ) );
-          localType = QgsPostgresConn::wkbTypeFromOgcWkbType( localType );
+          const unsigned int localType = QgsWKBTypes::singleType( newType ); // polygon(Z|M)
           memcpy( wkb + 1, &localType, sizeof( localType ) );
 
           // skip endian and type info
           wkb += sizeof( unsigned int ) + 1;
 
           // skip coordinates
-          switch ( wkbType )
+          unsigned int nRings;
+          memcpy( &nRings, wkb, sizeof( int ) );
+          wkb += sizeof( int );
+          for ( unsigned int j = 0; j < nRings; ++j )
           {
-            case QGis::WKBMultiPoint25D:
-              wkb += sizeof( double ) * 3;
-              break;
-            case QGis::WKBMultiLineString25D:
-            {
-              unsigned int nPoints;
-              memcpy( &nPoints, wkb, sizeof( int ) );
-              wkb += sizeof( int ) + sizeof( double ) * 3 * nPoints;
-            }
-            break;
-            default:
-            case QGis::WKBMultiPolygon25D:
-            {
-              unsigned int nRings;
-              memcpy( &nRings, wkb, sizeof( int ) );
-              wkb += sizeof( int );
-              for ( unsigned int j = 0; j < nRings; ++j )
-              {
-                unsigned int nPoints;
-                memcpy( &nPoints, wkb, sizeof( int ) );
-                wkb += sizeof( nPoints ) + sizeof( double ) * 3 * nPoints;
-              }
-            }
-            break;
+            unsigned int nPoints;
+            memcpy( &nPoints, wkb, sizeof( int ) );
+            wkb += sizeof( nPoints ) + sizeof( double ) * nDims * nPoints;
           }
         }
       }
@@ -538,7 +523,7 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
 
       Q_FOREACH ( int idx, mSource->mPrimaryKeyAttrs )
       {
-        const QgsField &fld = mSource->mFields[idx];
+        const QgsField &fld = mSource->mFields.at( idx );
 
         QVariant v = QgsPostgresProvider::convertValue( fld.type(), queryResult.PQgetvalue( row, col ) );
         primaryKeyVals << v;
@@ -582,7 +567,7 @@ void QgsPostgresFeatureIterator::getFeatureAttribute( int idx, QgsPostgresResult
   if ( mSource->mPrimaryKeyAttrs.contains( idx ) )
     return;
 
-  QVariant v = QgsPostgresProvider::convertValue( mSource->mFields[idx].type(), queryResult.PQgetvalue( row, col ) );
+  QVariant v = QgsPostgresProvider::convertValue( mSource->mFields.at( idx ).type(), queryResult.PQgetvalue( row, col ) );
   feature.setAttribute( idx, v );
 
   col++;

@@ -28,6 +28,7 @@
 #include "qgsmaplayerregistry.h"
 #include "qgsrendererv2.h"
 #include "qgsvectorlayer.h"
+#include "qgsvectordataprovider.h"
 #include "qgssymbollayerv2utils.h"
 
 #include <QVariant>
@@ -79,7 +80,7 @@ bool QgsAttributeTableModel::loadFeatureAtId( QgsFeatureId fid ) const
   return mLayerCache->featureAtId( fid, mFeat );
 }
 
-void QgsAttributeTableModel::featuresDeleted( QgsFeatureIds fids )
+void QgsAttributeTableModel::featuresDeleted( const QgsFeatureIds& fids )
 {
   QList<int> rows;
 
@@ -510,7 +511,7 @@ QVariant QgsAttributeTableModel::headerData( int section, Qt::Orientation orient
       QString attributeName = layer()->attributeAlias( mAttributes[section] );
       if ( attributeName.isEmpty() )
       {
-        QgsField field = layer()->fields()[ mAttributes[section] ];
+        QgsField field = layer()->fields().at( mAttributes[section] );
         attributeName = field.name();
       }
       return QVariant( attributeName );
@@ -680,7 +681,9 @@ Qt::ItemFlags QgsAttributeTableModel::flags( const QModelIndex &index ) const
   Qt::ItemFlags flags = QAbstractItemModel::flags( index );
 
   if ( layer()->isEditable() &&
-       layer()->fieldEditable( mAttributes[ index.column()] ) )
+       layer()->fieldEditable( mAttributes[ index.column()] ) &&
+       (( layer()->dataProvider() && layer()->dataProvider()->capabilities() & QgsVectorDataProvider::ChangeAttributeValues ) ||
+        FID_IS_NEW( rowToId( index.row() ) ) ) )
     flags |= Qt::ItemIsEditable;
 
   return flags;

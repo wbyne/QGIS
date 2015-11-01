@@ -42,11 +42,11 @@ typedef QString databaseDrivers_t();
 typedef QString directoryDrivers_t();
 typedef QString protocolDrivers_t();
 //typedef int dataCapabilities_t();
-//typedef QgsDataItem * dataItem_t(QString);
+//typedef QgsDataItem * dataItem_t(const QString&);
 
 
 
-QgsProviderRegistry *QgsProviderRegistry::instance( QString pluginPath )
+QgsProviderRegistry *QgsProviderRegistry::instance( const QString& pluginPath )
 {
   static QgsProviderRegistry* sInstance( new QgsProviderRegistry( pluginPath ) );
   return sInstance;
@@ -54,7 +54,7 @@ QgsProviderRegistry *QgsProviderRegistry::instance( QString pluginPath )
 
 
 
-QgsProviderRegistry::QgsProviderRegistry( QString pluginPath )
+QgsProviderRegistry::QgsProviderRegistry( const QString& pluginPath )
 {
   // At startup, examine the libs in the qgis/lib dir and store those that
   // are a provider shared lib
@@ -119,7 +119,7 @@ QgsProviderRegistry::QgsProviderRegistry( QString pluginPath )
     QLibrary myLib( fi.filePath() );
     if ( !myLib.load() )
     {
-      QgsDebugMsg( QString( "Checking %1: ...invalid (lib not loadable): %2" ).arg( myLib.fileName() ).arg( myLib.errorString() ) );
+      QgsDebugMsg( QString( "Checking %1: ...invalid (lib not loadable): %2" ).arg( myLib.fileName(), myLib.errorString() ) );
       continue;
     }
 
@@ -369,7 +369,7 @@ QgsDataProvider *QgsProviderRegistry::provider( QString const & providerKey, QSt
   QgsDebugMsg( "Library name is " + myLib.fileName() );
   if ( !myLib.load() )
   {
-    QgsMessageLog::logMessage( QObject::tr( "Failed to load %1: %2" ).arg( lib ).arg( myLib.errorString() ) );
+    QgsMessageLog::logMessage( QObject::tr( "Failed to load %1: %2" ).arg( lib, myLib.errorString() ) );
     return 0;
   }
 
@@ -413,7 +413,7 @@ int QgsProviderRegistry::providerCapabilities( const QString &providerKey ) cons
 typedef QWidget * selectFactoryFunction_t( QWidget * parent, Qt::WindowFlags fl );
 
 QWidget* QgsProviderRegistry::selectWidget( const QString & providerKey,
-    QWidget * parent, Qt::WindowFlags fl )
+    QWidget * parent, const Qt::WindowFlags& fl )
 {
   selectFactoryFunction_t * selectFactory =
     ( selectFactoryFunction_t * ) cast_to_fptr( function( providerKey, "selectWidget" ) );

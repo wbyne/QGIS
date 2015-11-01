@@ -32,16 +32,16 @@ class GUI_EXPORT QgsCredentialDialog : public QDialog, public QgsCredentials, pr
 {
     Q_OBJECT
   public:
-    QgsCredentialDialog( QWidget *parent = 0, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
+    QgsCredentialDialog( QWidget *parent = 0, const Qt::WindowFlags& fl = QgisGui::ModalDialogFlags );
     ~QgsCredentialDialog();
 
   signals:
-    void credentialsRequested( QString, QString *, QString *, QString, bool * );
+    void credentialsRequested( const QString&, QString *, QString *, const QString&, bool * );
 
     void credentialsRequestedMasterPassword( QString *, bool, bool * );
 
   private slots:
-    void requestCredentials( QString, QString *, QString *, QString, bool * );
+    void requestCredentials( const QString&, QString *, QString *, const QString&, bool * );
 
     void requestCredentialsMasterPassword( QString *password, bool stored, bool *ok );
 
@@ -51,7 +51,7 @@ class GUI_EXPORT QgsCredentialDialog : public QDialog, public QgsCredentials, pr
     void on_chkbxEraseAuthDb_toggled( bool checked );
 
   protected:
-    virtual bool request( QString realm, QString &username, QString &password, QString message = QString::null ) override;
+    virtual bool request( const QString& realm, QString &username, QString &password, const QString& message = QString::null ) override;
 
     virtual bool requestMasterPassword( QString &password, bool stored = false ) override;
 

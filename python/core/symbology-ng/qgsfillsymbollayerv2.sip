@@ -5,9 +5,9 @@ class QgsSimpleFillSymbolLayerV2 : QgsFillSymbolLayerV2
 %End
 
   public:
-    QgsSimpleFillSymbolLayerV2( QColor color = DEFAULT_SIMPLEFILL_COLOR,
+    QgsSimpleFillSymbolLayerV2( const QColor& color = DEFAULT_SIMPLEFILL_COLOR,
                                 Qt::BrushStyle style = DEFAULT_SIMPLEFILL_STYLE,
-                                QColor borderColor = DEFAULT_SIMPLEFILL_BORDERCOLOR,
+                                const QColor& borderColor = DEFAULT_SIMPLEFILL_BORDERCOLOR,
                                 Qt::PenStyle borderStyle = DEFAULT_SIMPLEFILL_BORDERSTYLE,
                                 double borderWidth = DEFAULT_SIMPLEFILL_BORDERWIDTH,
                                 Qt::PenJoinStyle penJoinStyle = DEFAULT_SIMPLEFILL_JOINSTYLE
@@ -32,7 +32,7 @@ class QgsSimpleFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsSymbolLayerV2* clone() const /Factory/;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
     QString ogrFeatureStyle( double mmScaleFactor, double mapUnitScaleFactor ) const;
 
@@ -40,7 +40,7 @@ class QgsSimpleFillSymbolLayerV2 : QgsFillSymbolLayerV2
     void setBrushStyle( Qt::BrushStyle style );
 
     QColor borderColor() const;
-    void setBorderColor( QColor borderColor );
+    void setBorderColor( const QColor& borderColor );
 
     /** Get outline color.
      * @note added in 2.1 */
@@ -128,8 +128,8 @@ class QgsGradientFillSymbolLayerV2 : QgsFillSymbolLayerV2
       Repeat
     };
 
-    QgsGradientFillSymbolLayerV2( QColor color = DEFAULT_SIMPLEFILL_COLOR,
-                                  QColor color2 = Qt::white,
+    QgsGradientFillSymbolLayerV2( const QColor& color = DEFAULT_SIMPLEFILL_COLOR,
+                                  const QColor& color2 = Qt::white,
                                   GradientColorType gradientColorType = SimpleTwoColor,
                                   GradientType gradientType = Linear,
                                   GradientCoordinateMode coordinateMode = Feature,
@@ -172,7 +172,7 @@ class QgsGradientFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     /** Color for endpoint of gradient, only used if the gradient color type is set to SimpleTwoColor*/
     QColor color2() const;
-    void setColor2( QColor color2 );
+    void setColor2( const QColor& color2 );
 
     /** Coordinate mode for gradient. Controls how the gradient stops are positioned.*/
     GradientCoordinateMode coordinateMode() const;
@@ -230,7 +230,7 @@ class QgsShapeburstFillSymbolLayerV2 : QgsFillSymbolLayerV2
       ColorRamp
     };
 
-    QgsShapeburstFillSymbolLayerV2( QColor color = DEFAULT_SIMPLEFILL_COLOR, QColor color2 = Qt::white,
+    QgsShapeburstFillSymbolLayerV2( const QColor& color = DEFAULT_SIMPLEFILL_COLOR, const QColor& color2 = Qt::white,
                                     ShapeburstColorType colorType = SimpleTwoColor,
                                     int blurRadius = 0, bool useWholeShape = true, double maxDistance = 5 );
 
@@ -362,7 +362,7 @@ class QgsShapeburstFillSymbolLayerV2 : QgsFillSymbolLayerV2
      * @see setColorType
      * @see color2
     */
-    void setColor2( QColor color2 );
+    void setColor2( const QColor& color2 );
     /** Returns the color used for the endpoint of the shapeburst fill. This color is only used if the colorType is set to ShapeburstColorType::SimpleTwoColor
      * @returns a QColor indicating the color of the endpoint of the gradient
      * @note added in 2.3
@@ -655,7 +655,7 @@ class QgsSVGFillSymbolLayer: QgsImageFillSymbolLayer
 
     QgsSymbolLayerV2* clone() const /Factory/;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
     //getters and setters
     void setSvgFilePath( const QString& svgPath );
@@ -714,7 +714,7 @@ class QgsLinePatternFillSymbolLayer: QgsImageFillSymbolLayer
 
     QgsSymbolLayerV2* clone() const /Factory/;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
     double estimateMaxBleed() const;
 
@@ -785,7 +785,7 @@ class QgsPointPatternFillSymbolLayer : QgsImageFillSymbolLayer
 
     QgsSymbolLayerV2* clone() const /Factory/;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
     double estimateMaxBleed() const;
 
@@ -870,7 +870,7 @@ class QgsCentroidFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsSymbolLayerV2* clone() const /Factory/;
 
-    void toSld( QDomDocument &doc, QDomElement &element, QgsStringMap props ) const;
+    void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
     void setColor( const QColor& color );
 

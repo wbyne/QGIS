@@ -91,7 +91,7 @@ void QgsClipboard::setSystemClipboard()
 
   for ( int idx = 0; idx < mFeatureFields.count(); ++idx )
   {
-    textFields += mFeatureFields[idx].name();
+    textFields += mFeatureFields.at( idx ).name();
   }
   textLines += textFields.join( "\t" );
   textFields.clear();
@@ -116,7 +116,7 @@ void QgsClipboard::setSystemClipboard()
     for ( int idx = 0; idx < attributes.count(); ++idx )
     {
       // QgsDebugMsg(QString("inspecting field '%1'.").arg(it2->toString()));
-      textFields += attributes[idx].toString();
+      textFields += attributes.at( idx ).toString();
     }
 
     textLines += textFields.join( "\t" );
@@ -214,7 +214,7 @@ bool QgsClipboard::empty()
   return text.isEmpty() && mFeatureClipboard.empty();
 }
 
-QgsFeatureList QgsClipboard::transformedCopyOf( QgsCoordinateReferenceSystem destCRS, const QgsFields &fields )
+QgsFeatureList QgsClipboard::transformedCopyOf( const QgsCoordinateReferenceSystem& destCRS, const QgsFields &fields )
 {
   QgsFeatureList featureList = copyOf( fields );
   QgsCoordinateTransform ct( crs(), destCRS );

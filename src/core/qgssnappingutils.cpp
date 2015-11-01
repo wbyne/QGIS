@@ -88,6 +88,8 @@ QgsPointLocator* QgsSnappingUtils::temporaryLocatorForLayer( QgsVectorLayer* vl,
 
 bool QgsSnappingUtils::willUseIndex( QgsVectorLayer* vl ) const
 {
+  if ( vl->geometryType() == QGis::NoGeometry )
+    return false;
   if ( mStrategy == IndexAlwaysFull )
     return true;
   else if ( mStrategy == IndexNeverFull )
@@ -318,22 +320,22 @@ void QgsSnappingUtils::prepareIndex( const QList<QgsVectorLayer*>& layers )
     if ( willUseIndex( vl ) && !locatorForLayer( vl )->hasIndex() )
       layersToIndex << vl;
   }
-  if ( layersToIndex.isEmpty() )
-    return;
-
-  // build indexes
-  QTime t; t.start();
-  int i = 0;
-  prepareIndexStarting( layersToIndex.count() );
-  Q_FOREACH ( QgsVectorLayer* vl, layersToIndex )
+  if ( !layersToIndex.isEmpty() )
   {
-    QTime tt; tt.start();
-    if ( !locatorForLayer( vl )->init( mStrategy == IndexHybrid ? 1000000 : -1 ) )
-      mHybridNonindexableLayers.insert( vl->id() );
-    QgsDebugMsg( QString( "Index init: %1 ms (%2)" ).arg( tt.elapsed() ).arg( vl->id() ) );
-    prepareIndexProgress( ++i );
+    // build indexes
+    QTime t; t.start();
+    int i = 0;
+    prepareIndexStarting( layersToIndex.count() );
+    Q_FOREACH ( QgsVectorLayer* vl, layersToIndex )
+    {
+      QTime tt; tt.start();
+      if ( !locatorForLayer( vl )->init( mStrategy == IndexHybrid ? 1000000 : -1 ) )
+        mHybridNonindexableLayers.insert( vl->id() );
+      QgsDebugMsg( QString( "Index init: %1 ms (%2)" ).arg( tt.elapsed() ).arg( vl->id() ) );
+      prepareIndexProgress( ++i );
+    }
+    QgsDebugMsg( QString( "Prepare index total: %1 ms" ).arg( t.elapsed() ) );
   }
-  QgsDebugMsg( QString( "Prepare index total: %1 ms" ).arg( t.elapsed() ) );
   mIsIndexing = false;
 }
 
@@ -465,7 +467,7 @@ void QgsSnappingUtils::readConfigFromProject()
 
 }
 
-void QgsSnappingUtils::onLayersWillBeRemoved( QStringList layerIds )
+void QgsSnappingUtils::onLayersWillBeRemoved( const QStringList& layerIds )
 {
   // remove locators for layers that are going to be deleted
   Q_FOREACH ( const QString& layerId, layerIds )

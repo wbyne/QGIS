@@ -19,7 +19,7 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
   // Collect geometries, build spatial index
   QList<const QgsAbstractGeometryV2*> geomList;
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  foreach ( const QgsFeatureId& id, featureIds )
+  Q_FOREACH ( const QgsFeatureId& id, featureIds )
   {
     QgsFeature feature;
     if ( mFeaturePool->get( id, feature ) )
@@ -33,7 +33,7 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
     return;
   }
 
-  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( 0, QgsGeometryCheckPrecision::precision() );
+  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( 0, QgsGeometryCheckPrecision::tolerance() );
 
   // Create union of geometry
   QString errMsg;
@@ -47,7 +47,7 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
   }
 
   // Get envelope of union
-  geomEngine = QgsGeomUtils::createGeomEngine( unionGeom, QgsGeometryCheckPrecision::precision() );
+  geomEngine = QgsGeomUtils::createGeomEngine( unionGeom, QgsGeometryCheckPrecision::tolerance() );
   QgsAbstractGeometryV2* envelope = geomEngine->envelope( &errMsg );
   delete geomEngine;
   if ( !envelope )
@@ -58,14 +58,14 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
   }
 
   // Buffer envelope
-  geomEngine = QgsGeomUtils::createGeomEngine( envelope, QgsGeometryCheckPrecision::precision() );
+  geomEngine = QgsGeomUtils::createGeomEngine( envelope, QgsGeometryCheckPrecision::tolerance() );
   QgsAbstractGeometryV2* bufEnvelope = geomEngine->buffer( 2, 0, GEOSBUF_CAP_SQUARE, GEOSBUF_JOIN_MITRE, 4. );
   delete geomEngine;
   delete envelope;
   envelope = bufEnvelope;
 
   // Compute difference between envelope and union to obtain gap polygons
-  geomEngine = QgsGeomUtils::createGeomEngine( envelope, QgsGeometryCheckPrecision::precision() );
+  geomEngine = QgsGeomUtils::createGeomEngine( envelope, QgsGeometryCheckPrecision::tolerance() );
   QgsAbstractGeometryV2* diffGeom = geomEngine->difference( *unionGeom, &errMsg );
   delete geomEngine;
   if ( !diffGeom )
@@ -97,7 +97,7 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
     QgsRectangle gapAreaBBox = geom->boundingBox();
     QgsFeatureIds intersectIds = mFeaturePool->getIntersects( geom->boundingBox() );
 
-    foreach ( QgsFeatureId id, intersectIds )
+    Q_FOREACH ( QgsFeatureId id, intersectIds )
     {
       QgsFeature feature;
       if ( !mFeaturePool->get( id, feature ) )
@@ -159,7 +159,7 @@ bool QgsGeometryGapCheck::mergeWithNeighbor( QgsGeometryGapCheckError* err, Chan
   QgsAbstractGeometryV2* errGeometry = QgsGeomUtils::getGeomPart( err->geometry(), 0 );
 
   // Search for touching neighboring geometries
-  foreach ( const QgsFeatureId& testId, err->neighbors() )
+  Q_FOREACH ( const QgsFeatureId& testId, err->neighbors() )
   {
     QgsFeature testFeature;
     if ( !mFeaturePool->get( testId, testFeature ) )
@@ -186,7 +186,7 @@ bool QgsGeometryGapCheck::mergeWithNeighbor( QgsGeometryGapCheckError* err, Chan
 
   // Merge geometries
   QgsAbstractGeometryV2* mergeGeom = mergeFeature.geometry()->geometry();
-  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( errGeometry, QgsGeometryCheckPrecision::precision() );
+  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( errGeometry, QgsGeometryCheckPrecision::tolerance() );
   QgsAbstractGeometryV2* combinedGeom = geomEngine->combine( *QgsGeomUtils::getGeomPart( mergeGeom, mergePartIdx ), &errMsg );
   delete geomEngine;
   if ( !combinedGeom || combinedGeom->isEmpty() )

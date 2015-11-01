@@ -186,7 +186,7 @@ QgsRelationReferenceWidget::~QgsRelationReferenceWidget()
     delete mMapTool;
 }
 
-void QgsRelationReferenceWidget::setRelation( QgsRelation relation, bool allowNullValue )
+void QgsRelationReferenceWidget::setRelation( const QgsRelation& relation, bool allowNullValue )
 {
   mAllowNull = allowNullValue;
   mRemoveFKButton->setVisible( allowNullValue && mReadOnlySelector );
@@ -199,7 +199,7 @@ void QgsRelationReferenceWidget::setRelation( QgsRelation relation, bool allowNu
     mReferencingLayer = relation.referencingLayer();
     mRelationName = relation.name();
     mReferencedLayer = relation.referencedLayer();
-    mFkeyFieldIdx = mReferencedLayer->fieldNameIndex( relation.fieldPairs().first().second );
+    mFkeyFieldIdx = mReferencedLayer->fieldNameIndex( relation.fieldPairs().at( 0 ).second );
 
     QgsAttributeEditorContext context( mEditorContext, relation, QgsAttributeEditorContext::Single, QgsAttributeEditorContext::Embed );
 
@@ -400,7 +400,7 @@ void QgsRelationReferenceWidget::setOrderByValue( bool orderByValue )
   mOrderByValue = orderByValue;
 }
 
-void QgsRelationReferenceWidget::setFilterFields( QStringList filterFields )
+void QgsRelationReferenceWidget::setFilterFields( const QStringList& filterFields )
 {
   mFilterFields = filterFields;
 }
@@ -447,7 +447,7 @@ void QgsRelationReferenceWidget::init()
         mReferencedLayer->uniqueValues( idx, uniqueValues );
         cb->addItem( mReferencedLayer->attributeAlias( idx ).isEmpty() ? fieldName : mReferencedLayer->attributeAlias( idx ) );
         QVariant nullValue = QSettings().value( "qgis/nullValue", "NULL" );
-        cb->addItem( nullValue.toString(), QVariant( mReferencedLayer->fields()[idx].type() ) );
+        cb->addItem( nullValue.toString(), QVariant( mReferencedLayer->fields().at( idx ).type() ) );
 
         Q_FOREACH ( const QVariant& v, uniqueValues )
         {
@@ -485,7 +485,7 @@ void QgsRelationReferenceWidget::init()
     QgsExpression exp( mReferencedLayer->displayExpression() );
 
     requestedAttrs += exp.referencedColumns().toSet();
-    requestedAttrs << mRelation.fieldPairs().first().second;
+    requestedAttrs << mRelation.fieldPairs().at( 0 ).second;
 
     QgsAttributeList attributes;
     Q_FOREACH ( const QString& attr, requestedAttrs )
@@ -660,7 +660,7 @@ void QgsRelationReferenceWidget::mapIdentification()
 
   if ( mMessageBar )
   {
-    QString title = QString( "Relation %1 for %2." ).arg( mRelationName ).arg( mReferencingLayer->name() );
+    QString title = QString( "Relation %1 for %2." ).arg( mRelationName, mReferencingLayer->name() );
     QString msg = tr( "Identify a feature of %1 to be associated. Press &lt;ESC&gt; to cancel." ).arg( mReferencedLayer->name() );
     mMessageBarItem = QgsMessageBar::createMessage( title, msg, this );
     mMessageBar->pushItem( mMessageBarItem );
@@ -676,7 +676,7 @@ void QgsRelationReferenceWidget::comboReferenceChanged( int index )
   emit foreignKeyChanged( mFeature.attribute( mFkeyFieldIdx ) );
 }
 
-void QgsRelationReferenceWidget::updateAttributeEditorFrame( const QgsFeature feature )
+void QgsRelationReferenceWidget::updateAttributeEditorFrame( const QgsFeature& feature )
 {
   // Check if we're running with an embedded frame we need to update
   if ( mAttributeEditorFrame )
@@ -813,11 +813,11 @@ void QgsRelationReferenceWidget::filterChanged()
       {
         if ( mReferencedLayer->fields().field( fieldName ).type() == QVariant::String )
         {
-          filters << QString( "\"%1\" = '%2'" ).arg( fieldName ).arg( cb->currentText() );
+          filters << QString( "\"%1\" = '%2'" ).arg( fieldName, cb->currentText() );
         }
         else
         {
-          filters << QString( "\"%1\" = %2" ).arg( fieldName ).arg( cb->currentText() );
+          filters << QString( "\"%1\" = %2" ).arg( fieldName, cb->currentText() );
         }
       }
       attrs << mReferencedLayer->fieldNameIndex( fieldName );

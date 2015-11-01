@@ -37,7 +37,7 @@ QgsHandleBadLayersHandler::QgsHandleBadLayersHandler()
 {
 }
 
-void QgsHandleBadLayersHandler::handleBadLayers( QList<QDomNode> layers, QDomDocument projectDom )
+void QgsHandleBadLayersHandler::handleBadLayers( const QList<QDomNode>& layers, const QDomDocument& projectDom )
 {
   QApplication::setOverrideCursor( Qt::ArrowCursor );
   QgsHandleBadLayers *dialog = new QgsHandleBadLayers( layers, projectDom );
@@ -103,10 +103,10 @@ QgsHandleBadLayers::QgsHandleBadLayers( const QList<QDomNode> &layers, const QDo
     bool providerFileBased = ( QgsProviderRegistry::instance()->providerCapabilities( provider ) & QgsDataProvider::File ) != 0;
 
     QgsDebugMsg( QString( "name=%1 type=%2 provider=%3 datasource='%4'" )
-                 .arg( name )
-                 .arg( type )
-                 .arg( vectorProvider )
-                 .arg( datasource ) );
+                 .arg( name,
+                       type,
+                       vectorProvider,
+                       datasource ) );
 
     mLayerList->setRowCount( j + 1 );
 
@@ -207,7 +207,7 @@ QString QgsHandleBadLayers::filename( int row )
   return QString::null;
 }
 
-void QgsHandleBadLayers::setFilename( int row, QString filename )
+void QgsHandleBadLayers::setFilename( int row, const QString& filename )
 {
   if ( !QFileInfo( filename ).exists() )
     return;

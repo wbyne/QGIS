@@ -83,7 +83,8 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2Widget::renderer()
 void QgsSingleSymbolRendererV2Widget::setMapCanvas( QgsMapCanvas* canvas )
 {
   QgsRendererV2Widget::setMapCanvas( canvas );
-  mSelector->setMapCanvas( canvas );
+  if ( mSelector )
+    mSelector->setMapCanvas( canvas );
 }
 
 void QgsSingleSymbolRendererV2Widget::changeSingleSymbol()
@@ -92,7 +93,7 @@ void QgsSingleSymbolRendererV2Widget::changeSingleSymbol()
   mRenderer->setSymbol( mSingleSymbol->clone() );
 }
 
-void QgsSingleSymbolRendererV2Widget::sizeScaleFieldChanged( QString fldName )
+void QgsSingleSymbolRendererV2Widget::sizeScaleFieldChanged( const QString& fldName )
 {
   mRenderer->setSizeScaleField( fldName );
 }

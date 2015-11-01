@@ -57,6 +57,7 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     Q_OBJECT
 
   public:
+    static int LAST_TYPE;
 
     QgsGrassProvider( QString uri = QString() );
 
@@ -164,12 +165,10 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     //void startEditing( QgsVectorLayerEditBuffer* buffer );
     void startEditing( QgsVectorLayer *vectorLayer );
 
-    /** Freeze vector.
-     */
+    /** Freeze vector. */
     void freeze();
 
-    /** Thaw vector.
-     */
+    /** Thaw vector. */
     void thaw();
 
     /** Close editing. Rebuild topology, GMAP.update = false
@@ -396,6 +395,12 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     void onDataChanged();
 
+  signals:
+    // TODO: move to QGIS core?
+    // Emitted when a fields was added/deleted so that other layers sharing the same layer
+    // may be updated
+    void fieldsChanged();
+
   protected:
     // used by QgsGrassFeatureSource
     QgsGrassVectorMapLayer *openLayer() const;
@@ -406,6 +411,8 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     bool openLayer();
     // update topo symbol of new features
     void setAddedFeaturesSymbol();
+    // get new, not yet used cat
+    int getNewCat();
 
     QgsGrassObject mGrassObject;
     // field part of layer or -1 if no field specified
@@ -420,9 +427,6 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     QgsGrassVectorMapLayer *mLayer;
     // The version of the map for which the instance was last time updated
     int mMapVersion;
-
-    // Index for layerField in category index or -1 if no such field
-    int mCidxFieldIndex;
 
     bool mValid;
     long mNumberFeatures;
@@ -450,6 +454,9 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
 
     void setPoints( struct line_pnts *points, const QgsAbstractGeometryV2 * geometry );
 
+    // Get other edited layer, returns 0 if layer does not exist
+    QgsGrassVectorMapLayer * otherEditLayer( int layerField );
+
     /** Fields used for topo layers */
     QgsFields mTopoFields;
 
@@ -461,9 +468,21 @@ class GRASS_LIB_EXPORT QgsGrassProvider : public QgsVectorDataProvider
     //  next digitized feature GRASS type
     int mNewFeatureType;
 
+    // Last version of layer fields during editing, updated after addAttribute and deleteAttribute
+    QgsFields mEditLayerFields;
+
+    // List of other layers opened for editing
+    QList<QgsGrassVectorMapLayer *> mOtherEditLayers;
+
     // points and cats used only for editing
     struct line_pnts *mPoints;
     struct line_cats *mCats;
+
+    // last geometry GV_* type, used e.g. for splitting features
+    int mLastType;
+
+    // number of currently being edited providers
+    static int mEditedCount;
 
     friend class QgsGrassFeatureSource;
     friend class QgsGrassFeatureIterator;

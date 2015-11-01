@@ -130,7 +130,7 @@ class QgsBrowserTreeFilterProxyModel : public QSortFilterProxyModel
 
     void updateFilter()
     {
-      QgsDebugMsg( QString( "filter = %1 syntax = %2" ).arg( mFilter ).arg( mPatternSyntax ) );
+      QgsDebugMsg( QString( "filter = %1 syntax = %2" ).arg( mFilter, mPatternSyntax ) );
       mREList.clear();
       if ( mPatternSyntax == "normal" )
       {
@@ -176,7 +176,7 @@ class QgsBrowserTreeFilterProxyModel : public QSortFilterProxyModel
       {
         Q_FOREACH ( const QRegExp& rx, mREList )
         {
-          QgsDebugMsg( QString( "value: [%1] rx: [%2] match: %3" ).arg( value ).arg( rx.pattern() ).arg( rx.exactMatch( value ) ) );
+          QgsDebugMsg( QString( "value: [%1] rx: [%2] match: %3" ).arg( value, rx.pattern() ).arg( rx.exactMatch( value ) ) );
           if ( rx.exactMatch( value ) )
             return true;
         }
@@ -185,7 +185,7 @@ class QgsBrowserTreeFilterProxyModel : public QSortFilterProxyModel
       {
         Q_FOREACH ( const QRegExp& rx, mREList )
         {
-          QgsDebugMsg( QString( "value: [%1] rx: [%2] match: %3" ).arg( value ).arg( rx.pattern() ).arg( rx.indexIn( value ) ) );
+          QgsDebugMsg( QString( "value: [%1] rx: [%2] match: %3" ).arg( value, rx.pattern() ).arg( rx.indexIn( value ) ) );
           if ( rx.indexIn( value ) != -1 )
             return true;
         }
@@ -449,7 +449,7 @@ void QgsBrowserDirectoryProperties::setItem( QgsDataItem* item )
   mLayout->addWidget( mDirectoryWidget );
 }
 
-QgsBrowserPropertiesDialog::QgsBrowserPropertiesDialog( QString settingsSection, QWidget* parent ) :
+QgsBrowserPropertiesDialog::QgsBrowserPropertiesDialog( const QString& settingsSection, QWidget* parent ) :
     QDialog( parent )
     , mPropertiesWidget( 0 )
     , mSettingsSection( settingsSection )
@@ -475,7 +475,7 @@ void QgsBrowserPropertiesDialog::setItem( QgsDataItem* item )
   setWindowTitle( item->type() == QgsDataItem::Layer ? tr( "Layer Properties" ) : tr( "Directory Properties" ) );
 }
 
-QgsBrowserDockWidget::QgsBrowserDockWidget( QString name, QWidget * parent ) :
+QgsBrowserDockWidget::QgsBrowserDockWidget( const QString& name, QWidget * parent ) :
     QDockWidget( parent )
     , mModel( 0 )
     , mProxyModel( 0 )
@@ -666,7 +666,7 @@ void QgsBrowserDockWidget::addFavouriteDirectory()
   }
 }
 
-void QgsBrowserDockWidget::addFavouriteDirectory( QString favDir )
+void QgsBrowserDockWidget::addFavouriteDirectory( const QString& favDir )
 {
   mModel->addFavouriteDirectory( favDir );
 }

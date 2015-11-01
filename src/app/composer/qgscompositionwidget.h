@@ -26,7 +26,7 @@ class QgsDataDefinedButton;
  */
 struct QgsCompositionPaper
 {
-  QgsCompositionPaper( QString name, double width, double height ) {mName = name; mWidth = width; mHeight = height;}
+  QgsCompositionPaper( const QString& name, double width, double height ) {mName = name; mWidth = width; mHeight = height;}
   QString mName;
   double mWidth;
   double mHeight;
@@ -70,7 +70,7 @@ class QgsCompositionWidget: public QWidget, private Ui::QgsCompositionWidgetBase
 
   signals:
     /** Is emitted when page orientation changes*/
-    void pageOrientationChanged( QString orientation );
+    void pageOrientationChanged( const QString& orientation );
 
   private slots:
     /* when a new map is added */

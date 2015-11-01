@@ -233,7 +233,7 @@ void QgsSpatiaLiteSourceSelect::on_mSearchModeComboBox_currentIndexChanged( cons
   on_mSearchTableEdit_textChanged( mSearchTableEdit->text() );
 }
 
-void QgsSpatiaLiteSourceSelect::setLayerType( QString table, QString column, QString type )
+void QgsSpatiaLiteSourceSelect::setLayerType( const QString& table, const QString& column, const QString& type )
 {
   mTableModel.setGeometryTypesForTable( table, column, type );
   mTablesTreeView->sortByColumn( 0, Qt::AscendingOrder );
@@ -448,15 +448,15 @@ void QgsSpatiaLiteSourceSelect::on_btnConnect_clicked()
         break;
       case QgsSpatiaLiteConnection::FailedToOpen:
         QMessageBox::critical( this, tr( "SpatiaLite DB Open Error" ),
-                               tr( "Failure while connecting to: %1\n\n%2" ).arg( mSqlitePath ).arg( errCause ) );
+                               tr( "Failure while connecting to: %1\n\n%2" ).arg( mSqlitePath, errCause ) );
         break;
       case QgsSpatiaLiteConnection::FailedToGetTables:
         QMessageBox::critical( this, tr( "SpatiaLite getTableInfo Error" ),
-                               tr( "Failure exploring tables from: %1\n\n%2" ).arg( mSqlitePath ).arg( errCause ) );
+                               tr( "Failure exploring tables from: %1\n\n%2" ).arg( mSqlitePath, errCause ) );
         break;
       default:
         QMessageBox::critical( this, tr( "SpatiaLite Error" ),
-                               tr( "Unexpected error when working with: %1\n\n%2" ).arg( mSqlitePath ).arg( errCause ) );
+                               tr( "Unexpected error when working with: %1\n\n%2" ).arg( mSqlitePath, errCause ) );
     }
     mSqlitePath = QString();
     return;
@@ -530,7 +530,7 @@ void QgsSpatiaLiteSourceSelect::setSql( const QModelIndex &index )
   delete vlayer;
 }
 
-QString QgsSpatiaLiteSourceSelect::fullDescription( QString table, QString column, QString type )
+QString QgsSpatiaLiteSourceSelect::fullDescription( const QString& table, const QString& column, const QString& type )
 {
   QString full_desc = "";
   full_desc += table + "\" (" + column + ") " + type;

@@ -24,6 +24,7 @@ SET(QGIS_GUI_SRCS
   symbology-ng/qgsinvertedpolygonrendererwidget.cpp
   symbology-ng/qgsrendererv2propertiesdialog.cpp
   symbology-ng/qgsstylev2managerdialog.cpp
+  symbology-ng/qgsstylev2groupselectiondialog.cpp
   symbology-ng/qgssymbollevelsv2dialog.cpp
   symbology-ng/qgssymbolv2selectordialog.cpp
   symbology-ng/qgsvectorgradientcolorrampv2dialog.cpp
@@ -419,6 +420,7 @@ SET(QGIS_GUI_MOC_HDRS
   symbology-ng/qgssinglesymbolrendererv2widget.h
   symbology-ng/qgssmartgroupeditordialog.h
   symbology-ng/qgsstylev2exportimportdialog.h
+  symbology-ng/qgsstylev2groupselectiondialog.h
   symbology-ng/qgsstylev2managerdialog.h
   symbology-ng/qgssvgselectorwidget.h
   symbology-ng/qgssymbollayerv2widget.h
@@ -638,8 +640,10 @@ IF(ENABLE_MODELTEST)
   INCLUDE_DIRECTORIES(../../tests/qt_modeltest)
 ENDIF(ENABLE_MODELTEST)
 
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${QT_QTUITOOLS_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/symbology-ng
   ${CMAKE_CURRENT_SOURCE_DIR}/attributetable
@@ -658,14 +662,15 @@ INCLUDE_DIRECTORIES(
   ../core/effects
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/../ui
+)
+INCLUDE_DIRECTORIES(SYSTEM
   ${QCA_INCLUDE_DIR}
   ${QWT_INCLUDE_DIR}
   ${SQLITE3_INCLUDE_DIR}
+  ${QSCINTILLA_INCLUDE_DIR}
+  ${GEOS_INCLUDE_DIR}
+  ${GDAL_INCLUDE_DIR}
 )
-
-INCLUDE_DIRECTORIES(${QSCINTILLA_INCLUDE_DIR})
-INCLUDE_DIRECTORIES(${GEOS_INCLUDE_DIR})
-INCLUDE_DIRECTORIES(${GDAL_INCLUDE_DIR})
 
 IF (NOT MSVC)
   ADD_DEFINITIONS("-UGUI_EXPORT")

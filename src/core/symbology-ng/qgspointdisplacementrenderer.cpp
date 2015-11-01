@@ -428,7 +428,7 @@ QgsLegendSymbologyList QgsPointDisplacementRenderer::legendSymbologyItems( QSize
   return QgsLegendSymbologyList();
 }
 
-QgsLegendSymbolList QgsPointDisplacementRenderer::legendSymbolItems( double scaleDenominator, QString rule )
+QgsLegendSymbolList QgsPointDisplacementRenderer::legendSymbolItems( double scaleDenominator, const QString& rule )
 {
   if ( mRenderer )
   {
@@ -464,7 +464,7 @@ QString QgsPointDisplacementRenderer::getLabel( const QgsFeature& f )
   QgsAttributes attrs = f.attributes();
   if ( mLabelIndex >= 0 && mLabelIndex < attrs.count() )
   {
-    attribute = attrs[mLabelIndex].toString();
+    attribute = attrs.at( mLabelIndex ).toString();
   }
   return attribute;
 }

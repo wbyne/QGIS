@@ -514,7 +514,7 @@ QgsExpression* QgsPalLayerSettings::getLabelExpression()
   return expression;
 }
 
-static QColor _readColor( QgsVectorLayer* layer, QString property, QColor defaultColor = Qt::black, bool withAlpha = true )
+static QColor _readColor( QgsVectorLayer* layer, const QString& property, const QColor& defaultColor = Qt::black, bool withAlpha = true )
 {
   int r = layer->customProperty( property + "R", QVariant( defaultColor.red() ) ).toInt();
   int g = layer->customProperty( property + "G", QVariant( defaultColor.green() ) ).toInt();
@@ -523,7 +523,7 @@ static QColor _readColor( QgsVectorLayer* layer, QString property, QColor defaul
   return QColor( r, g, b, a );
 }
 
-static void _writeColor( QgsVectorLayer* layer, QString property, QColor color, bool withAlpha = true )
+static void _writeColor( QgsVectorLayer* layer, const QString& property, const QColor& color, bool withAlpha = true )
 {
   layer->setCustomProperty( property + "R", color.red() );
   layer->setCustomProperty( property + "G", color.green() );
@@ -736,7 +736,7 @@ void QgsPalLayerSettings::readDataDefinedProperty( QgsVectorLayer* layer,
     layer->removeCustomProperty( oldPropertyName );
   }
 
-  if ( !ddString.isEmpty() && ddString != QString( "0~~0~~~~" ) )
+  if ( !ddString.isEmpty() && ddString != QLatin1String( "0~~0~~~~" ) )
   {
     // TODO: update this when project settings for labeling are migrated to better XML layout
     QString newStyleString = updateDataDefinedString( ddString );
@@ -754,7 +754,7 @@ void QgsPalLayerSettings::readDataDefinedProperty( QgsVectorLayer* layer,
 
 void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
 {
-  if ( layer->customProperty( "labeling" ).toString() != QString( "pal" ) )
+  if ( layer->customProperty( "labeling" ).toString() != QLatin1String( "pal" ) )
   {
     // for polygons the "over point" (over centroid) placement is better than the default
     // "around point" (around centroid) which is more suitable for points
@@ -1652,7 +1652,7 @@ QVariant QgsPalLayerSettings::dataDefinedValue( DataDefinedProperties p, QgsFeat
   return result;
 }
 
-bool QgsPalLayerSettings::dataDefinedEvaluate( DataDefinedProperties p, QVariant& exprVal, QgsExpressionContext *context, QVariant originalValue ) const
+bool QgsPalLayerSettings::dataDefinedEvaluate( DataDefinedProperties p, QVariant& exprVal, QgsExpressionContext *context, const QVariant& originalValue ) const
 {
   // null passed-around QVariant
   exprVal.clear();
@@ -1664,8 +1664,7 @@ bool QgsPalLayerSettings::dataDefinedEvaluate( DataDefinedProperties p, QVariant
   if ( !context )
   {
     scopedEc.reset( new QgsExpressionContext() );
-    if ( mCurFeat )
-      scopedEc->setFeature( *mCurFeat );
+    scopedEc->setFeature( *mCurFeat );
     scopedEc->setFields( mCurFields );
   }
   QgsExpressionContext* ec = context ? context : scopedEc.data();
@@ -1845,7 +1844,7 @@ void QgsPalLayerSettings::calculateLabelSize( const QFontMetricsF* fm, QString t
 
   if ( wrapchr.isEmpty() )
   {
-    wrapchr = QString( "\n" ); // default to new line delimiter
+    wrapchr = QLatin1String( "\n" ); // default to new line delimiter
   }
 
   //consider the space needed for the direction symbol
@@ -1863,7 +1862,7 @@ void QgsPalLayerSettings::calculateLabelSize( const QFontMetricsF* fm, QString t
     }
     else
     {
-      text.prepend( dirSym + QString( "\n" ) ); // SymbolAbove or SymbolBelow
+      text.prepend( dirSym + QLatin1String( "\n" ) ); // SymbolAbove or SymbolBelow
     }
   }
 
@@ -1898,7 +1897,7 @@ void QgsPalLayerSettings::calculateLabelSize( const QFontMetricsF* fm, QString t
 }
 
 
-void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &context, QString dxfLayer, QgsLabelFeature** labelFeature )
+void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &context, const QString& dxfLayer, QgsLabelFeature** labelFeature )
 {
   // either used in QgsPalLabeling (palLayer is set) or in QgsLabelingEngineV2 (labelFeature is set)
   Q_ASSERT( labelFeature );
@@ -2613,7 +2612,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
   ( *labelFeature )->setLabelText( labelText );
 
   // store the label's calculated font for later use during painting
-  QgsDebugMsgLevel( QString( "PAL font stored definedFont: %1, Style: %2" ).arg( labelFont.toString() ).arg( labelFont.styleName() ), 4 );
+  QgsDebugMsgLevel( QString( "PAL font stored definedFont: %1, Style: %2" ).arg( labelFont.toString(), labelFont.styleName() ), 4 );
   lf->setDefinedFont( labelFont );
 
   // TODO: only for placement which needs character info
@@ -2707,7 +2706,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
 }
 
 
-void QgsPalLayerSettings::registerObstacleFeature( QgsFeature& f, QgsRenderContext &context, QString dxfLayer , QgsLabelFeature** obstacleFeature )
+void QgsPalLayerSettings::registerObstacleFeature( QgsFeature& f, QgsRenderContext &context, const QString& dxfLayer, QgsLabelFeature** obstacleFeature )
 {
   Q_UNUSED( dxfLayer ); // now handled in QgsDxfLabelProvider
 
@@ -2748,7 +2747,7 @@ void QgsPalLayerSettings::registerObstacleFeature( QgsFeature& f, QgsRenderConte
 
 bool QgsPalLayerSettings::dataDefinedValEval( DataDefinedValueType valType,
     QgsPalLayerSettings::DataDefinedProperties p,
-    QVariant& exprVal, QgsExpressionContext& context, QVariant originalValue )
+    QVariant& exprVal, QgsExpressionContext& context, const QVariant& originalValue )
 {
   if ( dataDefinedEvaluate( p, exprVal, &context, originalValue ) )
   {
@@ -3695,7 +3694,7 @@ int QgsPalLabeling::addDiagramLayer( QgsVectorLayer* layer, const QgsDiagramLaye
   return 0;
 }
 
-void QgsPalLabeling::registerFeature( const QString& layerID, QgsFeature& f, QgsRenderContext &context, QString dxfLayer )
+void QgsPalLabeling::registerFeature( const QString& layerID, QgsFeature& f, QgsRenderContext &context, const QString& dxfLayer )
 {
   Q_UNUSED( dxfLayer ); // now handled by QgsDxfLabelProvider
   if ( QgsVectorLayerLabelProvider* provider = mLabelProviders.value( layerID, 0 ) )
@@ -3732,7 +3731,7 @@ bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, Q
 QStringList QgsPalLabeling::splitToLines( const QString &text, const QString &wrapCharacter )
 {
   QStringList multiLineSplit;
-  if ( !wrapCharacter.isEmpty() && wrapCharacter != QString( "\n" ) )
+  if ( !wrapCharacter.isEmpty() && wrapCharacter != QLatin1String( "\n" ) )
   {
     //wrap on both the wrapchr and new line characters
     Q_FOREACH ( const QString& line, text.split( wrapCharacter ) )

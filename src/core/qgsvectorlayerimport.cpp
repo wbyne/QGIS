@@ -72,7 +72,7 @@ QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
   {
     delete myLib;
     mError = ErrProviderUnsupportedFeature;
-    mErrorMessage = QObject::tr( "Provider %1 has no %2 method" ).arg( providerKey ).arg( "createEmptyLayer" );
+    mErrorMessage = QObject::tr( "Provider %1 has no %2 method" ).arg( providerKey, "createEmptyLayer" );
     return;
   }
 
@@ -150,7 +150,7 @@ bool QgsVectorLayerImport::addFeature( QgsFeature& feat )
       continue;
 
     QgsDebugMsgLevel( QString( "moving field from pos %1 to %2" ).arg( i ).arg( dstIdx ), 3 );
-    newFeat.setAttribute( dstIdx, attrs[i] );
+    newFeat.setAttribute( dstIdx, attrs.at( i ) );
   }
 
   mFeatureBuffer.append( newFeat );
@@ -252,7 +252,7 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
     // convert field names to lowercase
     for ( int fldIdx = 0; fldIdx < fields.count(); ++fldIdx )
     {
-      fields[fldIdx].setName( fields[fldIdx].name().toLower() );
+      fields[fldIdx].setName( fields.at( fldIdx ).name().toLower() );
     }
 
     if ( !forceSinglePartGeom )

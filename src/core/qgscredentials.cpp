@@ -46,14 +46,14 @@ QgsCredentials::~QgsCredentials()
 {
 }
 
-bool QgsCredentials::get( QString realm, QString &username, QString &password, QString message )
+bool QgsCredentials::get( const QString& realm, QString &username, QString &password, const QString& message )
 {
   if ( mCredentialCache.contains( realm ) )
   {
     QPair<QString, QString> credentials = mCredentialCache.take( realm );
     username = credentials.first;
     password = credentials.second;
-    QgsDebugMsg( QString( "retrieved realm:%1 username:%2 password:%3" ).arg( realm ).arg( username ).arg( password ) );
+    QgsDebugMsg( QString( "retrieved realm:%1 username:%2 password:%3" ).arg( realm, username, password ) );
 
     if ( !password.isNull() )
       return true;
@@ -61,7 +61,7 @@ bool QgsCredentials::get( QString realm, QString &username, QString &password, Q
 
   if ( request( realm, username, password, message ) )
   {
-    QgsDebugMsg( QString( "requested realm:%1 username:%2 password:%3" ).arg( realm ).arg( username ).arg( password ) );
+    QgsDebugMsg( QString( "requested realm:%1 username:%2 password:%3" ).arg( realm, username, password ) );
     return true;
   }
   else
@@ -71,9 +71,9 @@ bool QgsCredentials::get( QString realm, QString &username, QString &password, Q
   }
 }
 
-void QgsCredentials::put( QString realm, QString username, QString password )
+void QgsCredentials::put( const QString& realm, const QString& username, const QString& password )
 {
-  QgsDebugMsg( QString( "inserting realm:%1 username:%2 password:%3" ).arg( realm ).arg( username ).arg( password ) );
+  QgsDebugMsg( QString( "inserting realm:%1 username:%2 password:%3" ).arg( realm, username, password ) );
   mCredentialCache.insert( realm, QPair<QString, QString>( username, password ) );
 }
 
@@ -106,7 +106,7 @@ QgsCredentialsConsole::QgsCredentialsConsole()
   setInstance( this );
 }
 
-bool QgsCredentialsConsole::request( QString realm, QString &username, QString &password, QString message )
+bool QgsCredentialsConsole::request( const QString& realm, QString &username, QString &password, const QString& message )
 {
   QTextStream in( stdin, QIODevice::ReadOnly );
   QTextStream out( stdout, QIODevice::WriteOnly );

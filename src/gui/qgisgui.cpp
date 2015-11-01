@@ -83,7 +83,7 @@ namespace QgisGui
     return false;
   }
 
-  QPair<QString, QString> GUI_EXPORT getSaveAsImageName( QWidget *theParent, QString theMessage, QString defaultFilename )
+  QPair<QString, QString> GUI_EXPORT getSaveAsImageName( QWidget *theParent, const QString& theMessage, const QString& defaultFilename )
   {
     // get a list of supported output image types
     QMap<QString, QString> filterMap;
@@ -178,7 +178,7 @@ namespace QgisGui
 
   QString createFileFilter_( QString const &longName, QString const &glob )
   {
-    return QString( "%1 (%2 %3)" ).arg( longName ).arg( glob.toLower() ).arg( glob.toUpper() );
+    return QString( "%1 (%2 %3)" ).arg( longName, glob.toLower(), glob.toUpper() );
   }
 
   QString createFileFilter_( QString const &format )

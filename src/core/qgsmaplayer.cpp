@@ -49,8 +49,8 @@
 
 
 QgsMapLayer::QgsMapLayer( QgsMapLayer::LayerType type,
-                          QString lyrname,
-                          QString source )
+                          const QString& lyrname,
+                          const QString& source )
     : mValid( false ) // assume the layer is invalid
     , mDataSource( source )
     , mLayerOrigName( lyrname ) // store the original name
@@ -115,7 +115,7 @@ void QgsMapLayer::setLayerName( const QString & name )
 }
 
 /** Read property of QString layerName. */
-QString const & QgsMapLayer::name() const
+QString QgsMapLayer::name() const
 {
   QgsDebugMsgLevel( "returning name '" + mLayerName + "'", 4 );
   return mLayerName;
@@ -129,7 +129,7 @@ QString QgsMapLayer::publicSource() const
   return safeName;
 }
 
-QString const & QgsMapLayer::source() const
+QString QgsMapLayer::source() const
 {
   return mDataSource;
 }
@@ -512,7 +512,7 @@ bool QgsMapLayer::readXml( const QDomNode& layer_node )
 
 
 
-bool QgsMapLayer::writeLayerXML( QDomElement& layerElement, QDomDocument& document, QString relativeBasePath )
+bool QgsMapLayer::writeLayerXML( QDomElement& layerElement, QDomDocument& document, const QString& relativeBasePath )
 {
   // use scale dependent visibility flag
   layerElement.setAttribute( "hasScaleBasedVisibilityFlag", hasScaleBasedVisibility() ? 1 : 0 );
@@ -750,7 +750,7 @@ bool QgsMapLayer::writeLayerXML( QDomElement& layerElement, QDomDocument& docume
 
 } // bool QgsMapLayer::writeXML
 
-QDomDocument QgsMapLayer::asLayerDefinition( QList<QgsMapLayer *> layers, QString relativeBasePath )
+QDomDocument QgsMapLayer::asLayerDefinition( const QList<QgsMapLayer *>& layers, const QString& relativeBasePath )
 {
   QDomDocument doc( "qgis-layer-definition" );
   QDomElement qgiselm = doc.createElement( "qlr" );
@@ -946,7 +946,7 @@ void QgsMapLayer::setLayerOrder( const QStringList &layers )
   // NOOP
 }
 
-void QgsMapLayer::setSubLayerVisibility( QString name, bool vis )
+void QgsMapLayer::setSubLayerVisibility( const QString& name, bool vis )
 {
   Q_UNUSED( name );
   Q_UNUSED( vis );
@@ -1046,7 +1046,7 @@ QString QgsMapLayer::loadDefaultStyle( bool & theResultFlag )
 
 bool QgsMapLayer::loadNamedStyleFromDb( const QString &db, const QString &theURI, QString &qml )
 {
-  QgsDebugMsg( QString( "db = %1 uri = %2" ).arg( db ).arg( theURI ) );
+  QgsDebugMsg( QString( "db = %1 uri = %2" ).arg( db, theURI ) );
 
   bool theResultFlag = false;
 
@@ -1056,7 +1056,7 @@ bool QgsMapLayer::loadNamedStyleFromDb( const QString &db, const QString &theURI
   const char *myTail;
   int myResult;
 
-  QgsDebugMsg( QString( "Trying to load style for \"%1\" from \"%2\"" ).arg( theURI ).arg( db ) );
+  QgsDebugMsg( QString( "Trying to load style for \"%1\" from \"%2\"" ).arg( theURI, db ) );
 
   if ( db.isEmpty() || !QFile( db ).exists() )
     return false;
@@ -1091,7 +1091,7 @@ bool QgsMapLayer::loadNamedStyleFromDb( const QString &db, const QString &theURI
 
 QString QgsMapLayer::loadNamedStyle( const QString &theURI, bool &theResultFlag )
 {
-  QgsDebugMsg( QString( "uri = %1 myURI = %2" ).arg( theURI ).arg( publicSource() ) );
+  QgsDebugMsg( QString( "uri = %1 myURI = %2" ).arg( theURI, publicSource() ) );
 
   theResultFlag = false;
 
@@ -1139,7 +1139,7 @@ QString QgsMapLayer::loadNamedStyle( const QString &theURI, bool &theResultFlag 
 
   theResultFlag = importNamedStyle( myDocument, myErrorMessage );
   if ( !theResultFlag )
-    myErrorMessage = tr( "Loading style file %1 failed because:\n%2" ).arg( theURI ).arg( myErrorMessage );
+    myErrorMessage = tr( "Loading style file %1 failed because:\n%2" ).arg( theURI, myErrorMessage );
 
   return myErrorMessage;
 }
@@ -1380,6 +1380,7 @@ void QgsMapLayer::exportSldStyle( QDomDocument &doc, QString &errorMsg )
   // Create the root element
   QDomElement root = myDocument.createElementNS( "http://www.opengis.net/sld", "StyledLayerDescriptor" );
   root.setAttribute( "version", "1.1.0" );
+  root.setAttribute( "units", "mm" ); // default qgsmaprenderer is Millimeters
   root.setAttribute( "xsi:schemaLocation", "http://www.opengis.net/sld http://schemas.opengis.net/sld/1.1.0/StyledLayerDescriptor.xsd" );
   root.setAttribute( "xmlns:ogc", "http://www.opengis.net/ogc" );
   root.setAttribute( "xmlns:se", "http://www.opengis.net/se" );
@@ -1515,7 +1516,7 @@ QString QgsMapLayer::loadSldStyle( const QString &theURI, bool &theResultFlag )
   QDomElement namedLayerElem = myRoot.firstChildElement( "NamedLayer" );
   if ( namedLayerElem.isNull() )
   {
-    myErrorMessage = QString( "Info: NamedLayer element not found." );
+    myErrorMessage = QLatin1String( "Info: NamedLayer element not found." );
     theResultFlag = false;
     return myErrorMessage;
   }
@@ -1524,7 +1525,7 @@ QString QgsMapLayer::loadSldStyle( const QString &theURI, bool &theResultFlag )
   theResultFlag = readSld( namedLayerElem, errorMsg );
   if ( !theResultFlag )
   {
-    myErrorMessage = tr( "Loading style file %1 failed because:\n%2" ).arg( theURI ).arg( errorMsg );
+    myErrorMessage = tr( "Loading style file %1 failed because:\n%2" ).arg( theURI, errorMsg );
     return myErrorMessage;
   }
 

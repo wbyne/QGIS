@@ -36,7 +36,7 @@ QString QgsDefaultSearchWidgetWrapper::expression()
   return mExpression;
 }
 
-void QgsDefaultSearchWidgetWrapper::setCaseString( Qt::CheckState caseSensitiveCheckState )
+void QgsDefaultSearchWidgetWrapper::setCaseString( int caseSensitiveCheckState )
 {
   if ( caseSensitiveCheckState == Qt::Checked )
   {
@@ -52,12 +52,12 @@ void QgsDefaultSearchWidgetWrapper::setCaseString( Qt::CheckState caseSensitiveC
 
 void QgsDefaultSearchWidgetWrapper::setExpression( QString exp )
 {
-  QVariant::Type fldType = layer()->fields()[mFieldIdx].type();
+  QVariant::Type fldType = layer()->fields().at( mFieldIdx ).type();
   bool numeric = ( fldType == QVariant::Int || fldType == QVariant::Double || fldType == QVariant::LongLong );
 
   QSettings settings;
   QString nullValue = settings.value( "qgis/nullValue", "NULL" ).toString();
-  QString fieldName = layer()->fields()[mFieldIdx].name();
+  QString fieldName = layer()->fields().at( mFieldIdx ).name();
   QString str;
   if ( exp == nullValue )
   {
@@ -66,15 +66,14 @@ void QgsDefaultSearchWidgetWrapper::setExpression( QString exp )
   else
   {
     str = QString( "%1 %2 '%3'" )
-          .arg( QgsExpression::quotedColumnRef( fieldName ) )
-          .arg( numeric ? "=" : mCaseString )
-          .arg( numeric
+          .arg( QgsExpression::quotedColumnRef( fieldName ),
+                numeric ? "=" : mCaseString,
+                numeric
                 ? exp.replace( "'", "''" )
                 :
                 "%" + exp.replace( "'", "''" ) + "%" ); // escape quotes
   }
   mExpression = str;
-  emit expressionChanged( mExpression );
 }
 
 QWidget* QgsDefaultSearchWidgetWrapper::createWidget( QWidget* parent )
