@@ -178,7 +178,7 @@ class CORE_EXPORT QgsAttributeEditorContainer : public QgsAttributeEditorElement
     virtual void setIsGroupBox( bool isGroupBox ) { mIsGroupBox = isGroupBox; }
 
     /**
-     * Returns if this  ccontainer is going to be rendered as a group box
+     * Returns if this container is going to be rendered as a group box
      *
      * @return True if it will be a group box, false if it will be a tab
      */
@@ -1149,6 +1149,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     /** Moves the vertex at the given position number,
      *  ring and item (first number is index 0), and feature
      *  to the given coordinates
+     *  @note available in python as moveVertexV2
      */
     bool moveVertex( const QgsPointV2& p, QgsFeatureId atFeatureId, int atVertex );
 
@@ -1181,7 +1182,9 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
             0 in case of success
             1 problem with feature type
             2 ring not closed
-            6 layer not editable*/
+            6 layer not editable
+       @note available in python as addCurvedRing
+     */
     int addRing( QgsCurveV2* ring, QgsFeatureId* featureId = 0 );
 
     /** Adds a new part polygon to a multipart feature
@@ -1196,6 +1199,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
        7 layer not editable */
     int addPart( const QList<QgsPoint>& ring );
 
+    //! @note available in python as addCurvedPart
     int addPart( QgsCurveV2* ring );
 
     /** Translates feature by dx, dy
@@ -1628,8 +1632,20 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     /** Get python function for edit form initialization */
     QString editFormInit();
 
+    /** Get python code for edit form initialization */
+    QString editFormInitCode();
+
+    /** Reeturn if python code has to be loaded for edit form initialization */
+    bool editFormInitUseCode();
+
     /** Set python function for edit form initialization */
     void setEditFormInit( const QString& function );
+
+    /** Set python code for edit form initialization */
+    void setEditFormInitCode( const QString& code );
+
+    /** Set python code for edit form initialization */
+    void setEditFormInitUseCode( const bool useCode );
 
     /**
      * Access value map
@@ -1885,6 +1901,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @see updatedFields()
      */
     void attributeAdded( int idx );
+
     /**
      * Will be emitted, when an expression field is going to be added to this vector layer.
      * Applies only to types {@link QgsFields::OriginExpression }
@@ -1892,6 +1909,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @param fieldName The name of the attribute to be added
      */
     void beforeAddingExpressionField( const QString& fieldName );
+
     /**
      * Will be emitted, when an attribute has been deleted from this vector layer.
      * Applies only to types {@link QgsFields::OriginEdit}, {@link QgsFields::OriginProvider} and {@link QgsFields::OriginExpression }
@@ -1901,6 +1919,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @see updatedFields()
      */
     void attributeDeleted( int idx );
+
     /**
      * Will be emitted, when an expression field is going to be deleted from this vector layer.
      * Applies only to types {@link QgsFields::OriginExpression }
@@ -1915,6 +1934,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @param fid The id of the new feature
      */
     void featureAdded( QgsFeatureId fid );
+
     /**
      * Emitted when a feature has been deleted.
      *
@@ -1924,16 +1944,18 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @param fid The id of the feature which has been deleted
      */
     void featureDeleted( QgsFeatureId fid );
+
     /**
      * Emitted when features have been deleted.
      *
      * If features are deleted within an edit command, this will only be emitted once at the end
      * to allow connected slots to minimize the overhead.
-     * If features are delted outside of an edit command, this signal will be emitted once per feature.
+     * If features are deleted outside of an edit command, this signal will be emitted once per feature.
      *
      * @param fids The feature ids that have been deleted.
      */
     void featuresDeleted( const QgsFeatureIds& fids );
+
     /**
      * Is emitted, whenever the fields available from this layer have been changed.
      * This can be due to manually adding attributes or due to a join.
@@ -2005,7 +2027,6 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
      * @param errorMessage Write error messages into this string.
      */
     void writeCustomSymbology( QDomElement& element, QDomDocument& doc, QString& errorMessage ) const;
-
 
   private slots:
     void onRelationsLoaded();
@@ -2141,7 +2162,8 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer
     /** Defines the default layout to use for the attribute editor (Drag and drop, UI File, Generated) */
     EditorLayout mEditorLayout;
 
-    QString mEditForm, mEditFormInit;
+    QString mEditForm, mEditFormInit, mEditFormInitCode;
+    bool mEditFormInitUseCode;
 
     /** Type of feature form suppression after feature creation
      * @note added in 2.1 */

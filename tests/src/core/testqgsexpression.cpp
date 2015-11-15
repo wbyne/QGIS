@@ -71,7 +71,7 @@ class TestQgsExpression: public QObject
       QgsApplication::showSettings();
 
       //create a point layer that will be used in all tests...
-      QString testDataDir = QString( TEST_DATA_DIR ) + "/";
+      QString testDataDir = QString( TEST_DATA_DIR ) + '/';
       QString pointsFileName = testDataDir + "points.shp";
       QFileInfo pointFileInfo( pointsFileName );
       mPointsLayer = new QgsVectorLayer( pointFileInfo.filePath(),
@@ -122,7 +122,7 @@ class TestQgsExpression: public QObject
       QTest::newRow( "invalid binary operator" ) << "1+" << false;
       QTest::newRow( "invalid function no params" ) << "cos" << false;
       QTest::newRow( "invalid function not known" ) << "coz(1)" << false;
-      QTest::newRow( "invalid operator IN" ) << "n in m" << false;
+      QTest::newRow( "invalid operator IN" ) << "n in p" << false;
       QTest::newRow( "empty node list" ) << "1 in ()" << false;
       QTest::newRow( "invalid sqrt params" ) << "sqrt(2,4)" << false;
       QTest::newRow( "special column as function" ) << "$id()" << false;
@@ -145,16 +145,16 @@ class TestQgsExpression: public QObject
       QTest::newRow( "arithmetics" ) << "1+2*3" << true;
       QTest::newRow( "logic" ) << "be or not be" << true;
 
-      QTest::newRow( "conditions +1" ) << "case when n then m end" << true;
-      QTest::newRow( "conditions +2" ) << "case when n then m else o end" << true;
-      QTest::newRow( "conditions +3" ) << "case when n then m when a then b end" << true;
-      QTest::newRow( "conditions +4" ) << "case when n then ym when a then b else z end" << true;
+      QTest::newRow( "conditions +1" ) << "case when n then p end" << true;
+      QTest::newRow( "conditions +2" ) << "case when n then p else o end" << true;
+      QTest::newRow( "conditions +3" ) << "case when n then p when a then b end" << true;
+      QTest::newRow( "conditions +4" ) << "case when n then ym when a then b else p end" << true;
 
       QTest::newRow( "conditions -1" ) << "case end" << false;
-      QTest::newRow( "conditions -2" ) << "when n then m" << false;
+      QTest::newRow( "conditions -2" ) << "when n then p" << false;
       QTest::newRow( "conditions -3" ) << "case" << false;
-      QTest::newRow( "conditions -4" ) << "case when n m end" << false;
-      QTest::newRow( "conditions -5" ) << "case m end" << false;
+      QTest::newRow( "conditions -4" ) << "case when n p end" << false;
+      QTest::newRow( "conditions -5" ) << "case p end" << false;
     }
     void parsing()
     {
@@ -443,8 +443,25 @@ class TestQgsExpression: public QObject
       QTest::newRow( "end_point line" ) << "geom_to_wkt(end_point(geom_from_wkt('LINESTRING(4 1, 1 1, 2 2)')))" << false << QVariant( "Point (2 2)" );
       QTest::newRow( "end_point polygon" ) << "geom_to_wkt(end_point(geom_from_wkt('POLYGON((-1 -1, 4 0, 4 2, 0 2, -1 -1))')))" << false << QVariant( "Point (-1 -1)" );
       QTest::newRow( "make_point" ) << "geom_to_wkt(make_point(2.2,4.4))" << false << QVariant( "Point (2.2 4.4)" );
+      QTest::newRow( "make_point z" ) << "geom_to_wkt(make_point(2.2,4.4,5.5))" << false << QVariant( "PointZ (2.2 4.4 5.5)" );
+      QTest::newRow( "make_point zm" ) << "geom_to_wkt(make_point(2.2,4.4,5.5,6.6))" << false << QVariant( "PointZM (2.2 4.4 5.5 6.6)" );
+      QTest::newRow( "make_point bad" ) << "make_point(2.2)" << true << QVariant();
+      QTest::newRow( "make_point bad 2" ) << "make_point(2.2, 3, 3, 3, 3)" << true << QVariant();
+      QTest::newRow( "make_point_m" ) << "geom_to_wkt(make_point_m(2.2,4.4,5.5))" << false << QVariant( "PointM (2.2 4.4 5.5)" );
+      QTest::newRow( "make_line bad" ) << "make_line(make_point(2,4))" << false << QVariant();
+      QTest::newRow( "make_line" ) << "geom_to_wkt(make_line(make_point(2,4),make_point(4,6)))" << false << QVariant( "LineString (2 4, 4 6)" );
+      QTest::newRow( "make_line" ) << "geom_to_wkt(make_line(make_point(2,4),make_point(4,6),make_point(7,9)))" << false << QVariant( "LineString (2 4, 4 6, 7 9)" );
+      QTest::newRow( "make_line" ) << "geom_to_wkt(make_line(make_point(2,4,1,3),make_point(4,6,9,8),make_point(7,9,3,4)))" << false << QVariant( "LineStringZM (2 4 1 3, 4 6 9 8, 7 9 3 4)" );
+      QTest::newRow( "make_polygon bad" ) << "make_polygon(make_point(2,4))" << false << QVariant();
+      QTest::newRow( "make_polygon" ) << "geom_to_wkt(make_polygon(geom_from_wkt('LINESTRING( 0 0, 0 1, 1 1, 1 0, 0 0 )')))" << false << QVariant( "Polygon ((0 0, 0 1, 1 1, 1 0, 0 0))" );
+      QTest::newRow( "make_polygon rings" ) << "geom_to_wkt(make_polygon(geom_from_wkt('LINESTRING( 0 0, 0 1, 1 1, 1 0, 0 0 )'),geom_from_wkt('LINESTRING( 0.1 0.1, 0.1 0.2, 0.2 0.2, 0.2 0.1, 0.1 0.1 )'),geom_from_wkt('LINESTRING( 0.8 0.8, 0.8 0.9, 0.9 0.9, 0.9 0.8, 0.8 0.8 )')))" << false
+      << QVariant( "Polygon ((0 0, 0 1, 1 1, 1 0, 0 0),(0.1 0.1, 0.1 0.2, 0.2 0.2, 0.2 0.1, 0.1 0.1),(0.8 0.8, 0.8 0.9, 0.9 0.9, 0.9 0.8, 0.8 0.8))" );
       QTest::newRow( "x point" ) << "x(make_point(2.2,4.4))" << false << QVariant( 2.2 );
       QTest::newRow( "y point" ) << "y(make_point(2.2,4.4))" << false << QVariant( 4.4 );
+      QTest::newRow( "z point" ) << "z(make_point(2.2,4.4,6.6))" << false << QVariant( 6.6 );
+      QTest::newRow( "z not point" ) << "z(geom_from_wkt('LINESTRING(2 0,2 2, 3 2, 3 0)'))" << false << QVariant();
+      QTest::newRow( "m point" ) << "m(make_point_m(2.2,4.4,7.7))" << false << QVariant( 7.7 );
+      QTest::newRow( "m not point" ) << "m(geom_from_wkt('LINESTRING(2 0,2 2, 3 2, 3 0)'))" << false << QVariant();
       QTest::newRow( "x line" ) << "x(geom_from_wkt('LINESTRING(2 0,2 2, 3 2, 3 0)'))" << false << QVariant( 2.5 );
       QTest::newRow( "x line" ) << "y(geom_from_wkt('LINESTRING(2 0,2 2, 3 2, 3 0)'))" << false << QVariant( 1.2 );
       QTest::newRow( "x polygon" ) << "x(geom_from_wkt('POLYGON((2 0,2 2, 3 2, 3 0, 2 0))'))" << false << QVariant( 2.5 );
@@ -452,6 +469,8 @@ class TestQgsExpression: public QObject
       QTest::newRow( "relate valid" ) << "relate(geom_from_wkt('POINT(110 120)'),geom_from_wkt('POLYGON((60 120,60 40,160 40,160 120,60 120))'))" << false << QVariant( "F0FFFF212" );
       QTest::newRow( "relate bad 1" ) << "relate(geom_from_wkt(''),geom_from_wkt('POLYGON((60 120,60 40,160 40,160 120,60 120))'))" << false << QVariant();
       QTest::newRow( "relate bad 2" ) << "relate(geom_from_wkt('POINT(110 120)'),geom_from_wkt(''))" << false << QVariant();
+      QTest::newRow( "relate pattern true" ) << "relate( geom_from_wkt( 'LINESTRING(40 40,120 120)' ), geom_from_wkt( 'LINESTRING(40 40,60 120)' ), '**1F001**' )" << false << QVariant( true );
+      QTest::newRow( "relate pattern false" ) << "relate( geom_from_wkt( 'LINESTRING(40 40,120 120)' ), geom_from_wkt( 'LINESTRING(40 40,60 120)' ), '**1F002**' )" << false << QVariant( false );
 
       // string functions
       QTest::newRow( "lower" ) << "lower('HeLLo')" << false << QVariant( "hello" );
@@ -611,6 +630,12 @@ class TestQgsExpression: public QObject
       QTest::newRow( "layer_property type" ) << QString( "layer_property('%1','type')" ).arg( mPointsLayer->name() ) << false << QVariant( "Vector" );
       QTest::newRow( "layer_property storage_type" ) << QString( "layer_property('%1','storage_type')" ).arg( mPointsLayer->name() ) << false << QVariant( "ESRI Shapefile" );
       QTest::newRow( "layer_property geometry_type" ) << QString( "layer_property('%1','geometry_type')" ).arg( mPointsLayer->name() ) << false << QVariant( "Point" );
+
+      //test conversions to bool
+      QTest::newRow( "feature to bool false" ) << QString( "case when get_feature('none','none',499) then true else false end" ) << false << QVariant( false );
+      QTest::newRow( "feature to bool true" ) << QString( "case when get_feature('test','col1',10) then true else false end" ) << false << QVariant( true );
+      QTest::newRow( "geometry to bool false" ) << QString( "case when geom_from_wkt('') then true else false end" ) << false << QVariant( false );
+      QTest::newRow( "geometry to bool true" ) << QString( "case when geom_from_wkt('Point(3 4)') then true else false end" ) << false << QVariant( true );
     }
 
     void run_evaluation_test( QgsExpression& exp, bool evalError, QVariant& result )
@@ -831,8 +856,8 @@ class TestQgsExpression: public QObject
       QTest::newRow( "get_feature 8" ) << "get_feature('test','col2','test4')" << true << 4;
 
       //by layer id
-      QTest::newRow( "get_feature 3" ) << QString("get_feature('%1','col1',11)").arg( mMemoryLayer->id() ) << true << 2;
-      QTest::newRow( "get_feature 4" ) << QString("get_feature('%1','col2','test2')").arg( mMemoryLayer->id() ) << true << 2;
+      QTest::newRow( "get_feature 3" ) << QString( "get_feature('%1','col1',11)" ).arg( mMemoryLayer->id() ) << true << 2;
+      QTest::newRow( "get_feature 4" ) << QString( "get_feature('%1','col2','test2')" ).arg( mMemoryLayer->id() ) << true << 2;
 
       //no matching features
       QTest::newRow( "get_feature no match1" ) << "get_feature('test','col1',499)" << false << -1;
@@ -861,8 +886,24 @@ class TestQgsExpression: public QObject
       if ( featureMatched )
       {
         QgsFeature feat = res.value<QgsFeature>();
-        QCOMPARE( feat.id(), (long long)featureId );
+        QCOMPARE( feat.id(), ( long long )featureId );
       }
+    }
+
+    void get_feature_geometry()
+    {
+      //test that get_feature fetches feature's geometry
+      QgsExpression exp( QString( "x(geometry(get_feature('%1','heading',340)))" ).arg( mPointsLayer->id() ) );
+      QCOMPARE( exp.hasParserError(), false );
+      if ( exp.hasParserError() )
+        qDebug() << exp.parserErrorString();
+
+      QVariant res = exp.evaluate();
+      if ( exp.hasEvalError() )
+        qDebug() << exp.evalErrorString();
+
+      QCOMPARE( exp.hasEvalError(), false );
+      QVERIFY( qgsDoubleNear( res.toDouble(), -85.65217, 0.00001 ) );
     }
 
     void eval_rand()
@@ -1234,6 +1275,7 @@ class TestQgsExpression: public QObject
       QTest::addColumn<QString>( "string" );
       QTest::addColumn<void*>( "geomptr" );
       QTest::addColumn<bool>( "evalError" );
+      QTest::addColumn<bool>( "needsGeom" );
 
       QgsPoint point( 123, 456 );
       QgsPolyline line;
@@ -1245,10 +1287,10 @@ class TestQgsExpression: public QObject
       QgsPolygon polygon;
       polygon << polygon_ring;
 
-      QTest::newRow( "geometry Point" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPoint( point ) << false;
-      QTest::newRow( "geometry Line" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolyline( line ) << false;
-      QTest::newRow( "geometry Polyline" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolyline( polyline ) << false;
-      QTest::newRow( "geometry Polygon" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolygon( polygon ) << false;
+      QTest::newRow( "geometry Point" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPoint( point ) << false << true;
+      QTest::newRow( "geometry Line" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolyline( line ) << false << true;
+      QTest::newRow( "geometry Polyline" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolyline( polyline ) << false << true;
+      QTest::newRow( "geometry Polygon" ) << "geometry( $currentfeature )" << ( void* ) QgsGeometry::fromPolygon( polygon ) << false << true;
 
       QgsCoordinateReferenceSystem s;
       s.createFromOgcWmsCrs( "EPSG:4326" );
@@ -1263,8 +1305,8 @@ class TestQgsExpression: public QObject
 
       QgsGeometry* oLine = QgsGeometry::fromPolyline( line );
       QgsGeometry* oPolygon = QgsGeometry::fromPolygon( polygon );
-      QTest::newRow( "transform Line" ) << "transform( geomFromWKT('" + oLine->exportToWkt() + "'), 'EPSG:4326', 'EPSG:3857' )" << ( void* ) tLine << false;
-      QTest::newRow( "transform Polygon" ) << "transform( geomFromWKT('" + oPolygon->exportToWkt() + "'), 'EPSG:4326', 'EPSG:3857' )" << ( void* ) tPolygon << false;
+      QTest::newRow( "transform Line" ) << "transform( geomFromWKT('" + oLine->exportToWkt() + "'), 'EPSG:4326', 'EPSG:3857' )" << ( void* ) tLine << false << false;
+      QTest::newRow( "transform Polygon" ) << "transform( geomFromWKT('" + oPolygon->exportToWkt() + "'), 'EPSG:4326', 'EPSG:3857' )" << ( void* ) tPolygon << false << false;
       delete oLine;
       delete oPolygon;
     }
@@ -1274,6 +1316,7 @@ class TestQgsExpression: public QObject
       QFETCH( QString, string );
       QFETCH( void*, geomptr );
       QFETCH( bool, evalError );
+      QFETCH( bool, needsGeom );
 
       QgsGeometry* geom = ( QgsGeometry* ) geomptr;
 
@@ -1282,7 +1325,7 @@ class TestQgsExpression: public QObject
 
       QgsExpression exp( string );
       QCOMPARE( exp.hasParserError(), false );
-      QCOMPARE( exp.needsGeometry(), false );
+      QCOMPARE( exp.needsGeometry(), needsGeom );
 
       //deprecated method
       Q_NOWARN_DEPRECATED_PUSH

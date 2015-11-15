@@ -32,7 +32,7 @@ QGISEXTERN QStringList wildcards();
 
 
 QgsOgrLayerItem::QgsOgrLayerItem( QgsDataItem* parent,
-                                  const QString& name, const QString& path, const QString& uri, LayerType layerType )
+                                  QString name, QString path, QString uri, LayerType layerType )
     : QgsLayerItem( parent, name, path, uri, layerType, "ogr" )
 {
   mToolTip = uri;
@@ -64,7 +64,7 @@ QgsLayerItem::Capability QgsOgrLayerItem::capabilities()
   return mCapabilities & SetCrs ? SetCrs : NoCapabilities;
 }
 
-bool QgsOgrLayerItem::setCrs( const QgsCoordinateReferenceSystem& crs )
+bool QgsOgrLayerItem::setCrs( QgsCoordinateReferenceSystem crs )
 {
   if ( !( mCapabilities & SetCrs ) )
     return false;
@@ -169,7 +169,7 @@ static QgsOgrLayerItem* dataItemForLayer( QgsDataItem* parentItem, QString name,
 
     layerUri += "|layerid=" + QString::number( layerId );
 
-    path += "/" + name;
+    path += '/' + name;
   }
 
   QgsDebugMsgLevel( "OGR layer uri : " + layerUri, 2 );
@@ -179,7 +179,7 @@ static QgsOgrLayerItem* dataItemForLayer( QgsDataItem* parentItem, QString name,
 
 // ----
 
-QgsOgrDataCollectionItem::QgsOgrDataCollectionItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsOgrDataCollectionItem::QgsOgrDataCollectionItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
 {
 }
@@ -318,7 +318,7 @@ QGISEXTERN QgsDataItem * dataItem( QString thePath, QgsDataItem* parentItem )
     if (( is_vsizip || is_vsitar ) && ( thePath != vsiPrefix + parentItem->path() ) )
     {
       name = thePath;
-      name = name.replace( vsiPrefix + parentItem->path() + "/", "" );
+      name = name.replace( vsiPrefix + parentItem->path() + '/', "" );
     }
     */
   }

@@ -49,6 +49,8 @@ email                : marco.hugentobler at sourcepole dot com
     return r; \
   }
 
+///@cond
+//not part of public API
 
 static void throwGEOSException( const char *fmt, ... )
 {
@@ -97,6 +99,9 @@ class GEOSInit
 };
 
 static GEOSInit geosinit;
+
+///@endcond
+
 
 /**
  * @brief Scoped GEOS pointer
@@ -288,6 +293,35 @@ QString QgsGeos::relate( const QgsAbstractGeometryV2& geom, QString* errorMsg ) 
       result = QString( r );
       GEOSFree_r( geosinit.ctxt, r );
     }
+  }
+  catch ( GEOSException &e )
+  {
+    if ( errorMsg )
+    {
+      *errorMsg = e.what();
+    }
+  }
+
+  return result;
+}
+
+bool QgsGeos::relatePattern( const QgsAbstractGeometryV2& geom, const QString& pattern, QString* errorMsg ) const
+{
+  if ( !mGeos )
+  {
+    return false;
+  }
+
+  GEOSGeomScopedPtr geosGeom( asGeos( &geom, mPrecision ) );
+  if ( !geosGeom )
+  {
+    return false;
+  }
+
+  bool result = false;
+  try
+  {
+    result = ( GEOSRelatePattern_r( geosinit.ctxt, mGeos, geosGeom.get(), pattern.toLocal8Bit().constData() ) == 1 );
   }
   catch ( GEOSException &e )
   {
@@ -517,7 +551,7 @@ GEOSGeometry* QgsGeos::linePointDifference( GEOSGeometry* GEOSsplitPoint ) const
       //For each segment
       QgsLineStringV2 newLine;
       newLine.addVertex( line->pointN( 0 ) );
-      int nVertices = newLine.numPoints();
+      int nVertices = line->numPoints();
       for ( int j = 1; j < ( nVertices - 1 ); ++j )
       {
         QgsPointV2 currentPoint = line->pointN( j );
@@ -1337,20 +1371,20 @@ bool QgsGeos::pointOnSurface( QgsPointV2& pt, QString* errorMsg ) const
   try
   {
     geos.reset( GEOSPointOnSurface_r( geosinit.ctxt, mGeos ) );
+
+    if ( !geos || GEOSisEmpty_r( geosinit.ctxt, geos.get() ) != 0 )
+    {
+      return false;
+    }
+
+    double x, y;
+    GEOSGeomGetX_r( geosinit.ctxt, geos.get(), &x );
+    GEOSGeomGetY_r( geosinit.ctxt, geos.get(), &y );
+
+    pt.setX( x );
+    pt.setY( y );
   }
   CATCH_GEOS_WITH_ERRMSG( false );
-
-  if ( !geos )
-  {
-    return false;
-  }
-
-  double x, y;
-  GEOSGeomGetX_r( geosinit.ctxt, geos.get(), &x );
-  GEOSGeomGetY_r( geosinit.ctxt, geos.get(), &y );
-
-  pt.setX( x );
-  pt.setY( y );
 
   return true;
 }
@@ -1526,10 +1560,12 @@ GEOSGeometry* QgsGeos::createGeosPoint( const QgsAbstractGeometryV2* point, int 
         GEOSCoordSeq_setOrdinate_r( geosinit.ctxt, coordSeq, 0, 2, pt->z() );
       }
     }
-    if ( 0 /*pt->isMeasure()*/ ) //disabled until geos supports m-coordinates
+#if 0 //disabled until geos supports m-coordinates
+    if ( pt->isMeasure() )
     {
       GEOSCoordSeq_setOrdinate_r( geosinit.ctxt, coordSeq, 0, 3, pt->m() );
     }
+#endif
     geosPoint = GEOSGeom_createPoint_r( geosinit.ctxt, coordSeq );
   }
   CATCH_GEOS( 0 )

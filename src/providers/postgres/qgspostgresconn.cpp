@@ -135,7 +135,7 @@ QMap<QString, QgsPostgresConn *> QgsPostgresConn::sConnectionsRO;
 QMap<QString, QgsPostgresConn *> QgsPostgresConn::sConnectionsRW;
 const int QgsPostgresConn::sGeomTypeSelectLimit = 100;
 
-QgsPostgresConn *QgsPostgresConn::connectDb( const QString& conninfo, bool readonly, bool shared, bool transaction )
+QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bool shared, bool transaction )
 {
   QMap<QString, QgsPostgresConn *> &connections =
     readonly ? QgsPostgresConn::sConnectionsRO : QgsPostgresConn::sConnectionsRW;
@@ -236,7 +236,7 @@ QgsPostgresConn::QgsPostgresConn( const QString& conninfo, bool readOnly, bool s
   {
     QString errorMsg = PQerrorMessage();
     PQfinish();
-    QgsMessageLog::logMessage( tr( "Connection to database failed" ) + "\n" + errorMsg, tr( "PostGIS" ) );
+    QgsMessageLog::logMessage( tr( "Connection to database failed" ) + '\n' + errorMsg, tr( "PostGIS" ) );
     mRef = 0;
     return;
   }
@@ -725,7 +725,7 @@ bool QgsPostgresConn::getTableInfo( bool searchGeometryColumnsOnly, bool searchP
   return true;
 }
 
-bool QgsPostgresConn::supportedLayers( QVector<QgsPostgresLayerProperty> &layers, bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables, const QString& schema )
+bool QgsPostgresConn::supportedLayers( QVector<QgsPostgresLayerProperty> &layers, bool searchGeometryColumnsOnly, bool searchPublicOnly, bool allowGeometrylessTables, QString schema )
 {
   // Get the list of supported tables
   if ( !getTableInfo( searchGeometryColumnsOnly, searchPublicOnly, allowGeometrylessTables, schema ) )
@@ -815,10 +815,10 @@ QString QgsPostgresConn::postgisVersion()
 
   QgsDebugMsg( "PostGIS version info: " + mPostgisVersionInfo );
 
-  QStringList postgisParts = mPostgisVersionInfo.split( " ", QString::SkipEmptyParts );
+  QStringList postgisParts = mPostgisVersionInfo.split( ' ', QString::SkipEmptyParts );
 
   // Get major and minor version
-  QStringList postgisVersionParts = postgisParts[0].split( ".", QString::SkipEmptyParts );
+  QStringList postgisVersionParts = postgisParts[0].split( '.', QString::SkipEmptyParts );
   if ( postgisVersionParts.size() < 2 )
   {
     QgsMessageLog::logMessage( tr( "Could not parse postgis version string '%1'" ).arg( mPostgisVersionInfo ), tr( "PostGIS" ) );
@@ -897,7 +897,7 @@ QString QgsPostgresConn::postgisVersion()
 QString QgsPostgresConn::quotedIdentifier( QString ident )
 {
   ident.replace( '"', "\"\"" );
-  ident = ident.prepend( "\"" ).append( "\"" );
+  ident = ident.prepend( '\"' ).append( '\"' );
   return ident;
 }
 
@@ -919,11 +919,11 @@ QString QgsPostgresConn::quotedValue( const QVariant& value )
     default:
     case QVariant::String:
       QString v = value.toString();
-      v.replace( "'", "''" );
-      if ( v.contains( "\\" ) )
-        return v.replace( "\\", "\\\\" ).prepend( "E'" ).append( "'" );
+      v.replace( '\'', "''" );
+      if ( v.contains( '\\' ) )
+        return v.replace( '\\', "\\\\" ).prepend( "E'" ).append( '\'' );
       else
-        return v.prepend( "'" ).append( "'" );
+        return v.prepend( '\'' ).append( '\'' );
   }
 }
 
@@ -1249,7 +1249,7 @@ QString QgsPostgresConn::fieldExpression( const QgsField &fld, QString expr )
   {
     return QString( "cash_out(%1)::text" ).arg( expr );
   }
-  else if ( type.startsWith( "_" ) )
+  else if ( type.startsWith( '_' ) )
   {
     return QString( "array_out(%1)::text" ).arg( expr );
   }
@@ -1358,7 +1358,7 @@ void QgsPostgresConn::retrieveLayerTypes( QgsPostgresLayerProperty &layerPropert
       query += quotedValue( QgsPostgresConn::postgisWkbTypeName( type ) );
     }
 
-    query += ",";
+    query += ',';
 
     int srid = layerProperty.srids.value( 0, INT_MIN );
     if ( srid  == INT_MIN )

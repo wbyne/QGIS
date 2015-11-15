@@ -34,30 +34,45 @@ QgsSpatiaLiteFeatureIterator::QgsSpatiaLiteFeatureIterator( QgsSpatiaLiteFeature
   mHasPrimaryKey = !mSource->mPrimaryKey.isEmpty();
   mRowNumber = 0;
 
+  QStringList whereClauses;
   QString whereClause;
   if ( !request.filterRect().isNull() && !mSource->mGeometryColumn.isNull() )
   {
     // some kind of MBR spatial filtering is required
-    whereClause += whereClauseRect();
+    whereClause = whereClauseRect();
+    if ( ! whereClause.isEmpty() )
+    {
+      whereClauses.append( whereClause );
+    }
   }
 
   if ( request.filterType() == QgsFeatureRequest::FilterFid )
   {
-    whereClause += whereClauseFid();
+    whereClause = whereClauseFid();
+    if ( ! whereClause.isEmpty() )
+    {
+      whereClauses.append( whereClause );
+    }
   }
   else if ( request.filterType() == QgsFeatureRequest::FilterFids )
   {
-    whereClause += whereClauseFids();
+    whereClause = whereClauseFids();
+    if ( ! whereClause.isEmpty() )
+    {
+      whereClauses.append( whereClause );
+    }
   }
 
   if ( !mSource->mSubsetString.isEmpty() )
   {
-    if ( !whereClause.isEmpty() )
+    whereClause = "( " + mSource->mSubsetString + ')';
+    if ( ! whereClause.isEmpty() )
     {
-      whereClause += " AND ";
+      whereClauses.append( whereClause );
     }
-    whereClause += "( " + mSource->mSubsetString + ")";
   }
+
+  whereClause = whereClauses.join( " AND " );
 
   // preparing the SQL statement
   if ( !prepareStatement( whereClause ) )
@@ -156,7 +171,7 @@ bool QgsSpatiaLiteFeatureIterator::prepareStatement( const QString& whereClause 
       const QgsAttributeList& fetchAttributes = mRequest.subsetOfAttributes();
       for ( QgsAttributeList::const_iterator it = fetchAttributes.constBegin(); it != fetchAttributes.constEnd(); ++it )
       {
-        sql += "," + fieldName( mSource->mFields.field( *it ) );
+        sql += ',' + fieldName( mSource->mFields.field( *it ) );
         colIdx++;
       }
     }
@@ -165,7 +180,7 @@ bool QgsSpatiaLiteFeatureIterator::prepareStatement( const QString& whereClause 
       // fetch all attributes
       for ( int idx = 0; idx < mSource->mFields.count(); ++idx )
       {
-        sql += "," + fieldName( mSource->mFields.at( idx ) );
+        sql += ',' + fieldName( mSource->mFields.at( idx ) );
         colIdx++;
       }
     }
@@ -215,9 +230,9 @@ QString QgsSpatiaLiteFeatureIterator::whereClauseFids()
   Q_FOREACH ( const QgsFeatureId featureId, mRequest.filterFids() )
   {
     expr += delim + QString::number( featureId );
-    delim = ",";
+    delim = ',';
   }
-  expr += ")";
+  expr += ')';
   return expr;
 }
 
@@ -268,7 +283,7 @@ QString QgsSpatiaLiteFeatureIterator::whereClauseRect()
   }
   else
   {
-    whereClause = "1";
+    whereClause = '1';
   }
   return whereClause;
 }

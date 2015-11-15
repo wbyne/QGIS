@@ -27,8 +27,8 @@
  *
  */
 
-#ifndef _POINT_SET_H_
-#define _POINT_SET_H_
+#ifndef POINT_SET_H
+#define POINT_SET_H
 
 #if defined(_VERBOSE_) || (_DEBUG_) || (_DEBUG_FULL_)
 #include <iostream>
@@ -299,7 +299,7 @@ namespace pal
       GEOSCoordSeq_setX_r( geosctxt, seq, 0, x );
       GEOSCoordSeq_setY_r( geosctxt, seq, 0, y );
       GEOSGeometry* point = GEOSGeom_createPoint_r( geosctxt, seq );
-      bool result = ( GEOSPreparedContains_r( geosctxt, preparedGeom(), point ) == 1 );
+      bool result = ( GEOSPreparedContainsProperly_r( geosctxt, preparedGeom(), point ) == 1 );
       GEOSGeom_destroy_r( geosctxt, point );
 
       return result;
@@ -349,7 +349,7 @@ namespace pal
     try
     {
       GEOSGeometry* bboxGeos = GEOSGeom_createLinearRing_r( geosctxt, coord );
-      bool result = ( GEOSPreparedContains_r( geosctxt, preparedGeom(), bboxGeos ) == 1 );
+      bool result = ( GEOSPreparedContainsProperly_r( geosctxt, preparedGeom(), bboxGeos ) == 1 );
       GEOSGeom_destroy_r( geosctxt, bboxGeos );
       return result;
     }

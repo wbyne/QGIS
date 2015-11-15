@@ -29,13 +29,13 @@ import os
 
 from PyQt4.QtCore import QPyNullVariant, QCoreApplication, QSettings
 from PyQt4.QtGui import QIcon
-from processing.tools.system import tempFolder
+from processing.tools.system import defaultOutputFolder
 import processing.tools.dataobjects
 
 
 class ProcessingConfig:
 
-    OUTPUT_FOLDER = 'OUTPUT_FOLDER'
+    OUTPUT_FOLDER = 'OUTPUTS_FOLDER'
     RASTER_STYLE = 'RASTER_STYLE'
     VECTOR_POINT_STYLE = 'VECTOR_POINT_STYLE'
     VECTOR_LINE_STYLE = 'VECTOR_LINE_STYLE'
@@ -83,7 +83,7 @@ class ProcessingConfig:
         ProcessingConfig.addSetting(Setting(
             ProcessingConfig.tr('General'),
             ProcessingConfig.OUTPUT_FOLDER,
-            ProcessingConfig.tr('Output folder'), tempFolder(),
+            ProcessingConfig.tr('Output folder'), defaultOutputFolder(),
             valuetype=Setting.FOLDER))
         ProcessingConfig.addSetting(Setting(
             ProcessingConfig.tr('General'),
@@ -192,7 +192,7 @@ class ProcessingConfig:
     @staticmethod
     def setSettingValue(name, value):
         if name in ProcessingConfig.settings.keys():
-            ProcessingConfig.settings[name].value = value
+            ProcessingConfig.settings[name].setValue(value)
             ProcessingConfig.settings[name].save()
 
     @staticmethod
@@ -210,17 +210,52 @@ class Setting:
     FILE = 1
     FOLDER = 2
     SELECTION = 3
+    FLOAT = 4
+    INT = 5
 
-    def __init__(self, group, name, description, default, hidden=False, valuetype=None, options=None):
+    def __init__(self, group, name, description, default, hidden=False, valuetype=None,
+                 validator=None, options=None):
         self.group = group
         self.name = name
         self.qname = "Processing/Configuration/" + self.name
         self.description = description
         self.default = default
-        self.value = default
         self.hidden = hidden
+        if valuetype is None:
+            if isinstance(default, (int, long)):
+                valuetype = self.INT
+            elif isinstance(default, float):
+                valuetype = self.FLOAT
         self.valuetype = valuetype
         self.options = options
+        if validator is None:
+            if valuetype == self.FLOAT:
+                def checkFloat(v):
+                    try:
+                        float(v)
+                    except ValueError:
+                        raise ValueError(self.tr('Wrong parameter value:\n%s') % unicode(v))
+                validator = checkFloat
+            elif valuetype == self.INT:
+                def checkInt(v):
+                    try:
+                        int(v)
+                    except ValueError:
+                        raise ValueError(self.tr('Wrong parameter value:\n%s') % unicode(v))
+                validator = checkInt
+            elif valuetype in [self.FILE, self.FOLDER]:
+                def checkFileOrFolder(v):
+                    if v and not os.path.exists(v):
+                        raise ValueError(self.tr('Specified path does not exist:\n%s') % unicode(v))
+                validator = checkFileOrFolder
+            else:
+                validator = lambda x: True
+        self.validator = validator
+        self.value = default
+
+    def setValue(self, value):
+        self.validator(value)
+        self.value = value
 
     def read(self):
         qsettings = QSettings()
@@ -235,3 +270,8 @@ class Setting:
 
     def __str__(self):
         return self.name + '=' + unicode(self.value)
+
+    def tr(self, string, context=''):
+        if context == '':
+            context = 'ProcessingConfig'
+        return QCoreApplication.translate(context, string)

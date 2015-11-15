@@ -496,15 +496,15 @@ void QgsMssqlSourceSelect::on_btnConnect_clicked()
 
   bool estimateMetadata = settings.value( key + "/estimatedMetadata", true ).toBool();
 
-  mConnInfo =  "dbname='" + database + "'";
+  mConnInfo =  "dbname='" + database + '\'';
   if ( !host.isEmpty() )
-    mConnInfo += " host='" + host + "'";
+    mConnInfo += " host='" + host + '\'';
   if ( !username.isEmpty() )
-    mConnInfo += " user='" + username + "'";
+    mConnInfo += " user='" + username + '\'';
   if ( !password.isEmpty() )
-    mConnInfo += " password='" + password + "'";
+    mConnInfo += " password='" + password + '\'';
   if ( !service.isEmpty() )
-    mConnInfo += " service='" + service + "'";
+    mConnInfo += " service='" + service + '\'';
 
   QgsDebugMsg( "GetDatabase" );
   QSqlDatabase db = QgsMssqlProvider::GetDatabase( service, host, database, username, password );
@@ -688,7 +688,7 @@ void QgsMssqlSourceSelect::setSql( const QModelIndex &index )
   delete vlayer;
 }
 
-void QgsMssqlSourceSelect::addSearchGeometryColumn( const QString& connectionName, const QgsMssqlLayerProperty& layerProperty, bool estimateMetadata )
+void QgsMssqlSourceSelect::addSearchGeometryColumn( QString connectionName, QgsMssqlLayerProperty layerProperty, bool estimateMetadata )
 {
   // store the column details and do the query in a thread
   if ( !mColumnTypeThread )
@@ -711,7 +711,7 @@ QString QgsMssqlSourceSelect::fullDescription( const QString& schema, const QStr
 {
   QString full_desc = "";
   if ( !schema.isEmpty() )
-    full_desc = schema + ".";
+    full_desc = schema + '.';
   full_desc += table + " (" + column + ") " + type;
   return full_desc;
 }
@@ -738,7 +738,7 @@ void QgsMssqlSourceSelect::setSearchExpression( const QString& regexp )
 }
 
 
-QgsMssqlGeomColumnTypeThread::QgsMssqlGeomColumnTypeThread( const QString& connectionName, bool useEstimatedMetadata )
+QgsMssqlGeomColumnTypeThread::QgsMssqlGeomColumnTypeThread( QString connectionName, bool useEstimatedMetadata )
     : QThread()
     , mConnectionName( connectionName )
     , mUseEstimatedMetadata( useEstimatedMetadata )
@@ -747,7 +747,7 @@ QgsMssqlGeomColumnTypeThread::QgsMssqlGeomColumnTypeThread( const QString& conne
   qRegisterMetaType<QgsMssqlLayerProperty>( "QgsMssqlLayerProperty" );
 }
 
-void QgsMssqlGeomColumnTypeThread::addGeometryColumn( const QgsMssqlLayerProperty& layerProperty )
+void QgsMssqlGeomColumnTypeThread::addGeometryColumn( QgsMssqlLayerProperty layerProperty )
 {
   layerProperties << layerProperty;
 }

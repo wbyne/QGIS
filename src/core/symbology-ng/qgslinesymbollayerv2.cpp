@@ -199,7 +199,7 @@ void QgsSimpleLineSymbolLayerV2::startRender( QgsSymbolV2RenderContext& context 
     //scale pattern vector
     double dashWidthDiv = scaledWidth;
     //fix dash pattern width in Qt 4.8
-    QStringList versionSplit = QString( qVersion() ).split( "." );
+    QStringList versionSplit = QString( qVersion() ).split( '.' );
     if ( versionSplit.size() > 1
          && versionSplit.at( 1 ).toInt() >= 8
          && ( scaledWidth * context.renderContext().rasterScaleFactor() ) < 1.0 )
@@ -350,7 +350,7 @@ QgsStringMap QgsSimpleLineSymbolLayerV2::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsSimpleLineSymbolLayerV2::clone() const
+QgsSimpleLineSymbolLayerV2* QgsSimpleLineSymbolLayerV2::clone() const
 {
   QgsSimpleLineSymbolLayerV2* l = new QgsSimpleLineSymbolLayerV2( mColor, mWidth, mPenStyle );
   l->setWidthUnit( mWidthUnit );
@@ -510,7 +510,7 @@ void QgsSimpleLineSymbolLayerV2::applyDataDefinedSymbology( QgsSymbolV2RenderCon
     }
 
     //fix dash pattern width in Qt 4.8
-    QStringList versionSplit = QString( qVersion() ).split( "." );
+    QStringList versionSplit = QString( qVersion() ).split( '.' );
     if ( versionSplit.size() > 1
          && versionSplit.at( 1 ).toInt() >= 8
          && ( scaledWidth * context.renderContext().rasterScaleFactor() ) < 1.0 )
@@ -519,7 +519,7 @@ void QgsSimpleLineSymbolLayerV2::applyDataDefinedSymbology( QgsSymbolV2RenderCon
     }
 
     QVector<qreal> dashVector;
-    QStringList dashList = evaluateDataDefinedProperty( QgsSymbolLayerV2::EXPR_CUSTOMDASH, context, QVariant(), &ok ).toString().split( ";" );
+    QStringList dashList = evaluateDataDefinedProperty( QgsSymbolLayerV2::EXPR_CUSTOMDASH, context, QVariant(), &ok ).toString().split( ';' );
     if ( ok )
     {
       QStringList::const_iterator dashIt = dashList.constBegin();
@@ -628,6 +628,8 @@ double QgsSimpleLineSymbolLayerV2::dxfOffset( const QgsDxfExport& e, QgsSymbolV2
 
 /////////
 
+///@cond
+//not part of public API
 
 class MyLine
 {
@@ -688,6 +690,7 @@ class MyLine
     double mLength;
 };
 
+///@endcond
 
 QgsMarkerLineSymbolLayerV2::QgsMarkerLineSymbolLayerV2( bool rotateMarker, double interval )
 {
@@ -1331,7 +1334,7 @@ bool QgsMarkerLineSymbolLayerV2::setSubSymbol( QgsSymbolV2* symbol )
   return true;
 }
 
-QgsSymbolLayerV2* QgsMarkerLineSymbolLayerV2::clone() const
+QgsMarkerLineSymbolLayerV2* QgsMarkerLineSymbolLayerV2::clone() const
 {
   QgsMarkerLineSymbolLayerV2* x = new QgsMarkerLineSymbolLayerV2( mRotateMarker, mInterval );
   x->setSubSymbol( mMarker->clone() );
@@ -1500,6 +1503,15 @@ QgsSymbolLayerV2* QgsMarkerLineSymbolLayerV2::createFromSld( QDomElement &elemen
 void QgsMarkerLineSymbolLayerV2::setWidth( double width )
 {
   mMarker->setSize( width );
+}
+
+void QgsMarkerLineSymbolLayerV2::setDataDefinedProperty( const QString& property, QgsDataDefined* dataDefined )
+{
+  if ( property == QgsSymbolLayerV2::EXPR_WIDTH && mMarker && dataDefined )
+  {
+    mMarker->setDataDefinedSize( *dataDefined );
+  }
+  QgsLineSymbolLayerV2::setDataDefinedProperty( property, dataDefined );
 }
 
 double QgsMarkerLineSymbolLayerV2::width() const

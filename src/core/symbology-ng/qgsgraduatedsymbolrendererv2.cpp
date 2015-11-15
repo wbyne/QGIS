@@ -164,7 +164,7 @@ void QgsRendererRangeV2::toSld( QDomDocument &doc, QDomElement &element, QgsStri
 
   // create the ogc:Filter for the range
   QString filterFunc = QString( "%1 > %2 AND %1 <= %3" )
-                       .arg( attrName.replace( "\"", "\"\"" ) )
+                       .arg( attrName.replace( '\"', "\"\"" ) )
                        .arg( mLowerValue ).arg( mUpperValue );
   QgsSymbolLayerV2Utils::createFunctionElement( doc, ruleElem, filterFunc );
 
@@ -236,7 +236,7 @@ QString QgsRendererRangeV2LabelFormat::formatNumber( double value ) const
   {
     QString valueStr = QString::number( value, 'f', mPrecision );
     if ( mTrimTrailingZeroes )
-      valueStr = valueStr.replace( mReTrailingZeroes, "" );
+      valueStr = valueStr.remove( mReTrailingZeroes );
     if ( mReNegativeZero.exactMatch( valueStr ) )
       valueStr = valueStr.mid( 1 );
     return valueStr;
@@ -245,7 +245,7 @@ QString QgsRendererRangeV2LabelFormat::formatNumber( double value ) const
   {
     QString valueStr = QString::number( value * mNumberScale, 'f', 0 );
     if ( valueStr == "-0" )
-      valueStr = "0";
+      valueStr = '0';
     if ( valueStr != "0" )
       valueStr = valueStr + mNumberSuffix;
     return valueStr;
@@ -508,7 +508,7 @@ QString QgsGraduatedSymbolRendererV2::dump() const
   return s;
 }
 
-QgsFeatureRendererV2* QgsGraduatedSymbolRendererV2::clone() const
+QgsGraduatedSymbolRendererV2* QgsGraduatedSymbolRendererV2::clone() const
 {
   QgsGraduatedSymbolRendererV2* r = new QgsGraduatedSymbolRendererV2( mAttrName, mRanges );
   r->setMode( mMode );

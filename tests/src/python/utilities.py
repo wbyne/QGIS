@@ -547,6 +547,18 @@ class DoxygenParser():
         if not self.visibility(elem) in ('public', 'protected'):
             return False
 
+        # property themselves are not bound, only getters and setters
+        if self.isProperty(elem):
+            return False
+
+        # ignore friend classes
+        if self.isFriendClass(elem):
+            return False
+
+        # ignore typedefs (can't test for them)
+        if self.isTypeDef(elem):
+            return False
+
         if self.isVariable(elem) and self.visibility(elem) == 'protected':
             #protected variables can't be bound in SIP
             return False
@@ -571,6 +583,10 @@ class DoxygenParser():
         if self.isOperator(elem):
             return False
 
+        # ignore deprecated members
+        if self.isDeprecated(elem):
+            return False
+
         return True
 
     def elemIsDocumentableMember(self, elem):
@@ -588,6 +604,10 @@ class DoxygenParser():
 
         # ignore reimplemented methods
         if self.isReimplementation(elem):
+            return False
+
+        # ignore friend classes
+        if self.isFriendClass(elem):
             return False
 
         # ignore destructor
@@ -619,12 +639,8 @@ class DoxygenParser():
             pass
 
         # ignore deprecated members
-        typeelem = elem.find('type')
-        try:
-            if typeelem.text and 'Q_DECL_DEPRECATED' in typeelem.text:
-                return False
-        except:
-            pass
+        if self.isDeprecated(elem):
+            return False
 
         return True
 
@@ -643,6 +659,18 @@ class DoxygenParser():
         """
         try:
             if member_elem.get('kind') == 'variable':
+                return True
+        except:
+            pass
+
+        return False
+
+    def isProperty(self, member_elem):
+        """ Tests whether an member is a property
+            :param member_elem: XML element for a class member
+        """
+        try:
+            if member_elem.get('kind') == 'property':
                 return True
         except:
             pass
@@ -689,6 +717,28 @@ class DoxygenParser():
 
         return False
 
+    def isFriendClass(self, member_elem):
+        """ Tests whether an member is a friend class
+            :param member_elem: XML element for a class member
+        """
+        try:
+            if member_elem.get('kind') == 'friend':
+                return True
+        except:
+            pass
+        return False
+
+    def isTypeDef(self, member_elem):
+        """ Tests whether an member is a type def
+            :param member_elem: XML element for a class member
+        """
+        try:
+            if member_elem.get('kind') == 'typedef':
+                return True
+        except:
+            pass
+        return False
+
     def isReimplementation(self, member_elem):
         """ Tests whether an member is a reimplementation
             :param member_elem: XML element for a class member
@@ -699,6 +749,20 @@ class DoxygenParser():
             if member_elem.find('reimplements') is not None:
                 return True
             if ' override' in member_elem.find('argsstring').text:
+                return True
+        except:
+            pass
+
+        return False
+
+    def isDeprecated(self, member_elem):
+        """ Tests whether an member is deprecated
+            :param member_elem: XML element for a class member
+        """
+
+        type_elem = member_elem.find('type')
+        try:
+            if 'Q_DECL_DEPRECATED' in type_elem.text:
                 return True
         except:
             pass

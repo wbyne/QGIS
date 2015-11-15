@@ -439,7 +439,7 @@ bool QgsRuleBasedRendererV2::Rule::startRender( QgsRenderContext& context, const
     if ( subfilters.contains( "TRUE" ) )
       sf = "TRUE";
     else
-      sf = subfilters.join( ") OR (" ).prepend( "(" ).append( ")" );
+      sf = subfilters.join( ") OR (" ).prepend( '(' ).append( ')' );
   }
 
   // Now join the subfilters with their parent (this) based on if
@@ -906,7 +906,7 @@ QList<QString> QgsRuleBasedRendererV2::usedAttributes()
   return attrs.values();
 }
 
-QgsFeatureRendererV2* QgsRuleBasedRendererV2::clone() const
+QgsRuleBasedRendererV2* QgsRuleBasedRendererV2::clone() const
 {
   QgsRuleBasedRendererV2::Rule* clonedRoot = mRootRule->clone();
 
@@ -980,7 +980,7 @@ bool QgsRuleBasedRendererV2::legendSymbolItemsCheckable() const
 bool QgsRuleBasedRendererV2::legendSymbolItemChecked( const QString& key )
 {
   Rule* rule = mRootRule->findRuleByKey( key );
-  return rule ? rule->checkState() : true;
+  return rule ? rule->active() : true;
 }
 
 void QgsRuleBasedRendererV2::checkLegendSymbolItem( const QString& key, bool state )
@@ -1064,7 +1064,7 @@ void QgsRuleBasedRendererV2::refineRuleCategories( QgsRuleBasedRendererV2::Rule*
   // categorizedAttr could be either an attribute name or an expression.
   // the only way to differentiate is to test it as an expression...
   QgsExpression testExpr( attr );
-  if ( testExpr.hasParserError() || ( testExpr.isField() && !attr.startsWith( "\"" ) ) )
+  if ( testExpr.hasParserError() || ( testExpr.isField() && !attr.startsWith( '\"' ) ) )
   {
     //not an expression, so need to quote column name
     attr = QgsExpression::quotedColumnRef( attr );
@@ -1094,7 +1094,7 @@ void QgsRuleBasedRendererV2::refineRuleRanges( QgsRuleBasedRendererV2::Rule* ini
   // categorizedAttr could be either an attribute name or an expression.
   // the only way to differentiate is to test it as an expression...
   QgsExpression testExpr( attr );
-  if ( testExpr.hasParserError() || ( testExpr.isField() && !attr.startsWith( "\"" ) ) )
+  if ( testExpr.hasParserError() || ( testExpr.isField() && !attr.startsWith( '\"' ) ) )
   {
     //not an expression, so need to quote column name
     attr = QgsExpression::quotedColumnRef( attr );
@@ -1204,7 +1204,7 @@ QgsRuleBasedRendererV2* QgsRuleBasedRendererV2::convertFromRenderer( const QgsFe
       }
       else
       {
-        value = "'" + category.value().toString() + "'";
+        value = '\'' + category.value().toString() + '\'';
       }
 
       //An empty category is equivalent to the ELSE keyword
@@ -1214,7 +1214,7 @@ QgsRuleBasedRendererV2* QgsRuleBasedRendererV2::convertFromRenderer( const QgsFe
       }
       else
       {
-        expression = categorizedRenderer->classAttribute() + " = " + value;
+        expression = QString( "%1 = %2" ).arg( QgsExpression::quotedColumnRef( categorizedRenderer->classAttribute() ), value );
       }
       rule->setFilterExpression( expression );
 

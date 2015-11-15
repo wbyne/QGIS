@@ -27,7 +27,11 @@ class QgsExpression;
 class QgsFieldPrivate;
 class QgsFieldsPrivate;
 
-
+/***************************************************************************
+ * This class is considered CRITICAL and any change MUST be accompanied with
+ * full unit tests in testqgsfield.cpp.
+ * See details in QEP #17
+ ****************************************************************************/
 
 /** \class QgsField
   * \ingroup core
@@ -158,12 +162,20 @@ class CORE_EXPORT QgsField
 
 }; // class QgsField
 
-Q_DECLARE_METATYPE( QgsField );
+Q_DECLARE_METATYPE( QgsField )
 
 /** Writes the field to stream out. QGIS version compatibility is not guaranteed. */
 CORE_EXPORT QDataStream& operator<<( QDataStream& out, const QgsField& field );
 /** Reads a field from stream in into field. QGIS version compatibility is not guaranteed. */
 CORE_EXPORT QDataStream& operator>>( QDataStream& in, QgsField& field );
+
+
+
+/***************************************************************************
+ * This class is considered CRITICAL and any change MUST be accompanied with
+ * full unit tests in testqgsfields.cpp.
+ * See details in QEP #17
+ ****************************************************************************/
 
 /** \class QgsFields
  * \ingroup core
@@ -280,7 +292,7 @@ class CORE_EXPORT QgsFields
 
 };
 
-Q_DECLARE_METATYPE( QgsFields );
+Q_DECLARE_METATYPE( QgsFields )
 
 /** Writes the fields to stream out. QGIS version compatibility is not guaranteed. */
 CORE_EXPORT QDataStream& operator<<( QDataStream& out, const QgsFields& fields );

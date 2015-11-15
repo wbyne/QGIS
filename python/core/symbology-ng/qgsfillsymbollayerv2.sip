@@ -30,7 +30,7 @@ class QgsSimpleFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsSimpleFillSymbolLayerV2* clone() const /Factory/;
 
     void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
@@ -154,7 +154,7 @@ class QgsGradientFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsGradientFillSymbolLayerV2* clone() const /Factory/;
 
     double estimateMaxBleed() const;
 
@@ -252,7 +252,7 @@ class QgsShapeburstFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsShapeburstFillSymbolLayerV2* clone() const /Factory/;
 
     double estimateMaxBleed() const;
 
@@ -457,6 +457,8 @@ class QgsImageFillSymbolLayer: QgsFillSymbolLayerV2
     virtual double dxfWidth( const QgsDxfExport& e, QgsSymbolV2RenderContext& context ) const;
     virtual QColor dxfColor( QgsSymbolV2RenderContext& context ) const;
     virtual Qt::PenStyle dxfPenStyle() const;
+
+    QSet<QString> usedAttributes() const;
 };
 
 /** \ingroup core
@@ -488,7 +490,7 @@ class QgsRasterFillSymbolLayer: QgsImageFillSymbolLayer
     void startRender( QgsSymbolV2RenderContext& context );
     void stopRender( QgsSymbolV2RenderContext& context );
     QgsStringMap properties() const;
-    QgsSymbolLayerV2* clone() const;
+    virtual QgsRasterFillSymbolLayer* clone() const;
     virtual double estimateMaxBleed() const;
 
     //override QgsImageFillSymbolLayer's support for sub symbols
@@ -653,7 +655,7 @@ class QgsSVGFillSymbolLayer: QgsImageFillSymbolLayer
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsSVGFillSymbolLayer* clone() const /Factory/;
 
     void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
@@ -712,7 +714,7 @@ class QgsLinePatternFillSymbolLayer: QgsImageFillSymbolLayer
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsLinePatternFillSymbolLayer* clone() const /Factory/;
 
     void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
@@ -783,7 +785,7 @@ class QgsPointPatternFillSymbolLayer : QgsImageFillSymbolLayer
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsPointPatternFillSymbolLayer* clone() const /Factory/;
 
     void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
@@ -868,7 +870,7 @@ class QgsCentroidFillSymbolLayerV2 : QgsFillSymbolLayerV2
 
     QgsStringMap properties() const;
 
-    QgsSymbolLayerV2* clone() const /Factory/;
+    virtual QgsCentroidFillSymbolLayerV2* clone() const /Factory/;
 
     void toSld( QDomDocument &doc, QDomElement &element, const QgsStringMap& props ) const;
 
@@ -884,4 +886,7 @@ class QgsCentroidFillSymbolLayerV2 : QgsFillSymbolLayerV2
     QgsMapUnitScale mapUnitScale() const;
 
     virtual QSet<QString> usedAttributes() const;
+
+    void setPointOnSurface( bool pointOnSurface );
+    bool pointOnSurface() const;
 };

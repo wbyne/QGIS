@@ -310,7 +310,7 @@ QgsStringMap QgsSimpleFillSymbolLayerV2::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsSimpleFillSymbolLayerV2::clone() const
+QgsSimpleFillSymbolLayerV2* QgsSimpleFillSymbolLayerV2::clone() const
 {
   QgsSimpleFillSymbolLayerV2* sl = new QgsSimpleFillSymbolLayerV2( mColor, mBrushStyle, mBorderColor, mBorderStyle, mBorderWidth, mPenJoinStyle );
   sl->setOffset( mOffset );
@@ -361,7 +361,7 @@ QString QgsSimpleFillSymbolLayerV2::ogrFeatureStyle( double mmScaleFactor, doubl
   //brush
   QString symbolStyle;
   symbolStyle.append( QgsSymbolLayerV2Utils::ogrFeatureStyleBrush( mColor ) );
-  symbolStyle.append( ";" );
+  symbolStyle.append( ';' );
   //pen
   symbolStyle.append( QgsSymbolLayerV2Utils::ogrFeatureStylePen( mBorderWidth, mmScaleFactor, mapUnitScaleFactor, mBorderColor, mPenJoinStyle ) );
   return symbolStyle;
@@ -886,7 +886,7 @@ QgsStringMap QgsGradientFillSymbolLayerV2::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsGradientFillSymbolLayerV2::clone() const
+QgsGradientFillSymbolLayerV2* QgsGradientFillSymbolLayerV2::clone() const
 {
   QgsGradientFillSymbolLayerV2* sl = new QgsGradientFillSymbolLayerV2( mColor, mColor2, mGradientColorType, mGradientType, mCoordinateMode, mGradientSpread );
   if ( mGradientRamp )
@@ -1489,7 +1489,7 @@ QgsStringMap QgsShapeburstFillSymbolLayerV2::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsShapeburstFillSymbolLayerV2::clone() const
+QgsShapeburstFillSymbolLayerV2* QgsShapeburstFillSymbolLayerV2::clone() const
 {
   QgsShapeburstFillSymbolLayerV2* sl = new QgsShapeburstFillSymbolLayerV2( mColor, mColor2, mColorType, mBlurRadius, mUseWholeShape, mMaxDistance );
   if ( mGradientRamp )
@@ -1699,6 +1699,14 @@ Qt::PenStyle QgsImageFillSymbolLayer::dxfPenStyle() const
     return mOutline->dxfPenStyle();
   }
 #endif //0
+}
+
+QSet<QString> QgsImageFillSymbolLayer::usedAttributes() const
+{
+  QSet<QString> attr = QgsFillSymbolLayerV2::usedAttributes();
+  if ( mOutline )
+    attr.unite( mOutline->usedAttributes() );
+  return attr;
 }
 
 
@@ -2006,7 +2014,7 @@ QgsStringMap QgsSVGFillSymbolLayer::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsSVGFillSymbolLayer::clone() const
+QgsSVGFillSymbolLayer* QgsSVGFillSymbolLayer::clone() const
 {
   QgsSVGFillSymbolLayer* clonedLayer = 0;
   if ( !mSvgFilePath.isEmpty() )
@@ -2319,7 +2327,7 @@ QgsSymbolV2* QgsLinePatternFillSymbolLayer::subSymbol()
 
 QSet<QString> QgsLinePatternFillSymbolLayer::usedAttributes() const
 {
-  QSet<QString> attr = QgsFillSymbolLayerV2::usedAttributes();
+  QSet<QString> attr = QgsImageFillSymbolLayer::usedAttributes();
   if ( mFillLineSymbol )
     attr.unite( mFillLineSymbol->usedAttributes() );
   return attr;
@@ -2491,7 +2499,7 @@ void QgsLinePatternFillSymbolLayer::applyPattern( const QgsSymbolV2RenderContext
     return;
   }
   // We have to make a copy because marker intervals will have to be adjusted
-  QgsLineSymbolV2* fillLineSymbol = dynamic_cast<QgsLineSymbolV2*>( mFillLineSymbol->clone() );
+  QgsLineSymbolV2* fillLineSymbol = mFillLineSymbol->clone();
   if ( !fillLineSymbol )
   {
     return;
@@ -2725,6 +2733,7 @@ void QgsLinePatternFillSymbolLayer::applyPattern( const QgsSymbolV2RenderContext
   QgsMapToPixel mtp( context.renderContext().mapToPixel().mapUnitsPerPixel() / context.renderContext().rasterScaleFactor() );
   lineRenderContext.setMapToPixel( mtp );
   lineRenderContext.setForceVectorOutput( false );
+  lineRenderContext.setExpressionContext( context.renderContext().expressionContext() );
 
   fillLineSymbol->startRender( lineRenderContext, context.fields() );
 
@@ -2802,7 +2811,7 @@ QgsStringMap QgsLinePatternFillSymbolLayer::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsLinePatternFillSymbolLayer::clone() const
+QgsLinePatternFillSymbolLayer* QgsLinePatternFillSymbolLayer::clone() const
 {
   QgsLinePatternFillSymbolLayer* clonedLayer = static_cast<QgsLinePatternFillSymbolLayer*>( QgsLinePatternFillSymbolLayer::create( properties() ) );
   if ( mFillLineSymbol )
@@ -2867,14 +2876,15 @@ QString QgsLinePatternFillSymbolLayer::ogrFeatureStyleWidth( double widthScaleFa
   featureStyle.append( QString( ",s:%1" ).arg( mLineWidth * widthScaleFactor ) );
   featureStyle.append( ",dx:0mm" );
   featureStyle.append( QString( ",dy:%1mm" ).arg( mDistance * widthScaleFactor ) );
-  featureStyle.append( ")" );
+  featureStyle.append( ')' );
   return featureStyle;
 }
 
 void QgsLinePatternFillSymbolLayer::applyDataDefinedSettings( QgsSymbolV2RenderContext &context )
 {
   if ( !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_LINEANGLE ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISTANCE )
-       && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_LINEWIDTH ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_COLOR ) )
+       && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_LINEWIDTH ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_COLOR )
+       && ( !mFillLineSymbol || !mFillLineSymbol->hasDataDefinedProperties() ) )
   {
     return; //no data defined settings
   }
@@ -3138,6 +3148,7 @@ void QgsPointPatternFillSymbolLayer::applyPattern( const QgsSymbolV2RenderContex
     QgsMapToPixel mtp( context.renderContext().mapToPixel().mapUnitsPerPixel() / context.renderContext().rasterScaleFactor() );
     pointRenderContext.setMapToPixel( mtp );
     pointRenderContext.setForceVectorOutput( false );
+    pointRenderContext.setExpressionContext( context.renderContext().expressionContext() );
 
     mMarkerSymbol->startRender( pointRenderContext, context.fields() );
 
@@ -3214,7 +3225,7 @@ QgsStringMap QgsPointPatternFillSymbolLayer::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsPointPatternFillSymbolLayer::clone() const
+QgsPointPatternFillSymbolLayer* QgsPointPatternFillSymbolLayer::clone() const
 {
   QgsPointPatternFillSymbolLayer* clonedLayer = static_cast<QgsPointPatternFillSymbolLayer*>( QgsPointPatternFillSymbolLayer::create( properties() ) );
   if ( mMarkerSymbol )
@@ -3286,14 +3297,12 @@ bool QgsPointPatternFillSymbolLayer::setSubSymbol( QgsSymbolV2* symbol )
 
 void QgsPointPatternFillSymbolLayer::applyDataDefinedSettings( QgsSymbolV2RenderContext &context )
 {
-#if 0
-  // TODO: enable but check also if mMarkerSymbol has data defined properties
   if ( !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISTANCE_X ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISTANCE_Y )
-       && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISPLACEMENT_X ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISPLACEMENT_Y ) )
+       && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISPLACEMENT_X ) && !hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISPLACEMENT_Y )
+       && ( !mMarkerSymbol || !mMarkerSymbol->hasDataDefinedProperties() ) )
   {
     return;
   }
-#endif
 
   double distanceX = mDistanceX;
   if ( hasDataDefinedProperty( QgsSymbolLayerV2::EXPR_DISTANCE_X ) )
@@ -3329,7 +3338,7 @@ double QgsPointPatternFillSymbolLayer::estimateMaxBleed() const
 
 QSet<QString> QgsPointPatternFillSymbolLayer::usedAttributes() const
 {
-  QSet<QString> attributes = QgsSymbolLayerV2::usedAttributes();
+  QSet<QString> attributes = QgsImageFillSymbolLayer::usedAttributes();
 
   if ( mMarkerSymbol )
     attributes.unite( mMarkerSymbol->usedAttributes() );
@@ -3397,7 +3406,7 @@ QgsStringMap QgsCentroidFillSymbolLayerV2::properties() const
   return map;
 }
 
-QgsSymbolLayerV2* QgsCentroidFillSymbolLayerV2::clone() const
+QgsCentroidFillSymbolLayerV2* QgsCentroidFillSymbolLayerV2::clone() const
 {
   QgsCentroidFillSymbolLayerV2* x = new QgsCentroidFillSymbolLayerV2();
   x->mAngle = mAngle;
@@ -3455,9 +3464,7 @@ bool QgsCentroidFillSymbolLayerV2::setSubSymbol( QgsSymbolV2* symbol )
 
 QSet<QString> QgsCentroidFillSymbolLayerV2::usedAttributes() const
 {
-  QSet<QString> attributes;
-
-  attributes.unite( QgsSymbolLayerV2::usedAttributes() );
+  QSet<QString> attributes = QgsFillSymbolLayerV2::usedAttributes();
 
   if ( mMarker )
     attributes.unite( mMarker->usedAttributes() );
@@ -3649,7 +3656,7 @@ QgsStringMap QgsRasterFillSymbolLayer::properties() const
   return map;
 }
 
-QgsSymbolLayerV2 *QgsRasterFillSymbolLayer::clone() const
+QgsRasterFillSymbolLayer* QgsRasterFillSymbolLayer::clone() const
 {
   QgsRasterFillSymbolLayer* sl = new QgsRasterFillSymbolLayer( mImageFilePath );
   sl->setCoordinateMode( mCoordinateMode );

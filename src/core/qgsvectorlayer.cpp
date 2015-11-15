@@ -116,7 +116,7 @@ typedef int listStyles_t(
 
 typedef QString getStyleById_t(
   const QString& uri,
-  const QString& styleID,
+  QString styleID,
   QString& errCause
 );
 
@@ -138,6 +138,7 @@ QgsVectorLayer::QgsVectorLayer( const QString& vectorLayerPath,
     , mLayerTransparency( 0 )
     , mVertexMarkerOnlyForSelection( false )
     , mEditorLayout( GeneratedLayout )
+    , mEditFormInitUseCode( false )
     , mFeatureFormSuppress( SuppressDefault )
     , mCache( new QgsGeometryCache() )
     , mEditBuffer( 0 )
@@ -149,6 +150,7 @@ QgsVectorLayer::QgsVectorLayer( const QString& vectorLayerPath,
     , mLazyExtent( true )
     , mSymbolFeatureCounted( false )
     , mEditCommandActive( false )
+
 {
   mActions = new QgsAttributeAction( this );
   mConditionalStyles = new QgsConditionalLayerStyles();
@@ -619,17 +621,16 @@ QgsRectangle QgsVectorLayer::boundingBoxOfSelected()
   QgsFeature fet;
   if ( mDataProvider->capabilities() & QgsVectorDataProvider::SelectAtId )
   {
-    Q_FOREACH ( QgsFeatureId fid, mSelectedFeatureIds )
+    QgsFeatureIterator fit = getFeatures( QgsFeatureRequest()
+                                          .setFilterFids( mSelectedFeatureIds )
+                                          .setSubsetOfAttributes( QgsAttributeList() ) );
+
+    while ( fit.nextFeature( fet ) )
     {
-      if ( getFeatures( QgsFeatureRequest()
-                        .setFilterFid( fid )
-                        .setSubsetOfAttributes( QgsAttributeList() ) )
-           .nextFeature( fet ) &&
-           fet.constGeometry() )
-      {
-        r = fet.constGeometry()->boundingBox();
-        retval.combineExtentWith( &r );
-      }
+      if ( !fet.constGeometry() || fet.constGeometry()->isEmpty() )
+        continue;
+      r = fet.constGeometry()->boundingBox();
+      retval.combineExtentWith( &r );
     }
   }
   else
@@ -1547,7 +1548,7 @@ bool QgsVectorLayer::setDataProvider( QString const & provider )
 
       if ( it != layers.constEnd() && stuff.size() > 2 )
       {
-        lName += "." + stuff[2].mid( 2, stuff[2].length() - 3 );
+        lName += '.' + stuff[2].mid( 2, stuff[2].length() - 3 );
       }
 
       if ( !lName.isEmpty() )
@@ -1632,6 +1633,7 @@ bool QgsVectorLayer::writeXml( QDomNode & layer_node,
   QString errorMsg;
   return writeSymbology( layer_node, document, errorMsg );
 } // bool QgsVectorLayer::writeXml
+
 
 bool QgsVectorLayer::readSymbology( const QDomNode& node, QString& errorMessage )
 {
@@ -1779,6 +1781,18 @@ bool QgsVectorLayer::readSymbology( const QDomNode& node, QString& errorMessage 
   if ( !editFormInitNode.isNull() )
   {
     mEditFormInit = editFormInitNode.toElement().text();
+  }
+
+  QDomNode editFormInitCodeNode = node.namedItem( "editforminitcode" );
+  if ( !editFormInitCodeNode.isNull() )
+  {
+    mEditFormInitCode = editFormInitCodeNode.toElement().text();
+  }
+
+  QDomNode editFormInitUseCodeNode = node.namedItem( "editforminitusecode" );
+  if ( !editFormInitCodeNode.isNull() )
+  {
+    mEditFormInitUseCode = ( bool ) editFormInitUseCodeNode.toElement().text().toInt();
   }
 
   QDomNode fFSuppNode = node.namedItem( "featformsuppress" );
@@ -2042,6 +2056,14 @@ bool QgsVectorLayer::writeSymbology( QDomNode& node, QDomDocument& doc, QString&
   if ( !mEditFormInit.isEmpty() )
     efiField.appendChild( doc.createTextNode( mEditFormInit ) );
   node.appendChild( efiField );
+
+  QDomElement efiucField  = doc.createElement( "editforminitusecode" );
+  efiucField.appendChild( doc.createTextNode( mEditFormInitUseCode ? "1" : "0" ) );
+  node.appendChild( efiucField );
+
+  QDomElement eficField  = doc.createElement( "editforminitcode" );
+  eficField.appendChild( doc.createCDATASection( mEditFormInitCode ) );
+  node.appendChild( eficField );
 
   QDomElement fFSuppElem  = doc.createElement( "featformsuppress" );
   QDomText fFSuppText = doc.createTextNode( QString::number( featureFormSuppress() ) );
@@ -2826,9 +2848,29 @@ QString QgsVectorLayer::editFormInit()
   return mEditFormInit;
 }
 
+QString QgsVectorLayer::editFormInitCode()
+{
+  return mEditFormInitCode;
+}
+
+bool QgsVectorLayer::editFormInitUseCode()
+{
+  return mEditFormInitUseCode;
+}
+
 void QgsVectorLayer::setEditFormInit( const QString& function )
 {
   mEditFormInit = function;
+}
+
+void QgsVectorLayer::setEditFormInitUseCode( const bool useCode )
+{
+  mEditFormInitUseCode = useCode;
+}
+
+void QgsVectorLayer::setEditFormInitCode( const QString& code )
+{
+  mEditFormInitCode = code;
 }
 
 QMap< QString, QVariant > QgsVectorLayer::valueMap( int idx )
@@ -3679,7 +3721,7 @@ QString QgsVectorLayer::metadata()
     //provider description
     myMetadata += "<p class=\"glossy\">" + tr( "Description of this provider" ) + "</p>\n";
     myMetadata += "<p>";
-    myMetadata += dataProvider()->description().replace( "\n", "<br>" );
+    myMetadata += dataProvider()->description().replace( '\n', "<br>" );
     myMetadata += "</p>\n";
   }
 
@@ -3714,7 +3756,7 @@ QString QgsVectorLayer::metadata()
     myMetadata += "<p>";
     Q_FOREACH ( int idx, pkAttrList )
     {
-      myMetadata += fields().at( idx ).name() + " ";
+      myMetadata += fields().at( idx ).name() + ' ';
     }
     myMetadata += "</p>\n";
   }

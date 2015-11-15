@@ -158,18 +158,18 @@ SET(QGIS_GUI_SRCS
   qgsbusyindicatordialog.cpp
   qgscharacterselectdialog.cpp
   qgsbrowsertreeview.cpp
-  qgscollapsiblegroupbox.cpp
-  qgscolorbutton.cpp
-  qgscolorbuttonv2.cpp
-  qgscolordialog.cpp
-  qgscolorswatchgrid.cpp
-  qgscolorschemelist.cpp
   qgscolorwidgets.cpp
   qgscodeeditor.cpp
   qgscodeeditorpython.cpp
   qgscodeeditorsql.cpp
   qgscodeeditorhtml.cpp
   qgscodeeditorcss.cpp
+  qgscollapsiblegroupbox.cpp
+  qgscolorbutton.cpp
+  qgscolorbuttonv2.cpp
+  qgscolordialog.cpp
+  qgscolorswatchgrid.cpp
+  qgscolorschemelist.cpp
   qgscomposerruler.cpp
   qgscomposerview.cpp
   qgsprevieweffect.cpp
@@ -265,6 +265,7 @@ SET(QGIS_GUI_SRCS
   qgsvariableeditorwidget.cpp
   qgsvertexmarker.cpp
   qgsunitselectionwidget.cpp
+  qgslegendfilterbutton.cpp
 )
 
 IF (WITH_QTWEBKIT)
@@ -390,6 +391,7 @@ SET(QGIS_GUI_MOC_HDRS
   qgsvariableeditorwidget.h
   qgsunitselectionwidget.h
   qgsuserinputdockwidget.h
+  qgslegendfilterbutton.h
 
   raster/qgsrasterminmaxwidget.h
   raster/qgspalettedrendererwidget.h

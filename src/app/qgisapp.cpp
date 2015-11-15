@@ -122,6 +122,7 @@
 #include "qgscomposer.h"
 #include "qgscomposermanager.h"
 #include "qgscomposerview.h"
+#include "qgsstatusbarcoordinateswidget.h"
 #include "qgsconfigureshortcutsdialog.h"
 #include "qgscoordinatetransform.h"
 #include "qgscredentialdialog.h"
@@ -224,6 +225,7 @@
 #include "qgswelcomepage.h"
 #include "qgsmaprendererparalleljob.h"
 #include "qgsversioninfo.h"
+#include "qgslegendfilterbutton.h"
 
 #include "qgssublayersdialog.h"
 #include "ogr/qgsopenvectorlayerdialog.h"
@@ -501,9 +503,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     , mScaleLabel( 0 )
     , mScaleEdit( 0 )
     , mScaleEditValidator( 0 )
-    , mCoordsLabel( 0 )
     , mCoordsEdit( 0 )
-    , mCoordsEditValidator( 0 )
     , mRotationLabel( 0 )
     , mRotationEdit( 0 )
     , mRotationEditValidator( 0 )
@@ -520,7 +520,6 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     , mToolPopupDisplay( 0 )
     , mLayerTreeCanvasBridge( 0 )
     , mSplash( splash )
-    , mMousePrecisionDecimalPlaces( 0 )
     , mInternalClipboard( 0 )
     , mShowProjectionTab( false )
     , mPythonUtils( 0 )
@@ -796,7 +795,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, QWidget * parent, 
     QString myPaths = settings.value( "plugins/searchPathsForPlugins", "" ).toString();
     if ( !myPaths.isEmpty() )
     {
-      QStringList myPathList = myPaths.split( "|" );
+      QStringList myPathList = myPaths.split( '|' );
       QgsPluginRegistry::instance()->restoreSessionPlugins( myPathList );
     }
   }
@@ -943,15 +942,12 @@ QgisApp::QgisApp()
     , mScaleLabel( 0 )
     , mScaleEdit( 0 )
     , mScaleEditValidator( 0 )
-    , mCoordsLabel( 0 )
     , mCoordsEdit( 0 )
-    , mCoordsEditValidator( 0 )
     , mRotationLabel( 0 )
     , mRotationEdit( 0 )
     , mRotationEditValidator( 0 )
     , mProgressBar( 0 )
     , mRenderSuppressionCBox( 0 )
-    , mToggleExtentsViewButton( 0 )
     , mOnTheFlyProjectionStatusLabel( 0 )
     , mOnTheFlyProjectionStatusButton( 0 )
     , mMessageButton( 0 )
@@ -970,11 +966,9 @@ QgisApp::QgisApp()
     , mMapWindow( 0 )
     , mQgisInterface( 0 )
     , mSplash( 0 )
-    , mMousePrecisionDecimalPlaces( 0 )
     , mInternalClipboard( 0 )
     , mShowProjectionTab( false )
     , mpMapTipsTimer( 0 )
-    , mDizzyTimer( 0 )
     , mpMaptip( 0 )
     , mMapTipsVisible( false )
     , mFullScreenMode( false )
@@ -999,6 +993,7 @@ QgisApp::QgisApp()
     , mUserInputDockWidget( 0 )
     , mVectorLayerTools( 0 )
     , mActionFilterLegend( 0 )
+    , mLegendExpressionFilterButton( 0 )
     , mSnappingUtils( 0 )
     , mProjectLastModified()
     , mWelcomePage( 0 )
@@ -1557,7 +1552,7 @@ void QgisApp::showPythonDialog()
   {
     QString className, text;
     mPythonUtils->getError( className, text );
-    messageBar()->pushMessage( tr( "Error" ), tr( "Failed to open Python console:" ) + "\n" + className + ": " + text, QgsMessageBar::WARNING );
+    messageBar()->pushMessage( tr( "Error" ), tr( "Failed to open Python console:" ) + '\n' + className + ": " + text, QgsMessageBar::WARNING );
   }
 #ifdef Q_OS_MAC
   else
@@ -1940,52 +1935,13 @@ void QgisApp::createStatusBar()
   // small on some platforms. A point size of 9 still provides
   // plenty of display space on 1024x768 resolutions
   QFont myFont( "Arial", 9 );
-
   statusBar()->setFont( myFont );
-  //toggle to switch between mouse pos and extents display in status bar widget
-  mToggleExtentsViewButton = new QToolButton( statusBar() );
-  mToggleExtentsViewButton->setObjectName( "mToggleExtentsViewButton" );
-  mToggleExtentsViewButton->setMaximumWidth( 20 );
-  //mToggleExtentsViewButton->setMaximumHeight( 20 );
-  mToggleExtentsViewButton->setIcon( QgsApplication::getThemeIcon( "tracking.png" ) );
-  mToggleExtentsViewButton->setToolTip( tr( "Toggle extents and mouse position display" ) );
-  mToggleExtentsViewButton->setCheckable( true );
-  connect( mToggleExtentsViewButton, SIGNAL( toggled( bool ) ), this, SLOT( extentsViewToggled( bool ) ) );
-  statusBar()->addPermanentWidget( mToggleExtentsViewButton, 0 );
-
-  // add a label to show current position
-  mCoordsLabel = new QLabel( QString(), statusBar() );
-  mCoordsLabel->setObjectName( "mCoordsLabel" );
-  mCoordsLabel->setFont( myFont );
-  mCoordsLabel->setMinimumWidth( 10 );
-  //mCoordsLabel->setMaximumHeight( 20 );
-  mCoordsLabel->setMargin( 3 );
-  mCoordsLabel->setAlignment( Qt::AlignCenter );
-  mCoordsLabel->setFrameStyle( QFrame::NoFrame );
-  mCoordsLabel->setText( tr( "Coordinate:" ) );
-  mCoordsLabel->setToolTip( tr( "Current map coordinate" ) );
-  statusBar()->addPermanentWidget( mCoordsLabel, 0 );
 
   //coords status bar widget
-  mCoordsEdit = new QLineEdit( QString(), statusBar() );
-  mCoordsEdit->setObjectName( "mCoordsEdit" );
+  mCoordsEdit = new QgsStatusBarCoordinatesWidget( statusBar() );
+  mCoordsEdit->setMapCanvas( mMapCanvas );
   mCoordsEdit->setFont( myFont );
-  mCoordsEdit->setMinimumWidth( 10 );
-  mCoordsEdit->setMaximumWidth( 300 );
-  //mCoordsEdit->setMaximumHeight( 20 );
-  mCoordsEdit->setContentsMargins( 0, 0, 0, 0 );
-  mCoordsEdit->setAlignment( Qt::AlignCenter );
-  QRegExp coordValidator( "[+-]?\\d+\\.?\\d*\\s*,\\s*[+-]?\\d+\\.?\\d*" );
-  mCoordsEditValidator = new QRegExpValidator( coordValidator, mCoordsEdit );
-  mCoordsEdit->setWhatsThis( tr( "Shows the map coordinates at the "
-                                 "current cursor position. The display is continuously updated "
-                                 "as the mouse is moved. It also allows editing to set the canvas "
-                                 "center to a given position. The format is lat,lon or east,north" ) );
-  mCoordsEdit->setToolTip( tr( "Current map coordinate (lat,lon or east,north)" ) );
   statusBar()->addPermanentWidget( mCoordsEdit, 0 );
-  connect( mCoordsEdit, SIGNAL( returnPressed() ), this, SLOT( userCenter() ) );
-  mDizzyTimer = new QTimer( this );
-  connect( mDizzyTimer, SIGNAL( timeout() ), this, SLOT( dizzy() ) );
 
   // add a label to show current scale
   mScaleLabel = new QLabel( QString(), statusBar() );
@@ -2311,9 +2267,9 @@ void QgisApp::setupConnections()
 
   // signal when mouse moved over window (coords display in status bar)
   connect( mMapCanvas, SIGNAL( xyCoordinates( const QgsPoint & ) ),
-           this, SLOT( showMouseCoordinate( const QgsPoint & ) ) );
+           this, SLOT( saveLastMousePosition( const QgsPoint & ) ) );
   connect( mMapCanvas, SIGNAL( extentsChanged() ),
-           this, SLOT( showExtents() ) );
+           this, SLOT( extentChanged() ) );
   connect( mMapCanvas, SIGNAL( scaleChanged( double ) ),
            this, SLOT( showScale( double ) ) );
   connect( mMapCanvas, SIGNAL( rotationChanged( double ) ),
@@ -2693,7 +2649,11 @@ void QgisApp::initLayerTreeView()
   mActionFilterLegend->setCheckable( true );
   mActionFilterLegend->setToolTip( tr( "Filter Legend By Map Content" ) );
   mActionFilterLegend->setIcon( QgsApplication::getThemeIcon( "/mActionFilter2.svg" ) );
-  connect( mActionFilterLegend, SIGNAL( triggered( bool ) ), this, SLOT( toggleFilterLegendByMap() ) );
+  connect( mActionFilterLegend, SIGNAL( toggled( bool ) ), this, SLOT( updateFilterLegend() ) );
+
+  mLegendExpressionFilterButton = new QgsLegendFilterButton( this );
+  mLegendExpressionFilterButton->setToolTip( tr( "Filter legend by expression" ) );
+  connect( mLegendExpressionFilterButton, SIGNAL( toggled( bool ) ), this, SLOT( toggleFilterLegendByExpression( bool ) ) );
 
   // expand / collapse tool buttons
   QAction* actionExpandAll = new QAction( tr( "Expand All" ), this );
@@ -2710,6 +2670,7 @@ void QgisApp::initLayerTreeView()
   toolbar->addAction( actionAddGroup );
   toolbar->addWidget( btnVisibilityPresets );
   toolbar->addAction( mActionFilterLegend );
+  toolbar->addWidget( mLegendExpressionFilterButton );
   toolbar->addAction( actionExpandAll );
   toolbar->addAction( actionCollapseAll );
   toolbar->addAction( mActionRemoveLayer );
@@ -2742,6 +2703,8 @@ void QgisApp::initLayerTreeView()
   mLayerOrderDock->setWidget( mMapLayerOrder );
   addDockWidget( Qt::LeftDockWidgetArea, mLayerOrderDock );
   mLayerOrderDock->hide();
+
+  connect( mMapCanvas, SIGNAL( mapCanvasRefreshed() ), this, SLOT( updateFilterLegend() ) );
 }
 
 void QgisApp::setupLayerTreeViewFromSettings()
@@ -3218,12 +3181,12 @@ bool QgisApp::addVectorLayers( const QStringList &theLayerQStringList, const QSt
       {
         //set friendly name for datasources with only one layer
         QStringList sublayers = layer->dataProvider()->subLayers();
-        QStringList elements = sublayers.at( 0 ).split( ":" );
+        QStringList elements = sublayers.at( 0 ).split( ':' );
         if ( layer->storageType() != "GeoJSON" )
         {
           while ( elements.size() > 4 )
           {
-            elements[1] += ":" + elements[2];
+            elements[1] += ':' + elements[2];
             elements.removeAt( 2 );
           }
 
@@ -3287,7 +3250,7 @@ bool QgisApp::askUserForZipItemLayers( QString path )
   QSettings settings;
   int promptLayers = settings.value( "/qgis/promptForRasterSublayers", 1 ).toInt();
 
-  QgsDebugMsg( "askUserForZipItemLayers( " + path + ")" );
+  QgsDebugMsg( "askUserForZipItemLayers( " + path + ')' );
 
   // if scanZipBrowser == no: skip to the next file
   if ( settings.value( "/qgis/scanZipInBrowser2", "basic" ).toString() == "no" )
@@ -3424,20 +3387,20 @@ void QgisApp::askUserForGDALSublayers( QgsRasterLayer *layer )
     else
     {
       // remove driver name and file name
-      name.replace( name.split( ":" )[0], "" );
-      name.replace( path, "" );
+      name.remove( name.split( ':' )[0] );
+      name.remove( path );
     }
     // remove any : or " left over
-    if ( name.startsWith( ":" ) )
+    if ( name.startsWith( ':' ) )
       name.remove( 0, 1 );
 
-    if ( name.startsWith( "\"" ) )
+    if ( name.startsWith( '\"' ) )
       name.remove( 0, 1 );
 
-    if ( name.endsWith( ":" ) )
+    if ( name.endsWith( ':' ) )
       name.chop( 1 );
 
-    if ( name.endsWith( "\"" ) )
+    if ( name.endsWith( '\"' ) )
       name.chop( 1 );
 
     names << name;
@@ -3530,7 +3493,7 @@ void QgisApp::askUserForOGRSublayers( QgsVectorLayer *layer )
       // If we get here, there are some options added to the filename.
       // A valid uri is of the form: filename&option1=value1&option2=value2,...
       // We want only the filename here, so we get the first part of the split.
-      QStringList theURIParts = uri.split( "|" );
+      QStringList theURIParts = uri.split( '|' );
       uri = theURIParts.at( 0 );
     }
     QgsDebugMsg( "Layer type " + layertype );
@@ -3553,10 +3516,10 @@ void QgisApp::loadOGRSublayers( const QString& layertype, const QString& uri, co
   for ( int i = 0; i < list.size(); i++ )
   {
     QString composedURI;
-    QStringList elements = list.at( i ).split( ":" );
+    QStringList elements = list.at( i ).split( ':' );
     while ( elements.size() > 2 )
     {
-      elements[0] += ":" + elements[1];
+      elements[0] += ':' + elements[1];
       elements.removeAt( 1 );
     }
 
@@ -3586,8 +3549,8 @@ void QgisApp::loadOGRSublayers( const QString& layertype, const QString& uri, co
 
     QgsDebugMsg( "Creating new vector layer using " + composedURI );
     QString name = list.at( i );
-    name.replace( ":", " " );
-    QgsVectorLayer *layer = new QgsVectorLayer( composedURI, name, "ogr", false );
+    name.replace( ':', ' ' );
+    QgsVectorLayer *layer = new QgsVectorLayer( composedURI, fileName + " " + name, "ogr", false );
     if ( layer && layer->isValid() )
     {
       myList << layer;
@@ -4331,7 +4294,7 @@ bool QgisApp::addProject( const QString& projectFile )
   mMapCanvas->updateScale();
   QgsDebugMsg( "Scale restored..." );
 
-  setFilterLegendByMapEnabled( QgsProject::instance()->readBoolEntry( "Legend", "filterByMap" ) );
+  mActionFilterLegend->setChecked( QgsProject::instance()->readBoolEntry( "Legend", "filterByMap" ) );
 
   QSettings settings;
 
@@ -4406,7 +4369,7 @@ bool QgisApp::fileSave()
     QString path = QFileDialog::getSaveFileName(
                      this,
                      tr( "Choose a QGIS project file" ),
-                     lastUsedDir + "/" + QgsProject::instance()->title(),
+                     lastUsedDir + '/' + QgsProject::instance()->title(),
                      tr( "QGIS files" ) + " (*.qgs *.QGS)" );
     if ( path.isEmpty() )
       return false;
@@ -4483,7 +4446,7 @@ void QgisApp::fileSaveAs()
 
   QString path = QFileDialog::getSaveFileName( this,
                  tr( "Choose a file name to save the QGIS project file as" ),
-                 lastUsedDir + "/" + QgsProject::instance()->title(),
+                 lastUsedDir + '/' + QgsProject::instance()->title(),
                  tr( "QGIS files" ) + " (*.qgs *.QGS)" );
   if ( path.isEmpty() )
     return;
@@ -4756,36 +4719,35 @@ void QgisApp::activateDeuteranopePreview()
   mMapCanvas->setPreviewMode( QgsPreviewEffect::PreviewDeuteranope );
 }
 
-void QgisApp::toggleFilterLegendByMap()
+void QgisApp::toggleFilterLegendByExpression( bool checked )
 {
-  bool enabled = layerTreeView()->layerTreeModel()->legendFilterByMap();
-  setFilterLegendByMapEnabled( !enabled );
+  QgsLayerTreeNode* node = mLayerTreeView->currentNode();
+  if ( ! node )
+    return;
+
+  if ( QgsLayerTree::isLayer( node ) )
+  {
+    QString e = mLegendExpressionFilterButton->expressionText();
+    QgsLayerTreeUtils::setLegendFilterByExpression( *QgsLayerTree::toLayer( node ), e, checked );
+  }
+
+  updateFilterLegend();
 }
 
-void QgisApp::setFilterLegendByMapEnabled( bool enabled )
+void QgisApp::updateFilterLegend()
 {
-  QgsLayerTreeModel* model = layerTreeView()->layerTreeModel();
-  bool wasEnabled = model->legendFilterByMap();
-  if ( wasEnabled == enabled )
-    return; // no change
-
-  mActionFilterLegend->setChecked( enabled );
-
-  if ( enabled )
+  if ( mActionFilterLegend->isChecked() )
   {
-    connect( mMapCanvas, SIGNAL( mapCanvasRefreshed() ), this, SLOT( updateFilterLegendByMap() ) );
-    model->setLegendFilterByMap( &mMapCanvas->mapSettings() );
+    layerTreeView()->layerTreeModel()->setLegendFilterByMap( &mMapCanvas->mapSettings() );
+  }
+  else if ( QgsLayerTreeUtils::hasLegendFilterExpression( *mLayerTreeView->layerTreeModel()->rootGroup() ) )
+  {
+    layerTreeView()->layerTreeModel()->setLegendFilter( &mMapCanvas->mapSettings(), /* useExtent */ false );
   }
   else
   {
-    disconnect( mMapCanvas, SIGNAL( mapCanvasRefreshed() ), this, SLOT( updateFilterLegendByMap() ) );
-    model->setLegendFilterByMap( 0 );
+    layerTreeView()->layerTreeModel()->setLegendFilterByMap( 0 );
   }
-}
-
-void QgisApp::updateFilterLegendByMap()
-{
-  layerTreeView()->layerTreeModel()->setLegendFilterByMap( &mMapCanvas->mapSettings() );
 }
 
 void QgisApp::saveMapAsImage()
@@ -5807,7 +5769,7 @@ bool QgisApp::uniqueComposerTitle( QWidget* parent, QString& composerTitle, bool
   QString chooseMsg = tr( "Create unique print composer title" );
   if ( acceptEmpty )
   {
-    chooseMsg += "\n" + tr( "(title generated if left empty)" );
+    chooseMsg += '\n' + tr( "(title generated if left empty)" );
   }
   QString titleMsg = chooseMsg;
 
@@ -6744,7 +6706,7 @@ QgsVectorLayer *QgisApp::pasteToNewMemoryVector()
 
   QGis::WkbType wkbType = typeCounts.size() > 0 ? typeCounts.keys().value( 0 ) : QGis::WKBPoint;
 
-  QString typeName = QString( QGis::featureType( wkbType ) ).replace( "WKB", "" );
+  QString typeName = QString( QGis::featureType( wkbType ) ).remove( "WKB" );
 
   typeName += QString( "?memoryid=%1" ).arg( QUuid::createUuid().toString() );
 
@@ -7327,7 +7289,7 @@ void QgisApp::layerSubsetString()
   delete qb;
 }
 
-void QgisApp::showMouseCoordinate( const QgsPoint & p )
+void QgisApp::saveLastMousePosition( const QgsPoint & p )
 {
   if ( mMapTipsVisible )
   {
@@ -7343,43 +7305,6 @@ void QgisApp::showMouseCoordinate( const QgsPoint & p )
       // don't start the timer if the mouse is not over the map canvas
       mpMapTipsTimer->start();
       //QgsDebugMsg("Started maptips timer");
-    }
-  }
-  if ( mToggleExtentsViewButton->isChecked() )
-  {
-    //we are in show extents mode so no need to do anything
-    return;
-  }
-  else
-  {
-    if ( mMapCanvas->mapUnits() == QGis::Degrees )
-    {
-      if ( !mMapCanvas->mapSettings().destinationCrs().isValid() )
-        return;
-
-      QgsPoint geo = p;
-      if ( !mMapCanvas->mapSettings().destinationCrs().geographicFlag() )
-      {
-        QgsCoordinateTransform ct( mMapCanvas->mapSettings().destinationCrs(), QgsCoordinateReferenceSystem( GEOSRID ) );
-        geo = ct.transform( p );
-      }
-      QString format = QgsProject::instance()->readEntry( "PositionPrecision", "/DegreeFormat", "D" );
-
-      if ( format == "DM" )
-        mCoordsEdit->setText( geo.toDegreesMinutes( mMousePrecisionDecimalPlaces ) );
-      else if ( format == "DMS" )
-        mCoordsEdit->setText( geo.toDegreesMinutesSeconds( mMousePrecisionDecimalPlaces ) );
-      else
-        mCoordsEdit->setText( geo.toString( mMousePrecisionDecimalPlaces ) );
-    }
-    else
-    {
-      mCoordsEdit->setText( p.toString( mMousePrecisionDecimalPlaces ) );
-    }
-
-    if ( mCoordsEdit->width() > mCoordsEdit->minimumWidth() )
-    {
-      mCoordsEdit->setMinimumWidth( mCoordsEdit->width() );
     }
   }
 }
@@ -7403,58 +7328,6 @@ void QgisApp::userScale()
   mMapCanvas->zoomScale( 1.0 / mScaleEdit->scale() );
 }
 
-void QgisApp::dizzy()
-{
-  // constants should go to options so that people can customize them to their taste
-  int d = 10; // max. translational dizziness offset
-  int r = 4;  // max. rotational dizzines angle
-  QRectF rect = mMapCanvas->sceneRect();
-  if ( rect.x() < -d || rect.x() > d || rect.y() < -d || rect.y() > d )
-    return; // do not affect panning
-  rect.moveTo(( qrand() % ( 2 * d ) ) - d, ( qrand() % ( 2 * d ) ) - d );
-  mMapCanvas->setSceneRect( rect );
-  QTransform matrix;
-  matrix.rotate(( qrand() % ( 2 * r ) ) - r );
-  mMapCanvas->setTransform( matrix );
-}
-
-void QgisApp::userCenter()
-{
-  if ( mCoordsEdit->text() == "dizzy" )
-  {
-    // sometimes you may feel a bit dizzy...
-    if ( mDizzyTimer->isActive() )
-    {
-      mDizzyTimer->stop();
-      mMapCanvas->setSceneRect( mMapCanvas->viewport()->rect() );
-      mMapCanvas->setTransform( QTransform() );
-    }
-    else
-      mDizzyTimer->start( 100 );
-  }
-  else if ( mCoordsEdit->text() == "retro" )
-  {
-    mMapCanvas->setProperty( "retro", !mMapCanvas->property( "retro" ).toBool() );
-    refreshMapCanvas();
-  }
-
-  QStringList parts = mCoordsEdit->text().split( ',' );
-  if ( parts.size() != 2 )
-    return;
-
-  bool xOk;
-  double x = parts.at( 0 ).toDouble( &xOk );
-  if ( !xOk )
-    return;
-
-  bool yOk;
-  double y = parts.at( 1 ).toDouble( &yOk );
-  if ( !yOk )
-    return;
-
-  mMapCanvas->setCenter( QgsPoint( x, y ) );
-  mMapCanvas->refresh();
-}
 
 void QgisApp::userRotation()
 {
@@ -7462,7 +7335,6 @@ void QgisApp::userRotation()
   mMapCanvas->setRotation( degrees );
   mMapCanvas->refresh();
 }
-
 
 // toggle overview status
 void QgisApp::isInOverview()
@@ -7554,7 +7426,7 @@ void QgisApp::duplicateLayers( const QList<QgsMapLayer *>& lyrList )
   {
     dupLayer = 0;
     unSppType.clear();
-    layerDupName = selectedLyr->name() + " " + tr( "copy" );
+    layerDupName = selectedLyr->name() + ' ' + tr( "copy" );
 
     if ( selectedLyr->type() == QgsMapLayer::PluginLayer )
     {
@@ -7876,7 +7748,7 @@ class QgsPythonRunnerImpl : public QgsPythonRunner
   public:
     explicit QgsPythonRunnerImpl( QgsPythonUtils* pythonUtils ) : mPythonUtils( pythonUtils ) {}
 
-    virtual bool runCommand( const QString& command, const QString& messageOnError = QString() ) override
+    virtual bool runCommand( QString command, QString messageOnError = QString() ) override
     {
       if ( mPythonUtils && mPythonUtils->isEnabled() )
       {
@@ -7885,7 +7757,7 @@ class QgsPythonRunnerImpl : public QgsPythonRunner
       return false;
     }
 
-    virtual bool evalCommand( const QString& command, QString &result ) override
+    virtual bool evalCommand( QString command, QString &result ) override
     {
       if ( mPythonUtils && mPythonUtils->isEnabled() )
       {
@@ -8215,7 +8087,7 @@ void QgisApp::adjustBrightnessContrast( int delta, bool updateBrightness )
 void QgisApp::helpContents()
 {
   // We should really ship the HTML version of the docs local too.
-  openURL( QString( "http://docs.qgis.org/%1.%2/%3/docs/user_manual/" )
+  openURL( QString( "https://docs.qgis.org/%1.%2/%3/docs/user_manual/" )
            .arg( QGis::QGIS_VERSION_INT / 10000 )
            .arg( QGis::QGIS_VERSION_INT / 100 % 100 )
            .arg( tr( "en", "documentation language" ) ),
@@ -8230,18 +8102,18 @@ void QgisApp::apiDocumentation()
   }
   else
   {
-    openURL( "http://qgis.org/api/", false );
+    openURL( "https://qgis.org/api/", false );
   }
 }
 
 void QgisApp::supportProviders()
 {
-  openURL( tr( "http://qgis.org/en/site/forusers/commercial_support.html" ), false );
+  openURL( tr( "https://qgis.org/en/site/forusers/commercial_support.html" ), false );
 }
 
 void QgisApp::helpQgisHomePage()
 {
-  openURL( "http://qgis.org", false );
+  openURL( "https://qgis.org", false );
 }
 
 void QgisApp::openURL( QString url, bool useQgisDocDirectory )
@@ -8542,7 +8414,9 @@ void QgisApp::closeProject()
 
   mTrustedMacros = false;
 
-  setFilterLegendByMapEnabled( false );
+  mLegendExpressionFilterButton->setExpressionText( "" );
+  mLegendExpressionFilterButton->setChecked( false );
+  mActionFilterLegend->setChecked( false );
 
   deletePrintComposers();
   removeAnnotationItems();
@@ -9225,30 +9099,16 @@ void QgisApp::showMapCanvas()
     mCentralContainer->setCurrentIndex( 0 );
 }
 
-void QgisApp::extentsViewToggled( bool theFlag )
-{
-  if ( theFlag )
-  {
-    //extents view mode!
-    mToggleExtentsViewButton->setIcon( QgsApplication::getThemeIcon( "extents.png" ) );
-    mCoordsEdit->setToolTip( tr( "Map coordinates for the current view extents" ) );
-    mCoordsEdit->setReadOnly( true );
-    showExtents();
-  }
-  else
-  {
-    //mouse cursor pos view mode!
-    mToggleExtentsViewButton->setIcon( QgsApplication::getThemeIcon( "tracking.png" ) );
-    mCoordsEdit->setToolTip( tr( "Map coordinates at mouse cursor position" ) );
-    mCoordsEdit->setReadOnly( false );
-    mCoordsLabel->setText( tr( "Coordinate:" ) );
-  }
-}
-
 void QgisApp::markDirty()
 {
   // notify the project that there was a change
   QgsProject::instance()->dirty( true );
+}
+
+void QgisApp::extentChanged()
+{
+  // allow symbols in the legend update their preview if they use map units
+  mLayerTreeView->layerTreeModel()->setLegendMapViewData( mMapCanvas->mapUnitsPerPixel(), mMapCanvas->mapSettings().outputDpi(), mMapCanvas->scale() );
 }
 
 void QgisApp::layersWereAdded( const QList<QgsMapLayer *>& theLayers )
@@ -9294,27 +9154,6 @@ void QgisApp::layersWereAdded( const QList<QgsMapLayer *>& theLayers )
   }
 }
 
-void QgisApp::showExtents()
-{
-  // allow symbols in the legend update their preview if they use map units
-  mLayerTreeView->layerTreeModel()->setLegendMapViewData( mMapCanvas->mapUnitsPerPixel(), mMapCanvas->mapSettings().outputDpi(), mMapCanvas->scale() );
-
-  if ( !mToggleExtentsViewButton->isChecked() )
-  {
-    return;
-  }
-
-  // update the statusbar with the current extents.
-  QgsRectangle myExtents = mMapCanvas->extent();
-  mCoordsLabel->setText( tr( "Extents:" ) );
-  mCoordsEdit->setText( myExtents.toString( true ) );
-  //ensure the label is big enough
-  if ( mCoordsEdit->width() > mCoordsEdit->minimumWidth() )
-  {
-    mCoordsEdit->setMinimumWidth( mCoordsEdit->width() );
-  }
-} // QgisApp::showExtents
-
 void QgisApp::showRotation()
 {
   // update the statusbar with the current rotation.
@@ -9349,7 +9188,7 @@ void QgisApp::updateMouseCoordinatePrecision()
   if ( dp < 0 )
     dp = 0;
 
-  mMousePrecisionDecimalPlaces = dp;
+  mCoordsEdit->setMouseCoordinatesPrecision( dp );
 }
 
 void QgisApp::showStatusMessage( const QString& theMessage )
@@ -9493,6 +9332,22 @@ void QgisApp::legendLayerSelectionChanged( void )
   mActionSaveEdits->setEnabled( QgsLayerTreeUtils::layersModified( selectedLayers ) );
   mActionRollbackEdits->setEnabled( QgsLayerTreeUtils::layersModified( selectedLayers ) );
   mActionCancelEdits->setEnabled( QgsLayerTreeUtils::layersEditable( selectedLayers ) );
+
+  mLegendExpressionFilterButton->setEnabled( false );
+  mLegendExpressionFilterButton->setVectorLayer( 0 );
+  if ( selectedLayers.size() == 1 )
+  {
+    QgsLayerTreeLayer* l = selectedLayers.front();
+    if ( l->layer()->type() == QgsMapLayer::VectorLayer )
+    {
+      mLegendExpressionFilterButton->setEnabled( true );
+      bool exprEnabled;
+      QString expr = QgsLayerTreeUtils::legendFilterByExpression( *l, &exprEnabled );
+      mLegendExpressionFilterButton->setExpressionText( expr );
+      mLegendExpressionFilterButton->setVectorLayer( qobject_cast<QgsVectorLayer*>( l->layer() ) );
+      mLegendExpressionFilterButton->setChecked( exprEnabled );
+    }
+  }
 }
 
 void QgisApp::layerEditStateChanged()
@@ -10167,7 +10022,7 @@ bool QgisApp::addRasterLayers( QStringList const &theFileNameQStringList, bool g
 
         msg = tr( "%1 is not a supported raster data source" ).arg( *myIterator );
         if ( errMsg.size() > 0 )
-          msg += "\n" + errMsg;
+          msg += '\n' + errMsg;
         error.append( QGS_ERROR_MESSAGE( msg, tr( "Raster layer" ) ) );
 
         QgsErrorDialog::show( error, tr( "Unsupported Data Source" ) );
@@ -10332,19 +10187,19 @@ void QgisApp::oldProjectVersionWarning( const QString& oldVersion )
                         "<p>Version of the project file: %1<br>Current version of QGIS: %2" )
                     .arg( oldVersion,
                           QGis::QGIS_VERSION,
-                          "<a href=\"http://hub.qgis.org/projects/quantum-gis\">http://hub.qgis.org/projects/quantum-gis</a> ",
+                          "<a href=\"https://hub.qgis.org/projects/quantum-gis\">https://hub.qgis.org/projects/quantum-gis</a> ",
                           tr( "<tt>Settings:Options:General</tt>", "Menu path to setting options" ),
                           tr( "Warn me when opening a project file saved with an older version of QGIS" ) );
     QString title =  tr( "Project file is older" );
 
 #ifdef ANDROID
-    //this is needed to deal with http://hub.qgis.org/issues/4573
+    //this is needed to deal with https://hub.qgis.org/issues/4573
     QMessageBox box( QMessageBox::Warning, title, tr( "This project file was saved by an older version of QGIS" ), QMessageBox::Ok, NULL );
     box.setDetailedText(
       text.remove( 0, 3 )
       .replace( QString( "<p>" ), QString( "\n\n" ) )
       .replace( QString( "<br>" ), QString( "\n" ) )
-      .replace( QString( "<a href=\"http://hub.qgis.org/projects/quantum-gis\">http://hub.qgis.org/projects/quantum-gis</a> " ), QString( "\nhttp://hub.qgis.org/projects/quantum-gis" ) )
+      .replace( QString( "<a href=\"https://hub.qgis.org/projects/quantum-gis\">https://hub.qgis.org/projects/quantum-gis</a> " ), QString( "\nhttps://hub.qgis.org/projects/quantum-gis" ) )
       .replace( QRegExp( "</?tt>" ), QString() )
     );
     box.exec();
@@ -10394,13 +10249,13 @@ void QgisApp::projectChanged( const QDomDocument &doc )
   if ( !prevProjectDir.isNull() )
   {
     QString prev = prevProjectDir;
-    expr = QString( "sys.path.remove('%1'); " ).arg( prev.replace( "'", "\\'" ) );
+    expr = QString( "sys.path.remove('%1'); " ).arg( prev.replace( '\'', "\\'" ) );
   }
 
   prevProjectDir = fi.canonicalPath();
 
   QString prev = prevProjectDir;
-  expr += QString( "sys.path.append('%1')" ).arg( prev.replace( "'", "\\'" ) );
+  expr += QString( "sys.path.append('%1')" ).arg( prev.replace( '\'', "\\'" ) );
 
   QgsPythonRunner::run( expr );
 }
@@ -10422,7 +10277,7 @@ void QgisApp::writeProject( QDomDocument &doc )
   delete clonedRoot;
   doc.firstChildElement( "qgis" ).appendChild( oldLegendElem );
 
-  QgsProject::instance()->writeEntry( "Legend", "filterByMap", ( bool ) layerTreeView()->layerTreeModel()->legendFilterByMap() );
+  QgsProject::instance()->writeEntry( "Legend", "filterByMap", ( bool ) layerTreeView()->layerTreeModel()->legendFilterMapSettings() );
 
   projectChanged( doc );
 }
@@ -10561,7 +10416,7 @@ void QgisApp::namAuthenticationRequired( QNetworkReply *reply, QAuthenticator *a
     if ( header.startsWith( "Basic " ) )
     {
       QByteArray auth( QByteArray::fromBase64( header.mid( 6 ) ) );
-      int pos = auth.indexOf( ":" );
+      int pos = auth.indexOf( ':' );
       if ( pos >= 0 )
       {
         username = auth.left( pos );

@@ -29,7 +29,7 @@
 
 QGISEXTERN bool deleteLayer( const QString& dbPath, const QString& tableName, QString& errCause );
 
-QgsSLLayerItem::QgsSLLayerItem( QgsDataItem* parent, const QString& name, const QString& path, const QString& uri, LayerType layerType )
+QgsSLLayerItem::QgsSLLayerItem( QgsDataItem* parent, QString name, QString path, QString uri, LayerType layerType )
     : QgsLayerItem( parent, name, path, uri, layerType, "spatialite" )
 {
   setState( Populated ); // no children are expected
@@ -69,7 +69,7 @@ void QgsSLLayerItem::deleteLayer()
 
 // ------
 
-QgsSLConnectionItem::QgsSLConnectionItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsSLConnectionItem::QgsSLConnectionItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mDbPath = QgsSpatiaLiteConnection::connectionPath( name );
@@ -80,7 +80,7 @@ QgsSLConnectionItem::~QgsSLConnectionItem()
 {
 }
 
-static QgsLayerItem::LayerType _layerTypeFromDb( const QString& dbType )
+static QgsLayerItem::LayerType _layerTypeFromDb( QString dbType )
 {
   if ( dbType == "POINT" || dbType == "MULTIPOINT" )
   {
@@ -129,13 +129,13 @@ QVector<QgsDataItem*> QgsSLConnectionItem::createChildren()
     return children;
   }
 
-  QString connectionInfo = QString( "dbname='%1'" ).arg( QString( connection.path() ).replace( "'", "\\'" ) );
+  QString connectionInfo = QString( "dbname='%1'" ).arg( QString( connection.path() ).replace( '\'', "\\'" ) );
   QgsDataSourceURI uri( connectionInfo );
 
   Q_FOREACH ( const QgsSpatiaLiteConnection::TableEntry& entry, connection.tables() )
   {
     uri.setDataSource( QString(), entry.tableName, entry.column, QString(), QString() );
-    QgsSLLayerItem * layer = new QgsSLLayerItem( this, entry.tableName, mPath + "/" + entry.tableName, uri.uri(), _layerTypeFromDb( entry.type ) );
+    QgsSLLayerItem * layer = new QgsSLLayerItem( this, entry.tableName, mPath + '/' + entry.tableName, uri.uri(), _layerTypeFromDb( entry.type ) );
     children.append( layer );
   }
   return children;
@@ -254,7 +254,7 @@ bool QgsSLConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
 
 // ---------------------------------------------------------------------------
 
-QgsSLRootItem::QgsSLRootItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsSLRootItem::QgsSLRootItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mCapabilities |= Fast;
@@ -271,7 +271,7 @@ QVector<QgsDataItem*> QgsSLRootItem::createChildren()
   QVector<QgsDataItem*> connections;
   Q_FOREACH ( const QString& connName, QgsSpatiaLiteConnection::connectionList() )
   {
-    QgsDataItem * conn = new QgsSLConnectionItem( this, connName, mPath + "/" + connName );
+    QgsDataItem * conn = new QgsSLConnectionItem( this, connName, mPath + '/' + connName );
     connections.push_back( conn );
   }
   return connections;
@@ -354,7 +354,7 @@ QGISEXTERN int dataCapabilities()
   return  QgsDataProvider::Database;
 }
 
-QGISEXTERN QgsDataItem * dataItem( const QString& thePath, QgsDataItem* parentItem )
+QGISEXTERN QgsDataItem * dataItem( QString thePath, QgsDataItem* parentItem )
 {
   Q_UNUSED( thePath );
   return new QgsSLRootItem( parentItem, "SpatiaLite", "spatialite:" );

@@ -329,10 +329,10 @@ QString QgsInvertedPolygonRenderer::dump() const
   {
     return "INVERTED: NULL";
   }
-  return "INVERTED [" + mSubRenderer->dump() + "]";
+  return "INVERTED [" + mSubRenderer->dump() + ']';
 }
 
-QgsFeatureRendererV2* QgsInvertedPolygonRenderer::clone() const
+QgsInvertedPolygonRenderer* QgsInvertedPolygonRenderer::clone() const
 {
   QgsInvertedPolygonRenderer* newRenderer;
   if ( mSubRenderer.isNull() )

@@ -563,7 +563,7 @@ QStringList QgsComposerMap::layersToRender( const QgsExpressionContext* context 
   {
     renderLayerSet.clear();
 
-    QStringList layerNames = exprVal.toString().split( "|" );
+    QStringList layerNames = exprVal.toString().split( '|' );
     //need to convert layer names to layer ids
     Q_FOREACH ( const QString& name, layerNames )
     {
@@ -1748,7 +1748,7 @@ QPen QgsComposerMap::gridPen() const
   QPen p;
   if ( g->lineSymbol() )
   {
-    QgsLineSymbolV2* line = dynamic_cast<QgsLineSymbolV2*>( g->lineSymbol()->clone() );
+    QgsLineSymbolV2* line = g->lineSymbol()->clone();
     if ( !line )
     {
       return p;

@@ -128,9 +128,9 @@ class QgsExpressionItemSearchProxy : public QSortFilterProxyModel
       QString rightString = sourceModel()->data( right, Qt::DisplayRole ).toString();
 
       //ignore $ prefixes when sorting
-      if ( leftString.startsWith( "$" ) )
+      if ( leftString.startsWith( '$' ) )
         leftString = leftString.mid( 1 );
-      if ( rightString.startsWith( "$" ) )
+      if ( rightString.startsWith( '$' ) )
         rightString = rightString.mid( 1 );
 
       return QString::localeAwareCompare( leftString, rightString ) < 0;
@@ -232,24 +232,43 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     void updateFunctionFileList( const QString& path );
 
   public slots:
+
+    /**
+     * Load sample values into the sample value area
+     */
+    void loadSampleValues();
+
+    /**
+     * Load all unique values from the set layer into the sample area
+     */
+    void loadAllValues();
+
+    /**
+     * Auto save the current Python function code.
+     */
+    void autosave();
+    /**
+     * Enabled or disable auto saving. When enabled Python scripts will be auto saved
+     * when text changes.
+     * @param enabled True to enable auto saving.
+     */
+    void setAutoSave( bool enabled ) { mAutoSave = enabled; }
+
+  private slots:
+    void showContextMenu( const QPoint & );
+    void setExpressionState( bool state );
     void currentChanged( const QModelIndex &index, const QModelIndex & );
+    void operatorButtonClicked();
     void on_btnRun_pressed();
     void on_btnNewFile_pressed();
-    void on_cmbFileNames_currentIndexChanged( int index );
-    void on_btnSaveFile_pressed();
+    void on_cmbFileNames_currentItemChanged( QListWidgetItem* item, QListWidgetItem* lastitem );
     void on_expressionTree_doubleClicked( const QModelIndex &index );
     void on_txtExpressionString_textChanged();
     void on_txtSearchEdit_textChanged();
     void on_txtSearchEditValues_textChanged();
     void on_lblPreview_linkActivated( const QString& link );
     void on_mValuesListView_doubleClicked( const QModelIndex &index );
-    void operatorButtonClicked();
-    void showContextMenu( const QPoint & );
-    void loadSampleValues();
-    void loadAllValues();
-
-  private slots:
-    void setExpressionState( bool state );
+    void on_txtPython_textChanged();
 
   signals:
     /** Emitted when the user changes the expression in the widget.
@@ -258,6 +277,9 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
       * @param isValid Is true if the expression the user has typed is valid.
       */
     void expressionParsed( bool isValid );
+
+  protected:
+    void showEvent( QShowEvent *e );
 
   private:
     void runPythonCode( const QString& code );
@@ -268,12 +290,13 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
 
     /** Formats an expression preview result for display in the widget
      * by truncating the string
-     * @param previewString expression preview result to format
+     * @param value expression preview result to format
      */
-    QString formatPreviewString( const QString &previewString ) const;
+    QString formatPreviewString( const QVariant& value ) const;
 
     void loadExpressionContext();
 
+    bool mAutoSave;
     QString mFunctionsPath;
     QgsVectorLayer *mLayer;
     QStandardItemModel *mModel;
@@ -288,7 +311,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     QString mRecentKey;
     QMap<QString, QStringList> mFieldValues;
     QgsExpressionContext mExpressionContext;
-
 };
 
 #endif // QGSEXPRESSIONBUILDER_H

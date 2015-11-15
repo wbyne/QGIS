@@ -184,7 +184,7 @@ QgsRasterProjector & QgsRasterProjector::operator=( const QgsRasterProjector & p
   return *this;
 }
 
-QgsRasterInterface * QgsRasterProjector::clone() const
+QgsRasterProjector* QgsRasterProjector::clone() const
 {
   QgsDebugMsg( "Entered" );
   QgsRasterProjector * projector = new QgsRasterProjector( mSrcCRS, mDestCRS, mMaxSrcXRes, mMaxSrcYRes, mExtent );
@@ -414,7 +414,7 @@ QString QgsRasterProjector::cpToString()
   for ( int i = 0; i < mCPRows; i++ )
   {
     if ( i > 0 )
-      myString += "\n";
+      myString += '\n';
     for ( int j = 0; j < mCPCols; j++ )
     {
       if ( j > 0 )

@@ -33,7 +33,7 @@
 #include <QtSql/QSqlError>
 
 // ---------------------------------------------------------------------------
-QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
     , mUseGeometryColumns( false )
     , mUseEstimatedMetadata( false )
@@ -68,9 +68,9 @@ void QgsMssqlConnectionItem::readConnectionSettings()
   mUseEstimatedMetadata = settings.value( key + "/estimatedMetadata", false ).toBool();
   mAllowGeometrylessTables = settings.value( key + "/allowGeometrylessTables", true ).toBool();
 
-  mConnInfo =  "dbname='" + mDatabase + "' host=" + mHost + " user='" + mUsername + "' password='" + mPassword + "'";
+  mConnInfo =  "dbname='" + mDatabase + "' host=" + mHost + " user='" + mUsername + "' password='" + mPassword + '\'';
   if ( !mService.isEmpty() )
-    mConnInfo += " service='" + mService + "'";
+    mConnInfo += " service='" + mService + '\'';
   if ( mUseEstimatedMetadata )
     mConnInfo += " estimatedmetadata=true";
 }
@@ -188,7 +188,7 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
 
       if ( !schemaItem )
       {
-        schemaItem = new QgsMssqlSchemaItem( this, layer.schemaName, mPath + "/" + layer.schemaName );
+        schemaItem = new QgsMssqlSchemaItem( this, layer.schemaName, mPath + '/' + layer.schemaName );
         children.append( schemaItem );
       }
 
@@ -260,8 +260,8 @@ void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
       return; // already added
   }
 
-  QStringList typeList = layerProperty.type.split( ",", QString::SkipEmptyParts );
-  QStringList sridList = layerProperty.srid.split( ",", QString::SkipEmptyParts );
+  QStringList typeList = layerProperty.type.split( ',', QString::SkipEmptyParts );
+  QStringList sridList = layerProperty.srid.split( ',', QString::SkipEmptyParts );
   Q_ASSERT( typeList.size() == sridList.size() );
 
   for ( int i = 0 ; i < typeList.size(); i++ )
@@ -406,7 +406,7 @@ bool QgsMssqlConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction 
 
 
 // ---------------------------------------------------------------------------
-QgsMssqlLayerItem::QgsMssqlLayerItem( QgsDataItem* parent, const QString& name, const QString& path, QgsLayerItem::LayerType layerType, const QgsMssqlLayerProperty& layerProperty )
+QgsMssqlLayerItem::QgsMssqlLayerItem( QgsDataItem* parent, QString name, QString path, QgsLayerItem::LayerType layerType, QgsMssqlLayerProperty layerProperty )
     : QgsLayerItem( parent, name, path, QString(), layerType, "mssql" )
     , mLayerProperty( layerProperty )
 {
@@ -443,7 +443,7 @@ QString QgsMssqlLayerItem::createUri()
 }
 
 // ---------------------------------------------------------------------------
-QgsMssqlSchemaItem::QgsMssqlSchemaItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsMssqlSchemaItem::QgsMssqlSchemaItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mIconName = "mIconDbSchema.png";
@@ -474,7 +474,7 @@ void QgsMssqlSchemaItem::addLayers( QgsDataItem* newLayers )
   }
 }
 
-QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( const QgsMssqlLayerProperty& layerProperty, bool refresh )
+QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( QgsMssqlLayerProperty layerProperty, bool refresh )
 {
   QGis::WkbType wkbType = QgsMssqlTableModel::wkbTypeFromMssql( layerProperty.type );
   QString tip = tr( "%1 as %2 in %3" ).arg( layerProperty.geometryColName, QgsMssqlTableModel::displayStringForWkbType( wkbType ), layerProperty.srid );
@@ -512,7 +512,7 @@ QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( const QgsMssqlLayerProperty& la
       }
   }
 
-  QgsMssqlLayerItem *layerItem = new QgsMssqlLayerItem( this, layerProperty.tableName, mPath + "/" + layerProperty.tableName, layerType, layerProperty );
+  QgsMssqlLayerItem *layerItem = new QgsMssqlLayerItem( this, layerProperty.tableName, mPath + '/' + layerProperty.tableName, layerType, layerProperty );
   layerItem->setToolTip( tip );
   if ( refresh )
     addChildItem( layerItem, true );
@@ -523,7 +523,7 @@ QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( const QgsMssqlLayerProperty& la
 }
 
 // ---------------------------------------------------------------------------
-QgsMssqlRootItem::QgsMssqlRootItem( QgsDataItem* parent, const QString& name, const QString& path )
+QgsMssqlRootItem::QgsMssqlRootItem( QgsDataItem* parent, QString name, QString path )
     : QgsDataCollectionItem( parent, name, path )
 {
   mIconName = "mIconMssql.svg";
@@ -541,7 +541,7 @@ QVector<QgsDataItem*> QgsMssqlRootItem::createChildren()
   settings.beginGroup( "/MSSQL/connections" );
   Q_FOREACH ( const QString& connName, settings.childGroups() )
   {
-    connections << new QgsMssqlConnectionItem( this, connName, mPath + "/" + connName );
+    connections << new QgsMssqlConnectionItem( this, connName, mPath + '/' + connName );
   }
   return connections;
 }

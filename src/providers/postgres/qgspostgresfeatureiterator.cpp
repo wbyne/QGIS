@@ -35,6 +35,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     , mFetched( 0 )
     , mFetchGeometry( false )
     , mExpressionCompiled( false )
+    , mLastFetch( false )
 {
   if ( !source->mTransactionConnection )
   {
@@ -92,7 +93,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     if ( !whereClause.isEmpty() )
       whereClause += " AND ";
 
-    whereClause += "(" + mSource->mSqlWhereClause + ")";
+    whereClause += '(' + mSource->mSqlWhereClause + ')';
   }
 
   if ( !declareCursor( whereClause ) )
@@ -119,7 +120,7 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature& feature )
   if ( mClosed )
     return false;
 
-  if ( mFeatureQueue.empty() )
+  if ( mFeatureQueue.empty() && !mLastFetch )
   {
     QString fetch = QString( "FETCH FORWARD %1 FROM %2" ).arg( mFeatureQueueSize ).arg( mCursorName );
     QgsDebugMsgLevel( QString( "fetching %1 features." ).arg( mFeatureQueueSize ), 4 );
@@ -144,6 +145,8 @@ bool QgsPostgresFeatureIterator::fetchFeature( QgsFeature& feature )
       int rows = queryResult.PQntuples();
       if ( rows == 0 )
         continue;
+
+      mLastFetch = rows < mFeatureQueueSize;
 
       for ( int row = 0; row < rows; row++ )
       {
@@ -215,6 +218,7 @@ bool QgsPostgresFeatureIterator::rewind()
   mConn->PQexecNR( QString( "move absolute 0 in %1" ).arg( mCursorName ) );
   mFeatureQueue.clear();
   mFetched = 0;
+  mLastFetch = false;
 
   return true;
 }
@@ -323,7 +327,6 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
 bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
 {
   mFetchGeometry = !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) && !mSource->mGeometryColumn.isNull();
-
 #if 0
   // TODO: check that all field indexes exist
   if ( !hasAllFields )
@@ -375,31 +378,31 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
                  QgsPostgresProvider::endianString() );
 
     query += delim + geom;
-    delim = ",";
+    delim = ',';
   }
 
   switch ( mSource->mPrimaryKeyType )
 {
     case pktOid:
       query += delim + "oid";
-      delim = ",";
+      delim = ',';
       break;
 
     case pktTid:
       query += delim + "ctid";
-      delim = ",";
+      delim = ',';
       break;
 
     case pktInt:
       query += delim + QgsPostgresConn::quotedIdentifier( mSource->mFields.at( mSource->mPrimaryKeyAttrs.at( 0 ) ).name() );
-      delim = ",";
+      delim = ',';
       break;
 
     case pktFidMap:
       Q_FOREACH ( int idx, mSource->mPrimaryKeyAttrs )
       {
         query += delim + mConn->fieldExpression( mSource->mFields.at( idx ) );
-        delim = ",";
+        delim = ',';
       }
       break;
 
@@ -432,6 +435,7 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause )
     return false;
   }
 
+  mLastFetch = false;
   return true;
 }
 

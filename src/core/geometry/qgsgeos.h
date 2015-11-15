@@ -25,6 +25,7 @@ class QgsPolygonV2;
 
 /** Does vector analysis using the geos library and handles import, export, exception handling*
  * \note this API is not considered stable and may change for 2.12
+ * \note not available in Python bindings
  */
 class CORE_EXPORT QgsGeos: public QgsGeometryEngine
 {
@@ -62,6 +63,7 @@ class CORE_EXPORT QgsGeos: public QgsGeometryEngine
     bool contains( const QgsAbstractGeometryV2& geom, QString* errorMsg = 0 ) const override;
     bool disjoint( const QgsAbstractGeometryV2& geom, QString* errorMsg = 0 ) const override;
     QString relate( const QgsAbstractGeometryV2& geom, QString* errorMsg = 0 ) const override;
+    bool relatePattern( const QgsAbstractGeometryV2& geom, const QString& pattern, QString* errorMsg = 0 ) const override;
     double area( QString* errorMsg = 0 ) const override;
     double length( QString* errorMsg = 0 ) const override;
     bool isValid( QString* errorMsg = 0 ) const override;

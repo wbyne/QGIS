@@ -448,7 +448,7 @@ void QgsVectorLayerProperties::syncToLayer( void )
     mSimplifyDrawingGroupBox->setEnabled( false );
   }
 
-  QStringList myScalesList = PROJECT_SCALES.split( "," );
+  QStringList myScalesList = PROJECT_SCALES.split( ',' );
   myScalesList.append( "1:1" );
   mSimplifyMaximumScaleComboBox->updateScales( myScalesList );
   mSimplifyMaximumScaleComboBox->setScale( 1.0 / simplifyMethod.maximumScale() );
@@ -505,6 +505,10 @@ void QgsVectorLayerProperties::syncToLayer( void )
 
   // set initial state for variable editor
   updateVariableEditor();
+
+  // updates the init python code and ui
+  updateFieldsPropertiesDialog();
+
 } // syncToLayer()
 
 
@@ -1298,4 +1302,9 @@ void QgsVectorLayerProperties::updateVariableEditor()
   mVariableEditor->context()->appendScope( QgsExpressionContextUtils::layerScope( layer ) );
   mVariableEditor->reloadContext();
   mVariableEditor->setEditableScopeIndex( 2 );
+}
+
+void QgsVectorLayerProperties::updateFieldsPropertiesDialog()
+{
+  mFieldsPropertiesDialog->setEditFormInit( layer->editForm(), layer->editFormInit(), layer->editFormInitCode(), layer->editFormInitUseCode() );
 }

@@ -137,8 +137,8 @@ void QgsRendererCategoryV2::toSld( QDomDocument &doc, QDomElement &element, QgsS
 
   // create the ogc:Filter for the range
   QString filterFunc = QString( "%1 = '%2'" )
-                       .arg( attrName.replace( "\"", "\"\"" ),
-                             mValue.toString().replace( "'", "''" ) );
+                       .arg( attrName.replace( '\"', "\"\"" ),
+                             mValue.toString().replace( '\'', "''" ) );
   QgsSymbolLayerV2Utils::createFunctionElement( doc, ruleElem, filterFunc );
 
   mSymbol->toSld( doc, ruleElem, props );
@@ -484,7 +484,7 @@ QString QgsCategorizedSymbolRendererV2::dump() const
   return s;
 }
 
-QgsFeatureRendererV2* QgsCategorizedSymbolRendererV2::clone() const
+QgsCategorizedSymbolRendererV2* QgsCategorizedSymbolRendererV2::clone() const
 {
   QgsCategorizedSymbolRendererV2* r = new QgsCategorizedSymbolRendererV2( mAttrName, mCategories );
   if ( mSourceSymbol.data() )

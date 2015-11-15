@@ -142,7 +142,7 @@ void QgsSpatiaLiteSourceSelect::buildQuery()
 void QgsSpatiaLiteSourceSelect::updateStatistics()
 {
   QString subKey = cmbConnections->currentText();
-  int idx = subKey.indexOf( "@" );
+  int idx = subKey.indexOf( '@' );
   if ( idx > 0 )
     subKey.truncate( idx );
 
@@ -281,6 +281,7 @@ bool QgsSpatiaLiteSourceSelect::newConnection( QWidget* parent )
   QFileInfo myFI( myFile );
   QString myPath = myFI.path();
   QString myName = myFI.fileName();
+  QString savedName = myFI.fileName();
   QString baseKey = "/SpatiaLite/connections/";
 
   // TODO: keep the test
@@ -290,19 +291,24 @@ bool QgsSpatiaLiteSourceSelect::newConnection( QWidget* parent )
   // OK, this one is a valid SpatiaLite DB
   //closeSpatiaLiteDb( handle );
 
-  // if there is already a connection with this name, warn user (#9404) and do nothing
-  // ideally, user should be able to change item name so that several sqlite files with same name can co-exist
-  if ( ! settings.value( baseKey + myName + "/sqlitepath", "" ).toString().isEmpty() )
+  // if there is already a connection with this name, ask for a new name
+  while ( ! settings.value( baseKey + savedName + "/sqlitepath", "" ).toString().isEmpty() )
   {
-    QMessageBox::critical( parent, tr( "Error" ), tr( "Cannot add connection '%1' : a connection with the same name already exists." ).arg( myName ) );
-    return false;
+    bool ok;
+    savedName = QInputDialog::getText( NULL , tr( "Cannot add connection '%1'" ).arg( myName ) ,
+                                       tr( "A connection with the same name already exists,\nplease provide a new name:" ), QLineEdit::Normal,
+                                       "", &ok );
+    if ( !ok || savedName.isEmpty() )
+    {
+      return false;
+    }
   }
 
   // Persist last used SpatiaLite dir
   settings.setValue( "/UI/lastSpatiaLiteDir", myPath );
   // inserting this SQLite DB path
-  settings.setValue( baseKey + "selected", myName );
-  settings.setValue( baseKey + myName + "/sqlitepath", myFI.canonicalFilePath() );
+  settings.setValue( baseKey + "selected", savedName );
+  settings.setValue( baseKey + savedName + "/sqlitepath", myFI.canonicalFilePath() );
   return true;
 }
 
@@ -352,7 +358,7 @@ QString QgsSpatiaLiteSourceSelect::layerURI( const QModelIndex &index )
 void QgsSpatiaLiteSourceSelect::on_btnDelete_clicked()
 {
   QString subKey = cmbConnections->currentText();
-  int idx = subKey.indexOf( "@" );
+  int idx = subKey.indexOf( '@' );
   if ( idx > 0 )
     subKey.truncate( idx );
 
@@ -422,7 +428,7 @@ void QgsSpatiaLiteSourceSelect::on_btnConnect_clicked()
   cbxAllowGeometrylessTables->setEnabled( false );
 
   QString subKey = cmbConnections->currentText();
-  int idx = subKey.indexOf( "@" );
+  int idx = subKey.indexOf( '@' );
   if ( idx > 0 )
     subKey.truncate( idx );
 
@@ -503,7 +509,7 @@ QStringList QgsSpatiaLiteSourceSelect::selectedTables()
 
 QString QgsSpatiaLiteSourceSelect::connectionInfo()
 {
-  return QString( "dbname='%1'" ).arg( QString( mSqlitePath ).replace( "'", "\\'" ) );
+  return QString( "dbname='%1'" ).arg( QString( mSqlitePath ).replace( '\'', "\\'" ) );
 }
 
 void QgsSpatiaLiteSourceSelect::setSql( const QModelIndex &index )
@@ -550,7 +556,7 @@ void QgsSpatiaLiteSourceSelect::setConnectionListPosition()
   // If possible, set the item currently displayed database
   QString toSelect = settings.value( "/SpatiaLite/connections/selected" ).toString();
 
-  toSelect += "@" + settings.value( "/SpatiaLite/connections/" + toSelect + "/sqlitepath" ).toString();
+  toSelect += '@' + settings.value( "/SpatiaLite/connections/" + toSelect + "/sqlitepath" ).toString();
 
   cmbConnections->setCurrentIndex( cmbConnections->findText( toSelect ) );
 

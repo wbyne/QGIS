@@ -39,6 +39,9 @@
 
 // ------------------------------ Model ------------------------------------
 
+///@cond
+//not part of public API
+
 QgsGraduatedSymbolRendererV2Model::QgsGraduatedSymbolRendererV2Model( QObject * parent ) : QAbstractItemModel( parent )
     , mRenderer( 0 )
     , mMimeFormat( "application/x-qgsgraduatedsymbolrendererv2model" )
@@ -372,6 +375,8 @@ void QgsGraduatedSymbolRendererV2ViewStyle::drawPrimitive( PrimitiveElement elem
   }
   QProxyStyle::drawPrimitive( element, option, painter, widget );
 }
+
+///@endcond
 
 // ------------------------------ Widget ------------------------------------
 
@@ -1053,7 +1058,7 @@ QList<QgsSymbolV2*> QgsGraduatedSymbolRendererV2Widget::selectedSymbols()
     QModelIndexList::const_iterator indexIt = selectedIndexes.constBegin();
     for ( ; indexIt != selectedIndexes.constEnd(); ++indexIt )
     {
-      QStringList list = m->model()->data( *indexIt ).toString().split( " " );
+      QStringList list = m->model()->data( *indexIt ).toString().split( ' ' );
       if ( list.size() < 3 )
       {
         continue;

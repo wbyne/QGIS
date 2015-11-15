@@ -138,10 +138,10 @@ QString QgsSymbolLayerV2Widget::dataDefinedPropertyLabel( const QString &entryNa
       switch ( layer->scaleMethod() )
       {
         case QgsSymbolV2::ScaleArea:
-          label += " (" + tr( "area" ) + ")";
+          label += " (" + tr( "area" ) + ')';
           break;
         case QgsSymbolV2::ScaleDiameter:
-          label += " (" + tr( "diameter" ) + ")";
+          label += " (" + tr( "diameter" ) + ')';
           break;
       }
     }
@@ -171,15 +171,42 @@ QgsSimpleLineSymbolLayerV2Widget::QgsSimpleLineSymbolLayerV2Widget( const QgsVec
     mDrawInsideCheckBox->hide();
   }
 
+  //make a temporary symbol for the size assistant preview
+  mAssistantPreviewSymbol = new QgsLineSymbolV2();
+
+  if ( mVectorLayer )
+    mPenWidthDDBtn->setAssistant( tr( "Width Assistant..." ), new QgsSizeScaleWidget( mVectorLayer, mAssistantPreviewSymbol ) );
+
+
   connect( spinWidth, SIGNAL( valueChanged( double ) ), this, SLOT( penWidthChanged() ) );
   connect( btnChangeColor, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( colorChanged( const QColor& ) ) );
   connect( cboPenStyle, SIGNAL( currentIndexChanged( int ) ), this, SLOT( penStyleChanged() ) );
   connect( spinOffset, SIGNAL( valueChanged( double ) ), this, SLOT( offsetChanged() ) );
   connect( cboCapStyle, SIGNAL( currentIndexChanged( int ) ), this, SLOT( penStyleChanged() ) );
   connect( cboJoinStyle, SIGNAL( currentIndexChanged( int ) ), this, SLOT( penStyleChanged() ) );
+
   updatePatternIcon();
 
+  connect( this, SIGNAL( changed() ), this, SLOT( updateAssistantSymbol() ) );
 }
+
+QgsSimpleLineSymbolLayerV2Widget::~QgsSimpleLineSymbolLayerV2Widget()
+{
+  delete mAssistantPreviewSymbol;
+}
+
+void QgsSimpleLineSymbolLayerV2Widget::updateAssistantSymbol()
+{
+  for ( int i = mAssistantPreviewSymbol->symbolLayerCount() - 1 ; i >= 0; --i )
+  {
+    mAssistantPreviewSymbol->deleteSymbolLayer( i );
+  }
+  mAssistantPreviewSymbol->appendSymbolLayer( mLayer->clone() );
+  QgsDataDefined* ddWidth = mLayer->getDataDefinedProperty( "width" );
+  if ( ddWidth )
+    mAssistantPreviewSymbol->setDataDefinedWidth( *ddWidth );
+}
+
 
 void QgsSimpleLineSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
 {
@@ -248,6 +275,8 @@ void QgsSimpleLineSymbolLayerV2Widget::setSymbolLayer( QgsSymbolLayerV2* layer )
   registerDataDefinedButton( mPenStyleDDBtn, "line_style", QgsDataDefinedButton::String, QgsDataDefinedButton::lineStyleDesc() );
   registerDataDefinedButton( mJoinStyleDDBtn, "joinstyle", QgsDataDefinedButton::String, QgsDataDefinedButton::penJoinStyleDesc() );
   registerDataDefinedButton( mCapStyleDDBtn, "capstyle", QgsDataDefinedButton::String, QgsDataDefinedButton::capStyleDesc() );
+
+  updateAssistantSymbol();
 }
 
 QgsSymbolLayerV2* QgsSimpleLineSymbolLayerV2Widget::symbolLayer()
@@ -350,7 +379,7 @@ void QgsSimpleLineSymbolLayerV2Widget::updatePatternIcon()
   {
     return;
   }
-  QgsSimpleLineSymbolLayerV2* layerCopy = dynamic_cast<QgsSimpleLineSymbolLayerV2*>( mLayer->clone() );
+  QgsSimpleLineSymbolLayerV2* layerCopy = mLayer->clone();
   if ( !layerCopy )
   {
     return;
@@ -1570,8 +1599,12 @@ QgsSvgMarkerSymbolLayerV2Widget::~QgsSvgMarkerSymbolLayerV2Widget()
 #include <QPixmapCache>
 #include <QStyle>
 
+///@cond
+//not part of public API
+
 class QgsSvgListModel : public QAbstractListModel
 {
+
   public:
     explicit QgsSvgListModel( QObject* parent ) : QAbstractListModel( parent )
     {
@@ -1678,16 +1711,18 @@ class QgsSvgGroupsModel : public QStandardItemModel
       Q_FOREACH ( const QString& item, parentDir.entryList( QDir::Dirs | QDir::NoDotAndDotDot ) )
       {
         QStandardItem* group = new QStandardItem( item );
-        group->setData( QVariant( parentDir.path() + "/" + item ) );
+        group->setData( QVariant( parentDir.path() + '/' + item ) );
         group->setEditable( false );
         group->setCheckable( false );
-        group->setToolTip( parentDir.path() + "/" + item );
+        group->setToolTip( parentDir.path() + '/' + item );
         group->setIcon( QgsApplication::style()->standardIcon( QStyle::SP_DirIcon ) );
         parentGroup->appendRow( group );
         createTree( group );
       }
     }
 };
+
+///@endcond
 
 void QgsSvgMarkerSymbolLayerV2Widget::populateList()
 {

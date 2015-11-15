@@ -43,7 +43,7 @@ QgsDataDefined* rotateWholeSymbol( double additionalRotation, const QgsDataDefin
 {
   QgsDataDefined* rotatedDD = new QgsDataDefined( dd );
   QString exprString = dd.useExpression() ? dd.expressionString() : dd.field();
-  rotatedDD->setExpressionString( QString::number( additionalRotation ) + " + (" + exprString + ")" );
+  rotatedDD->setExpressionString( QString::number( additionalRotation ) + " + (" + exprString + ')' );
   rotatedDD->setUseExpression( true );
   return rotatedDD;
 }
@@ -53,7 +53,7 @@ QgsDataDefined* scaleWholeSymbol( double scaleFactor, const QgsDataDefined& dd )
 {
   QgsDataDefined* scaledDD = new QgsDataDefined( dd );
   QString exprString = dd.useExpression() ? dd.expressionString() : dd.field();
-  scaledDD->setExpressionString( QString::number( scaleFactor ) + "*(" + exprString + ")" );
+  scaledDD->setExpressionString( QString::number( scaleFactor ) + "*(" + exprString + ')' );
   scaledDD->setUseExpression( true );
   return scaledDD;
 }
@@ -490,6 +490,16 @@ QSet<QString> QgsSymbolV2::usedAttributes() const
   return attributes;
 }
 
+bool QgsSymbolV2::hasDataDefinedProperties() const
+{
+  Q_FOREACH ( QgsSymbolLayerV2* layer, mLayers )
+  {
+    if ( layer->hasDataDefinedProperties() )
+      return true;
+  }
+  return false;
+}
+
 ////////////////////
 
 
@@ -856,9 +866,9 @@ void QgsMarkerSymbolV2::renderPoint( const QPointF& point, const QgsFeature* f, 
   }
 }
 
-QgsSymbolV2* QgsMarkerSymbolV2::clone() const
+QgsMarkerSymbolV2* QgsMarkerSymbolV2::clone() const
 {
-  QgsSymbolV2* cloneSymbol = new QgsMarkerSymbolV2( cloneLayers() );
+  QgsMarkerSymbolV2* cloneSymbol = new QgsMarkerSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
   cloneSymbol->setLayer( mLayer );
   cloneSymbol->setClipFeaturesToExtent( mClipFeaturesToExtent );
@@ -1039,9 +1049,9 @@ void QgsLineSymbolV2::renderPolylineUsingLayer( QgsLineSymbolLayerV2 *layer, con
 }
 
 
-QgsSymbolV2* QgsLineSymbolV2::clone() const
+QgsLineSymbolV2* QgsLineSymbolV2::clone() const
 {
-  QgsSymbolV2* cloneSymbol = new QgsLineSymbolV2( cloneLayers() );
+  QgsLineSymbolV2* cloneSymbol = new QgsLineSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
   cloneSymbol->setLayer( mLayer );
   cloneSymbol->setClipFeaturesToExtent( mClipFeaturesToExtent );
@@ -1146,9 +1156,9 @@ QList<QPolygonF>* QgsFillSymbolV2::translateRings( const QList<QPolygonF>* rings
   return translatedRings;
 }
 
-QgsSymbolV2* QgsFillSymbolV2::clone() const
+QgsFillSymbolV2* QgsFillSymbolV2::clone() const
 {
-  QgsSymbolV2* cloneSymbol = new QgsFillSymbolV2( cloneLayers() );
+  QgsFillSymbolV2* cloneSymbol = new QgsFillSymbolV2( cloneLayers() );
   cloneSymbol->setAlpha( mAlpha );
   cloneSymbol->setLayer( mLayer );
   cloneSymbol->setClipFeaturesToExtent( mClipFeaturesToExtent );

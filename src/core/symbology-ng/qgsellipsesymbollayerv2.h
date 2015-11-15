@@ -34,7 +34,7 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     QString layerType() const override;
     void startRender( QgsSymbolV2RenderContext& context ) override;
     void stopRender( QgsSymbolV2RenderContext& context ) override;
-    QgsSymbolLayerV2* clone() const override;
+    QgsEllipseSymbolLayerV2* clone() const override;
     QgsStringMap properties() const override;
 
     void toSld( QDomDocument& doc, QDomElement &element, const QgsStringMap& props ) const override;
@@ -57,8 +57,8 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     void setOutlineWidth( double w ) { mOutlineWidth = w; }
     double outlineWidth() const { return mOutlineWidth; }
 
-    void setFillColor( const QColor& c ) override { mFillColor = c;}
-    QColor fillColor() const override { return mFillColor; }
+    void setFillColor( const QColor& c ) override { setColor( c ); }
+    QColor fillColor() const override { return color(); }
 
     void setOutlineColor( const QColor& c ) override { mOutlineColor = c; }
     QColor outlineColor() const override { return mOutlineColor; }
@@ -95,7 +95,6 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     double mSymbolHeight;
     QgsSymbolV2::OutputUnit mSymbolHeightUnit;
     QgsMapUnitScale mSymbolHeightMapUnitScale;
-    QColor mFillColor;
     QColor mOutlineColor;
     Qt::PenStyle mOutlineStyle;
     double mOutlineWidth;
