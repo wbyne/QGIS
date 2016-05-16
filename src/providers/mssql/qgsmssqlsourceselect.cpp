@@ -72,7 +72,7 @@ QWidget *QgsMssqlSourceSelectDelegate::createEditor( QWidget *parent, const QSty
   {
     QStringList values = index.data( Qt::UserRole + 1 ).toStringList();
 
-    if ( values.size() > 0 )
+    if ( !values.isEmpty() )
     {
       QComboBox *cb = new QComboBox( parent );
       cb->addItems( values );
@@ -89,7 +89,7 @@ QWidget *QgsMssqlSourceSelectDelegate::createEditor( QWidget *parent, const QSty
     return le;
   }
 
-  return 0;
+  return nullptr;
 }
 
 void QgsMssqlSourceSelectDelegate::setModelData( QWidget *editor, QAbstractItemModel *model, const QModelIndex &index ) const
@@ -121,7 +121,7 @@ QgsMssqlSourceSelect::QgsMssqlSourceSelect( QWidget *parent, Qt::WindowFlags fl,
     : QDialog( parent, fl )
     , mManagerMode( managerMode )
     , mEmbeddedMode( embeddedMode )
-    , mColumnTypeThread( NULL )
+    , mColumnTypeThread( nullptr )
     , mUseEstimatedMetadata( false )
 {
   setupUi( this );
@@ -254,7 +254,7 @@ void QgsMssqlSourceSelect::on_btnSave_clicked()
 
 void QgsMssqlSourceSelect::on_btnLoad_clicked()
 {
-  QString fileName = QFileDialog::getOpenFileName( this, tr( "Load connections" ), ".",
+  QString fileName = QFileDialog::getOpenFileName( this, tr( "Load connections" ), QDir::homePath(),
                      tr( "XML files (*.xml *XML)" ) );
   if ( fileName.isEmpty() )
   {
@@ -642,7 +642,7 @@ void QgsMssqlSourceSelect::finishList()
 void QgsMssqlSourceSelect::columnThreadFinished()
 {
   delete mColumnTypeThread;
-  mColumnTypeThread = 0;
+  mColumnTypeThread = nullptr;
   btnConnect->setText( tr( "Connect" ) );
 
   finishList();
@@ -789,8 +789,7 @@ void QgsMssqlGeomColumnTypeThread::run()
       QSqlDatabase db = QSqlDatabase::database( mConnectionName );
       if ( !QgsMssqlProvider::OpenDatabase( db ) )
       {
-        QString msg = db.lastError().text();
-        QgsDebugMsg( msg );
+        QgsDebugMsg( db.lastError().text() );
         continue;
       }
 
@@ -798,8 +797,7 @@ void QgsMssqlGeomColumnTypeThread::run()
       q.setForwardOnly( true );
       if ( !q.exec( query ) )
       {
-        QString msg = q.lastError().text();
-        QgsDebugMsg( msg );
+        QgsDebugMsg( q.lastError().text() );
       }
 
       QString type;

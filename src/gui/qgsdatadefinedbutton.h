@@ -36,8 +36,10 @@ class QgsMapCanvas;
  */
 class GUI_EXPORT QgsDataDefinedAssistant: public QDialog
 {
+    Q_OBJECT
+
   public:
-    QgsDataDefinedAssistant() : mMapCanvas( 0 ) {}
+    QgsDataDefinedAssistant() : mMapCanvas( nullptr ) {}
 
     virtual QgsDataDefined dataDefined() const = 0;
 
@@ -89,9 +91,9 @@ class GUI_EXPORT QgsDataDefinedButton: public QToolButton
      * @param datatypes The expected data types to be compared against the variant type of the QgsField from data source and expression result
      * @param description The description of expected input data
      */
-    QgsDataDefinedButton( QWidget* parent = 0,
-                          const QgsVectorLayer* vl = 0,
-                          const QgsDataDefined* datadefined = 0,
+    QgsDataDefinedButton( QWidget* parent = nullptr,
+                          const QgsVectorLayer* vl = nullptr,
+                          const QgsDataDefined* datadefined = nullptr,
                           const QgsDataDefinedButton::DataTypes& datatypes = AnyType,
                           const QString& description = QString() );
     ~QgsDataDefinedButton();
@@ -105,7 +107,7 @@ class GUI_EXPORT QgsDataDefinedButton: public QToolButton
      * @param description The description of expected input data
      */
     void init( const QgsVectorLayer* vl,
-               const QgsDataDefined* datadefined = 0,
+               const QgsDataDefined* datadefined = nullptr,
                const QgsDataDefinedButton::DataTypes& datatypes = AnyType,
                const QString& description = QString() );
 
@@ -368,12 +370,12 @@ class GUI_EXPORT QgsDataDefinedButton: public QToolButton
 
     QScopedPointer<QgsDataDefinedAssistant> mAssistant;
 
-    static QIcon mIconDataDefine;
-    static QIcon mIconDataDefineOn;
-    static QIcon mIconDataDefineError;
-    static QIcon mIconDataDefineExpression;
-    static QIcon mIconDataDefineExpressionOn;
-    static QIcon mIconDataDefineExpressionError;
+    QIcon mIconDataDefine;
+    QIcon mIconDataDefineOn;
+    QIcon mIconDataDefineError;
+    QIcon mIconDataDefineExpression;
+    QIcon mIconDataDefineExpressionOn;
+    QIcon mIconDataDefineExpressionError;
 
     ExpressionContextCallback mExpressionContextCallback;
     const void* mExpressionContextCallbackContext;

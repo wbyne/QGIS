@@ -23,6 +23,8 @@
 
 class QgisApp;
 class QgsComposerArrow;
+class QgsComposerPolygon;
+class QgsComposerPolyline;
 class QgsComposerFrame;
 class QgsComposerHtml;
 class QgsComposerLabel;
@@ -83,13 +85,13 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
     void zoomFull();
 
     //! Return pointer to map canvas
-    QgsMapCanvas *mapCanvas( void );
+    QgsMapCanvas* mapCanvas();
 
     //! Return pointer to composer view
-    QgsComposerView *view( void );
+    QgsComposerView* view();
 
     //! Return current composition
-    QgsComposition* composition( void ) { return mComposition; }
+    QgsComposition* composition() { return mComposition; }
 
     //! Restore the window and toolbar state
     void restoreWindowState();
@@ -187,6 +189,11 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
     void on_mActionAddTriangle_triggered();
 
     void on_mActionAddEllipse_triggered();
+
+    //! Nodes based shape
+    void on_mActionEditNodesItem_triggered();
+    void on_mActionAddPolygon_triggered();
+    void on_mActionAddPolyline_triggered();
 
     //! Add attribute table
     void on_mActionAddTable_triggered();
@@ -375,6 +382,12 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
 
     /** Add a composer arrow to the item/widget map and creates a configuration widget for it*/
     void addComposerArrow( QgsComposerArrow* arrow );
+
+    /** Add a composer polygon to the item/widget map and creates a configuration widget for it*/
+    void addComposerPolygon( QgsComposerPolygon* polygon );
+
+    /** Add a composer polyline to the item/widget map and creates a configuration widget for it*/
+    void addComposerPolyline( QgsComposerPolyline* polyline );
 
     /** Add a composer map to the item/widget map and creates a configuration widget for it*/
     void addComposerMap( QgsComposerMap* map );
@@ -603,7 +616,10 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
 
     struct PanelStatus
     {
-      PanelStatus( bool visible = true, bool active = false ) : isVisible( visible ), isActive( active ) {}
+      PanelStatus( bool visible = true, bool active = false )
+          : isVisible( visible )
+          , isActive( active )
+      {}
       bool isVisible;
       bool isActive;
     };

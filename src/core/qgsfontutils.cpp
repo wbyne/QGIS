@@ -192,7 +192,7 @@ bool QgsFontUtils::updateFontViaStyle( QFont& f, const QString& fontstyle, bool 
   // and we want to make sure that's preserved
   if ( foundmatch )
   {
-    if ( f.pointSizeF() != -1 )
+    if ( !qgsDoubleNear( f.pointSizeF(), -1 ) )
     {
       styledfont.setPointSizeF( f.pointSizeF() );
     }
@@ -239,12 +239,11 @@ bool QgsFontUtils::loadStandardTestFonts( const QStringList& loadstyles )
     {
       continue;
     }
-    QString familyStyle = QString( "%1 %2" ).arg( fontFamily, fontstyle );
 
     if ( fontFamilyHasStyle( fontFamily, fontstyle ) )
     {
       fontsLoaded = ( fontsLoaded || false );
-      QgsDebugMsg( QString( "Test font '%1' already available" ).arg( familyStyle ) );
+      QgsDebugMsg( QString( "Test font '%1 %2' already available" ).arg( fontFamily, fontstyle ) );
     }
     else
     {
@@ -259,8 +258,8 @@ bool QgsFontUtils::loadStandardTestFonts( const QStringList& loadstyles )
         int fontID = QFontDatabase::addApplicationFont( fontPath );
         loaded = ( fontID != -1 );
         fontsLoaded = ( fontsLoaded || loaded );
-        QgsDebugMsg( QString( "Test font '%1' %2 from filesystem [%3]" )
-                     .arg( familyStyle, loaded ? "loaded" : "FAILED to load", fontPath ) );
+        QgsDebugMsg( QString( "Test font '%1 %2' %3 from filesystem [%4]" )
+                     .arg( fontFamily, fontstyle, loaded ? "loaded" : "FAILED to load", fontPath ) );
         QFontDatabase db;
         QgsDebugMsg( QString( "font families in %1: %2" ).arg( fontID ).arg( db.applicationFontFamilies( fontID ).join( "," ) ) );
       }
@@ -273,8 +272,8 @@ bool QgsFontUtils::loadStandardTestFonts( const QStringList& loadstyles )
           loaded = ( fontID != -1 );
           fontsLoaded = ( fontsLoaded || loaded );
         }
-        QgsDebugMsg( QString( "Test font '%1' %2 from testdata.qrc" )
-                     .arg( familyStyle, loaded ? "loaded" : "FAILED to load" ) );
+        QgsDebugMsg( QString( "Test font '%1' %3 from testdata.qrc" )
+                     .arg( fontFamily, fontstyle, loaded ? "loaded" : "FAILED to load" ) );
       }
     }
   }
@@ -351,7 +350,7 @@ bool QgsFontUtils::setFromXmlChildNode( QFont& font, const QDomElement& element,
   }
 
   QDomNodeList nodeList = element.elementsByTagName( childNode );
-  if ( nodeList.size() > 0 )
+  if ( !nodeList.isEmpty() )
   {
     QDomElement fontElem = nodeList.at( 0 ).toElement();
     return setFromXmlElement( font, fontElem );
@@ -378,7 +377,7 @@ QString QgsFontUtils::translateNamedStyle( const QString& namedStyle )
   QStringList words = namedStyle.split( ' ', QString::SkipEmptyParts );
   for ( int i = 0, n = words.length(); i < n; ++i )
   {
-    words[i] = QCoreApplication::translate( "QFontDatabase", words[i].toUtf8(), 0, QCoreApplication::UnicodeUTF8 );
+    words[i] = QCoreApplication::translate( "QFontDatabase", words[i].toUtf8(), nullptr, QCoreApplication::UnicodeUTF8 );
   }
   return words.join( " " );
 }
@@ -399,4 +398,66 @@ QString QgsFontUtils::untranslateNamedStyle( const QString& namedStyle )
     }
   }
   return words.join( " " );
+}
+
+QString QgsFontUtils::asCSS( const QFont& font, double pointToPixelScale )
+{
+  QString css = QString( "font-family: " ) + font.family() + ';';
+
+  //style
+  css += "font-style: ";
+  switch ( font.style() )
+  {
+    case QFont::StyleNormal:
+      css += "normal";
+      break;
+    case QFont::StyleItalic:
+      css += "italic";
+      break;
+    case QFont::StyleOblique:
+      css += "oblique";
+      break;
+  }
+  css += ';';
+
+  //weight
+  int cssWeight = 400;
+  switch ( font.weight() )
+  {
+    case QFont::Light:
+      cssWeight = 300;
+      break;
+    case QFont::Normal:
+      cssWeight = 400;
+      break;
+    case QFont::DemiBold:
+      cssWeight = 600;
+      break;
+    case QFont::Bold:
+      cssWeight = 700;
+      break;
+    case QFont::Black:
+      cssWeight = 900;
+      break;
+#if QT_VERSION >= 0x050500
+    case QFont::Thin:
+      cssWeight = 100;
+      break;
+    case QFont::ExtraLight:
+      cssWeight = 200;
+      break;
+    case QFont::Medium:
+      cssWeight = 500;
+      break;
+    case QFont::ExtraBold:
+      cssWeight = 800;
+      break;
+#endif
+  }
+  css += QString( "font-weight: %1;" ).arg( cssWeight );
+
+  //size
+  css += QString( "font-size: %1px;" ).arg( font.pointSizeF() >= 0 ? font.pointSizeF() * pointToPixelScale : font.pixelSize() );
+
+  return css;
 }

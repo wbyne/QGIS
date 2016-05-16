@@ -25,8 +25,8 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
-from PyQt4.QtCore import Qt, QObject, QMetaObject, SIGNAL
-from PyQt4.QtGui import QDialogButtonBox, QTextEdit, QLineEdit, QVBoxLayout
+from qgis.PyQt.QtCore import Qt, QMetaObject
+from qgis.PyQt.QtWidgets import QDialogButtonBox, QTextEdit, QLineEdit, QVBoxLayout
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
@@ -54,7 +54,7 @@ class CalculatorModelerAlgorithm(GeoAlgorithm):
                                           self.tr('Formula', 'CalculatorModelerAlgorithm'), ''))
         for i in range(AVAILABLE_VARIABLES):
             self.addParameter(ParameterNumber(NUMBER
-                              + unicode(i), 'dummy'))
+                                              + unicode(i), 'dummy', optional=True))
         self.addOutput(OutputNumber(RESULT,
                                     self.tr('Result', 'CalculatorModelerAlgorithm')))
 
@@ -112,8 +112,8 @@ class CalculatorModelerParametersDialog(ModelerParametersDialog):
         self.verticalLayout.addWidget(self.formulaText)
         self.verticalLayout.addWidget(self.buttonBox)
         self.setLayout(self.verticalLayout)
-        QObject.connect(self.buttonBox, SIGNAL('accepted()'), self.okPressed)
-        QObject.connect(self.buttonBox, SIGNAL('rejected()'), self.cancelPressed)
+        self.buttonBox.accepted.connect(self.okPressed)
+        self.buttonBox.rejected.connect(self.cancelPressed)
         QMetaObject.connectSlotsByName(self)
 
     def createAlgorithm(self):

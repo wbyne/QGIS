@@ -201,7 +201,7 @@ void QgsGeometryValidator::run()
   QSettings settings;
   if ( settings.value( "/qgis/digitizing/validate_geometries", 1 ).toInt() == 2 )
   {
-    char *r = 0;
+    char *r = nullptr;
     const GEOSGeometry *g0 = mG.asGeos();
     GEOSContextHandle_t handle = QgsGeometry::getGEOSHandler();
     if ( !g0 )
@@ -210,7 +210,7 @@ void QgsGeometryValidator::run()
     }
     else
     {
-      GEOSGeometry *g1 = 0;
+      GEOSGeometry *g1 = nullptr;
       if ( GEOSisValidDetail_r( handle, g0, GEOSVALID_ALLOW_SELFTOUCHING_RING_FORMING_HOLE, &r, &g1 ) != 1 )
       {
         if ( g1 )
@@ -361,9 +361,9 @@ void QgsGeometryValidator::validateGeometry( const QgsGeometry *g, QList<QgsGeom
 // return >0  => q lies left of the line
 //        <0  => q lies right of the line
 //
-double QgsGeometryValidator::distLine2Point( const QgsPoint& p, const QgsVector& v, const QgsPoint& q )
+double QgsGeometryValidator::distLine2Point( const QgsPoint& p, QgsVector v, const QgsPoint& q )
 {
-  if ( v.length() == 0 )
+  if ( qgsDoubleNear( v.length(), 0 ) )
   {
     throw QgsException( QObject::tr( "invalid line" ) );
   }
@@ -371,11 +371,11 @@ double QgsGeometryValidator::distLine2Point( const QgsPoint& p, const QgsVector&
   return ( v.x()*( q.y() - p.y() ) - v.y()*( q.x() - p.x() ) ) / v.length();
 }
 
-bool QgsGeometryValidator::intersectLines( const QgsPoint& p, const QgsVector& v, const QgsPoint& q, const QgsVector& w, QgsPoint &s )
+bool QgsGeometryValidator::intersectLines( const QgsPoint& p, QgsVector v, const QgsPoint& q, QgsVector w, QgsPoint &s )
 {
   double d = v.y() * w.x() - v.x() * w.y();
 
-  if ( d == 0 )
+  if ( qgsDoubleNear( d, 0 ) )
     return false;
 
   double dx = q.x() - p.x();
@@ -394,7 +394,7 @@ bool QgsGeometryValidator::pointInRing( const QgsPolyline &ring, const QgsPoint 
 
   for ( int i = 0; !mStop && i < ring.size(); i++ )
   {
-    if ( ring[i].x() == p.x() && ring[i].y() == p.y() )
+    if ( qgsDoubleNear( ring[i].x(), p.x() ) && qgsDoubleNear( ring[i].y(), p.y() ) )
       return true;
 
     if (( ring[i].y() < p.y() && ring[j].y() >= p.y() ) ||

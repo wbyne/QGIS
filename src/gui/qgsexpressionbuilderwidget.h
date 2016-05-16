@@ -96,45 +96,18 @@ class QgsExpressionItem : public QStandardItem
   * The default search for a tree model only searches top level this will handle one
   * level down
   */
-class QgsExpressionItemSearchProxy : public QSortFilterProxyModel
+class GUI_EXPORT QgsExpressionItemSearchProxy : public QSortFilterProxyModel
 {
+    Q_OBJECT
+
   public:
-    QgsExpressionItemSearchProxy()
-    {
-      setFilterCaseSensitivity( Qt::CaseInsensitive );
-    }
+    QgsExpressionItemSearchProxy();
 
-    bool filterAcceptsRow( int source_row, const QModelIndex &source_parent ) const override
-    {
-      QModelIndex index = sourceModel()->index( source_row, 0, source_parent );
-      QgsExpressionItem::ItemType itemType = QgsExpressionItem::ItemType( sourceModel()->data( index, QgsExpressionItem::ItemTypeRole ).toInt() );
-
-      if ( itemType == QgsExpressionItem::Header )
-        return true;
-
-      return QSortFilterProxyModel::filterAcceptsRow( source_row, source_parent );
-    }
+    bool filterAcceptsRow( int source_row, const QModelIndex &source_parent ) const override;
 
   protected:
 
-    bool lessThan( const QModelIndex &left, const QModelIndex &right ) const override
-    {
-      int leftSort = sourceModel()->data( left, QgsExpressionItem::CustomSortRole ).toInt();
-      int rightSort = sourceModel()->data( right,  QgsExpressionItem::CustomSortRole ).toInt();
-      if ( leftSort != rightSort )
-        return leftSort < rightSort;
-
-      QString leftString = sourceModel()->data( left, Qt::DisplayRole ).toString();
-      QString rightString = sourceModel()->data( right, Qt::DisplayRole ).toString();
-
-      //ignore $ prefixes when sorting
-      if ( leftString.startsWith( '$' ) )
-        leftString = leftString.mid( 1 );
-      if ( rightString.startsWith( '$' ) )
-        rightString = rightString.mid( 1 );
-
-      return QString::localeAwareCompare( leftString, rightString ) < 0;
-    }
+    bool lessThan( const QModelIndex &left, const QModelIndex &right ) const override;
 };
 
 
@@ -247,6 +220,7 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
      * Auto save the current Python function code.
      */
     void autosave();
+
     /**
      * Enabled or disable auto saving. When enabled Python scripts will be auto saved
      * when text changes.
@@ -255,7 +229,7 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     void setAutoSave( bool enabled ) { mAutoSave = enabled; }
 
   private slots:
-    void showContextMenu( const QPoint & );
+    void showContextMenu( QPoint );
     void setExpressionState( bool state );
     void currentChanged( const QModelIndex &index, const QModelIndex & );
     void operatorButtonClicked();
@@ -287,12 +261,6 @@ class GUI_EXPORT QgsExpressionBuilderWidget : public QWidget, private Ui::QgsExp
     void fillFieldValues( const QString &fieldName, int countLimit );
     QString loadFunctionHelp( QgsExpressionItem* functionName );
     QString helpStylesheet() const;
-
-    /** Formats an expression preview result for display in the widget
-     * by truncating the string
-     * @param value expression preview result to format
-     */
-    QString formatPreviewString( const QVariant& value ) const;
 
     void loadExpressionContext();
 

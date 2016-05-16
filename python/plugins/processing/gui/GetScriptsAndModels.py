@@ -30,10 +30,11 @@ import os
 import json
 from functools import partial
 
-from PyQt4 import uic
-from PyQt4.QtCore import Qt, QCoreApplication, QUrl
-from PyQt4.QtGui import QIcon, QCursor, QApplication, QTreeWidgetItem, QPushButton
-from PyQt4.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import Qt, QCoreApplication, QUrl
+from qgis.PyQt.QtGui import QIcon, QCursor
+from qgis.PyQt.QtWidgets import QApplication, QTreeWidgetItem, QPushButton
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
 from qgis.utils import iface, show_message_log
 from qgis.core import QgsNetworkAccessManager, QgsMessageLog
@@ -54,8 +55,8 @@ WIDGET, BASE = uic.loadUiType(
 class GetScriptsAction(ToolboxAction):
 
     def __init__(self):
-        self.name = self.tr('Get scripts from on-line scripts collection', 'GetScriptsAction')
-        self.group = self.tr('Tools', 'GetScriptsAction')
+        self.name, self.i18n_name = self.trAction('Get scripts from on-line scripts collection')
+        self.group, self.i18n_group = self.trAction('Tools')
 
     def getIcon(self):
         return QIcon(os.path.join(pluginPath, 'images', 'script.png'))
@@ -70,11 +71,11 @@ class GetScriptsAction(ToolboxAction):
 class GetRScriptsAction(ToolboxAction):
 
     def __init__(self):
-        self.name = self.tr('Get R scripts from on-line scripts collection', 'GetRScriptsAction')
-        self.group = self.tr('Tools', 'GetRScriptsAction')
+        self.name, self.i18n_name = self.trAction('Get R scripts from on-line scripts collection')
+        self.group, self.i18n_group = self.trAction('Tools')
 
     def getIcon(self):
-        return QIcon(os.path.join(pluginPath, 'images', 'r.png'))
+        return QIcon(os.path.join(pluginPath, 'images', 'r.svg'))
 
     def execute(self):
         dlg = GetScriptsAndModelsDialog(GetScriptsAndModelsDialog.RSCRIPTS)
@@ -86,8 +87,8 @@ class GetRScriptsAction(ToolboxAction):
 class GetModelsAction(ToolboxAction):
 
     def __init__(self):
-        self.name = self.tr('Get models from on-line scripts collection', 'GetModelsAction')
-        self.group = self.tr('Tools', 'GetModelsAction')
+        self.name, self.i18n_name = self.trAction('Get models from on-line scripts collection')
+        self.group, self.i18n_group = self.trAction('Tools')
 
     def getIcon(self):
         return QIcon(os.path.join(pluginPath, 'images', 'model.png'))
@@ -137,7 +138,7 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
         else:
             self.folder = RUtils.RScriptsFolder()
             self.urlBase = 'https://raw.githubusercontent.com/qgis/QGIS-Processing/master/rscripts/'
-            self.icon = QIcon(os.path.join(pluginPath, 'images', 'r.png'))
+            self.icon = QIcon(os.path.join(pluginPath, 'images', 'r.svg'))
 
         self.lastSelectedItem = None
         self.updateToolbox = False
@@ -152,7 +153,7 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
         widget = iface.messageBar().createMessage(self.tr('Connection problem', disambiguation),
                                                   self.tr('Could not connect to scripts/models repository', disambiguation))
         if error and url:
-            QgsMessageLog.logMessage(self.tr(u"Network error code: {} on URL: {}").format(error, url), u"Processing", QgsMessageLog.CRITICAL)
+            QgsMessageLog.logMessage(self.tr(u"Network error code: {} on URL: {}").format(error, url), self.tr(u"Processing"), QgsMessageLog.CRITICAL)
             button = QPushButton(QCoreApplication.translate("Python", "View message log"), pressed=show_message_log)
             widget.layout().addWidget(button)
 
@@ -167,6 +168,9 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
             reply.finished.connect(partial(loadFunction, reply, arguments))
         else:
             reply.finished.connect(partial(loadFunction, reply))
+
+        while not reply.isFinished():
+            QCoreApplication.processEvents()
 
     def populateTree(self):
         self.uptodateItem = QTreeWidgetItem()
@@ -245,7 +249,7 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
                 return self.uptodateItem
 
     def cancelPressed(self):
-        self.close()
+        super(GetScriptsAndModelsDialog, self).reject()
 
     def storeFile(self, reply, filename):
         """store a script/model that has been downloaded"""
@@ -302,7 +306,7 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
                     os.remove(path)
 
         self.updateToolbox = len(toDownload) + len(toDelete) > 0
-        self.close()
+        super(GetScriptsAndModelsDialog, self).accept()
 
 
 class TreeItem(QTreeWidgetItem):

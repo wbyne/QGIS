@@ -53,25 +53,22 @@ static const QString TEXT_PROVIDER_DESCRIPTION = "Delimited text data provider";
 static const int SUBSET_ID_THRESHOLD_FACTOR = 10;
 
 QRegExp QgsDelimitedTextProvider::WktPrefixRegexp( "^\\s*(?:\\d+\\s+|SRID\\=\\d+\\;)", Qt::CaseInsensitive );
-QRegExp QgsDelimitedTextProvider::WktZMRegexp( "\\s*(?:z|m|zm)(?=\\s*\\()", Qt::CaseInsensitive );
-QRegExp QgsDelimitedTextProvider::WktCrdRegexp( "(\\-?\\d+(?:\\.\\d*)?\\s+\\-?\\d+(?:\\.\\d*)?)\\s[\\s\\d\\.\\-]+" );
 QRegExp QgsDelimitedTextProvider::CrdDmsRegexp( "^\\s*(?:([-+nsew])\\s*)?(\\d{1,3})(?:[^0-9.]+([0-5]?\\d))?[^0-9.]+([0-5]?\\d(?:\\.\\d+)?)[^0-9.]*([-+nsew])?\\s*$", Qt::CaseInsensitive );
 
 QgsDelimitedTextProvider::QgsDelimitedTextProvider( const QString& uri )
     : QgsVectorDataProvider( uri )
     , mLayerValid( false )
     , mValid( false )
-    , mFile( 0 )
+    , mFile( nullptr )
     , mGeomRep( GeomNone )
     , mFieldCount( 0 )
     , mXFieldIndex( -1 )
     , mYFieldIndex( -1 )
     , mWktFieldIndex( -1 )
-    , mWktHasZM( false )
     , mWktHasPrefix( false )
     , mXyDms( false )
     , mSubsetString( "" )
-    , mSubsetExpression( 0 )
+    , mSubsetExpression( nullptr )
     , mBuildSubsetIndex( true )
     , mUseSubsetIndex( false )
     , mMaxInvalidLines( 50 )
@@ -81,7 +78,7 @@ QgsDelimitedTextProvider::QgsDelimitedTextProvider( const QString& uri )
     , mWkbType( QGis::WKBNoGeometry )
     , mGeometryType( QGis::UnknownGeometry )
     , mBuildSpatialIndex( false )
-    , mSpatialIndex( 0 )
+    , mSpatialIndex( nullptr )
 {
 
   // Add supported types to enable creating expression fields in field calculator
@@ -179,18 +176,18 @@ QgsDelimitedTextProvider::~QgsDelimitedTextProvider()
   if ( mFile )
   {
     delete mFile;
-    mFile = 0;
+    mFile = nullptr;
   }
 
   if ( mSubsetExpression )
   {
     delete mSubsetExpression;
-    mSubsetExpression = 0;
+    mSubsetExpression = nullptr;
   }
   if ( mSpatialIndex )
   {
     delete mSpatialIndex;
-    mSpatialIndex = 0;
+    mSpatialIndex = nullptr;
   }
 }
 
@@ -295,7 +292,7 @@ void QgsDelimitedTextProvider::resetIndexes()
 
   mSubsetIndex.clear();
   if ( mSpatialIndex ) delete mSpatialIndex;
-  mSpatialIndex = 0;
+  mSpatialIndex = nullptr;
   if ( mBuildSpatialIndex && mGeomRep != GeomNone ) mSpatialIndex = new QgsSpatialIndex();
 }
 
@@ -338,7 +335,7 @@ void QgsDelimitedTextProvider::scanFile( bool buildIndexes )
   // Initiallize indexes
 
   resetIndexes();
-  bool buildSpatialIndex = buildIndexes && mSpatialIndex != 0;
+  bool buildSpatialIndex = buildIndexes && nullptr != mSpatialIndex;
 
   // No point building a subset index if there is no geometry, as all
   // records will be included.
@@ -380,7 +377,7 @@ void QgsDelimitedTextProvider::scanFile( bool buildIndexes )
       messages.append( tr( "%0 field %1 is not defined in delimited text file" ).arg( "Y", mWktFieldName ) );
     }
   }
-  if ( messages.size() > 0 )
+  if ( !messages.isEmpty() )
   {
     reportErrors( messages );
     QgsDebugMsg( "Delimited text source invalid - missing geometry fields" );
@@ -444,12 +441,10 @@ void QgsDelimitedTextProvider::scanFile( bool buildIndexes )
         // if compatible with the rest of file, add to the extents
 
         QString sWkt = parts[mWktFieldIndex];
-        QgsGeometry *geom = 0;
+        QgsGeometry *geom = nullptr;
         if ( !mWktHasPrefix && sWkt.indexOf( WktPrefixRegexp ) >= 0 )
           mWktHasPrefix = true;
-        if ( !mWktHasZM && sWkt.indexOf( WktZMRegexp ) >= 0 )
-          mWktHasZM = true;
-        geom = geomFromWkt( sWkt, mWktHasPrefix, mWktHasZM );
+        geom = geomFromWkt( sWkt, mWktHasPrefix );
 
         if ( geom )
         {
@@ -481,7 +476,7 @@ void QgsDelimitedTextProvider::scanFile( bool buildIndexes )
                 mSpatialIndex->insertFeature( f );
                 // Feature now has ownership of geometry, so set to null
                 // here to avoid deleting twice.
-                geom = 0;
+                geom = nullptr;
               }
             }
             else
@@ -723,7 +718,7 @@ void QgsDelimitedTextProvider::rescanFile()
   mRescanRequired = false;
   resetIndexes();
 
-  bool buildSpatialIndex = mSpatialIndex != 0;
+  bool buildSpatialIndex = nullptr != mSpatialIndex;
   bool buildSubsetIndex = mBuildSubsetIndex && ( mSubsetExpression || mGeomRep != GeomNone );
 
   // In case file has been rewritten check that it is still valid
@@ -758,7 +753,7 @@ void QgsDelimitedTextProvider::rescanFile()
       messages.append( tr( "%0 field %1 is not defined in delimited text file" ).arg( "Y", mWktFieldName ) );
     }
   }
-  if ( messages.size() > 0 )
+  if ( !messages.isEmpty() )
   {
     reportErrors( messages );
     QgsDebugMsg( "Delimited text source invalid on rescan - missing geometry fields" );
@@ -784,7 +779,7 @@ void QgsDelimitedTextProvider::rescanFile()
   bool foundFirstGeometry = false;
   while ( fi.nextFeature( f ) )
   {
-    if ( mGeometryType != QGis::NoGeometry )
+    if ( mGeometryType != QGis::NoGeometry && f.constGeometry() )
     {
       if ( !foundFirstGeometry )
       {
@@ -812,9 +807,9 @@ void QgsDelimitedTextProvider::rescanFile()
   mUseSpatialIndex = buildSpatialIndex;
 }
 
-QgsGeometry *QgsDelimitedTextProvider::geomFromWkt( QString &sWkt, bool wktHasPrefixRegexp, bool wktHasZM )
+QgsGeometry *QgsDelimitedTextProvider::geomFromWkt( QString &sWkt, bool wktHasPrefixRegexp )
 {
-  QgsGeometry *geom = 0;
+  QgsGeometry *geom = nullptr;
   try
   {
     if ( wktHasPrefixRegexp )
@@ -822,15 +817,11 @@ QgsGeometry *QgsDelimitedTextProvider::geomFromWkt( QString &sWkt, bool wktHasPr
       sWkt.remove( WktPrefixRegexp );
     }
 
-    if ( wktHasZM )
-    {
-      sWkt.remove( WktZMRegexp ).replace( WktCrdRegexp, "\\1" );
-    }
     geom = QgsGeometry::fromWkt( sWkt );
   }
   catch ( ... )
   {
-    geom = 0;
+    geom = nullptr;
   }
   return geom;
 }
@@ -1000,7 +991,7 @@ bool QgsDelimitedTextProvider::setSubsetString( const QString& subset, bool upda
 
   // If there is a new subset string then encode it..
 
-  QgsExpression *expression = 0;
+  QgsExpression *expression = nullptr;
   if ( ! nonNullSubset.isEmpty() )
   {
 
@@ -1023,7 +1014,7 @@ bool QgsDelimitedTextProvider::setSubsetString( const QString& subset, bool upda
     {
       valid = false;
       delete expression;
-      expression = 0;
+      expression = nullptr;
       QString tag( "DelimitedText" );
       QgsMessageLog::logMessage( tr( "Invalid subset string %1 for %2" ).arg( nonNullSubset, mFile->fileName() ), tag );
     }
@@ -1087,6 +1078,7 @@ bool QgsDelimitedTextProvider::setSubsetString( const QString& subset, bool upda
     }
   }
 
+  mCacheMinMaxDirty = true;
   emit dataChanged();
   return valid;
 }
@@ -1148,7 +1140,7 @@ bool QgsDelimitedTextProvider::isValid()
 
 int QgsDelimitedTextProvider::capabilities() const
 {
-  return SelectAtId | CreateSpatialIndex;
+  return SelectAtId | CreateSpatialIndex | CircularGeometries;
 }
 
 

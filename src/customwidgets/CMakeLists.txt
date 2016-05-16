@@ -3,6 +3,7 @@ ADD_DEFINITIONS(-DQT_NO_DEBUG)
 ADD_DEFINITIONS(-DQT_SHARED)
 
 IF (QT5_BUILD)
+  FIND_PACKAGE(Qt5UiPlugin REQUIRED)
   FIND_PACKAGE(Qt5Designer REQUIRED)
 ENDIF (QT5_BUILD)
 
@@ -30,8 +31,10 @@ SET (QGIS_CUSTOMWIDGETS_SRCS
   qgsdoublespinboxplugin.cpp
   qgsexpressionbuilderwidgetplugin.cpp
   qgsextentgroupboxplugin.cpp
+  qgsexternalresourcewidgetplugin.cpp
   qgsfieldcomboboxplugin.cpp
   qgsfieldexpressionwidgetplugin.cpp
+  qgsfilewidgetplugin.cpp
   qgsfilterlineeditplugin.cpp
   qgsmaplayercomboboxplugin.cpp
   qgsprojectionselectionwidgetplugin.cpp
@@ -52,8 +55,10 @@ SET (QGIS_CUSTOMWIDGETS_MOC_HDRS
   qgsdoublespinboxplugin.h
   qgsexpressionbuilderwidgetplugin.h
   qgsextentgroupboxplugin.h
+  qgsexternalresourcewidgetplugin.h
   qgsfieldcomboboxplugin.h
   qgsfieldexpressionwidgetplugin.h
+  qgsfilewidgetplugin.h
   qgsfilterlineeditplugin.h
   qgsmaplayercomboboxplugin.h
   qgsprojectionselectionwidgetplugin.h
@@ -80,8 +85,10 @@ SET(QGIS_CUSTOMWIDGETS_HDRS
   qgsdoublespinboxplugin.h
   qgsexpressionbuilderwidgetplugin.h
   qgsextentgroupboxplugin.h
+  qgsexternalresourcewidgetplugin.h
   qgsfieldcomboboxplugin.h
   qgsfieldexpressionwidgetplugin.h
+  qgsfilewidgetplugin.h
   qgsfilterlineeditplugin.h
   qgsmaplayercomboboxplugin.h
   qgsprojectionselectionwidgetplugin.h
@@ -109,6 +116,7 @@ INCLUDE_DIRECTORIES(
 )
 INCLUDE_DIRECTORIES(SYSTEM
   ${GEOS_INCLUDE_DIR}
+  ${Qt5UiPlugin_INCLUDE_DIRS} # For Qt5
   ${Qt5Designer_INCLUDE_DIRS} # For Qt5
   ${QT_QTDESIGNER_INCLUDE_DIR} # For Qt4
 )

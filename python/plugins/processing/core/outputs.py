@@ -25,7 +25,7 @@ __copyright__ = '(C) 2012, Victor Olaya'
 __revision__ = '$Format:%H$'
 
 import sys
-from PyQt4.QtCore import QCoreApplication, QSettings
+from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from processing.tools.system import isWindows, getTempFilenameInTempFolder
 from processing.tools.vector import VectorWriter, TableWriter
 from processing.tools import dataobjects
@@ -161,7 +161,7 @@ class OutputRaster(Output):
 
     def getDefaultFileExtension(self, alg):
         supported = alg.provider.getSupportedOutputRasterLayerExtensions()
-        default = ProcessingConfig.getSetting(ProcessingConfig.DEFAULT_OUTPUT_VECTOR_LAYER_EXT)
+        default = ProcessingConfig.getSetting(ProcessingConfig.DEFAULT_OUTPUT_RASTER_LAYER_EXT)
         ext = default if default in supported else supported[0]
         return ext
 

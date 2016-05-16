@@ -86,6 +86,23 @@
     {
       "type": "Feature",
       "properties": {
+        "Name": "Tisham Dhar",
+        "Committer": "Yes",
+        "First Commit Message": "MINGW/MSYS based intial windows builds/installers",
+        "First Commit Date": "05-02-2008",
+        "GIT Nickname": "whatnick"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          138.6010,
+          -34.9290
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
         "Name": "Nathan Woodrow",
         "Committer": "Yes",
         "First Commit Message": "Added expression based labels, simple dialog for entering expressions.",
@@ -717,6 +734,23 @@
         "coordinates": [
           -1.6588156567,
           42.810529897
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Name": "Sebastian Dietrich",
+        "Committer": "No",
+        "First Commit Message": "Moved the code to determine the primary key for a view using the URI keyColumn to a separate function.",
+        "First Commit Date": "17-10-2015",
+        "GIT Nickname": "SebDieBln"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          13.409402,
+          52.520804
         ]
       }
     }

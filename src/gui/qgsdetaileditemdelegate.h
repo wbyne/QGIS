@@ -31,12 +31,11 @@ class QFont;
  * and detail sections.
  * @see also QgsDetailedItemData
  */
-class GUI_EXPORT QgsDetailedItemDelegate :
-      public QAbstractItemDelegate
+class GUI_EXPORT QgsDetailedItemDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
   public:
-    QgsDetailedItemDelegate( QObject * parent = 0 );
+    QgsDetailedItemDelegate( QObject * parent = nullptr );
     ~QgsDetailedItemDelegate();
     /** Reimplement for parent class */
     void paint( QPainter * thePainter,

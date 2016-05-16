@@ -26,8 +26,9 @@
 #include "qgspostgresconn.h"
 
 QgsPgNewConnection::QgsPgNewConnection( QWidget *parent, const QString& connName, Qt::WindowFlags fl )
-    : QDialog( parent, fl ), mOriginalConnName( connName )
-    , mAuthConfigSelect( 0 )
+    : QDialog( parent, fl )
+    , mOriginalConnName( connName )
+    , mAuthConfigSelect( nullptr )
 {
   setupUi( this );
 
@@ -35,6 +36,8 @@ QgsPgNewConnection::QgsPgNewConnection( QWidget *parent, const QString& connName
   cbxSSLmode->addItem( tr( "allow" ), QgsDataSourceURI::SSLallow );
   cbxSSLmode->addItem( tr( "prefer" ), QgsDataSourceURI::SSLprefer );
   cbxSSLmode->addItem( tr( "require" ), QgsDataSourceURI::SSLrequire );
+  cbxSSLmode->addItem( tr( "verify-ca" ), QgsDataSourceURI::SSLverifyCA );
+  cbxSSLmode->addItem( tr( "verify-full" ), QgsDataSourceURI::SSLverifyFull );
 
   mAuthConfigSelect = new QgsAuthConfigSelect( this, "postgres" );
   tabAuthentication->insertTab( 1, mAuthConfigSelect, tr( "Configurations" ) );
@@ -197,9 +200,7 @@ void QgsPgNewConnection::testConnection()
                        mAuthConfigSelect->configId() );
   }
 
-  QString conninfo = uri.connectionInfo();
-
-  QgsPostgresConn *conn = QgsPostgresConn::connectDb( conninfo, true );
+  QgsPostgresConn *conn = QgsPostgresConn::connectDb( uri.connectionInfo( false ), true );
 
   if ( conn )
   {

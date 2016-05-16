@@ -17,9 +17,9 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
   if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
 
   // Collect geometries, build spatial index
-  QList<const QgsAbstractGeometryV2*> geomList;
+  QList<QgsAbstractGeometryV2*> geomList;
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& id, featureIds )
+  Q_FOREACH ( QgsFeatureId id, featureIds )
   {
     QgsFeature feature;
     if ( mFeaturePool->get( id, feature ) )
@@ -33,7 +33,7 @@ void QgsGeometryGapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, 
     return;
   }
 
-  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( 0, QgsGeometryCheckPrecision::tolerance() );
+  QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( nullptr, QgsGeometryCheckPrecision::tolerance() );
 
   // Create union of geometry
   QString errMsg;
@@ -159,7 +159,7 @@ bool QgsGeometryGapCheck::mergeWithNeighbor( QgsGeometryGapCheckError* err, Chan
   QgsAbstractGeometryV2* errGeometry = QgsGeomUtils::getGeomPart( err->geometry(), 0 );
 
   // Search for touching neighboring geometries
-  Q_FOREACH ( const QgsFeatureId& testId, err->neighbors() )
+  Q_FOREACH ( QgsFeatureId testId, err->neighbors() )
   {
     QgsFeature testFeature;
     if ( !mFeaturePool->get( testId, testFeature ) )

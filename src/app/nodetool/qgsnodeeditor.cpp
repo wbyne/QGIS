@@ -27,39 +27,11 @@
 #include <QHeaderView>
 #include <QVBoxLayout>
 #include <QStyledItemDelegate>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QVector2D>
 
 static const int MinRadiusRole = Qt::UserRole + 1;
-
-
-class CoordinateItemDelegate : public QStyledItemDelegate
-{
-  public:
-    QString displayText( const QVariant & value, const QLocale & locale ) const override
-    {
-      return locale.toString( value.toDouble(), 'f', 4 );
-    }
-
-  protected:
-    QWidget* createEditor( QWidget * parent, const QStyleOptionViewItem & /*option*/, const QModelIndex & index ) const override
-    {
-      QLineEdit* lineEdit = new QLineEdit( parent );
-      QDoubleValidator* validator = new QDoubleValidator();
-      if ( !index.data( MinRadiusRole ).isNull() )
-        validator->setBottom( index.data( MinRadiusRole ).toDouble() );
-      lineEdit->setValidator( validator );
-      return lineEdit;
-    }
-    void setModelData( QWidget *editor, QAbstractItemModel *model, const QModelIndex &index ) const override
-    {
-      QLineEdit* lineEdit = qobject_cast<QLineEdit*>( editor );
-      if ( lineEdit->hasAcceptableInput() )
-      {
-        QStyledItemDelegate::setModelData( editor, model, index );
-      }
-    }
-};
 
 
 QgsNodeEditorModel::QgsNodeEditorModel( QgsVectorLayer* layer, QgsSelectedFeature* selectedFeature, QgsMapCanvas* canvas, QObject* parent )
@@ -315,7 +287,6 @@ QgsNodeEditor::QgsNodeEditor(
     , mUpdatingNodeSelection( false )
 {
   setWindowTitle( tr( "Vertex Editor" ) );
-  setFeatures( features() ^ QDockWidget::DockWidgetClosable );
 
   mLayer = layer;
   mSelectedFeature = selectedFeature;
@@ -409,4 +380,41 @@ void QgsNodeEditor::zoomToNode( int idx )
   }
 }
 
+void QgsNodeEditor::keyPressEvent( QKeyEvent * e )
+{
+  if ( e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete )
+  {
+    emit deleteSelectedRequested();
 
+    // Override default shortcut management in MapCanvas
+    e->ignore();
+  }
+}
+
+//
+// CoordinateItemDelegate
+//
+
+QString CoordinateItemDelegate::displayText( const QVariant& value, const QLocale& locale ) const
+{
+  return locale.toString( value.toDouble(), 'f', 4 );
+}
+
+QWidget*CoordinateItemDelegate::createEditor( QWidget* parent, const QStyleOptionViewItem&, const QModelIndex& index ) const
+{
+  QLineEdit* lineEdit = new QLineEdit( parent );
+  QDoubleValidator* validator = new QDoubleValidator();
+  if ( !index.data( MinRadiusRole ).isNull() )
+    validator->setBottom( index.data( MinRadiusRole ).toDouble() );
+  lineEdit->setValidator( validator );
+  return lineEdit;
+}
+
+void CoordinateItemDelegate::setModelData( QWidget* editor, QAbstractItemModel* model, const QModelIndex& index ) const
+{
+  QLineEdit* lineEdit = qobject_cast<QLineEdit*>( editor );
+  if ( lineEdit->hasAcceptableInput() )
+  {
+    QStyledItemDelegate::setModelData( editor, model, index );
+  }
+}

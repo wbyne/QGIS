@@ -38,7 +38,7 @@ class CORE_EXPORT QgsApplication : public QApplication
     static const char* QGIS_ORGANIZATION_NAME;
     static const char* QGIS_ORGANIZATION_DOMAIN;
     static const char* QGIS_APPLICATION_NAME;
-    QgsApplication( int & argc, char ** argv, bool GUIenabled, const QString& customConfigPath = QString() );
+    QgsApplication( int & argc, char ** argv, bool GUIenabled, const QString& customConfigPath = QString(), const QString& platformName = "desktop" );
     virtual ~QgsApplication();
 
     /** This method initialises paths etc for QGIS. Called by the ctor or call it manually
@@ -121,7 +121,7 @@ class CORE_EXPORT QgsApplication : public QApplication
 
     /*!
       Returns the path to the licence file.
-    */
+     */
     static QString licenceFilePath();
 
     //! Returns the path to the help application.
@@ -190,6 +190,33 @@ class CORE_EXPORT QgsApplication : public QApplication
     //! Returns the path to user's style.
     static QString userStyleV2Path();
 
+    //! Returns the short name regular expression for line edit validator
+    static QRegExp shortNameRegExp();
+
+    /** Returns the user's operating system login account name.
+     * @note added in QGIS 2.14
+     * @see userFullName()
+     */
+    static QString userLoginName();
+
+    /** Returns the user's operating system login account full display name.
+     * @note added in QGIS 2.14
+     * @see userLoginName()
+     */
+    static QString userFullName();
+
+    /** Returns a string name of the operating system QGIS is running on.
+     * @note added in QGIS 2.14
+     * @see platform()
+     */
+    static QString osName();
+
+    /** Returns the QGIS platform name, eg "desktop" or "server".
+     * @note added in QGIS 2.14
+     * @see osName()
+     */
+    static QString platform();
+
     //! Returns the path to user's themes folder
     static QString userThemesFolder();
 
@@ -224,13 +251,16 @@ class CORE_EXPORT QgsApplication : public QApplication
     static void initQgis();
 
     //! initialise qgis.db
-    static bool createDB( QString* errorMessage = 0 );
+    static bool createDB( QString* errorMessage = nullptr );
 
     //! Create the users theme folder
-    static bool createThemeFolder( );
+    static bool createThemeFolder();
 
     //! deletes provider registry and map layer registry
     static void exitQgis();
+
+    //! get application icon
+    static QString appIconPath();
 
     /** Constants for endian-ness */
     enum endian_t
@@ -328,6 +358,7 @@ class CORE_EXPORT QgsApplication : public QApplication
     //dummy method to workaround sip generation issue issue
     bool x11EventFilter( XEvent * event )
     {
+      Q_UNUSED( event );
       return 0;
     }
 #endif
@@ -372,6 +403,12 @@ class CORE_EXPORT QgsApplication : public QApplication
     /**
      * @note added in 2.12 */
     static QString ABISYM( mAuthDbDirPath );
+
+    static QString sUserName;
+    static QString sUserFullName;
+    static QString sPlatformName;
+
+    QMap<QString, QIcon> mIconCache;
 };
 
 #endif

@@ -173,7 +173,7 @@ void QgsHandleBadLayers::selectionChanged()
     mRows << item->row();
   }
 
-  mBrowseButton->setEnabled( mRows.size() > 0 );
+  mBrowseButton->setEnabled( !mRows.isEmpty() );
 }
 
 QString QgsHandleBadLayers::filename( int row )
@@ -254,7 +254,7 @@ void QgsHandleBadLayers::browseClicked()
 
   if ( mRows.size() == 1 )
   {
-    int row = mRows[0];
+    int row = mRows.at( 0 );
     QString type = mLayerList->item( row, 1 )->text();
 
     QString memoryQualifier, fileFilter;
@@ -291,7 +291,7 @@ void QgsHandleBadLayers::browseClicked()
     QString title = tr( "Select new directory of selected files" );
 
     QSettings settings;
-    QString lastDir = settings.value( "/UI/missingDirectory", "" ).toString();
+    QString lastDir = settings.value( "/UI/missingDirectory", QDir::homePath() ).toString();
     QString selectedFolder = QFileDialog::getExistingDirectory( this, title, lastDir );
     if ( selectedFolder.isEmpty() )
     {
@@ -368,8 +368,6 @@ void QgsHandleBadLayers::apply()
     int idx = mLayerList->item( i, 0 )->data( Qt::UserRole ).toInt();
     QDomNode &node = const_cast<QDomNode &>( mLayers[ idx ] );
 
-    QString type = mLayerList->item( i, 1 )->text();
-    QString provider = mLayerList->item( i, 2 )->text();
     QTableWidgetItem *item = mLayerList->item( i, 4 );
     QString datasource = item->text();
 

@@ -130,10 +130,10 @@ void TestQgsMarkerLineSymbol::lineOffset()
   mLinesLayer->loadNamedStyle( qml, success );
 
   QVERIFY( success );
-  mMapSettings->setExtent( QgsRectangle(-140,-140,140,140) );
+  mMapSettings->setExtent( QgsRectangle( -140, -140, 140, 140 ) );
   QVERIFY( render( "line_offset" ) );
 
-  // TODO: -0.0 offset, see 
+  // TODO: -0.0 offset, see
   // http://hub.qgis.org/issues/13811#note-1
 }
 
@@ -142,7 +142,7 @@ bool TestQgsMarkerLineSymbol::render( const QString& theTestType )
   mReport += "<h2>" + theTestType + "</h2>\n";
   mMapSettings->setOutputDpi( 96 );
   QgsRenderChecker checker;
-  checker.setControlPathPrefix( "markerlinesymbol" );
+  checker.setControlPathPrefix( "symbol_markerline" );
   checker.setControlName( "expected_" + theTestType );
   checker.setMapSettings( *mMapSettings );
   bool result = checker.runTest( theTestType );

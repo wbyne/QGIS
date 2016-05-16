@@ -28,8 +28,8 @@
 QgsMapRendererCustomPainterJob::QgsMapRendererCustomPainterJob( const QgsMapSettings& settings, QPainter* painter )
     : QgsMapRendererJob( settings )
     , mPainter( painter )
-    , mLabelingEngine( 0 )
-    , mLabelingEngineV2( 0 )
+    , mLabelingEngine( nullptr )
+    , mLabelingEngineV2( nullptr )
     , mActive( false )
     , mRenderSynchronously( false )
 {
@@ -43,10 +43,10 @@ QgsMapRendererCustomPainterJob::~QgsMapRendererCustomPainterJob()
   //cancel();
 
   delete mLabelingEngine;
-  mLabelingEngine = 0;
+  mLabelingEngine = nullptr;
 
   delete mLabelingEngineV2;
-  mLabelingEngineV2 = 0;
+  mLabelingEngineV2 = nullptr;
 }
 
 void QgsMapRendererCustomPainterJob::start()
@@ -71,16 +71,17 @@ void QgsMapRendererCustomPainterJob::start()
 
   mPainter->setRenderHint( QPainter::Antialiasing, mSettings.testFlag( QgsMapSettings::Antialiasing ) );
 
+#ifndef QT_NO_DEBUG
   QPaintDevice* thePaintDevice = mPainter->device();
-
   QString errMsg = QString( "pre-set DPI not equal to painter's DPI (%1 vs %2)" ).arg( thePaintDevice->logicalDpiX() ).arg( mSettings.outputDpi() );
   Q_ASSERT_X( thePaintDevice->logicalDpiX() == mSettings.outputDpi(), "Job::startRender()", errMsg.toAscii().data() );
+#endif
 
   delete mLabelingEngine;
-  mLabelingEngine = 0;
+  mLabelingEngine = nullptr;
 
   delete mLabelingEngineV2;
-  mLabelingEngineV2 = 0;
+  mLabelingEngineV2 = nullptr;
 
   if ( mSettings.testFlag( QgsMapSettings::DrawLabeling ) )
   {
@@ -173,7 +174,7 @@ QgsLabelingResults* QgsMapRendererCustomPainterJob::takeLabelingResults()
   else if ( mLabelingEngineV2 )
     return mLabelingEngineV2->takeResults();
   else
-    return 0;
+    return nullptr;
 }
 
 
@@ -200,6 +201,8 @@ void QgsMapRendererCustomPainterJob::futureFinished()
   mRenderingTime = mRenderingStart.elapsed();
   QgsDebugMsg( "QPAINTER futureFinished" );
 
+  logRenderingTime( mLayerJobs );
+
   // final cleanup
   cleanupJobs( mLayerJobs );
 
@@ -215,10 +218,12 @@ void QgsMapRendererCustomPainterJob::staticRender( QgsMapRendererCustomPainterJo
   }
   catch ( QgsException & e )
   {
+    Q_UNUSED( e );
     QgsDebugMsg( "Caught unhandled QgsException: " + e.what() );
   }
   catch ( std::exception & e )
   {
+    Q_UNUSED( e );
     QgsDebugMsg( "Caught unhandled std::exception: " + QString::fromAscii( e.what() ) );
   }
   catch ( ... )
@@ -248,7 +253,14 @@ void QgsMapRendererCustomPainterJob::doRender()
     }
 
     if ( !job.cached )
+    {
+      QTime layerTime;
+      layerTime.start();
+
       job.renderer->render();
+
+      job.renderingTime = layerTime.elapsed();
+    }
 
     if ( job.img )
     {
@@ -282,16 +294,17 @@ void QgsMapRendererJob::drawLabeling( const QgsMapSettings& settings, QgsRenderC
   renderContext.setPainter( painter );
   renderContext.setLabelingEngine( labelingEngine );
 
+#if !defined(QGIS_DISABLE_DEPRECATED)
   // old labeling - to be removed at some point...
   drawOldLabeling( settings, renderContext );
-
+#endif
   drawNewLabeling( settings, renderContext, labelingEngine );
 
   if ( labelingEngine2 )
   {
     // set correct extent
     renderContext.setExtent( settings.visibleExtent() );
-    renderContext.setCoordinateTransform( NULL );
+    renderContext.setCoordinateTransform( nullptr );
 
     labelingEngine2->run( renderContext );
   }
@@ -321,10 +334,10 @@ void QgsMapRendererJob::drawOldLabeling( const QgsMapSettings& settings, QgsRend
 
     // only make labels if the layer is visible
     // after scale dep viewing settings are checked
-    if ( ml->hasScaleBasedVisibility() && ( settings.scale() < ml->minimumScale() || settings.scale() > ml->maximumScale() ) )
+    if ( !ml->isInScaleRange( settings.scale() ) )
       continue;
 
-    const QgsCoordinateTransform* ct = 0;
+    const QgsCoordinateTransform* ct = nullptr;
     QgsRectangle r1 = settings.visibleExtent(), r2;
 
     if ( settings.hasCrsTransformEnabled() )
@@ -348,7 +361,7 @@ void QgsMapRendererJob::drawNewLabeling( const QgsMapSettings& settings, QgsRend
   {
     // set correct extent
     renderContext.setExtent( settings.visibleExtent() );
-    renderContext.setCoordinateTransform( NULL );
+    renderContext.setCoordinateTransform( nullptr );
 
     labelingEngine->drawLabeling( renderContext );
     labelingEngine->exit();
@@ -357,10 +370,11 @@ void QgsMapRendererJob::drawNewLabeling( const QgsMapSettings& settings, QgsRend
 
 void QgsMapRendererJob::updateLayerGeometryCaches()
 {
-  Q_FOREACH ( const QString& id, mGeometryCaches.keys() )
+  QMap<QString, QgsGeometryCache>::const_iterator it = mGeometryCaches.constBegin();
+  for ( ; it != mGeometryCaches.constEnd(); ++it )
   {
-    const QgsGeometryCache& cache = mGeometryCaches[id];
-    if ( QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( id ) ) )
+    const QgsGeometryCache& cache = it.value();
+    if ( QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( it.key() ) ) )
       * vl->cache() = cache;
   }
   mGeometryCaches.clear();

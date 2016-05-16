@@ -53,6 +53,7 @@ QgsNewVectorLayerDialog::QgsNewVectorLayerDialog( QWidget *parent, const Qt::Win
   mFileFormatComboBox->addItem( tr( "ESRI Shapefile" ), "ESRI Shapefile" );
 #if 0
   // Disabled until provider properly supports editing the created file formats
+  // When enabling this, adapt the window-title of the dialog and the title of all actions showing this dialog.
   mFileFormatComboBox->addItem( tr( "Comma Separated Value" ), "Comma Separated Value" );
   mFileFormatComboBox->addItem( tr( "GML" ), "GML" );
   mFileFormatComboBox->addItem( tr( "Mapinfo File" ), "Mapinfo File" );
@@ -216,12 +217,12 @@ QString QgsNewVectorLayerDialog::selectedFileEncoding() const
 
 void QgsNewVectorLayerDialog::nameChanged( const QString& name )
 {
-  mAddAttributeButton->setDisabled( name.isEmpty() || mAttributeView->findItems( name, Qt::MatchExactly ).size() > 0 );
+  mAddAttributeButton->setDisabled( name.isEmpty() || !mAttributeView->findItems( name, Qt::MatchExactly ).isEmpty() );
 }
 
 void QgsNewVectorLayerDialog::selectionChanged()
 {
-  mRemoveAttributeButton->setDisabled( mAttributeView->selectedItems().size() == 0 );
+  mRemoveAttributeButton->setDisabled( mAttributeView->selectedItems().isEmpty() );
 }
 
 
@@ -244,9 +245,9 @@ QString QgsNewVectorLayerDialog::runAndCreateLayer( QWidget* parent, QString* pE
   geomDialog.attributes( attributes );
 
   QSettings settings;
-  QString lastUsedDir = settings.value( "/UI/lastVectorFileFilterDir", "." ).toString();
+  QString lastUsedDir = settings.value( "/UI/lastVectorFileFilterDir", QDir::homePath() ).toString();
   QString filterString = QgsVectorFileWriter::filterForDriver( fileformat );
-  QString fileName = QFileDialog::getSaveFileName( 0, tr( "Save layer as..." ), lastUsedDir, filterString );
+  QString fileName = QFileDialog::getSaveFileName( nullptr, tr( "Save layer as..." ), lastUsedDir, filterString );
   if ( fileName.isNull() )
   {
     return "";

@@ -41,6 +41,8 @@ class QgsGrassItemActions : public QObject
   public slots:
     void newMapset();
     void openMapset();
+    void addMapsetToSearchPath();
+    void removeMapsetFromSearchPath();
     void renameGrassObject();
     void deleteGrassObject();
     void newPointLayer();
@@ -90,7 +92,7 @@ class QgsGrassMapsetItem : public QgsDirectoryItem, public QgsGrassObjectItemBas
 
     virtual void setState( State state ) override;
 
-    QIcon icon() override { return QgsDataItem::icon(); }
+    QIcon icon() override;
 
     QVector<QgsDataItem*> createChildren() override;
     virtual QList<QAction*> actions() override { return mActions->actions(); }

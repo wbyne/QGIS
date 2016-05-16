@@ -22,18 +22,18 @@
 
 QgsRangeWidgetWrapper::QgsRangeWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* editor, QWidget* parent )
     : QgsEditorWidgetWrapper( vl, fieldIdx, editor, parent )
-    , mIntSpinBox( 0 )
-    , mDoubleSpinBox( 0 )
-    , mSlider( 0 )
-    , mDial( 0 )
-    , mQgsSlider( 0 )
-    , mQgsDial( 0 )
+    , mIntSpinBox( nullptr )
+    , mDoubleSpinBox( nullptr )
+    , mSlider( nullptr )
+    , mDial( nullptr )
+    , mQgsSlider( nullptr )
+    , mQgsDial( nullptr )
 {
 }
 
 QWidget* QgsRangeWidgetWrapper::createWidget( QWidget* parent )
 {
-  QWidget* editor = 0;
+  QWidget* editor = nullptr;
 
   if ( config( "Style" ).toString() == "Dial" )
   {
@@ -169,7 +169,7 @@ void QgsRangeWidgetWrapper::initWidget( QWidget* editor )
         mQgsDial->setSingleStep( step );
     }
 
-    connect( editor, SIGNAL( valueChanged( QVariant ) ), this, SLOT( valueChanged( QVariant ) ) );
+    connect( editor, SIGNAL( valueChanged( QVariant ) ), this, SLOT( valueChangedVariant( QVariant ) ) );
   }
   else if ( mDial )
   {
@@ -193,12 +193,12 @@ void QgsRangeWidgetWrapper::initWidget( QWidget* editor )
   }
 }
 
-bool QgsRangeWidgetWrapper::valid()
+bool QgsRangeWidgetWrapper::valid() const
 {
   return mSlider || mDial || mQgsDial || mQgsSlider || mIntSpinBox || mDoubleSpinBox;
 }
 
-void QgsRangeWidgetWrapper::valueChanged( const QVariant& v )
+void QgsRangeWidgetWrapper::valueChangedVariant( const QVariant& v )
 {
   if ( v.type() == QVariant::Int )
     valueChanged( v.toInt() );
@@ -206,7 +206,7 @@ void QgsRangeWidgetWrapper::valueChanged( const QVariant& v )
     valueChanged( v.toDouble() );
 }
 
-QVariant QgsRangeWidgetWrapper::value()
+QVariant QgsRangeWidgetWrapper::value() const
 {
   QVariant value;
 

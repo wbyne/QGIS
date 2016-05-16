@@ -1,3 +1,28 @@
+# -*- coding: utf-8 -*-
+
+"""
+***************************************************************************
+    test_qgsdelimitedtextprovider_wanted.py
+    ---------------------
+    Date                 : May 2013
+    Copyright            : (C) 2013 by Chris Crook
+    Email                : ccrook at linz dot govt dot nz
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************
+"""
+
+__author__ = 'Chris Crook'
+__date__ = 'May 2013'
+__copyright__ = '(C) 2013, Chris Crook'
+# This will get replaced with a git SHA1 when you do a git archive
+__revision__ = '$Format:%H$'
+
 
 def test_002_load_csv_file():
     wanted = {}
@@ -460,13 +485,13 @@ def test_011_read_wkt():
             'id': u'10',
             'description': u'Measure in point',
             '#fid': 11,
-            '#geometry': 'Point (10 20)',
+            '#geometry': 'PointM (10 20 30)',
         },
     }
     wanted['log'] = [
         u'Errors in file testwkt.csv',
         u'1 records discarded due to invalid geometry definitions',
-        u'7 records discarded due to incompatible geometry types',
+        u'10 records discarded due to incompatible geometry types',
         u'The following lines were not loaded into QGIS due to errors:',
         u'Invalid WKT at line 8',
     ]
@@ -507,13 +532,13 @@ def test_012_read_wkt_point():
             'id': u'10',
             'description': u'Measure in point',
             '#fid': 11,
-            '#geometry': 'Point (10 20)',
+            '#geometry': 'PointM (10 20 30)',
         },
     }
     wanted['log'] = [
         u'Errors in file testwkt.csv',
         u'1 records discarded due to invalid geometry definitions',
-        u'7 records discarded due to incompatible geometry types',
+        u'10 records discarded due to incompatible geometry types',
         u'The following lines were not loaded into QGIS due to errors:',
         u'Invalid WKT at line 8',
     ]
@@ -542,25 +567,37 @@ def test_013_read_wkt_line():
             'id': u'11',
             'description': u'Measure in line',
             '#fid': 12,
-            '#geometry': 'LineString (10 20, 11 21)',
+            '#geometry': 'LineStringM (10 20 30, 11 21 31)',
         },
         13: {
             'id': u'12',
             'description': u'Z in line',
             '#fid': 13,
-            '#geometry': 'LineString (10 20, 11 21)',
+            '#geometry': 'LineStringZ (10 20 30, 11 21 31)',
         },
         14: {
             'id': u'13',
             'description': u'Measure and Z in line',
             '#fid': 14,
-            '#geometry': 'LineString (10 20, 11 21)',
+            '#geometry': 'LineStringZM (10 20 30 40, 11 21 31 41)',
+        },
+        15: {
+            'id': u'14',
+            'description': u'CircularString',
+            '#fid': 15,
+            '#geometry': 'CircularString (268 415, 227 505, 227 406)',
+        },
+        17: {
+            'id': u'16',
+            'description': u'CompoundCurve',
+            '#fid': 17,
+            '#geometry': 'CompoundCurve ((5 3, 5 13), CircularString(5 13, 7 15, 9 13), (9 13, 9 3), CircularString(9 3, 7 1, 5 3))',
         },
     }
     wanted['log'] = [
         u'Errors in file testwkt.csv',
         u'1 records discarded due to invalid geometry definitions',
-        u'7 records discarded due to incompatible geometry types',
+        u'8 records discarded due to incompatible geometry types',
         u'The following lines were not loaded into QGIS due to errors:',
         u'Invalid WKT at line 8',
     ]
@@ -585,11 +622,17 @@ def test_014_read_wkt_polygon():
             '#fid': 7,
             '#geometry': 'MultiPolygon (((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,14 14)),((30 30,30 35,35 35,30 30)))',
         },
+        16: {
+            'id': u'15',
+            'description': u'CurvePolygon',
+            '#fid': 16,
+            '#geometry': 'CurvePolygon (CircularString (1 3, 3 5, 4 7, 7 3, 1 3))',
+        },
     }
     wanted['log'] = [
         u'Errors in file testwkt.csv',
         u'1 records discarded due to invalid geometry definitions',
-        u'10 records discarded due to incompatible geometry types',
+        u'12 records discarded due to incompatible geometry types',
         u'The following lines were not loaded into QGIS due to errors:',
         u'Invalid WKT at line 8',
     ]
@@ -2350,5 +2393,59 @@ def test_039_issue_13749():
     wanted['log'] = [
         u'Errors in file test13749.csv',
         u'1 records have missing geometry definitions',
+    ]
+    return wanted
+
+
+def test_040_issue_14666():
+    wanted = {}
+    wanted['uri'] = u'file://test14666.csv?yField=y&xField=x&type=csv&delimiter=\\t'
+    wanted['fieldTypes'] = ['integer', 'double', 'double']
+    wanted['geometryType'] = 0
+    wanted['data'] = {
+        2: {
+            'id': u'1',
+            'description': u'7.15417',
+            'x': u'7.15417',
+            'y': u'50.680622',
+            '#fid': 2,
+            '#geometry': 'Point (7.1541699999999997 50.68062199999999962)',
+        },
+        3: {
+            'id': u'2',
+            'description': u'7.119219',
+            'x': u'7.119219',
+            'y': u'50.739814',
+            '#fid': 3,
+            '#geometry': 'Point (7.11921900000000019 50.73981400000000264)',
+        },
+        4: {
+            'id': u'3',
+            'description': u'NULL',
+            'x': u'NULL',
+            'y': u'NULL',
+            '#fid': 4,
+            '#geometry': 'None',
+        },
+        5: {
+            'id': u'4',
+            'description': u'NULL',
+            'x': u'NULL',
+            'y': u'NULL',
+            '#fid': 5,
+            '#geometry': 'None',
+        },
+        6: {
+            'id': u'5',
+            'description': u'7.129229',
+            'x': u'7.129229',
+            'y': u'50.703692',
+            '#fid': 6,
+            '#geometry': 'Point (7.12922899999999959 50.70369199999999665)',
+        },
+    }
+    wanted['log'] = [
+        u'Errors in file test14666.csv',
+        u'2 records have missing geometry definitions',
     ]
     return wanted

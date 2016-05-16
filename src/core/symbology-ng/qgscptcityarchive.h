@@ -78,6 +78,10 @@ class CORE_EXPORT QgsCptCityArchive
     // mapping of copyinginfo, key is fileName
     static QMap< QString, QMap< QString, QString > > mCopyingInfoMap;
 
+  private:
+
+    QgsCptCityArchive( const QgsCptCityArchive& rh );
+    QgsCptCityArchive& operator=( const QgsCptCityArchive& rh );
 };
 
 /** Base class for all items in the model */
@@ -128,7 +132,7 @@ class CORE_EXPORT QgsCptCityDataItem : public QObject
 
     virtual bool equal( const QgsCptCityDataItem *other );
 
-    virtual QWidget *paramWidget() { return 0; }
+    virtual QWidget *paramWidget() { return nullptr; }
 
     // list of actions provided by this item - usually used for popup menu on right-click
     virtual QList<QAction*> actions() { return QList<QAction*>(); }
@@ -151,7 +155,7 @@ class CORE_EXPORT QgsCptCityDataItem : public QObject
     void setParent( QgsCptCityDataItem* parent ) { mParent = parent; }
     QVector<QgsCptCityDataItem*> children() const { return mChildren; }
     virtual QIcon icon() { return mIcon; }
-    virtual QIcon icon( const QSize& size ) { Q_UNUSED( size ) ; return icon(); }
+    virtual QIcon icon( QSize size ) { Q_UNUSED( size ) ; return icon(); }
     QString name() const { return mName; }
     QString path() const { return mPath; }
     QString info() const { return mInfo; }
@@ -214,7 +218,7 @@ class CORE_EXPORT QgsCptCityColorRampItem : public QgsCptCityDataItem
     // --- New virtual methods for layer item derived classes ---
     const QgsCptCityColorRampV2& ramp() const { return mRamp; }
     QIcon icon() override;
-    QIcon icon( const QSize& size ) override;
+    QIcon icon( QSize size ) override;
     void init();
 
   protected:
@@ -312,7 +316,7 @@ class CORE_EXPORT QgsCptCityBrowserModel : public QAbstractItemModel
       List = 2 // not used anymore
     };
 
-    QgsCptCityBrowserModel( QObject* parent = 0,
+    QgsCptCityBrowserModel( QObject* parent = nullptr,
                             QgsCptCityArchive* archive = QgsCptCityArchive::defaultArchive(),
                             ViewType Type = Authors );
     ~QgsCptCityBrowserModel();
@@ -343,7 +347,7 @@ class CORE_EXPORT QgsCptCityBrowserModel : public QAbstractItemModel
     /** Returns the index of the item in the model specified by the given row, column and parent index. */
     virtual QModelIndex index( int row, int column, const QModelIndex & parent = QModelIndex() ) const override;
 
-    QModelIndex findItem( QgsCptCityDataItem *item, QgsCptCityDataItem *parent = 0 ) const;
+    QModelIndex findItem( QgsCptCityDataItem *item, QgsCptCityDataItem *parent = nullptr ) const;
 
     /** Returns the parent of the model item with the given index.
      * If the item has no parent, an invalid QModelIndex is returned.

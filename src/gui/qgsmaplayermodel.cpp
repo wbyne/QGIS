@@ -22,8 +22,6 @@
 #include "qgsvectorlayer.h"
 
 
-const int QgsMapLayerModel::LayerIdRole = Qt::UserRole + 1;
-
 QgsMapLayerModel::QgsMapLayerModel( const QList<QgsMapLayer *>& layers, QObject *parent )
     : QAbstractItemModel( parent )
     , mLayersChecked( QMap<QString, Qt::CheckState>() )
@@ -82,7 +80,7 @@ void QgsMapLayerModel::removeLayers( const QStringList& layerIds )
   {
     QModelIndex startIndex = index( 0, 0 );
     QModelIndexList list = match( startIndex, LayerIdRole, layerId, 1 );
-    if ( list.count() )
+    if ( !list.isEmpty() )
     {
       QModelIndex index = list[0];
       beginRemoveRows( QModelIndex(), index.row(), index.row() );
@@ -151,6 +149,11 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
     return layer->id();
   }
 
+  if ( role == LayerRole )
+  {
+    return QVariant::fromValue<QgsMapLayer*>( static_cast<QgsMapLayer*>( index.internalPointer() ) );
+  }
+
   if ( role == Qt::CheckStateRole && mItemCheckable )
   {
     QgsMapLayer* layer = static_cast<QgsMapLayer*>( index.internalPointer() );
@@ -213,12 +216,22 @@ QVariant QgsMapLayerModel::data( const QModelIndex &index, int role ) const
   return QVariant();
 }
 
+#if QT_VERSION >= 0x050000
+QHash<int, QByteArray> QgsMapLayerModel::roleNames() const
+{
+  QHash<int, QByteArray> roles  = QAbstractItemModel::roleNames();
+  roles[LayerIdRole]  = "layerId";
+  roles[LayerRole] = "layer";
+
+  return roles;
+}
+#endif
 
 Qt::ItemFlags QgsMapLayerModel::flags( const QModelIndex &index ) const
 {
   if ( !index.isValid() )
   {
-    return 0;
+    return nullptr;
   }
 
   Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;

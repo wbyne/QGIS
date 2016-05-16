@@ -1,3 +1,17 @@
+/***************************************************************************
+    qgsrulebasedlabeling.h
+    ---------------------
+    begin                : September 2015
+    copyright            : (C) 2015 by Martin Dobias
+    email                : wonder dot sk at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
 #ifndef QGSRULEBASEDLABELING_H
 #define QGSRULEBASEDLABELING_H
 
@@ -5,6 +19,7 @@
 #include <QMap>
 
 #include "qgsvectorlayerlabeling.h"
+#include "qgsvectorlayerlabelprovider.h"
 
 class QDomDocument;
 class QDomElement;
@@ -13,7 +28,14 @@ class QgsExpression;
 class QgsFeature;
 class QgsPalLayerSettings;
 class QgsRenderContext;
+class QgsGeometry;
+class QgsRuleBasedLabelProvider;
 
+/**
+ * @class QgsRuleBasedLabeling
+ * @note not available in Python bindings
+ * @note this class is not a part of public API yet. See notes in QgsLabelingEngineV2
+ */
 
 class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
 {
@@ -22,6 +44,11 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
     typedef QList<Rule*> RuleList;
     typedef QMap<Rule*, QgsVectorLayerLabelProvider*> RuleToProviderMap;
 
+    /**
+     * @class QgsRuleBasedLabeling::Rule
+     * @note not available in Python bindings
+     * @note this class is not a part of public API yet. See notes in QgsLabelingEngineV2
+     */
     class CORE_EXPORT Rule
     {
       public:
@@ -37,9 +64,36 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
           Registered    //!< Something was registered
         };
 
+        /**
+         * Get the labeling settings. May return a null pointer.
+         */
         QgsPalLayerSettings* settings() const { return mSettings; }
+
+        /**
+         * Determines if scale based labeling is active
+         *
+         * @return True if scale based labeling is active
+         */
         bool dependsOnScale() const { return mScaleMinDenom != 0 || mScaleMaxDenom != 0; }
+
+        /**
+         * The minimum scale at which this label rule should be applied
+         *
+         * E.g. Denominator 1000 is a scale of 1:1000, where a rule with minimum denominator
+         * of 900 will not be applied while a rule with 2000 will be applied.
+         *
+         * @return The minimum scale denominator
+         */
         int scaleMinDenom() const { return mScaleMinDenom; }
+
+        /**
+         * The maximum scale denominator at which this label rule should be applied
+         *
+         * E.g. Denominator 1000 is a scale of 1:1000, where a rule with maximum denominator
+         * of 900 will be applied while a rule with 2000 will not be applied.
+         *
+         * @return The maximum scale denominator
+         */
         int scaleMaxDenom() const { return mScaleMaxDenom; }
         /**
          * A filter that will check if this rule applies
@@ -64,6 +118,9 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          * @return True if this rule is an else rule
          */
         bool isElse() const { return mElseRule; }
+
+        //! Unique rule identifier (for identification of rule within labeling, used as provider ID)
+        QString ruleKey() const { return mRuleKey; }
 
         //! set new settings (or NULL). Deletes old settings if any.
         void setSettings( QgsPalLayerSettings* settings );
@@ -106,6 +163,8 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          */
         void setIsElse( bool iselse ) { mElseRule = iselse; }
 
+        //! Override the assigned rule key (should be used just internally by rule-based labeling)
+        void setRuleKey( const QString& key ) { mRuleKey = key; }
 
         // parent / child operations
 
@@ -121,6 +180,14 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          * @return A list of rules
          */
         RuleList& children() { return mChildren; }
+
+        /**
+         * Returns all children, grand-children, grand-grand-children, grand-gra... you get it
+         *
+         * @return A list of descendant rules
+         */
+        RuleList descendants() const { RuleList l; Q_FOREACH ( Rule *c, mChildren ) { l += c; l += c->descendants(); } return l; }
+
         /**
          * The parent rule
          *
@@ -143,6 +210,9 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
         //! delete child rule
         void removeChildAt( int i );
 
+        //! Try to find a rule given its unique key
+        const Rule* findRuleByKey( const QString& key ) const;
+
         //! clone this rule, return new instance
         Rule* clone() const;
 
@@ -161,13 +231,16 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
         // evaluation
 
         //! add providers
-        void createSubProviders( QgsVectorLayer* layer, RuleToProviderMap& subProviders );
+        void createSubProviders( QgsVectorLayer* layer, RuleToProviderMap& subProviders, QgsRuleBasedLabelProvider *provider );
+
+        //! append rule keys of descendants that contain valid settings (i.e. they will be sub-providers)
+        void subProviderIds( QStringList& list ) const;
 
         //! call prepare() on sub-providers and populate attributeNames
         void prepare( const QgsRenderContext& context, QStringList& attributeNames, RuleToProviderMap& subProviders );
 
         //! register individual features
-        RegisterResult registerFeature( QgsFeature& feature, QgsRenderContext& context, RuleToProviderMap& subProviders );
+        RegisterResult registerFeature( QgsFeature& feature, QgsRenderContext& context, RuleToProviderMap& subProviders, QgsGeometry* obstacleGeometry = nullptr );
 
       protected:
         /**
@@ -186,6 +259,9 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
          */
         bool isScaleOK( double scale ) const;
 
+        /**
+         * Initialize filters. Automatically called by setFilterExpression.
+         */
         void initFilter();
 
         /**
@@ -203,8 +279,15 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
         RuleList mElseRules;
         bool mIsActive; // whether it is enabled or not
 
+        QString mRuleKey; // string used for unique identification of rule within labeling
+
         // temporary
         QgsExpression* mFilter;
+
+      private:
+
+        Rule( const Rule& rh );
+        Rule& operator=( const Rule& rh );
     };
 
 
@@ -224,16 +307,20 @@ class CORE_EXPORT QgsRuleBasedLabeling : public QgsAbstractVectorLayerLabeling
 
     virtual QString type() const override;
     virtual QDomElement save( QDomDocument& doc ) const override;
-    virtual QgsVectorLayerLabelProvider* provider( QgsVectorLayer* layer ) const override;
+    virtual QgsVectorLayerLabelProvider *provider( QgsVectorLayer* layer ) const override;
+    virtual QStringList subProviders() const override;
+    virtual QgsPalLayerSettings settings( QgsVectorLayer* layer, const QString& providerId = QString() ) const override;
 
   protected:
     Rule* mRootRule;
 };
 
 
-#include "qgsvectorlayerlabelprovider.h"
-
-
+/**
+ * @class QgsRuleBasedLabelProvider
+ * @note not available in Python bindings
+ * @note this class is not a part of public API yet. See notes in QgsLabelingEngineV2
+ */
 class CORE_EXPORT QgsRuleBasedLabelProvider : public QgsVectorLayerLabelProvider
 {
   public:
@@ -244,10 +331,12 @@ class CORE_EXPORT QgsRuleBasedLabelProvider : public QgsVectorLayerLabelProvider
 
     virtual bool prepare( const QgsRenderContext& context, QStringList& attributeNames ) override;
 
-    virtual void registerFeature( QgsFeature& feature, QgsRenderContext& context ) override;
+    virtual void registerFeature( QgsFeature& feature, QgsRenderContext& context, QgsGeometry* obstacleGeometry = nullptr ) override;
 
-    // new methods
+    //! create a label provider
+    virtual QgsVectorLayerLabelProvider *createProvider( QgsVectorLayer *layer, const QString& providerId, bool withFeatureLoop, const QgsPalLayerSettings *settings );
 
+    //! return subproviders
     virtual QList<QgsAbstractLabelProvider*> subProviders() override;
 
   protected:

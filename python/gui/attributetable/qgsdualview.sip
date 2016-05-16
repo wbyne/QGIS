@@ -47,8 +47,16 @@ class QgsDualView : QStackedWidget
      * Change the current view mode.
      *
      * @param view The view mode to set
+     * @see view()
      */
     void setView( ViewMode view );
+
+    /**
+     * Returns the current view mode.
+     * @see setView()
+     * @note added in QGIS 2.16
+     */
+    ViewMode view() const;
 
     /**
      * Set the filter mode
@@ -57,6 +65,11 @@ class QgsDualView : QStackedWidget
      */
     void setFilterMode( QgsAttributeTableFilterModel::FilterMode filterMode );
 
+    /**
+     * Get the filter mode
+     *
+     * @return the filter mode
+     */
     QgsAttributeTableFilterModel::FilterMode filterMode();
 
     /**
@@ -90,6 +103,9 @@ class QgsDualView : QStackedWidget
      */
     void setFilteredFeatures( const QgsFeatureIds& filteredFeatures );
 
+    /**
+     * Get a list of currently visible feature ids.
+     */
     QgsFeatureIds filteredFeatures();
 
     /**
@@ -102,6 +118,13 @@ class QgsDualView : QStackedWidget
     void setRequest( const QgsFeatureRequest& request );
 
     void setFeatureSelectionManager( QgsIFeatureSelectionManager* featureSelectionManager );
+
+    QgsAttributeTableView* tableView();
+    /**
+     * Set the attribute table config which should be used to control
+     * the appearance of the attribute table.
+     */
+    void setAttributeTableConfig( const QgsAttributeTableConfig& config );
 
   protected:
     /**
@@ -127,6 +150,13 @@ class QgsDualView : QStackedWidget
      *         validation logic.
      */
     bool saveEditChanges();
+
+    void openConditionalStyles();
+
+    /** Sets whether multi edit mode is enabled.
+     * @note added in QGIS 2.16
+     */
+    void setMultiEditEnabled( bool enabled );
 
   signals:
     /**

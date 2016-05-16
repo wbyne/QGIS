@@ -27,8 +27,8 @@
 #include <QMessageBox>
 #include <QSettings>
 
-QgsFieldCalculator::QgsFieldCalculator( QgsVectorLayer* vl )
-    : QDialog()
+QgsFieldCalculator::QgsFieldCalculator( QgsVectorLayer* vl, QWidget* parent )
+    : QDialog( parent )
     , mVectorLayer( vl )
     , mAttributeId( -1 )
 {
@@ -54,6 +54,7 @@ QgsFieldCalculator::QgsFieldCalculator( QgsVectorLayer* vl )
   populateOutputFieldTypes();
 
   connect( builder, SIGNAL( expressionParsed( bool ) ), this, SLOT( setOkButtonState() ) );
+  connect( mOutputFieldWidthSpinBox, SIGNAL( editingFinished() ), this, SLOT( setPrecisionMinMax() ) );
 
   QgsDistanceArea myDa;
   myDa.setSourceCrs( vl->crs().srsid() );
@@ -64,6 +65,7 @@ QgsFieldCalculator::QgsFieldCalculator( QgsVectorLayer* vl )
   //default values for field width and precision
   mOutputFieldWidthSpinBox->setValue( 10 );
   mOutputFieldPrecisionSpinBox->setValue( 3 );
+  setPrecisionMinMax();
 
   if ( vl->providerType() == "ogr" && vl->storageType() == "ESRI Shapefile" )
   {
@@ -162,6 +164,8 @@ void QgsFieldCalculator::accept()
   QString calcString = builder->expressionText();
   QgsExpression exp( calcString );
   exp.setGeomCalculator( myDa );
+  exp.setDistanceUnits( QgsProject::instance()->distanceUnits() );
+  exp.setAreaUnits( QgsProject::instance()->areaUnits() );
 
   QgsExpressionContext expContext;
   expContext << QgsExpressionContextUtils::globalScope()
@@ -170,7 +174,7 @@ void QgsFieldCalculator::accept()
 
   if ( !exp.prepare( &expContext ) )
   {
-    QMessageBox::critical( 0, tr( "Evaluation error" ), exp.evalErrorString() );
+    QMessageBox::critical( nullptr, tr( "Evaluation error" ), exp.evalErrorString() );
     return;
   }
 
@@ -204,8 +208,8 @@ void QgsFieldCalculator::accept()
       }
       else
       {
-        QMap<QString, int>::const_iterator fieldIt = mFieldMap.find( mExistingFieldComboBox->currentText() );
-        if ( fieldIt != mFieldMap.end() )
+        QMap<QString, int>::const_iterator fieldIt = mFieldMap.constFind( mExistingFieldComboBox->currentText() );
+        if ( fieldIt != mFieldMap.constEnd() )
         {
           mAttributeId = fieldIt.value();
         }
@@ -219,7 +223,7 @@ void QgsFieldCalculator::accept()
       if ( !mVectorLayer->addAttribute( newField ) )
       {
         QApplication::restoreOverrideCursor();
-        QMessageBox::critical( 0, tr( "Provider error" ), tr( "Could not add the new field to the provider." ) );
+        QMessageBox::critical( nullptr, tr( "Provider error" ), tr( "Could not add the new field to the provider." ) );
         mVectorLayer->destroyEditCommand();
         return;
       }
@@ -241,7 +245,7 @@ void QgsFieldCalculator::accept()
       if ( ! exp.prepare( &expContext ) )
       {
         QApplication::restoreOverrideCursor();
-        QMessageBox::critical( 0, tr( "Evaluation error" ), exp.evalErrorString() );
+        QMessageBox::critical( nullptr, tr( "Evaluation error" ), exp.evalErrorString() );
         return;
       }
     }
@@ -307,7 +311,7 @@ void QgsFieldCalculator::accept()
 
     if ( !calculationSuccess )
     {
-      QMessageBox::critical( 0, tr( "Error" ), tr( "An error occured while evaluating the calculation string:\n%1" ).arg( error ) );
+      QMessageBox::critical( nullptr, tr( "Error" ), tr( "An error occurred while evaluating the calculation string:\n%1" ).arg( error ) );
       mVectorLayer->destroyEditCommand();
       return;
     }
@@ -420,13 +424,7 @@ void QgsFieldCalculator::on_mOutputFieldTypeComboBox_activated( int index )
   if ( mOutputFieldWidthSpinBox->value() > mOutputFieldWidthSpinBox->maximum() )
     mOutputFieldWidthSpinBox->setValue( mOutputFieldWidthSpinBox->maximum() );
 
-  mOutputFieldPrecisionSpinBox->setMinimum( mOutputFieldTypeComboBox->itemData( index, Qt::UserRole + 4 ).toInt() );
-  mOutputFieldPrecisionSpinBox->setMaximum( mOutputFieldTypeComboBox->itemData( index, Qt::UserRole + 5 ).toInt() );
-  mOutputFieldPrecisionSpinBox->setEnabled( mOutputFieldPrecisionSpinBox->minimum() < mOutputFieldPrecisionSpinBox->maximum() );
-  if ( mOutputFieldPrecisionSpinBox->value() < mOutputFieldPrecisionSpinBox->minimum() )
-    mOutputFieldPrecisionSpinBox->setValue( mOutputFieldPrecisionSpinBox->minimum() );
-  if ( mOutputFieldPrecisionSpinBox->value() > mOutputFieldPrecisionSpinBox->maximum() )
-    mOutputFieldPrecisionSpinBox->setValue( mOutputFieldPrecisionSpinBox->maximum() );
+  setPrecisionMinMax();
 }
 
 void QgsFieldCalculator::populateFields()
@@ -476,4 +474,14 @@ void QgsFieldCalculator::setOkButtonState()
 
   okButton->setToolTip( "" );
   okButton->setEnabled( true );
+}
+
+void QgsFieldCalculator::setPrecisionMinMax()
+{
+  int idx = mOutputFieldTypeComboBox->currentIndex();
+  int minPrecType = mOutputFieldTypeComboBox->itemData( idx, Qt::UserRole + 4 ).toInt();
+  int maxPrecType = mOutputFieldTypeComboBox->itemData( idx, Qt::UserRole + 5 ).toInt();
+  mOutputFieldPrecisionSpinBox->setEnabled( minPrecType < maxPrecType );
+  mOutputFieldPrecisionSpinBox->setMinimum( minPrecType );
+  mOutputFieldPrecisionSpinBox->setMaximum( qMax( minPrecType, qMin( maxPrecType, mOutputFieldWidthSpinBox->value() ) ) );
 }

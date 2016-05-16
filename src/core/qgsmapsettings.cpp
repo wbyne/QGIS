@@ -73,7 +73,7 @@ double QgsMapSettings::rotation() const
 
 void QgsMapSettings::setRotation( double degrees )
 {
-  if ( mRotation == degrees ) return;
+  if ( qgsDoubleNear( mRotation, degrees ) ) return;
 
   mRotation = degrees;
 
@@ -201,7 +201,7 @@ QSize QgsMapSettings::outputSize() const
   return mSize;
 }
 
-void QgsMapSettings::setOutputSize( const QSize& size )
+void QgsMapSettings::setOutputSize( QSize size )
 {
   mSize = size;
 
@@ -510,7 +510,7 @@ QgsRectangle QgsMapSettings::fullExtent() const
   while ( it != mLayers.end() )
   {
     QgsMapLayer * lyr = registry->mapLayer( *it );
-    if ( lyr == NULL )
+    if ( !lyr )
     {
       QgsDebugMsg( QString( "WARNING: layer '%1' not found in map layer registry!" ).arg( *it ) );
     }
@@ -596,6 +596,13 @@ void QgsMapSettings::readXML( QDomNode& theNode )
     setRotation( rot );
   }
 
+  //render map tile
+  QDomElement renderMapTileElem = theNode.firstChildElement( "rendermaptile" );
+  if ( !renderMapTileElem.isNull() )
+  {
+    setFlag( QgsMapSettings::RenderMapTile, renderMapTileElem.text() == "1" ? true : false );
+  }
+
   mDatumTransformStore.readXML( theNode );
 }
 
@@ -625,6 +632,12 @@ void QgsMapSettings::writeXML( QDomNode& theNode, QDomDocument& theDoc )
   QDomElement srsNode = theDoc.createElement( "destinationsrs" );
   theNode.appendChild( srsNode );
   destinationCrs().writeXML( srsNode, theDoc );
+
+  //render map tile
+  QDomElement renderMapTileElem = theDoc.createElement( "rendermaptile" );
+  QDomText renderMapTileText = theDoc.createTextNode( testFlag( QgsMapSettings::RenderMapTile ) ? "1" : "0" );
+  renderMapTileElem.appendChild( renderMapTileText );
+  theNode.appendChild( renderMapTileElem );
 
   mDatumTransformStore.writeXML( theNode, theDoc );
 }

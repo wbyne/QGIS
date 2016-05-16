@@ -19,9 +19,8 @@
 #define QGSSNAPPINGDIALOG_H
 
 #include "qgsmaplayer.h"
+#include <QDockWidget>
 #include "ui_qgssnappingdialogbase.h"
-
-class QDockWidget;
 
 class QgsMapCanvas;
 
@@ -65,8 +64,8 @@ class APP_EXPORT QgsSnappingDialog: public QDialog, private Ui::QgsSnappingDialo
 
   protected:
     /** Constructor
-    @param canvas pointer to the map canvas (for detecting which vector layers are loaded
-    */
+     * @param canvas pointer to the map canvas (for detecting which vector layers are loaded
+     */
     //QgsSnappingDialog( QgsMapCanvas* canvas );
 
     /**
@@ -100,6 +99,18 @@ class APP_EXPORT QgsSnappingDialog: public QDialog, private Ui::QgsSnappingDialo
     void setIntersectionSnappingState();
 
     void setSnappingMode();
+};
+
+
+class QgsSnappingDock : public QDockWidget
+{
+    Q_OBJECT
+
+  public:
+    QgsSnappingDock( const QString & title, QWidget * parent = nullptr, Qt::WindowFlags flags = nullptr );
+
+    virtual void closeEvent( QCloseEvent *e ) override;
+
 };
 
 #endif

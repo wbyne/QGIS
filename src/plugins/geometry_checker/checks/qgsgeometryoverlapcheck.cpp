@@ -12,7 +12,7 @@
 void QgsGeometryOverlapCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -24,7 +24,7 @@ void QgsGeometryOverlapCheck::collectErrors( QList<QgsGeometryCheckError*>& erro
     QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( geom, QgsGeometryCheckPrecision::tolerance() );
 
     QgsFeatureIds ids = mFeaturePool->getIntersects( feature.geometry()->boundingBox() );
-    Q_FOREACH ( const QgsFeatureId& otherid, ids )
+    Q_FOREACH ( QgsFeatureId otherid, ids )
     {
       // >= : only report overlaps once
       if ( otherid >= featureid )
@@ -97,7 +97,7 @@ void QgsGeometryOverlapCheck::fixError( QgsGeometryCheckError* error, int method
   }
 
   // Search which overlap part this error parametrizes (using fuzzy-matching of the area and centroid...)
-  QgsAbstractGeometryV2* interPart = 0;
+  QgsAbstractGeometryV2* interPart = nullptr;
   for ( int iPart = 0, nParts = interGeom->partCount(); iPart < nParts; ++iPart )
   {
     QgsAbstractGeometryV2* part = QgsGeomUtils::getGeomPart( interGeom, iPart );
@@ -128,7 +128,7 @@ void QgsGeometryOverlapCheck::fixError( QgsGeometryCheckError* error, int method
     if ( !diff1 || diff1->isEmpty() )
     {
       delete diff1;
-      diff1 = 0;
+      diff1 = nullptr;
     }
     else
     {
@@ -140,7 +140,7 @@ void QgsGeometryOverlapCheck::fixError( QgsGeometryCheckError* error, int method
     if ( !diff2 || diff2->isEmpty() )
     {
       delete diff2;
-      diff2 = 0;
+      diff2 = nullptr;
     }
     else
     {

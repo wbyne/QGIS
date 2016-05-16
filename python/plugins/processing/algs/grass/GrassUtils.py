@@ -32,7 +32,7 @@ import subprocess
 import os
 import locale
 from qgis.core import QgsApplication
-from PyQt4.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.ProcessingLog import ProcessingLog
 from processing.tools.system import userFolder, isWindows, isMac, tempFolder, mkdir
@@ -86,14 +86,19 @@ class GrassUtils:
         if not isWindows() and not isMac():
             return ''
 
-        folder = ProcessingConfig.getSetting(GrassUtils.GRASS_FOLDER)
+        folder = ProcessingConfig.getSetting(GrassUtils.GRASS_FOLDER) or ''
+        if not os.path.exists(folder):
+            folder = None
         if folder is None:
             if isWindows():
-                testfolder = os.path.dirname(QgsApplication.prefixPath())
+                if "OSGEO4W_ROOT" in os.environ:
+                    testfolder = os.path.join(unicode(os.environ['OSGEO4W_ROOT']), "apps")
+                else:
+                    testfolder = unicode(QgsApplication.prefixPath())
                 testfolder = os.path.join(testfolder, 'grass')
                 if os.path.isdir(testfolder):
                     for subfolder in os.listdir(testfolder):
-                        if subfolder.startswith('grass'):
+                        if subfolder.startswith('grass-6'):
                             folder = os.path.join(testfolder, subfolder)
                             break
             else:
@@ -105,7 +110,9 @@ class GrassUtils:
 
     @staticmethod
     def grassWinShell():
-        folder = ProcessingConfig.getSetting(GrassUtils.GRASS_WIN_SHELL)
+        folder = ProcessingConfig.getSetting(GrassUtils.GRASS_WIN_SHELL) or ''
+        if not os.path.exists(folder):
+            folder = None
         if folder is None:
             folder = os.path.dirname(unicode(QgsApplication.prefixPath()))
             folder = os.path.join(folder, 'msys')
@@ -365,10 +372,10 @@ class GrassUtils:
             cmdpath = os.path.join(path, 'bin', 'r.out.gdal.exe')
             if not os.path.exists(cmdpath):
                 return GrassUtils.tr(
-                    'The specified GRASS folder does not contain a valid '
+                    'The specified GRASS folder "{}" does not contain a valid '
                     'set of GRASS modules. Please, go to the Processing '
                     'settings dialog, and check that the GRASS folder is '
-                    'correctly configured')
+                    'correctly configured'.format(os.path.join(path, 'bin')))
 
         if not ignorePreviousState:
             if GrassUtils.isGrassInstalled:

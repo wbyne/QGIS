@@ -37,6 +37,7 @@ class QgsAuthMethodMetadata;
   QGIS_AUTHMETHOD_FILE is regexp pattern applied to auth method file name (not auth method key).
   For example, if the variable is set to basic|pkipaths it will load only auth methods
   basic, and pkipaths.
+  \note not available in Python bindings
 */
 class CORE_EXPORT QgsAuthMethodRegistry
 {
@@ -62,26 +63,26 @@ class CORE_EXPORT QgsAuthMethodRegistry
 
     /** Create an instance of the auth method
         @param authMethodKey identificator of the auth method
-        @return instance of auth method or NULL on error
+        @return instance of auth method or nullptr on error
      */
     QgsAuthMethod *authMethod( const QString & authMethodKey );
 
     /** Return the auth method capabilities
         @param authMethodKey identificator of the auth method
-    */
-//    int authMethodCapabilities( const QString& authMethodKey ) const;
+     */
+    // int authMethodCapabilities( const QString& authMethodKey ) const;
 
     /** Return the GUI edit widget associated with the auth method
      * @param parent Parent widget
      * @param authMethodKey identificator of the auth method
-    */
-    QWidget *editWidget( const QString & authMethodKey, QWidget * parent = 0 );
+     */
+    QWidget *editWidget( const QString & authMethodKey, QWidget * parent = nullptr );
 
 #if QT_VERSION >= 0x050000
     /** Get pointer to auth method function
         @param authMethodKey identificator of the auth method
         @param functionName name of function
-        @return pointer to function or NULL on error
+        @return pointer to function or nullptr on error
      */
     QFunctionPointer function( const QString & authMethodKey,
                                const QString & functionName );
@@ -89,7 +90,7 @@ class CORE_EXPORT QgsAuthMethodRegistry
     /** Get pointer to auth method function
         @param authMethodKey identificator of the auth method
         @param functionName name of function
-        @return pointer to function or NULL on error
+        @return pointer to function or nullptr on error
      */
     void *function( const QString & authMethodKey,
                     const QString & functionName );
@@ -101,7 +102,7 @@ class CORE_EXPORT QgsAuthMethodRegistry
     /** Return list of available auth methods by their keys */
     QStringList authMethodList() const;
 
-    /** Return metadata of the auth method or NULL if not found */
+    /** Return metadata of the auth method or nullptr if not found */
     const QgsAuthMethodMetadata* authMethodMetadata( const QString& authMethodKey ) const;
 
 //    void registerGuis( QWidget *widget );

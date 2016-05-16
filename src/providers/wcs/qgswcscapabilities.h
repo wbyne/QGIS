@@ -37,7 +37,14 @@ class QNetworkReply;
 /** CoverageSummary structure */
 struct QgsWcsCoverageSummary
 {
-  QgsWcsCoverageSummary() : orderId( 0 ), valid( false ), described( false ), width( 0 ), height( 0 ), hasSize( false ) { }
+  QgsWcsCoverageSummary()
+      : orderId( 0 )
+      , valid( false )
+      , described( false )
+      , width( 0 )
+      , height( 0 )
+      , hasSize( false )
+  { }
 
   int           orderId;
   QString       identifier;
@@ -83,12 +90,12 @@ class QgsWcsCapabilities : public QObject
 
   public:
     /**
-    * Constructor for the provider.
-    *
-    * \param   uri   HTTP URL of the Web Server.  If needed a proxy will be used
-    *                otherwise we contact the host directly.
-    *
-    */
+     * Constructor for the provider.
+     *
+     * \param   uri   HTTP URL of the Web Server.  If needed a proxy will be used
+     *                otherwise we contact the host directly.
+     *
+     */
     explicit QgsWcsCapabilities( QgsDataSourceURI const & theUri );
     QgsWcsCapabilities();
 
@@ -206,12 +213,13 @@ class QgsWcsCapabilities : public QObject
     static QStringList domElementsTexts( const QDomElement &element, const QString &path );
 
   signals:
-
     /** \brief emit a signal to notify of a progress event */
     void progressChanged( int theProgress, int theTotalSteps );
 
     /** \brief emit a signal to be caught by qgisapp and display a msg on status bar */
     void statusChanged( QString const &  theStatusQString );
+
+    void downloadFinished();
 
   private slots:
     void capabilitiesReplyFinished();
@@ -221,10 +229,10 @@ class QgsWcsCapabilities : public QObject
     void parseUri();
 
     //! Get coverage summary for identifier
-    QgsWcsCoverageSummary * coverageSummary( QString const & theIdentifier, QgsWcsCoverageSummary* parent = 0 );
+    QgsWcsCoverageSummary * coverageSummary( QString const & theIdentifier, QgsWcsCoverageSummary* parent = nullptr );
 
     // ! Get list of all sub coverages
-    QList<QgsWcsCoverageSummary> coverageSummaries( QgsWcsCoverageSummary* parent = 0 );
+    QList<QgsWcsCoverageSummary> coverageSummaries( QgsWcsCoverageSummary* parent = nullptr );
 
     void initCoverageSummary( QgsWcsCoverageSummary &coverageSummary );
 
@@ -261,12 +269,12 @@ class QgsWcsCapabilities : public QObject
 
     //! parse the WCS Layer XML element
     void parseCoverageOfferingBrief( QDomElement const &e, QgsWcsCoverageSummary &coverageSummary,
-                                     QgsWcsCoverageSummary *parent = 0 );
+                                     QgsWcsCoverageSummary *parent = nullptr );
 
     // ------------- 1.1 --------------------
     //! parse the WCS Layer XML element
     void parseCoverageSummary( QDomElement const &e, QgsWcsCoverageSummary &coverageSummary,
-                               QgsWcsCoverageSummary *parent = 0 );
+                               QgsWcsCoverageSummary *parent = nullptr );
 
     //! Data source uri
     QgsDataSourceURI mUri;

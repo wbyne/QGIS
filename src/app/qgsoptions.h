@@ -46,7 +46,7 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
      * @param name name for the widget
      * @param modal true for modal dialog
      */
-    QgsOptions( QWidget *parent = 0, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
+    QgsOptions( QWidget *parent = nullptr, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
     //! Destructor
     ~QgsOptions();
 
@@ -155,6 +155,11 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
      * used for finding SVG files. */
     void on_mBtnRemoveSVGPath_clicked();
 
+    /* Let the user remove a path from the hidden path list
+     * for the browser */
+    void on_mBtnRemoveHiddenPath_clicked();
+
+
     void on_buttonBox_helpRequested() { QgsContextHelp::run( metaObject()->className() ); }
 
     void on_mBrowseCacheDirectory_clicked();
@@ -183,6 +188,9 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     /** Auto slot executed when the active page in the option section widget is changed */
     void on_mOptionsStackedWidget_currentChanged( int theIndx );
 
+    /** A scale in the list of predefined scales changed */
+    void scaleItemChanged( QListWidgetItem* changedScaleItem );
+
     /* Load the list of drivers available in GDAL */
     void loadGdalDriverList();
 
@@ -197,6 +205,7 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void on_mButtonExportColors_clicked();
 
   private:
+    QSettings *mSettings;
     QStringList i18nList();
     void initContrastEnhancement( QComboBox *cbox, const QString& name, const QString& defaultVal );
     void saveContrastEnhancement( QComboBox *cbox, const QString& name );
@@ -208,6 +217,9 @@ class APP_EXPORT QgsOptions : public QgsOptionsDialogBase, private Ui::QgsOption
     void addCustomEnvVarRow( const QString& varName, const QString& varVal, const QString& varApply = QString() );
 
     void saveDefaultDatumTransformations();
+
+    QListWidgetItem* addScaleToScaleList( const QString &newScale );
+    void addScaleToScaleList( QListWidgetItem* newItem );
 
   protected:
     QgisAppStyleSheet* mStyleSheetBuilder;

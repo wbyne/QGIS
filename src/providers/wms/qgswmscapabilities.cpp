@@ -4,12 +4,15 @@
 
 #include <QFile>
 #include <QDir>
+#include <QNetworkCacheMetaData>
+#include <QSettings>
 
 #include "qgscoordinatetransform.h"
 #include "qgsdatasourceuri.h"
 #include "qgslogger.h"
 #include "qgsmessagelog.h"
 #include "qgsnetworkaccessmanager.h"
+#include "qgsunittypes.h"
 
 
 // %%% copied from qgswmsprovider.cpp
@@ -36,7 +39,7 @@ bool QgsWmsSettings::parseUri( const QString& uriString )
   mParserSettings.invertAxisOrientation = uri.hasParam( "InvertAxisOrientation" ); // must be before parsing!
   mSmoothPixmapTransform = uri.hasParam( "SmoothPixmapTransform" );
 
-  mDpiMode = uri.hasParam( "dpiMode" ) ? ( QgsWmsDpiMode ) uri.param( "dpiMode" ).toInt() : dpiAll;
+  mDpiMode = uri.hasParam( "dpiMode" ) ? static_cast< QgsWmsDpiMode >( uri.param( "dpiMode" ).toInt() ) : dpiAll;
 
   mAuth.mUserName = uri.param( "username" );
   QgsDebugMsg( "set username to " + mAuth.mUserName );
@@ -591,7 +594,7 @@ void QgsWmsCapabilities::parseCapability( QDomElement const & e, QgsWmsCapabilit
       QgsWmsDcpTypeProperty dcp;
       dcp.http.get.onlineResource.xlinkHref = href;
 
-      QgsWmsOperationType *ot = 0;
+      QgsWmsOperationType *ot = nullptr;
       if ( href.isNull() )
       {
         QgsDebugMsg( QString( "http get missing from ows:Operation '%1'" ).arg( name ) );
@@ -709,11 +712,14 @@ void QgsWmsCapabilities::parseLayer( QDomElement const & e, QgsWmsLayerProperty&
   //QgsDebugMsg( "entering." );
 
 // TODO: Delete this stanza completely, depending on success of "Inherit things into the sublayer" below.
-//  // enforce WMS non-inheritance rules
-//  layerProperty.name =        QString::null;
-//  layerProperty.title =       QString::null;
-//  layerProperty.abstract =    QString::null;
-//  layerProperty.keywordList.clear();
+#if 0
+  // enforce WMS non-inheritance rules
+  layerProperty.name =        QString::null;
+  layerProperty.title =       QString::null;
+  layerProperty.abstract =    QString::null;
+  layerProperty.keywordList.clear();
+#endif
+
   layerProperty.orderId     = ++mLayerCount;
   layerProperty.queryable   = e.attribute( "queryable" ).toUInt();
   layerProperty.cascaded    = e.attribute( "cascaded" ).toUInt();
@@ -1253,9 +1259,9 @@ void QgsWmsCapabilities::parseTileSetProfile( QDomElement const &e )
     double r = rS.toDouble();
     m.identifier = QString::number( i );
     Q_ASSERT( l.boundingBoxes.size() == 1 );
-    m.matrixWidth  = ceil( l.boundingBoxes[0].box.width() / m.tileWidth / r );
-    m.matrixHeight = ceil( l.boundingBoxes[0].box.height() / m.tileHeight / r );
-    m.topLeft = QgsPoint( l.boundingBoxes[0].box.xMinimum(), l.boundingBoxes[0].box.yMinimum() + m.matrixHeight * m.tileHeight * r );
+    m.matrixWidth  = ceil( l.boundingBoxes.at( 0 ).box.width() / m.tileWidth / r );
+    m.matrixHeight = ceil( l.boundingBoxes.at( 0 ).box.height() / m.tileHeight / r );
+    m.topLeft = QgsPoint( l.boundingBoxes.at( 0 ).box.xMinimum(), l.boundingBoxes.at( 0 ).box.yMinimum() + m.matrixHeight * m.tileHeight * r );
     ms.tileMatrices.insert( r, m );
     i++;
   }
@@ -1287,7 +1293,7 @@ void QgsWmsCapabilities::parseWMTSContents( QDomElement const &e )
 
     s.wkScaleSet = e0.firstChildElement( "WellKnownScaleSet" ).text();
 
-    double metersPerUnit = QGis::fromUnitToUnitFactor( crs.mapUnits(), QGis::Meters );
+    double metersPerUnit = QgsUnitTypes::fromUnitToUnitFactor( crs.mapUnits(), QGis::Meters );
 
     s.crs = crs.authid();
 
@@ -1364,8 +1370,10 @@ void QgsWmsCapabilities::parseWMTSContents( QDomElement const &e )
         !e0.isNull();
         e0 = e0.nextSiblingElement( "Layer" ) )
   {
-    QString id = e0.firstChildElement( "ows:Identifier" ).text();
+#ifdef QGISDEBUG
+    QString id = e0.firstChildElement( "ows:Identifier" ).text();  // clazy:exclude=unused-non-trivial-variable
     QgsDebugMsg( QString( "Layer %1" ).arg( id ) );
+#endif
 
     QgsWmtsTileLayer l;
     l.tileMode   = WMTS;
@@ -1743,7 +1751,7 @@ void QgsWmsCapabilities::parseTheme( const QDomElement &e, QgsWmtsTheme &t )
   }
   else
   {
-    t.subTheme = 0;
+    t.subTheme = nullptr;
   }
 
   t.layerRefs.clear();
@@ -1794,7 +1802,7 @@ bool QgsWmsCapabilities::detectTileLayerBoundingBox( QgsWmtsTileLayer& l )
     return false;
 
   const QgsWmtsTileMatrix& tm = *tmIt;
-  double metersPerUnit = QGis::fromUnitToUnitFactor( crs.mapUnits(), QGis::Meters );
+  double metersPerUnit = QgsUnitTypes::fromUnitToUnitFactor( crs.mapUnits(), QGis::Meters );
   double res = tm.scaleDenom * 0.00028 / metersPerUnit;
   QgsPoint bottomRight( tm.topLeft.x() + res * tm.tileWidth * tm.matrixWidth,
                         tm.topLeft.y() - res * tm.tileHeight * tm.matrixHeight );
@@ -1860,32 +1868,22 @@ int QgsWmsCapabilities::identifyCapabilities() const
 
 // -----------------
 
-QgsWmsCapabilitiesDownload::QgsWmsCapabilitiesDownload( QObject *parent )
+QgsWmsCapabilitiesDownload::QgsWmsCapabilitiesDownload( bool forceRefresh, QObject *parent )
     : QObject( parent )
-    , mCapabilitiesReply( 0 )
+    , mCapabilitiesReply( nullptr )
     , mIsAborted( false )
+    , mForceRefresh( forceRefresh )
 {
-  connectManager();
 }
 
-QgsWmsCapabilitiesDownload::QgsWmsCapabilitiesDownload( const QString& baseUrl, const QgsWmsAuthorization& auth, QObject *parent )
+QgsWmsCapabilitiesDownload::QgsWmsCapabilitiesDownload( const QString& baseUrl, const QgsWmsAuthorization& auth, bool forceRefresh, QObject *parent )
     : QObject( parent )
     , mBaseUrl( baseUrl )
     , mAuth( auth )
-    , mCapabilitiesReply( 0 )
+    , mCapabilitiesReply( nullptr )
     , mIsAborted( false )
+    , mForceRefresh( forceRefresh )
 {
-  connectManager();
-}
-
-void QgsWmsCapabilitiesDownload::connectManager()
-{
-  // The instance of this class may live on a thread different from QgsNetworkAccessManager instance's thread,
-  // so we cannot call QgsNetworkAccessManager::get() directly and we must send a signal instead.
-  connect( this, SIGNAL( sendRequest( const QNetworkRequest & ) ),
-           QgsNetworkAccessManager::instance(), SLOT( sendGet( const QNetworkRequest & ) ) );
-  connect( this, SIGNAL( deleteReply( QNetworkReply * ) ),
-           QgsNetworkAccessManager::instance(), SLOT( deleteReply( QNetworkReply * ) ) );
 }
 
 QgsWmsCapabilitiesDownload::~QgsWmsCapabilitiesDownload()
@@ -1902,7 +1900,7 @@ bool QgsWmsCapabilitiesDownload::downloadCapabilities( const QString& baseUrl, c
 
 bool QgsWmsCapabilitiesDownload::downloadCapabilities()
 {
-  QgsDebugMsg( "entering." );
+  QgsDebugMsg( QString( "entering: forceRefresh=%1" ).arg( mForceRefresh ) );
   abort(); // cancel previous
   mIsAborted = false;
 
@@ -1923,12 +1921,12 @@ bool QgsWmsCapabilitiesDownload::downloadCapabilities()
     QgsMessageLog::logMessage( mError, tr( "WMS" ) );
     return false;
   }
-  request.setAttribute( QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferNetwork );
+  request.setAttribute( QNetworkRequest::CacheLoadControlAttribute, mForceRefresh ? QNetworkRequest::AlwaysNetwork : QNetworkRequest::PreferCache );
   request.setAttribute( QNetworkRequest::CacheSaveControlAttribute, true );
 
-  connect( QgsNetworkAccessManager::instance(), SIGNAL( requestSent( QNetworkReply *, QObject * ) ),
-           SLOT( requestSent( QNetworkReply *, QObject * ) ) );
-  emit sendRequest( request );
+  mCapabilitiesReply = QgsNetworkAccessManager::instance()->get( request );
+  connect( mCapabilitiesReply, SIGNAL( finished() ), this, SLOT( capabilitiesReplyFinished() ), Qt::DirectConnection );
+  connect( mCapabilitiesReply, SIGNAL( downloadProgress( qint64, qint64 ) ), this, SLOT( capabilitiesReplyProgress( qint64, qint64 ) ), Qt::DirectConnection );
 
   QEventLoop loop;
   connect( this, SIGNAL( downloadFinished() ), &loop, SLOT( quit() ) );
@@ -1937,41 +1935,14 @@ bool QgsWmsCapabilitiesDownload::downloadCapabilities()
   return mError.isEmpty();
 }
 
-void QgsWmsCapabilitiesDownload::requestSent( QNetworkReply * reply, QObject *sender )
-{
-  QgsDebugMsg( "Entered" );
-  if ( sender != this ) // it is not our reply
-  {
-    return;
-  }
-  disconnect( QgsNetworkAccessManager::instance(), SIGNAL( requestSent( QNetworkReply *, QObject * ) ),
-              this, SLOT( requestSent( QNetworkReply *, QObject * ) ) );
-
-  if ( !reply )
-  {
-    emit downloadFinished();
-    return;
-  }
-  if ( mIsAborted )
-  {
-    emit deleteReply( reply );
-    emit downloadFinished();
-    return;
-  }
-  // Note: the reply was created on QgsNetworkAccessManager's thread
-  mCapabilitiesReply = reply;
-  connect( mCapabilitiesReply, SIGNAL( finished() ), this, SLOT( capabilitiesReplyFinished() ), Qt::DirectConnection );
-  connect( mCapabilitiesReply, SIGNAL( downloadProgress( qint64, qint64 ) ), this, SLOT( capabilitiesReplyProgress( qint64, qint64 ) ), Qt::DirectConnection );
-}
-
 void QgsWmsCapabilitiesDownload::abort()
 {
   QgsDebugMsg( "Entered" );
   mIsAborted = true;
   if ( mCapabilitiesReply )
   {
-    emit deleteReply( mCapabilitiesReply );
-    mCapabilitiesReply = 0;
+    mCapabilitiesReply->deleteLater();
+    mCapabilitiesReply = nullptr;
   }
 }
 
@@ -2014,23 +1985,54 @@ void QgsWmsCapabilitiesDownload::capabilitiesReplyFinished()
             emit downloadFinished();
             return;
           }
-          request.setAttribute( QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferNetwork );
+          request.setAttribute( QNetworkRequest::CacheLoadControlAttribute, mForceRefresh ? QNetworkRequest::AlwaysNetwork : QNetworkRequest::PreferCache );
           request.setAttribute( QNetworkRequest::CacheSaveControlAttribute, true );
 
           mCapabilitiesReply->deleteLater();
-          mCapabilitiesReply = 0;
+          mCapabilitiesReply = nullptr;
 
-          QgsDebugMsg( QString( "redirected getcapabilities: %1" ).arg( redirect.toString() ) );
-          //mCapabilitiesReply = QgsNetworkAccessManager::instance()->get( request );
-          connect( QgsNetworkAccessManager::instance(),
-                   SIGNAL( requestSent( QNetworkReply *, QObject * ) ),
-                   SLOT( requestSent( QNetworkReply *, QObject * ) ) );
-          emit sendRequest( request );
+          QgsDebugMsg( QString( "redirected getcapabilities: %1 forceRefresh=%2" ).arg( redirect.toString() ).arg( mForceRefresh ) );
+          mCapabilitiesReply = QgsNetworkAccessManager::instance()->get( request );
+          connect( mCapabilitiesReply, SIGNAL( finished() ), this, SLOT( capabilitiesReplyFinished() ), Qt::DirectConnection );
+          connect( mCapabilitiesReply, SIGNAL( downloadProgress( qint64, qint64 ) ), this, SLOT( capabilitiesReplyProgress( qint64, qint64 ) ), Qt::DirectConnection );
           return;
         }
       }
       else
       {
+        const QgsNetworkAccessManager *nam = QgsNetworkAccessManager::instance();
+
+        if ( nam->cache() )
+        {
+          QNetworkCacheMetaData cmd = nam->cache()->metaData( mCapabilitiesReply->request().url() );
+
+          QNetworkCacheMetaData::RawHeaderList hl;
+          Q_FOREACH ( const QNetworkCacheMetaData::RawHeader &h, cmd.rawHeaders() )
+          {
+            if ( h.first != "Cache-Control" )
+              hl.append( h );
+          }
+          cmd.setRawHeaders( hl );
+
+          QgsDebugMsg( QString( "expirationDate:%1" ).arg( cmd.expirationDate().toString() ) );
+          if ( cmd.expirationDate().isNull() )
+          {
+            QSettings s;
+            cmd.setExpirationDate( QDateTime::currentDateTime().addSecs( s.value( "/qgis/defaultCapabilitiesExpiry", "24" ).toInt() * 60 * 60 ) );
+          }
+
+          nam->cache()->updateMetaData( cmd );
+        }
+        else
+        {
+          QgsDebugMsg( "No cache for capabilities!" );
+        }
+
+#ifdef QGISDEBUG
+        bool fromCache = mCapabilitiesReply->attribute( QNetworkRequest::SourceIsFromCacheAttribute ).toBool();
+        QgsDebugMsg( QString( "Capabilities reply was cached: %1" ).arg( fromCache ) );
+#endif
+
         mHttpCapabilitiesResponse = mCapabilitiesReply->readAll();
 
         if ( mHttpCapabilitiesResponse.isEmpty() )
@@ -2050,7 +2052,7 @@ void QgsWmsCapabilitiesDownload::capabilitiesReplyFinished()
   if ( mCapabilitiesReply )
   {
     mCapabilitiesReply->deleteLater();
-    mCapabilitiesReply = 0;
+    mCapabilitiesReply = nullptr;
   }
 
   emit downloadFinished();

@@ -32,7 +32,8 @@
 
 QgsSearchQueryBuilder::QgsSearchQueryBuilder( QgsVectorLayer* layer,
     QWidget *parent, const Qt::WindowFlags& fl )
-    : QDialog( parent, fl ), mLayer( layer )
+    : QDialog( parent, fl )
+    , mLayer( layer )
 {
   setupUi( this );
   setupListViews();
@@ -365,9 +366,9 @@ void QgsSearchQueryBuilder::on_btnILike_clicked()
 void QgsSearchQueryBuilder::saveQuery()
 {
   QSettings s;
-  QString lastQueryFileDir = s.value( "/UI/lastQueryFileDir", "" ).toString();
+  QString lastQueryFileDir = s.value( "/UI/lastQueryFileDir", QDir::homePath() ).toString();
   //save as qqt (QGIS query file)
-  QString saveFileName = QFileDialog::getSaveFileName( 0, tr( "Save query to file" ), lastQueryFileDir, "*.qqf" );
+  QString saveFileName = QFileDialog::getSaveFileName( nullptr, tr( "Save query to file" ), lastQueryFileDir, "*.qqf" );
   if ( saveFileName.isNull() )
   {
     return;
@@ -381,7 +382,7 @@ void QgsSearchQueryBuilder::saveQuery()
   QFile saveFile( saveFileName );
   if ( !saveFile.open( QIODevice::WriteOnly ) )
   {
-    QMessageBox::critical( 0, tr( "Error" ), tr( "Could not open file for writing" ) );
+    QMessageBox::critical( nullptr, tr( "Error" ), tr( "Could not open file for writing" ) );
     return;
   }
 
@@ -401,9 +402,9 @@ void QgsSearchQueryBuilder::saveQuery()
 void QgsSearchQueryBuilder::loadQuery()
 {
   QSettings s;
-  QString lastQueryFileDir = s.value( "/UI/lastQueryFileDir", "" ).toString();
+  QString lastQueryFileDir = s.value( "/UI/lastQueryFileDir", QDir::homePath() ).toString();
 
-  QString queryFileName = QFileDialog::getOpenFileName( 0, tr( "Load query from file" ), lastQueryFileDir, tr( "Query files" ) + " (*.qqf);;" + tr( "All files" ) + " (*)" );
+  QString queryFileName = QFileDialog::getOpenFileName( nullptr, tr( "Load query from file" ), lastQueryFileDir, tr( "Query files" ) + " (*.qqf);;" + tr( "All files" ) + " (*)" );
   if ( queryFileName.isNull() )
   {
     return;
@@ -412,20 +413,20 @@ void QgsSearchQueryBuilder::loadQuery()
   QFile queryFile( queryFileName );
   if ( !queryFile.open( QIODevice::ReadOnly ) )
   {
-    QMessageBox::critical( 0, tr( "Error" ), tr( "Could not open file for reading" ) );
+    QMessageBox::critical( nullptr, tr( "Error" ), tr( "Could not open file for reading" ) );
     return;
   }
   QDomDocument queryDoc;
   if ( !queryDoc.setContent( &queryFile ) )
   {
-    QMessageBox::critical( 0, tr( "Error" ), tr( "File is not a valid xml document" ) );
+    QMessageBox::critical( nullptr, tr( "Error" ), tr( "File is not a valid xml document" ) );
     return;
   }
 
   QDomElement queryElem = queryDoc.firstChildElement( "Query" );
   if ( queryElem.isNull() )
   {
-    QMessageBox::critical( 0, tr( "Error" ), tr( "File is not a valid query document" ) );
+    QMessageBox::critical( nullptr, tr( "Error" ), tr( "File is not a valid query document" ) );
     return;
   }
 

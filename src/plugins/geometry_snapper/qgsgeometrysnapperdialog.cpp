@@ -38,40 +38,42 @@
 QgsGeometrySnapperDialog::QgsGeometrySnapperDialog( QgisInterface* iface ):
     mIface( iface )
 {
-  ui.setupUi( this );
-  mRunButton = ui.buttonBox->addButton( tr( "Run" ), QDialogButtonBox::ActionRole );
-  ui.buttonBox->button( QDialogButtonBox::Abort )->hide();
+  setupUi( this );
+  mRunButton = buttonBox->addButton( tr( "Run" ), QDialogButtonBox::ActionRole );
+  buttonBox->button( QDialogButtonBox::Abort )->hide();
   mRunButton->setEnabled( false );
-  ui.progressBar->hide();
+  progressBar->hide();
   setFixedSize( sizeHint() );
   setWindowModality( Qt::ApplicationModal );
 
   connect( mRunButton, SIGNAL( clicked() ), this, SLOT( run() ) );
-  connect( ui.comboBoxInputLayer, SIGNAL( currentIndexChanged( int ) ), this, SLOT( validateInput() ) );
-  connect( ui.comboBoxReferenceLayer, SIGNAL( currentIndexChanged( int ) ), this, SLOT( validateInput() ) );
+  connect( comboBoxInputLayer, SIGNAL( currentIndexChanged( int ) ), this, SLOT( validateInput() ) );
+  connect( comboBoxReferenceLayer, SIGNAL( currentIndexChanged( int ) ), this, SLOT( validateInput() ) );
   connect( QgsMapLayerRegistry::instance(), SIGNAL( layersAdded( QList<QgsMapLayer*> ) ), this, SLOT( updateLayers() ) );
   connect( QgsMapLayerRegistry::instance(), SIGNAL( layersWillBeRemoved( QStringList ) ), this, SLOT( updateLayers() ) );
-  connect( ui.radioButtonOutputNew, SIGNAL( toggled( bool ) ), ui.lineEditOutput, SLOT( setEnabled( bool ) ) );
-  connect( ui.radioButtonOutputNew, SIGNAL( toggled( bool ) ), ui.pushButtonOutputBrowse, SLOT( setEnabled( bool ) ) );
-  connect( ui.buttonGroupOutput, SIGNAL( buttonClicked( int ) ), this, SLOT( validateInput() ) );
-  connect( ui.pushButtonOutputBrowse, SIGNAL( clicked() ), this, SLOT( selectOutputFile() ) );
-  connect( ui.lineEditOutput, SIGNAL( textChanged( QString ) ), this, SLOT( validateInput() ) );
+  connect( radioButtonOutputNew, SIGNAL( toggled( bool ) ), lineEditOutput, SLOT( setEnabled( bool ) ) );
+  connect( radioButtonOutputNew, SIGNAL( toggled( bool ) ), pushButtonOutputBrowse, SLOT( setEnabled( bool ) ) );
+  connect( buttonGroupOutput, SIGNAL( buttonClicked( int ) ), this, SLOT( validateInput() ) );
+  connect( pushButtonOutputBrowse, SIGNAL( clicked() ), this, SLOT( selectOutputFile() ) );
+  connect( lineEditOutput, SIGNAL( textChanged( QString ) ), this, SLOT( validateInput() ) );
 
   updateLayers();
 }
 
 void QgsGeometrySnapperDialog::updateLayers()
 {
-  QString curInput = ui.comboBoxInputLayer->currentText();
-  QString curReference = ui.comboBoxReferenceLayer->currentText();
+  QString curInput = comboBoxInputLayer->currentText();
+  QString curReference = comboBoxReferenceLayer->currentText();
 
-  ui.comboBoxInputLayer->clear();
-  ui.comboBoxReferenceLayer->clear();
+  comboBoxInputLayer->clear();
+  comboBoxReferenceLayer->clear();
 
   // Collect layers
-  QgsMapLayer* currentLayer = mIface->mapCanvas()->currentLayer();
+  // Don't switch current layer if dialog is visible to avoid confusing the user
+  QgsMapLayer* currentLayer = isVisible() ? 0 : mIface->mapCanvas()->currentLayer();
   int curInputIdx = -1;
   int curReferenceIdx = -1;
+  int idx = 0;
   Q_FOREACH ( QgsMapLayer* layer, QgsMapLayerRegistry::instance()->mapLayers() )
   {
     if ( qobject_cast<QgsVectorLayer*>( layer ) )
@@ -79,21 +81,22 @@ void QgsGeometrySnapperDialog::updateLayers()
       QGis::WkbType type = QGis::flatType( QGis::singleType( static_cast<QgsVectorLayer*>( layer )->wkbType() ) );
       if ( type == QGis::WKBPolygon || type == QGis::WKBLineString )
       {
-        ui.comboBoxInputLayer->addItem( layer->name(), layer->id() );
-        ui.comboBoxReferenceLayer->addItem( layer->name(), layer->id() );
+        comboBoxInputLayer->addItem( layer->name(), layer->id() );
+        comboBoxReferenceLayer->addItem( layer->name(), layer->id() );
         if ( layer->name() == curInput )
         {
-          curInputIdx = ui.comboBoxInputLayer->count() - 1;
+          curInputIdx = idx;
         }
         else if ( curInputIdx == -1 && layer == currentLayer )
         {
-          curInputIdx = ui.comboBoxInputLayer->count() - 1;
+          curInputIdx = idx;
         }
 
         if ( layer->name() == curReference )
         {
-          curReferenceIdx = ui.comboBoxReferenceLayer->count() - 1;
+          curReferenceIdx = idx;
         }
+        ++idx;
       }
     }
   }
@@ -103,31 +106,29 @@ void QgsGeometrySnapperDialog::updateLayers()
   }
   if ( curReferenceIdx == -1 )
   {
-    curReferenceIdx = curInputIdx + 1 >= ui.comboBoxReferenceLayer->count() ? curInputIdx - 1 : curInputIdx + 1;
+    curReferenceIdx = curInputIdx + 1 >= comboBoxReferenceLayer->count() ? curInputIdx - 1 : curInputIdx + 1;
   }
-  ui.comboBoxInputLayer->setCurrentIndex( curInputIdx );
-  ui.comboBoxReferenceLayer->setCurrentIndex( curReferenceIdx );
+  comboBoxInputLayer->setCurrentIndex( curInputIdx );
+  comboBoxReferenceLayer->setCurrentIndex( curReferenceIdx );
 }
 
 QgsVectorLayer* QgsGeometrySnapperDialog::getInputLayer()
 {
-  int idx = ui.comboBoxInputLayer->currentIndex();
+  int idx = comboBoxInputLayer->currentIndex();
   if ( idx < 0 )
-  {
-    return 0;
-  }
-  QString inputLayerId = ui.comboBoxInputLayer->itemData( idx ).toString();
+    return nullptr;
+
+  QString inputLayerId = comboBoxInputLayer->itemData( idx ).toString();
   return static_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( inputLayerId ) );
 }
 
 QgsVectorLayer* QgsGeometrySnapperDialog::getReferenceLayer()
 {
-  int idx = ui.comboBoxReferenceLayer->currentIndex();
+  int idx = comboBoxReferenceLayer->currentIndex();
   if ( idx < 0 )
-  {
-    return 0;
-  }
-  QString inputLayerId = ui.comboBoxReferenceLayer->itemData( idx ).toString();
+    return nullptr;
+
+  QString inputLayerId = comboBoxReferenceLayer->itemData( idx ).toString();
   return static_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( inputLayerId ) );
 }
 
@@ -135,8 +136,8 @@ void QgsGeometrySnapperDialog::validateInput()
 {
   QgsVectorLayer* inLayer = getInputLayer();
   QgsVectorLayer* refLayer = getReferenceLayer();
-  bool outputOk = ui.radioButtonOuputModifyInput->isChecked() || !ui.lineEditOutput->text().isEmpty();
-  mRunButton->setEnabled( inLayer != 0 && refLayer != 0 && inLayer != refLayer &&
+  bool outputOk = radioButtonOuputModifyInput->isChecked() || !lineEditOutput->text().isEmpty();
+  mRunButton->setEnabled( inLayer && refLayer && inLayer != refLayer &&
                           refLayer->geometryType() == inLayer->geometryType() && outputOk );
 }
 
@@ -175,7 +176,7 @@ void QgsGeometrySnapperDialog::selectOutputFile()
         filename += QString( ".%1" ).arg( mdata.ext );
       }
     }
-    ui.lineEditOutput->setText( filename );
+    lineEditOutput->setText( filename );
   }
 }
 
@@ -184,17 +185,25 @@ void QgsGeometrySnapperDialog::run()
   /** Get layers **/
   QgsVectorLayer* layer = getInputLayer();
   QgsVectorLayer* referenceLayer = getReferenceLayer();
-  if ( layer == 0 || referenceLayer == 0 )
+  if ( !layer || !referenceLayer )
   {
     return;
   }
 
-  bool selectedOnly = ui.checkBoxInputSelectedOnly->isChecked();
+  if ( radioButtonOutputNew->isChecked() &&
+       ( layer->dataProvider()->dataSourceUri().startsWith( lineEditOutput->text() ) ||
+         referenceLayer->dataProvider()->dataSourceUri().startsWith( lineEditOutput->text() ) ) )
+  {
+    QMessageBox::critical( this, tr( "Invalid Output Layer" ), tr( "The chosen output layer is the same as an input layer." ) );
+    return;
+  }
+
+  bool selectedOnly = checkBoxInputSelectedOnly->isChecked();
 
   /** Duplicate if necessary **/
-  if ( ui.radioButtonOutputNew->isChecked() )
+  if ( radioButtonOutputNew->isChecked() )
   {
-    QString filename = ui.lineEditOutput->text();
+    QString filename = lineEditOutput->text();
 
     // Remove existing layer with same uri
     QStringList toRemove;
@@ -211,10 +220,11 @@ void QgsGeometrySnapperDialog::run()
       QgsMapLayerRegistry::instance()->removeMapLayers( toRemove );
     }
 
-    QgsVectorFileWriter::WriterError err =  QgsVectorFileWriter::writeAsVectorFormat( layer, filename, layer->dataProvider()->encoding(), &layer->crs(), mOutputDriverName, selectedOnly );
+    QString errMsg;
+    QgsVectorFileWriter::WriterError err =  QgsVectorFileWriter::writeAsVectorFormat( layer, filename, layer->dataProvider()->encoding(), &layer->crs(), mOutputDriverName, selectedOnly, &errMsg );
     if ( err != QgsVectorFileWriter::NoError )
     {
-      QMessageBox::critical( this, tr( "Layer Creation Failed" ), tr( "Failed to create the output layer." ) );
+      QMessageBox::critical( this, tr( "Layer Creation Failed" ), tr( "Failed to create the output layer: %1" ).arg( errMsg ) );
       return;
     }
     QgsVectorLayer* newlayer = new QgsVectorLayer( filename, QFileInfo( filename ).completeBaseName(), "ogr" );
@@ -246,9 +256,9 @@ void QgsGeometrySnapperDialog::run()
   if (( layer->dataProvider()->capabilities() & QgsVectorDataProvider::ChangeGeometries ) == 0 )
   {
     QMessageBox::critical( this, tr( "Non-editable Output Format" ), tr( "The output file format does not support editing features. Please select another output file format." ) );
-    if ( ui.radioButtonOutputNew->isChecked() )
+    if ( radioButtonOutputNew->isChecked() )
     {
-      QString outputFileName = ui.lineEditOutput->text();
+      QString outputFileName = lineEditOutput->text();
       QFile( outputFileName ).remove();
       if ( mOutputDriverName == "ESRI Shapefile" )
       {
@@ -262,7 +272,7 @@ void QgsGeometrySnapperDialog::run()
   }
 
   layer->setReadOnly( true );
-  if ( ui.radioButtonOutputNew->isChecked() )
+  if ( radioButtonOutputNew->isChecked() )
   {
     QgsMapLayerRegistry::instance()->addMapLayers( QList<QgsMapLayer*>() << layer );
   }
@@ -270,29 +280,29 @@ void QgsGeometrySnapperDialog::run()
   /** Run **/
   QEventLoop evLoop;
   QFutureWatcher<void> futureWatcher;
-  connect( &futureWatcher, SIGNAL( progressRangeChanged( int, int ) ), ui.progressBar, SLOT( setRange( int, int ) ) );
-  connect( &futureWatcher, SIGNAL( progressValueChanged( int ) ), ui.progressBar, SLOT( setValue( int ) ) );
   connect( &futureWatcher, SIGNAL( finished() ), &evLoop, SLOT( quit() ) );
-  connect( ui.buttonBox->button( QDialogButtonBox::Abort ), SIGNAL( clicked() ), &futureWatcher, SLOT( cancel() ) );
+  connect( buttonBox->button( QDialogButtonBox::Abort ), SIGNAL( clicked() ), &futureWatcher, SLOT( cancel() ) );
 
   setCursor( Qt::WaitCursor );
-  ui.buttonBox->button( QDialogButtonBox::Abort )->show();
+  buttonBox->button( QDialogButtonBox::Abort )->show();
   mRunButton->hide();
-  ui.progressBar->setRange( 0, 0 );
-  ui.progressBar->setValue( 0 );
-  ui.progressBar->show();
-  ui.widgetInputs->setEnabled( false );
+  progressBar->setRange( 0, 0 );
+  progressBar->setValue( 0 );
+  progressBar->show();
+  widgetInputs->setEnabled( false );
 
-  QgsGeometrySnapper snapper( layer, referenceLayer, selectedOnly, ui.doubleSpinBoxMaxDistance->value(), &mIface->mapCanvas()->mapSettings() );
+  QgsGeometrySnapper snapper( layer, referenceLayer, selectedOnly, doubleSpinBoxMaxDistance->value(), &mIface->mapCanvas()->mapSettings() );
+  connect( &snapper, SIGNAL( progressRangeChanged( int, int ) ), progressBar, SLOT( setRange( int, int ) ) );
+  connect( &snapper, SIGNAL( progressStep() ), this, SLOT( progressStep() ) );
   futureWatcher.setFuture( snapper.processFeatures() );
   evLoop.exec();
 
   /** Restore window **/
   unsetCursor();
-  ui.buttonBox->button( QDialogButtonBox::Abort )->hide();
+  buttonBox->button( QDialogButtonBox::Abort )->hide();
   mRunButton->show();
-  ui.progressBar->hide();
-  ui.widgetInputs->setEnabled( true );
+  progressBar->hide();
+  widgetInputs->setEnabled( true );
 
   layer->setReadOnly( false );
 
@@ -302,8 +312,13 @@ void QgsGeometrySnapperDialog::run()
   /** Show errors **/
   if ( !snapper.getErrors().isEmpty() )
   {
-    QMessageBox::warning( this, tr( "Errors occurred" ), tr( "<p>The following errors occured:</p><ul><li>%1</li></ul>" ).arg( snapper.getErrors().join( "</li><li>" ) ) );
+    QMessageBox::warning( this, tr( "Errors occurred" ), tr( "<p>The following errors occurred:</p><ul><li>%1</li></ul>" ).arg( snapper.getErrors().join( "</li><li>" ) ) );
   }
-  hide();
+  hide() ;
+}
+
+void QgsGeometrySnapperDialog::progressStep()
+{
+  progressBar->setValue( progressBar->value() + 1 );
 }
 

@@ -26,9 +26,11 @@ __copyright__ = '(C) 2012, Victor Olaya'
 __revision__ = '$Format:%H$'
 
 import sys
+import traceback
 
-from PyQt4.QtCore import Qt, QCoreApplication
-from PyQt4.QtGui import QApplication, QCursor
+from qgis.PyQt.QtCore import Qt, QCoreApplication, QObject, pyqtSignal
+from qgis.PyQt.QtWidgets import QApplication
+from qgis.PyQt.QtGui import QCursor
 
 from qgis.utils import iface
 from qgis.core import QgsMessageLog
@@ -55,7 +57,17 @@ from processing.algs.r.RAlgorithmProvider import RAlgorithmProvider
 from processing.algs.saga.SagaAlgorithmProvider import SagaAlgorithmProvider
 from processing.script.ScriptAlgorithmProvider import ScriptAlgorithmProvider
 from processing.algs.taudem.TauDEMAlgorithmProvider import TauDEMAlgorithmProvider
+from processing.preconfigured.PreconfiguredAlgorithmProvider import PreconfiguredAlgorithmProvider
+
 from processing.tools import dataobjects
+
+
+class AlgListWatcher(QObject):
+
+    providerAdded = pyqtSignal(str)
+    providerRemoved = pyqtSignal(str)
+
+algListWatcher = AlgListWatcher()
 
 
 class Processing:
@@ -89,11 +101,12 @@ class Processing:
             ProcessingConfig.readSettings()
             if updateList:
                 Processing.updateAlgsList()
+            algListWatcher.providerAdded.emit(provider.getName())
         except:
             ProcessingLog.addToLog(
                 ProcessingLog.LOG_ERROR,
                 Processing.tr('Could not load provider: %s\n%s')
-                % (provider.getDescription(), unicode(sys.exc_info()[1])))
+                % (provider.getDescription(), traceback.format_exc()))
             Processing.removeProvider(provider)
 
     @staticmethod
@@ -106,8 +119,8 @@ class Processing:
         try:
             provider.unload()
             Processing.providers.remove(provider)
-            ProcessingConfig.readSettings()
-            Processing.updateAlgsList()
+            del Processing.algs[provider.getName()]
+            algListWatcher.providerRemoved.emit(provider.getName())
         except:
             # This try catch block is here to avoid problems if the
             # plugin with a provider is unloaded after the Processing
@@ -137,20 +150,16 @@ class Processing:
         Processing.addProvider(Grass7AlgorithmProvider(), updateList=False)
         Processing.addProvider(ScriptAlgorithmProvider(), updateList=False)
         Processing.addProvider(TauDEMAlgorithmProvider(), updateList=False)
+        Processing.addProvider(PreconfiguredAlgorithmProvider(), updateList=False)
         Processing.addProvider(Processing.modeler, updateList=False)
         Processing.modeler.initializeSettings()
 
         # And initialize
         AlgorithmClassification.loadClassification()
-        AlgorithmClassification.loadDisplayNames()
-        ProcessingLog.startLogging()
         ProcessingConfig.initialize()
         ProcessingConfig.readSettings()
         RenderingStyles.loadStyles()
         Processing.loadFromProviders()
-
-        # Inform registered listeners that all providers' algorithms have been loaded
-        Processing.fireAlgsListHasChanged()
 
     @staticmethod
     def updateAlgsList():
@@ -158,8 +167,9 @@ class Processing:
         requires the list of algorithms to be created again from
         algorithm providers.
         """
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         Processing.loadFromProviders()
-        Processing.fireAlgsListHasChanged()
+        QApplication.restoreOverrideCursor()
 
     @staticmethod
     def loadFromProviders():
@@ -172,28 +182,6 @@ class Processing:
         providers = [p for p in Processing.providers if p.getName() != "model"]
         for provider in providers:
             provider.loadAlgorithms()
-
-    @staticmethod
-    def addAlgListListener(listener):
-        """
-        Listener should implement a algsListHasChanged() method.
-
-        Whenever the list of algorithms changes, that method will be
-        called for all registered listeners.
-        """
-        Processing.listeners.append(listener)
-
-    @staticmethod
-    def removeAlgListListener(listener):
-        try:
-            Processing.listeners.remove(listener)
-        except:
-            pass
-
-    @staticmethod
-    def fireAlgsListHasChanged():
-        for listener in Processing.listeners:
-            listener.algsListHasChanged()
 
     @staticmethod
     def loadAlgorithms():
@@ -299,8 +287,8 @@ class Processing:
             # fill any missing parameters with default values if allowed
             for param in alg.parameters:
                 if param.name not in setParams:
-                    if not param.setValue(None):
-                        print ('Error: Missing parameter value for parameter %s.' % (param.name))
+                    if not param.setDefaultValue():
+                        print 'Error: Missing parameter value for parameter %s.' % param.name
                         QgsMessageLog.logMessage(Processing.tr('Error: Missing parameter value for parameter {0}.').format(param.name), Processing.tr("Processing"))
                         ProcessingLog.addToLog(
                             ProcessingLog.LOG_ERROR,
@@ -318,8 +306,7 @@ class Processing:
             for param in alg.parameters:
                 if not param.hidden:
                     if not param.setValue(args[i]):
-                        print 'Error: Wrong parameter value: ' \
-                            + unicode(args[i])
+                        print'Error: Wrong parameter value: ' + unicode(args[i])
                         QgsMessageLog.logMessage(Processing.tr('Error: Wrong parameter value: ') + unicode(args[i]), Processing.tr("Processing"))
                         return
                     i = i + 1
@@ -334,13 +321,13 @@ class Processing:
 
         msg = alg._checkParameterValuesBeforeExecuting()
         if msg:
-            print 'Unable to execute algorithm\n' + msg
+            print 'Unable to execute algorithm\n' + unicode(msg)
             QgsMessageLog.logMessage(Processing.tr('Unable to execute algorithm\n{0}').format(msg), Processing.tr("Processing"))
             return
 
         if not alg.checkInputCRS():
-            print 'Warning: Not all input layers use the same CRS.\n' \
-                + 'This can cause unexpected results.'
+            print('Warning: Not all input layers use the same CRS.\n'
+                  + 'This can cause unexpected results.')
             QgsMessageLog.logMessage(Processing.tr('Warning: Not all input layers use the same CRS.\nThis can cause unexpected results.'), Processing.tr("Processing"))
 
         # Don't set the wait cursor twice, because then when you

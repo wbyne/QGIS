@@ -113,6 +113,11 @@ class QgsWKBTypes
      */
     static bool isMultiType( Type type );
 
+    /** Returns true if the WKB type is a curved type or can contain curved geometries.
+     * @note added in QGIS 2.14
+     */
+    static bool isCurvedType( Type type );
+
     /** Returns the inherent dimension of the geometry type as an integer. Returned value will
      * always be less than or equal to the coordinate dimension.
      * @returns 0 for point geometries, 1 for line geometries, 2 for polygon geometries
@@ -156,6 +161,7 @@ class QgsWKBTypes
      * @param type original type
      * @note added in QGIS 2.12
      * @see addM()
+     * @see dropZ()
      * @see hasZ()
      */
     static Type addZ( Type type );
@@ -164,7 +170,31 @@ class QgsWKBTypes
      * @param type original type
      * @note added in QGIS 2.12
      * @see addZ()
+     * @see dropM()
      * @see hasM()
      */
     static Type addM( Type type );
+
+    /** Drops the z dimension (if present) for a WKB type and returns the new type.
+     * @param type original type
+     * @note added in QGIS 2.14
+     * @see dropM()
+     * @see addZ()
+     */
+    static Type dropZ( Type type );
+
+    /** Drops the m dimension (if present) for a WKB type and returns the new type.
+     * @param type original type
+     * @note added in QGIS 2.14
+     * @see dropZ()
+     * @see addM()
+     */
+    static Type dropM( Type type );
+
+    /**
+     * Will convert the 25D version of the flat type if supported or Unknown if not supported.
+     * @param type The type to convert
+     * @return the 25D version of the type or Unknown
+     */
+    static Type to25D( Type type );
 };

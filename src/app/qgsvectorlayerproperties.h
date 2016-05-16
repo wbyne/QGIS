@@ -30,6 +30,7 @@
 #include "qgsmapcanvas.h"
 #include "qgscontexthelp.h"
 #include "qgsexpressionbuilderdialog.h"
+#include "qgsmaplayerstylemanager.h"
 
 class QgsMapLayer;
 
@@ -54,7 +55,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
       DB,
     };
 
-    QgsVectorLayerProperties( QgsVectorLayer *lyr = 0, QWidget *parent = 0, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
+    QgsVectorLayerProperties( QgsVectorLayer *lyr = nullptr, QWidget *parent = nullptr, Qt::WindowFlags fl = QgisGui::ModalDialogFlags );
     ~QgsVectorLayerProperties();
     /** Returns the display name entered in the dialog*/
     QString displayName();
@@ -159,9 +160,13 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
 
     void updateSymbologyPage();
 
-    QgsVectorLayer *layer;
+    void setPbnQueryBuilderEnabled();
+
+    QgsVectorLayer *mLayer;
 
     bool mMetadataFilled;
+
+    QString mOriginalSubsetSQL;
 
     QMenu *mSaveAsMenu;
     QMenu *mLoadStyleMenu;
@@ -176,7 +181,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     /** Label dialog. If apply is pressed, options are applied to vector's QgsLabel */
     QgsLabelDialog* labelDialog;
     /** Actions dialog. If apply is pressed, the actions are stored for later use */
-    QgsAttributeActionDialog* actionDialog;
+    QgsAttributeActionDialog* mActionDialog;
     /** Diagram dialog. If apply is pressed, options are applied to vector's diagrams*/
     QgsDiagramProperties* diagramPropertiesDialog;
     /** Fields dialog. If apply is pressed, options are applied to vector's diagrams*/
@@ -185,10 +190,11 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     //! List of joins of a layer at the time of creation of the dialog. Used to return joins to previous state if dialog is cancelled
     QList< QgsVectorJoinInfo > mOldJoins;
 
-    void initDiagramTab();
+    /** Previous layer style. Used to reset style to previous state if new style
+     * was loaded but dialog is cancelled */
+    QgsMapLayerStyle mOldStyle;
 
-    /** Buffer pixmap which takes the picture of renderers before they are assigned to the vector layer*/
-    //QPixmap bufferPixmap;
+    void initDiagramTab();
 
     /** Adds a new join to mJoinTreeWidget*/
     void addJoinToTreeWidget( const QgsVectorJoinInfo& join , const int insertIndex = -1 );

@@ -55,7 +55,7 @@ QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
     , mProgress( progress )
 
 {
-  mProvider = NULL;
+  mProvider = nullptr;
 
   QgsProviderRegistry * pReg = QgsProviderRegistry::instance();
 
@@ -67,7 +67,7 @@ QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
     return;
   }
 
-  createEmptyLayer_t * pCreateEmpty = ( createEmptyLayer_t * ) cast_to_fptr( myLib->resolve( "createEmptyLayer" ) );
+  createEmptyLayer_t * pCreateEmpty = reinterpret_cast< createEmptyLayer_t * >( cast_to_fptr( myLib->resolve( "createEmptyLayer" ) ) );
   if ( !pCreateEmpty )
   {
     delete myLib;
@@ -87,7 +87,7 @@ QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
     return;
   }
 
-  Q_FOREACH ( int idx, mOldToNewAttrIdx.values() )
+  Q_FOREACH ( int idx, mOldToNewAttrIdx )
   {
     if ( idx > mAttributeCount )
       mAttributeCount = idx;
@@ -97,7 +97,7 @@ QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
 
   QgsDebugMsg( "Created empty layer" );
 
-  QgsVectorDataProvider *vectorProvider = ( QgsVectorDataProvider* ) pReg->provider( providerKey, uri );
+  QgsVectorDataProvider *vectorProvider = dynamic_cast< QgsVectorDataProvider* >( pReg->provider( providerKey, uri ) );
   if ( !vectorProvider || !vectorProvider->isValid() || ( vectorProvider->capabilities() & QgsVectorDataProvider::AddFeatures ) == 0 )
   {
     mError = ErrInvalidLayer;
@@ -214,13 +214,11 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
                                    QProgressDialog *progress )
 {
   const QgsCoordinateReferenceSystem* outputCRS;
-  QgsCoordinateTransform* ct = 0;
+  QgsCoordinateTransform* ct = nullptr;
   bool shallTransform = false;
 
-  if ( layer == NULL )
-  {
+  if ( !layer )
     return ErrInvalidLayer;
-  }
 
   if ( destCRS && destCRS->isValid() )
   {
@@ -317,15 +315,11 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
 
   // Create our transform
   if ( destCRS )
-  {
     ct = new QgsCoordinateTransform( layer->crs(), *destCRS );
-  }
 
   // Check for failure
-  if ( ct == NULL )
-  {
+  if ( !ct )
     shallTransform = false;
-  }
 
   int n = 0;
 
@@ -339,11 +333,14 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
     progress->setRange( 0, layer->featureCount() );
   }
 
+  bool cancelled = false;
+
   // write all features
   while ( fit.nextFeature( fet ) )
   {
     if ( progress && progress->wasCanceled() )
     {
+      cancelled = true;
       if ( errorMessage )
       {
         *errorMessage += '\n' + QObject::tr( "Import was canceled at %1 of %2" ).arg( progress->value() ).arg( progress->maximum() );
@@ -367,7 +364,7 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
     {
       try
       {
-        if ( fet.geometry() )
+        if ( fet.constGeometry() )
         {
           fet.geometry()->transform( *ct );
         }
@@ -442,5 +439,10 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
     }
   }
 
-  return errors == 0 ? NoError : ErrFeatureWriteFailed;
+  if ( cancelled )
+    return ErrUserCancelled;
+  else if ( errors > 0 )
+    return ErrFeatureWriteFailed;
+
+  return NoError;
 }

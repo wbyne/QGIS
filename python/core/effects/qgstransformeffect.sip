@@ -18,7 +18,7 @@ class QgsTransformEffect : QgsPaintEffect
      * @param map encoded properties string map
      * @returns new QgsTransformEffect
      */
-    static QgsPaintEffect* create( const QgsStringMap& ) /Factory/;
+    static QgsPaintEffect* create( const QgsStringMap& map ) /Factory/;
 
     QgsTransformEffect();
     virtual ~QgsTransformEffect();
@@ -114,10 +114,9 @@ class QgsTransformEffect : QgsPaintEffect
      */
     double scaleX() const;
 
-    /** Sets the x axis scaling factor.
-     * @param scaleX factor to scale x axis by, where 1.0 = no scaling
+    /** Sets the y axis scaling factor.
+     * @param scaleY factor to scale y axis by, where 1.0 = no scaling
      * @see scaleX
-     * @see setScaleY
      */
     void setScaleY( const double scaleY );
 

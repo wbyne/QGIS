@@ -25,8 +25,13 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import os
+
+from qgis.PyQt.QtGui import QIcon
+
 from processing.algs.gdal.GdalAlgorithm import GdalAlgorithm
 from processing.core.parameters import ParameterRaster
+from processing.core.parameters import ParameterExtent
 from processing.core.parameters import ParameterSelection
 from processing.core.parameters import ParameterCrs
 from processing.core.parameters import ParameterNumber
@@ -34,6 +39,8 @@ from processing.core.parameters import ParameterString
 from processing.core.parameters import ParameterBoolean
 from processing.core.outputs import OutputRaster
 from processing.algs.gdal.GdalUtils import GdalUtils
+
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 class warp(GdalAlgorithm):
@@ -58,23 +65,28 @@ class warp(GdalAlgorithm):
     BIGTIFFTYPE = ['', 'YES', 'NO', 'IF_NEEDED', 'IF_SAFER']
     COMPRESSTYPE = ['NONE', 'JPEG', 'LZW', 'PACKBITS', 'DEFLATE']
     TFW = 'TFW'
+    RAST_EXT = 'RAST_EXT'
+
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'gdaltools', 'warp.png'))
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Warp (reproject)')
         self.group, self.i18n_group = self.trAlgorithm('[GDAL] Projections')
         self.addParameter(ParameterRaster(self.INPUT, self.tr('Input layer'), False))
         self.addParameter(ParameterCrs(self.SOURCE_SRS,
-                                       self.tr('Source SRS'), ''))
+                                       self.tr('Source SRS'), '', optional=True))
         self.addParameter(ParameterCrs(self.DEST_SRS,
                                        self.tr('Destination SRS'), ''))
         self.addParameter(ParameterString(self.NO_DATA,
                                           self.tr("Nodata value, leave blank to take the nodata value from input"),
-                                          '-9999'))
+                                          '', optional=True))
         self.addParameter(ParameterNumber(self.TR,
                                           self.tr('Output file resolution in target georeferenced units (leave 0 for no change)'),
                                           0.0, None, 0.0))
         self.addParameter(ParameterSelection(self.METHOD,
                                              self.tr('Resampling method'), self.METHOD_OPTIONS))
+        self.addParameter(ParameterExtent(self.RAST_EXT, self.tr('Raster extent')))
 
         params = []
         params.append(ParameterSelection(self.RTYPE,
@@ -106,7 +118,9 @@ class warp(GdalAlgorithm):
         self.addOutput(OutputRaster(self.OUTPUT, self.tr('Reprojected')))
 
     def getConsoleCommands(self):
-        noData = unicode(self.getParameterValue(self.NO_DATA))
+        noData = self.getParameterValue(self.NO_DATA)
+        if noData is not None:
+            noData = unicode(noData)
         srccrs = self.getParameterValue(self.SOURCE_SRS)
         dstcrs = self.getParameterValue(self.DEST_SRS)
         jpegcompression = unicode(self.getParameterValue(self.JPEGCOMPRESSION))
@@ -116,6 +130,7 @@ class warp(GdalAlgorithm):
         compress = self.COMPRESSTYPE[self.getParameterValue(self.COMPRESS)]
         bigtiff = self.BIGTIFFTYPE[self.getParameterValue(self.BIGTIFF)]
         tfw = unicode(self.getParameterValue(self.TFW))
+        rastext = unicode(self.getParameterValue(self.RAST_EXT))
 
         arguments = []
         arguments.append('-ot')
@@ -126,7 +141,7 @@ class warp(GdalAlgorithm):
         if len(dstcrs) > 0:
             arguments.append('-t_srs')
             arguments.append(dstcrs)
-        if len(noData) > 0:
+        if noData and len(noData) > 0:
             arguments.append('-dstnodata')
             arguments.append(noData)
         arguments.append('-r')
@@ -139,8 +154,22 @@ class warp(GdalAlgorithm):
             arguments.append('-tr')
             arguments.append(unicode(self.getParameterValue(self.TR)))
             arguments.append(unicode(self.getParameterValue(self.TR)))
-        extra = unicode(self.getParameterValue(self.EXTRA))
-        if len(extra) > 0:
+        extra = self.getParameterValue(self.EXTRA)
+        if extra is not None:
+            extra = unicode(extra)
+        regionCoords = rastext.split(',')
+        try:
+            rastext = []
+            rastext.append('-te')
+            rastext.append(regionCoords[0])
+            rastext.append(regionCoords[2])
+            rastext.append(regionCoords[1])
+            rastext.append(regionCoords[3])
+        except IndexError:
+            rastext = []
+        if rastext:
+            arguments.extend(rastext)
+        if extra and len(extra) > 0:
             arguments.append(extra)
         if GdalUtils.getFormatShortNameFromFilename(out) == "GTiff":
             arguments.append("-co COMPRESS=" + compress)
@@ -156,6 +185,8 @@ class warp(GdalAlgorithm):
                 arguments.append("-co TFW=YES")
             if len(bigtiff) > 0:
                 arguments.append("-co BIGTIFF=" + bigtiff)
+
+            arguments.append("-wo OPTIMIZE_SIZE=TRUE")
 
         arguments.append(self.getParameterValue(self.INPUT))
         arguments.append(out)

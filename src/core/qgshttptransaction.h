@@ -40,8 +40,8 @@ class CORE_EXPORT QgsHttpTransaction : public QObject
 
   public:
     /**
-    * Constructor.
-    */
+     * Constructor.
+     */
     QgsHttpTransaction( const QString& uri,
                         const QString& proxyHost = QString(),
                         int     proxyPort = 80,
@@ -71,7 +71,7 @@ class CORE_EXPORT QgsHttpTransaction : public QObject
 
         @return true in case of success
      */
-    bool getSynchronously( QByteArray &respondedContent, int redirections = 0, const QByteArray* postData = 0 );
+    bool getSynchronously( QByteArray &respondedContent, int redirections = 0, const QByteArray* postData = nullptr );
 
     QString responseContentType();
 

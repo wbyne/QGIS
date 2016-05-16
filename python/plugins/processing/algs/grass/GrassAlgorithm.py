@@ -31,8 +31,8 @@ import uuid
 import importlib
 import re
 
-from PyQt4.QtCore import QCoreApplication
-from PyQt4.QtGui import QIcon
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import QgsRasterLayer
 from qgis.utils import iface
@@ -42,10 +42,24 @@ from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.ProcessingLog import ProcessingLog
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
 
-from processing.core.parameters import getParameterFromString, ParameterVector, ParameterMultipleInput, ParameterExtent, ParameterNumber, ParameterSelection, ParameterRaster, ParameterTable, ParameterBoolean, ParameterString
-from processing.core.outputs import getOutputFromString, OutputRaster, OutputVector, OutputFile, OutputHTML
+from processing.core.parameters import (getParameterFromString,
+                                        ParameterVector,
+                                        ParameterMultipleInput,
+                                        ParameterExtent,
+                                        ParameterNumber,
+                                        ParameterSelection,
+                                        ParameterRaster,
+                                        ParameterTable,
+                                        ParameterBoolean,
+                                        ParameterString,
+                                        ParameterPoint)
+from processing.core.outputs import (getOutputFromString,
+                                     OutputRaster,
+                                     OutputVector,
+                                     OutputFile,
+                                     OutputHTML)
 
-from GrassUtils import GrassUtils
+from .GrassUtils import GrassUtils
 
 from processing.tools import dataobjects, system
 
@@ -77,7 +91,7 @@ class GrassAlgorithm(GeoAlgorithm):
         return newone
 
     def getIcon(self):
-        return QIcon(os.path.join(pluginPath, 'images', 'grass.png'))
+        return QIcon(os.path.join(pluginPath, 'images', 'grass.svg'))
 
     def help(self):
         return False, 'http://grass.osgeo.org/grass64/manuals/' + self.grassName + '.html'
@@ -190,7 +204,7 @@ class GrassAlgorithm(GeoAlgorithm):
                     else:
                         layer = dataobjects.getObjectFromUri(param.value)
                     cellsize = max(cellsize, (layer.extent().xMaximum()
-                                   - layer.extent().xMinimum())
+                                              - layer.extent().xMinimum())
                                    / layer.width())
                 elif isinstance(param, ParameterMultipleInput):
 
@@ -268,7 +282,10 @@ class GrassAlgorithm(GeoAlgorithm):
                         else:
                             self.setSessionProjectionFromLayer(layer, commands)
                             commands.append(self.exportRasterLayer(layer))
-                elif param.datatype == ParameterMultipleInput.TYPE_VECTOR_ANY:
+                elif param.datatype in [ParameterMultipleInput.TYPE_VECTOR_ANY,
+                                        ParameterMultipleInput.TYPE_VECTOR_LINE,
+                                        ParameterMultipleInput.TYPE_VECTOR_POLYGON,
+                                        ParameterMultipleInput.TYPE_VECTOR_POINT]:
                     for layer in layers:
                         if layer in self.exportedLayers.keys():
                             continue
@@ -329,6 +346,8 @@ class GrassAlgorithm(GeoAlgorithm):
                 command += ' ' + param.name + '=' + unicode(param.options[idx])
             elif isinstance(param, ParameterString):
                 command += ' ' + param.name + '="' + unicode(param.value) + '"'
+            elif isinstance(param, ParameterPoint):
+                command += ' ' + param.name + '=' + unicode(param.value)
             else:
                 command += ' ' + param.name + '="' + unicode(param.value) + '"'
 
@@ -446,14 +465,14 @@ class GrassAlgorithm(GeoAlgorithm):
         snap = self.getParameterValue(self.GRASS_SNAP_TOLERANCE_PARAMETER)
         command += ' snap=' + unicode(snap)
         command += ' dsn="%s"' % os.path.dirname(filename)
-        command += ' layer="%s"' % os.path.splitext(os.path.basename(filename)[:-4])[0]
+        command += ' layer="%s"' % os.path.basename(filename)[:-4]
         command += ' output=' + destFilename
         command += ' --overwrite -o'
         return command
 
     def setSessionProjectionFromProject(self, commands):
         if not GrassUtils.projectionSet:
-            proj4 = iface.mapCanvas().mapRenderer().destinationCrs().toProj4()
+            proj4 = iface.mapCanvas().mapSettings().destinationCrs().toProj4()
             command = 'g.proj'
             command += ' -c'
             command += ' proj4="' + proj4 + '"'
@@ -493,9 +512,7 @@ class GrassAlgorithm(GeoAlgorithm):
         return 'grass:' + self.name[:self.name.find(' ')]
 
     def checkBeforeOpeningParametersDialog(self):
-        msg = GrassUtils.checkGrassIsInstalled()
-        if msg is not None:
-            return msg
+        return GrassUtils.checkGrassIsInstalled()
 
     def checkParameterValuesBeforeExecuting(self):
         name = self.commandLineName().replace('.', '_')[len('grass:'):]

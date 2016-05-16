@@ -169,10 +169,10 @@ class GUI_EXPORT QgsMapTool : public QObject
     QgsMapTool( QgsMapCanvas* canvas );
 
     //! transformation from screen coordinates to map coordinates
-    QgsPoint toMapCoordinates( const QPoint& point );
+    QgsPoint toMapCoordinates( QPoint point );
 
     //! transformation from screen coordinates to layer's coordinates
-    QgsPoint toLayerCoordinates( QgsMapLayer* layer, const QPoint& point );
+    QgsPoint toLayerCoordinates( QgsMapLayer* layer, QPoint point );
 
     //! transformation from map coordinates to layer's coordinates
     QgsPoint toLayerCoordinates( QgsMapLayer* layer, const QgsPoint& point );
@@ -181,6 +181,7 @@ class GUI_EXPORT QgsMapTool : public QObject
     QgsPoint toMapCoordinates( QgsMapLayer* layer, const QgsPoint& point );
 
     //!transformation from layer's coordinates to map coordinates (which is different in case reprojection is used)
+    //! @note available in python bindings as toMapCoordinatesV2
     QgsPointV2 toMapCoordinates( QgsMapLayer* layer, const QgsPointV2 &point );
 
     //! trnasformation of the rect from map coordinates to layer's coordinates

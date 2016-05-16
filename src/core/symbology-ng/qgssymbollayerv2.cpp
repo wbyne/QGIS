@@ -100,20 +100,20 @@ const QgsExpression* QgsSymbolLayerV2::dataDefinedProperty( const QString& prope
 QgsDataDefined *QgsSymbolLayerV2::getDataDefinedProperty( const QString &property ) const
 {
   if ( mDataDefinedProperties.isEmpty() )
-    return 0;
+    return nullptr;
 
   QMap< QString, QgsDataDefined* >::const_iterator it = mDataDefinedProperties.find( property );
   if ( it != mDataDefinedProperties.constEnd() )
   {
     return it.value();
   }
-  return 0;
+  return nullptr;
 }
 
 QgsExpression* QgsSymbolLayerV2::expression( const QString& property ) const
 {
   QgsDataDefined* dd = getDataDefinedProperty( property );
-  return dd ? dd->expression() : 0;
+  return dd ? dd->expression() : nullptr;
 }
 
 QString QgsSymbolLayerV2::dataDefinedPropertyString( const QString& property ) const
@@ -145,11 +145,7 @@ void QgsSymbolLayerV2::removeDataDefinedProperty( const QString& property )
 
 void QgsSymbolLayerV2::removeDataDefinedProperties()
 {
-  QMap< QString, QgsDataDefined* >::iterator it = mDataDefinedProperties.begin();
-  for ( ; it != mDataDefinedProperties.constEnd(); ++it )
-  {
-    delete( it.value() );
-  }
+  qDeleteAll( mDataDefinedProperties );
   mDataDefinedProperties.clear();
 }
 
@@ -260,18 +256,12 @@ QVariant QgsSymbolLayerV2::evaluateDataDefinedProperty( const QString& property,
   return defaultVal;
 }
 
-bool QgsSymbolLayerV2::writeDxf( QgsDxfExport& e,
-                                 double mmMapUnitScaleFactor,
-                                 const QString& layerName,
-                                 QgsSymbolV2RenderContext *context,
-                                 const QgsFeature* f,
-                                 const QPointF& shift ) const
+bool QgsSymbolLayerV2::writeDxf( QgsDxfExport &e, double mmMapUnitScaleFactor, const QString &layerName, QgsSymbolV2RenderContext &context, QPointF shift ) const
 {
   Q_UNUSED( e );
   Q_UNUSED( mmMapUnitScaleFactor );
   Q_UNUSED( layerName );
   Q_UNUSED( context );
-  Q_UNUSED( f );
   Q_UNUSED( shift );
   return false;
 }
@@ -294,6 +284,12 @@ QColor QgsSymbolLayerV2::dxfColor( QgsSymbolV2RenderContext &context ) const
 {
   Q_UNUSED( context );
   return color();
+}
+
+double QgsSymbolLayerV2::dxfAngle( QgsSymbolV2RenderContext &context ) const
+{
+  Q_UNUSED( context );
+  return 0.0;
 }
 
 QVector<qreal> QgsSymbolLayerV2::dxfCustomDashPattern( QgsSymbolV2::OutputUnit& unit ) const
@@ -333,7 +329,7 @@ QgsSymbolLayerV2::QgsSymbolLayerV2( QgsSymbolV2::SymbolType type, bool locked )
     : mType( type )
     , mLocked( locked )
     , mRenderingPass( 0 )
-    , mPaintEffect( 0 )
+    , mPaintEffect( nullptr )
 {
   mPaintEffect = QgsPaintEffectRegistry::defaultStack();
   mPaintEffect->setEnabled( false );
@@ -341,8 +337,8 @@ QgsSymbolLayerV2::QgsSymbolLayerV2( QgsSymbolV2::SymbolType type, bool locked )
 
 void QgsSymbolLayerV2::prepareExpressions( const QgsFields* fields, double scale )
 {
-  QMap< QString, QgsDataDefined* >::iterator it = mDataDefinedProperties.begin();
-  for ( ; it != mDataDefinedProperties.end(); ++it )
+  QMap< QString, QgsDataDefined* >::const_iterator it = mDataDefinedProperties.constBegin();
+  for ( ; it != mDataDefinedProperties.constEnd(); ++it )
   {
     if ( it.value() )
     {
@@ -373,8 +369,8 @@ void QgsSymbolLayerV2::prepareExpressions( const QgsFields* fields, double scale
 
 void QgsSymbolLayerV2::prepareExpressions( const QgsSymbolV2RenderContext& context )
 {
-  QMap< QString, QgsDataDefined* >::iterator it = mDataDefinedProperties.begin();
-  for ( ; it != mDataDefinedProperties.end(); ++it )
+  QMap< QString, QgsDataDefined* >::const_iterator it = mDataDefinedProperties.constBegin();
+  for ( ; it != mDataDefinedProperties.constEnd(); ++it )
   {
     if ( it.value() )
     {
@@ -399,6 +395,14 @@ QgsSymbolLayerV2::~QgsSymbolLayerV2()
 {
   removeDataDefinedProperties();
   delete mPaintEffect;
+}
+
+bool QgsSymbolLayerV2::isCompatibleWithSymbol( QgsSymbolV2* symbol ) const
+{
+  if ( symbol->type() == QgsSymbolV2::Fill && mType == QgsSymbolV2::Line )
+    return true;
+
+  return symbol->type() == mType;
 }
 
 QSet<QString> QgsSymbolLayerV2::usedAttributes() const
@@ -489,7 +493,7 @@ QgsMarkerSymbolLayerV2::QgsMarkerSymbolLayerV2( bool locked )
     , mSize( 2.0 )
     , mSizeUnit( QgsSymbolV2::MM )
     , mOffsetUnit( QgsSymbolV2::MM )
-    , mScaleMethod( QgsSymbolV2::ScaleArea )
+    , mScaleMethod( QgsSymbolV2::ScaleDiameter )
     , mHorizontalAnchorPoint( HCenter )
     , mVerticalAnchorPoint( VCenter )
 {
@@ -590,7 +594,7 @@ void QgsMarkerSymbolLayerV2::markerOffset( QgsSymbolV2RenderContext& context, do
   }
 }
 
-QPointF QgsMarkerSymbolLayerV2::_rotatedOffset( const QPointF& offset, double angle )
+QPointF QgsMarkerSymbolLayerV2::_rotatedOffset( QPointF offset, double angle )
 {
   angle = DEG2RAD( angle );
   double c = cos( angle ), s = sin( angle );
@@ -713,7 +717,7 @@ void QgsFillSymbolLayerV2::drawPreviewIcon( QgsSymbolV2RenderContext& context, Q
 {
   QPolygonF poly = QRectF( QPointF( 0, 0 ), QPointF( size.width(), size.height() ) );
   startRender( context );
-  renderPolygon( poly, NULL, context );
+  renderPolygon( poly, nullptr, context );
   stopRender( context );
 }
 

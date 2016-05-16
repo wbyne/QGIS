@@ -28,10 +28,12 @@
 QgsRasterLayerSaveAsDialog::QgsRasterLayerSaveAsDialog( QgsRasterLayer* rasterLayer,
     QgsRasterDataProvider* sourceProvider, const QgsRectangle& currentExtent,
     const QgsCoordinateReferenceSystem& layerCrs, const QgsCoordinateReferenceSystem& currentCrs,
-    QWidget* parent, const Qt::WindowFlags& f ) :
-    QDialog( parent, f )
-    , mRasterLayer( rasterLayer ), mDataProvider( sourceProvider )
-    , mCurrentExtent( currentExtent ), mLayerCrs( layerCrs )
+    QWidget* parent, const Qt::WindowFlags& f )
+    : QDialog( parent, f )
+    , mRasterLayer( rasterLayer )
+    , mDataProvider( sourceProvider )
+    , mCurrentExtent( currentExtent )
+    , mLayerCrs( layerCrs )
     , mCurrentCrs( currentCrs )
     , mResolutionState( OriginalResolution )
 {
@@ -119,7 +121,9 @@ QgsRasterLayerSaveAsDialog::QgsRasterLayerSaveAsDialog( QgsRasterLayer* rasterLa
   mTilesGroupBox->hide();
 
   mCrsSelector->setLayerCrs( mLayerCrs );
-  mCrsSelector->setCrs( mCurrentCrs );
+  //default to layer CRS - see http://hub.qgis.org/issues/14209 for discussion
+  mCrsSelector->setCrs( mLayerCrs );
+
   connect( mCrsSelector, SIGNAL( crsChanged( QgsCoordinateReferenceSystem ) ),
            this, SLOT( crsChanged() ) );
 
@@ -157,7 +161,7 @@ void QgsRasterLayerSaveAsDialog::on_mBrowseButton_clicked()
   QString fileName;
 
   QSettings settings;
-  QString dirName = mSaveAsLineEdit->text().isEmpty() ? settings.value( "/UI/lastRasterFileDir", "." ).toString() : mSaveAsLineEdit->text();
+  QString dirName = mSaveAsLineEdit->text().isEmpty() ? settings.value( "/UI/lastRasterFileDir", QDir::homePath() ).toString() : mSaveAsLineEdit->text();
 
   if ( mTileModeCheckBox->isChecked() )
   {
@@ -204,7 +208,7 @@ void QgsRasterLayerSaveAsDialog::on_mBrowseButton_clicked()
   if ( !fileName.isEmpty() )
   {
     // ensure the user never ommited the extension from the file name
-    if ( !fileName.toLower().endsWith( ".tif" ) && !fileName.toLower().endsWith( ".tiff" ) )
+    if ( !fileName.endsWith( ".tif", Qt::CaseInsensitive ) && !fileName.endsWith( ".tiff", Qt::CaseInsensitive ) )
     {
       fileName += ".tif";
     }
@@ -550,14 +554,14 @@ void QgsRasterLayerSaveAsDialog::addNoDataRow( double min, double max )
     {
       case QGis::Float32:
       case QGis::Float64:
-        lineEdit->setValidator( new QDoubleValidator( 0 ) );
+        lineEdit->setValidator( new QDoubleValidator( nullptr ) );
         if ( !qIsNaN( value ) )
         {
           valueString = QgsRasterBlock::printValue( value );
         }
         break;
       default:
-        lineEdit->setValidator( new QIntValidator( 0 ) );
+        lineEdit->setValidator( new QIntValidator( nullptr ) );
         if ( !qIsNaN( value ) )
         {
           valueString = QString::number( static_cast<int>( value ) );

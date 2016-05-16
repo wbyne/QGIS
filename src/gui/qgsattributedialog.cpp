@@ -27,8 +27,8 @@
 
 QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeature, bool featureOwner, const QgsDistanceArea &myDa, QWidget* parent, bool showDialogButtons )
     : QDialog( parent )
-    , mHighlight( 0 )
-    , mOwnedFeature( featureOwner ? thepFeature : 0 )
+    , mHighlight( nullptr )
+    , mOwnedFeature( featureOwner ? thepFeature : nullptr )
 {
   QgsAttributeEditorContext context;
   context.setDistanceArea( myDa );
@@ -41,8 +41,8 @@ QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeat
 
 QgsAttributeDialog::QgsAttributeDialog( QgsVectorLayer* vl, QgsFeature* thepFeature, bool featureOwner, QWidget* parent, bool showDialogButtons, const QgsAttributeEditorContext &context )
     : QDialog( parent )
-    , mHighlight( 0 )
-    , mOwnedFeature( featureOwner ? thepFeature : 0 )
+    , mHighlight( nullptr )
+    , mOwnedFeature( featureOwner ? thepFeature : nullptr )
 {
   init( vl, thepFeature, context );
 
@@ -111,7 +111,7 @@ void QgsAttributeDialog::init( QgsVectorLayer* layer, QgsFeature* feature, const
   connect( layer, SIGNAL( layerDeleted() ), this, SLOT( close() ) );
 
   QgsActionMenu* menu = new QgsActionMenu( layer, &mAttributeForm->feature(), this );
-  if ( menu->actions().size() > 0 )
+  if ( !menu->actions().isEmpty() )
   {
     QMenuBar* menuBar = new QMenuBar( this );
     menuBar->addMenu( menu );

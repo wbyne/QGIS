@@ -12,7 +12,7 @@
 void QgsGeometryDuplicateNodesCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -33,10 +33,8 @@ void QgsGeometryDuplicateNodesCheck::collectErrors( QList<QgsGeometryCheckError*
         {
           QgsPointV2 pi = geom->vertexAt( QgsVertexId( iPart, iRing, iVert ) );
           QgsPointV2 pj = geom->vertexAt( QgsVertexId( iPart, iRing, jVert ) );
-          QgsDebugMsg( QString( "(%1,%2) (%3,%4) d = %5, tol = %6" ).arg( pi.x(), 0, 'f', 6 ).arg( pi.y(), 0, 'f', 6 ).arg( pj.x(), 0, 'f', 6 ).arg( pj.y(), 0, 'f', 6 ).arg( QgsGeometryUtils::sqrDistance2D( pi, pj ) ).arg( QgsGeometryCheckPrecision::tolerance(), 0, 'f', 16 ) );
           if ( QgsGeometryUtils::sqrDistance2D( pi, pj ) < QgsGeometryCheckPrecision::tolerance() * QgsGeometryCheckPrecision::tolerance() )
           {
-            QgsDebugMsg( "Duplicate" );
             errors.append( new QgsGeometryCheckError( this, featureid, pj, QgsVertexId( iPart, iRing, jVert ) ) );
           }
         }
@@ -54,7 +52,7 @@ void QgsGeometryDuplicateNodesCheck::fixError( QgsGeometryCheckError* error, int
     return;
   }
   QgsAbstractGeometryV2* geom = feature.geometry()->geometry();
-  const QgsVertexId& vidx = error->vidx();
+  QgsVertexId vidx = error->vidx();
 
   // Check if point still exists
   if ( !vidx.isValid( geom ) )

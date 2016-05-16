@@ -31,7 +31,7 @@ QgsNewNameDialog::QgsNewNameDialog( const QString& source, const QString& initia
     , mExiting( existing )
     , mExtensions( extensions )
     , mCaseSensitivity( cs )
-    , mNamesLabel( 0 )
+    , mNamesLabel( nullptr )
     , mRegexp( regexp )
     , mOverwriteEnabled( true )
 {
@@ -75,6 +75,9 @@ QgsNewNameDialog::QgsNewNameDialog( const QString& source, const QString& initia
   mErrorLabel->setSizePolicy( QSizePolicy::Minimum, QSizePolicy::Minimum );
   mErrorLabel->setWordWrap( true );
   layout()->addWidget( mErrorLabel );
+
+  mLineEdit->setFocus();
+  mLineEdit->selectAll();
 
   nameChanged();
 }
@@ -141,7 +144,7 @@ void QgsNewNameDialog::nameChanged()
   if ( !conflicts.isEmpty() )
   {
     QString warning = !mConflictingNameWarning.isEmpty() ? mConflictingNameWarning
-                      : tr( "%n Name(s) %1 exists", 0, conflicts.size() ).arg( conflicts.join( ", " ) );
+                      : tr( "%n Name(s) %1 exists", nullptr, conflicts.size() ).arg( conflicts.join( ", " ) );
     mErrorLabel->setText( highlightText( warning ) );
     if ( mOverwriteEnabled )
     {
@@ -198,5 +201,5 @@ bool QgsNewNameDialog::exists( const QString& name, const QStringList& extension
 {
   QStringList newNames = fullNames( name, extensions );
   QStringList conflicts = matching( newNames, existing, cs );
-  return conflicts.size() > 0;
+  return !conflicts.isEmpty();
 }

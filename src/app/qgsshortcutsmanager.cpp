@@ -17,7 +17,7 @@
 
 #include <QSettings>
 
-QgsShortcutsManager* QgsShortcutsManager::mInstance = NULL;
+QgsShortcutsManager* QgsShortcutsManager::mInstance = nullptr;
 
 QgsShortcutsManager::QgsShortcutsManager( QObject *parent ) : QObject( parent )
 {
@@ -25,7 +25,7 @@ QgsShortcutsManager::QgsShortcutsManager( QObject *parent ) : QObject( parent )
 
 QgsShortcutsManager::~QgsShortcutsManager()
 {
-  mInstance = 0;
+  mInstance = nullptr;
 }
 
 QgsShortcutsManager* QgsShortcutsManager::instance( QObject *parent )
@@ -47,8 +47,7 @@ bool QgsShortcutsManager::registerAction( QAction* action, const QString& defaul
   QSettings settings;
   QString shortcut = settings.value( "/shortcuts/" + actionText, defaultShortcut ).toString();
 
-  if ( !shortcut.isEmpty() )
-    action->setShortcut( shortcut );
+  action->setShortcut( shortcut );
 
   return true;
 }
@@ -88,26 +87,26 @@ bool QgsShortcutsManager::setActionShortcut( QAction* action, const QString& sho
 QAction* QgsShortcutsManager::actionForShortcut( const QKeySequence& s )
 {
   if ( s.isEmpty() )
-    return NULL;
+    return nullptr;
 
-  for ( ActionsHash::iterator it = mActions.begin(); it != mActions.end(); ++it )
+  for ( ActionsHash::const_iterator it = mActions.constBegin(); it != mActions.constEnd(); ++it )
   {
     if ( it.key()->shortcut() == s )
       return it.key();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 QAction* QgsShortcutsManager::actionByName( const QString& name )
 {
-  for ( ActionsHash::iterator it = mActions.begin(); it != mActions.end(); ++it )
+  for ( ActionsHash::const_iterator it = mActions.constBegin(); it != mActions.constEnd(); ++it )
   {
     if ( it.key()->text() == name )
       return it.key();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void QgsShortcutsManager::registerAllChildrenActions( QObject* object )

@@ -51,7 +51,7 @@ void QgsConfigParserUtils::appendCRSElementsToLayer( QDomElement& layerElement, 
   QDomElement CRSPrecedingElement = abstractElement.isNull() ? titleElement : abstractElement; //last element before the CRS elements
 
   //In case the number of advertised CRS is constrained
-  if ( constrainedCrsList.size() > 0 )
+  if ( !constrainedCrsList.isEmpty() )
   {
     for ( int i = constrainedCrsList.size() - 1; i >= 0; --i )
     {
@@ -92,8 +92,12 @@ void QgsConfigParserUtils::appendLayerBoundingBoxes( QDomElement& layerElem, QDo
   //Ex_GeographicBoundingBox
   QDomElement ExGeoBBoxElement;
   //transform the layers native CRS into WGS84
-  QgsCoordinateTransform exGeoTransform( layerCRS, wgs84 );
-  QgsRectangle wgs84BoundingRect = exGeoTransform.transformBoundingBox( layerExtent );
+  QgsRectangle wgs84BoundingRect;
+  if ( !layerExtent.isNull() )
+  {
+    QgsCoordinateTransform exGeoTransform( layerCRS, wgs84 );
+    wgs84BoundingRect = exGeoTransform.transformBoundingBox( layerExtent );
+  }
   if ( version == "1.1.1" )   // WMS Version 1.1.1
   {
     ExGeoBBoxElement = doc.createElement( "LatLonBoundingBox" );
@@ -156,7 +160,7 @@ void QgsConfigParserUtils::appendLayerBoundingBoxes( QDomElement& layerElem, QDo
   }
 
   //In case the number of advertised CRS is constrained
-  if ( constrainedCrsList.size() > 0 )
+  if ( !constrainedCrsList.isEmpty() )
   {
     for ( int i = constrainedCrsList.size() - 1; i >= 0; --i )
     {
@@ -185,8 +189,12 @@ void QgsConfigParserUtils::appendLayerBoundingBox( QDomElement& layerElem, QDomD
   const QgsCoordinateReferenceSystem& crs = QgsCRSCache::instance()->crsByAuthId( crsText );
 
   //transform the layers native CRS into CRS
-  QgsCoordinateTransform crsTransform( layerCRS, crs );
-  QgsRectangle crsExtent = crsTransform.transformBoundingBox( layerExtent );
+  QgsRectangle crsExtent;
+  if ( !layerExtent.isNull() )
+  {
+    QgsCoordinateTransform crsTransform( layerCRS, crs );
+    crsExtent = crsTransform.transformBoundingBox( layerExtent );
+  }
 
   //BoundingBox element
   QDomElement bBoxElement = doc.createElement( "BoundingBox" );

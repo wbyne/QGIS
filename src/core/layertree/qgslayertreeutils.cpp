@@ -184,9 +184,13 @@ QString QgsLayerTreeUtils::checkStateToXml( Qt::CheckState state )
 {
   switch ( state )
   {
-    case Qt::Unchecked:        return "Qt::Unchecked";
-    case Qt::PartiallyChecked: return "Qt::PartiallyChecked";
-  case Qt::Checked: default: return "Qt::Checked";
+    case Qt::Unchecked:
+      return "Qt::Unchecked";
+    case Qt::PartiallyChecked:
+      return "Qt::PartiallyChecked";
+    case Qt::Checked:
+    default:
+      return "Qt::Checked";
   }
 }
 
@@ -379,7 +383,7 @@ QString QgsLayerTreeUtils::legendFilterByExpression( const QgsLayerTreeLayer& la
 
 bool QgsLayerTreeUtils::hasLegendFilterExpression( const QgsLayerTreeGroup& group )
 {
-  foreach ( QgsLayerTreeLayer* l, group.findLayers() )
+  Q_FOREACH ( QgsLayerTreeLayer* l, group.findLayers() )
   {
     bool exprEnabled;
     QString expr = legendFilterByExpression( *l, &exprEnabled );
@@ -389,4 +393,25 @@ bool QgsLayerTreeUtils::hasLegendFilterExpression( const QgsLayerTreeGroup& grou
     }
   }
   return false;
+}
+
+QgsLayerTreeLayer* QgsLayerTreeUtils::insertLayerBelow( QgsLayerTreeGroup* group, const QgsMapLayer* refLayer, QgsMapLayer* layerToInsert )
+{
+  // get the index of the reflayer
+  QgsLayerTreeLayer* inTree = group->findLayer( refLayer->id() );
+  if ( !inTree )
+    return nullptr;
+
+  int idx = 0;
+  Q_FOREACH ( QgsLayerTreeNode* vl, inTree->parent()->children() )
+  {
+    if ( vl->nodeType() == QgsLayerTreeNode::NodeLayer && static_cast<QgsLayerTreeLayer*>( vl )->layer() == refLayer )
+    {
+      break;
+    }
+    idx++;
+  }
+  // insert the new layer
+  QgsLayerTreeGroup* parent = static_cast<QgsLayerTreeGroup*>( inTree->parent() ) ? static_cast<QgsLayerTreeGroup*>( inTree->parent() ) : group;
+  return parent->insertLayer( idx, layerToInsert );
 }

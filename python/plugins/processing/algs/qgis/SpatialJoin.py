@@ -20,10 +20,16 @@
 __author__ = 'Joshua Arnott'
 __date__ = 'October 2013'
 __copyright__ = '(C) 2013, Joshua Arnott'
+
 # This will get replaced with a git SHA1 when you do a git archive
+
 __revision__ = '$Format:%H$'
 
-from PyQt4.QtCore import QVariant
+import os
+
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QVariant
+
 from qgis.core import QGis, QgsFields, QgsField, QgsFeature, QgsGeometry, NULL
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
@@ -35,6 +41,8 @@ from processing.core.parameters import ParameterString
 from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
 
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
+
 
 class SpatialJoin(GeoAlgorithm):
     TARGET = "TARGET"
@@ -45,6 +53,9 @@ class SpatialJoin(GeoAlgorithm):
     STATS = "STATS"
     KEEP = "KEEP"
     OUTPUT = "OUTPUT"
+
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'ftools', 'join_location.png'))
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Join attributes by location')
@@ -107,7 +118,7 @@ class SpatialJoin(GeoAlgorithm):
 
         if not summary:
             joinFields = vector.testForUniqueness(targetFields, joinFields)
-            seq = range(0, len(targetFields) + len(joinFields))
+            seq = range(len(targetFields) + len(joinFields))
             targetFields.extend(joinFields)
             targetFields = dict(zip(seq, targetFields))
         else:
@@ -122,7 +133,7 @@ class SpatialJoin(GeoAlgorithm):
             fieldList.append(field)
             joinFields = vector.testForUniqueness(targetFields, fieldList)
             targetFields.extend(fieldList)
-            seq = range(0, len(targetFields))
+            seq = range(len(targetFields))
             targetFields = dict(zip(seq, targetFields))
 
         fields = QgsFields()

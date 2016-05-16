@@ -51,9 +51,10 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
   public:
     enum Role
     {
-      SortRole = Qt::UserRole + 1,
-      FeatureIdRole = Qt::UserRole + 2,
-      FieldIndexRole = Qt::UserRole + 3
+      SortRole = Qt::UserRole + 1, //!< Role used for sorting
+      FeatureIdRole,               //!< Get the feature id of the feature in this row
+      FieldIndexRole,              //!< Get the field index of this column
+      UserRole                     //!< Start further roles starting from this role
     };
 
   public:
@@ -62,7 +63,7 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
      * @param layerCache  A layer cache to use as backend
      * @param parent      The parent QObject (owner)
      */
-    QgsAttributeTableModel( QgsVectorLayerCache *layerCache, QObject *parent = 0 );
+    QgsAttributeTableModel( QgsVectorLayerCache *layerCache, QObject *parent = nullptr );
 
     /**
      * Returns the number of rows
@@ -160,7 +161,7 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Returns the layer this model uses as backend. Retrieved from the layer cache.
      */
-    inline QgsVectorLayer* layer() const { return mLayerCache ? mLayerCache->layer() : NULL; }
+    inline QgsVectorLayer* layer() const { return mLayerCache ? mLayerCache->layer() : nullptr; }
 
     /**
      * Returns the layer cache this model uses as backend.
@@ -204,7 +205,7 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Get the the feature request
      */
-    const QgsFeatureRequest &request() const;
+    const QgsFeatureRequest& request() const;
 
     /**
      * Sets the context in which this table is shown.
@@ -221,6 +222,18 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
      * @return The context
      */
     const QgsAttributeEditorContext& editorContext() const { return mEditorContext; }
+
+    /**
+     * Empty extra columns to announce from this model.
+     * Any extra columns need to be implemented by proxy models in front of this model.
+     */
+    int extraColumns() const;
+
+    /**
+     * Empty extra columns to announce from this model.
+     * Any extra columns need to be implemented by proxy models in front of this model.
+     */
+    void setExtraColumns( int extraColumns );
 
   public slots:
     /**
@@ -336,6 +349,8 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     QRect mChangedCellBounds;
 
     QgsAttributeEditorContext mEditorContext;
+
+    int mExtraColumns;
 };
 
 

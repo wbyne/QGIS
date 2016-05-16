@@ -31,7 +31,7 @@ static QString invalidStyle_( const QString& selector = "QLineEdit" )
 
 QgsCredentialDialog::QgsCredentialDialog( QWidget *parent, const Qt::WindowFlags& fl )
     : QDialog( parent, fl )
-    , mOkButton( 0 )
+    , mOkButton( nullptr )
 {
   setupUi( this );
   setInstance( this );
@@ -67,6 +67,7 @@ bool QgsCredentialDialog::request( const QString& realm, QString &username, QStr
 
 void QgsCredentialDialog::requestCredentials( const QString& realm, QString *username, QString *password, const QString& message, bool *ok )
 {
+  Q_ASSERT( qApp->thread() == thread() && thread() == QThread::currentThread() );
   QgsDebugMsg( "Entering." );
   stackedWidget->setCurrentIndex( 0 );
 

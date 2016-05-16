@@ -27,6 +27,9 @@
 extern "C"
 {
 #include <grass/version.h>
+#if defined(_MSC_VER) && defined(M_PI_4)
+#undef M_PI_4 //avoid redefinition warning
+#endif
 #include <grass/gprojects.h>
 #include <grass/gis.h>
 #include <grass/dbmi.h>
@@ -195,7 +198,7 @@ void QgsGrassVectorMapLayer::load()
         {
           mHasTable = true;
           // Read attributes to the memory
-          while ( true )
+          for ( ;; )
           {
             int more;
 
@@ -339,9 +342,9 @@ void QgsGrassVectorMapLayer::close()
 QStringList QgsGrassVectorMapLayer::fieldNames( QgsFields & fields )
 {
   QStringList list;
-  for ( int i = 0; i < fields.size(); i++ )
+  Q_FOREACH ( const QgsField& field, fields )
   {
-    list << fields.at( i ).name();
+    list << field.name();
   }
   return list;
 }
@@ -363,9 +366,8 @@ void QgsGrassVectorMapLayer::updateFields()
       mFields.remove( i );
     }
   }
-  for ( int i = 0; i < mTableFields.size(); i++ )
+  Q_FOREACH ( const QgsField& field, mTableFields )
   {
-    QgsField field = mTableFields.at( i );
     if ( mFields.indexFromName( field.name() ) == -1 )
     {
       mFields.append( field );
@@ -607,9 +609,9 @@ void QgsGrassVectorMapLayer::createTable( const QgsFields &fields, QString &erro
 
   QgsFields catFields;
   catFields.append( QgsField( mFieldInfo->key, QVariant::Int, "integer" ) );
-  for ( int i = 0; i < fields.size(); i++ )
+  Q_FOREACH ( const QgsField& field, fields )
   {
-    catFields.append( fields[i] );
+    catFields.append( field );
   }
 
   try
@@ -652,10 +654,10 @@ void QgsGrassVectorMapLayer::createTable( const QgsFields &fields, QString &erro
 
   if ( mFieldInfo )
   {
-    for ( int i = 0; i < fields.size(); i++ )
+    Q_FOREACH ( const QgsField& field, fields )
     {
-      mTableFields.append( fields[i] );
-      mAttributeFields.append( fields[i] );
+      mTableFields.append( field );
+      mAttributeFields.append( field );
     }
     mHasTable = true;
     mKeyColumn = 0;
@@ -713,7 +715,7 @@ void QgsGrassVectorMapLayer::addColumn( const QgsField &field, QString &error )
           QVariant value = mAttributes.value( cat ).value( index );
           QString valueString = quotedValue( value );
           QString query = QString( "UPDATE %1 SET %2 = %3 WHERE %4 = %5" )
-                          .arg( mFieldInfo->table ).arg( field.name() ).arg( valueString ).arg( keyColumnName() ).arg( cat );
+                          .arg( mFieldInfo->table, field.name(), valueString, keyColumnName() ).arg( cat );
           QString err;
           executeSql( query, err );
           if ( !err.isEmpty() )
@@ -754,9 +756,8 @@ void QgsGrassVectorMapLayer::deleteColumn( const QgsField &field, QString &error
   if ( QString( mFieldInfo->driver ) == "sqlite" )
   {
     QStringList columns;
-    for ( int i = 0; i < mTableFields.size(); i++ )
+    Q_FOREACH ( const QgsField& f, mTableFields )
     {
-      QgsField f = mTableFields.at( i );
       if ( f.name() != field.name() )
       {
         columns << f.name();
@@ -908,9 +909,9 @@ void QgsGrassVectorMapLayer::reinsertAttributes( int cat, QString &error )
 
     if ( mAttributes.contains( cat ) )
     {
-      for ( int i = 0; i < mTableFields.size(); i++ )
+      Q_FOREACH ( const QgsField& f, mTableFields )
       {
-        QString name = mTableFields.at( i ).name();
+        QString name = f.name();
         if ( name == mFieldInfo->key )
         {
           continue;
@@ -1167,9 +1168,9 @@ void QgsGrassVectorMapLayer::printCachedAttributes()
 #ifdef QGISDEBUG
   QgsDebugMsgLevel( QString( "mAttributes.size() = %1" ).arg( mAttributes.size() ), 4 );
   QStringList names;
-  for ( int i = 0; i < mAttributeFields.size(); i++ )
+  Q_FOREACH ( const QgsField& field, mAttributeFields )
   {
-    names << mAttributeFields[i].name();
+    names << field.name();
   }
   QgsDebugMsgLevel( names.join( "|" ), 4 );
 

@@ -51,6 +51,11 @@ class QgsMapToolNodeTool: public QgsMapToolEdit
     void selectedFeatureDestroyed();
 
     /*
+     * the geometry for the selected feature has changed
+     */
+    void geometryChanged( QgsFeatureId fid, QgsGeometry &geom );
+
+    /*
      * the current layer changed
      */
     void currentLayerChanged( QgsMapLayer *layer );
@@ -59,6 +64,11 @@ class QgsMapToolNodeTool: public QgsMapToolEdit
      * the current edition state changed
      */
     void editingToggled();
+
+    /*
+     * delete all selected nodes and select next available node
+     */
+    void deleteNodeSelection();
 
   private:
     /**
@@ -70,6 +80,11 @@ class QgsMapToolNodeTool: public QgsMapToolEdit
      * Update select feature rubber band
      */
     void updateSelectFeature();
+
+    /**
+     * Update select feature rubber band using a certain geometry
+     */
+    void updateSelectFeature( QgsGeometry &geom );
 
     /**
      * Deletes the rubber band pointers and clears mRubberBands
@@ -109,7 +124,7 @@ class QgsMapToolNodeTool: public QgsMapToolEdit
     snapping results. If the list is empty, the screen coordinates are transformed into map coordinates and returned
     @param snapResults results collected from the snapping operation.
     @return the snapped point in map coordinates*/
-    QgsPoint snapPointFromResults( const QList<QgsSnappingResult>& snapResults, const QPoint& screenCoords );
+    QgsPoint snapPointFromResults( const QList<QgsSnappingResult>& snapResults, QPoint screenCoords );
 
     /** Inserts vertices to the snapped segments of the editing layer.
          This is useful for topological editing if snap to segment is enabled.
@@ -135,10 +150,10 @@ class QgsMapToolNodeTool: public QgsMapToolEdit
     /** Object containing selected feature and it's vertexes */
     QgsSelectedFeature *mSelectedFeature;
 
-    /** Dock widget which allows to edit vertices */
+    /** Dock widget which allows editing vertices */
     QgsNodeEditor* mNodeEditor;
 
-    /** Flag if moving of vertexes is occuring */
+    /** Flag if moving of vertexes is occurring */
     bool mMoving;
 
     /** Flag if selection of another feature can occur */

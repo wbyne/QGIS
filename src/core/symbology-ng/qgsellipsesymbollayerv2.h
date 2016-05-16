@@ -15,6 +15,8 @@
 #ifndef QGSELLIPSESYMBOLLAYERV2_H
 #define QGSELLIPSESYMBOLLAYERV2_H
 
+#define DEFAULT_ELLIPSE_JOINSTYLE    Qt::MiterJoin
+
 #include "qgsmarkersymbollayerv2.h"
 #include <QPainterPath>
 
@@ -30,7 +32,7 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     static QgsSymbolLayerV2* create( const QgsStringMap& properties = QgsStringMap() );
     static QgsSymbolLayerV2* createFromSld( QDomElement &element );
 
-    void renderPoint( const QPointF& point, QgsSymbolV2RenderContext& context ) override;
+    void renderPoint( QPointF point, QgsSymbolV2RenderContext& context ) override;
     QString layerType() const override;
     void startRender( QgsSymbolV2RenderContext& context ) override;
     void stopRender( QgsSymbolV2RenderContext& context ) override;
@@ -40,7 +42,7 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     void toSld( QDomDocument& doc, QDomElement &element, const QgsStringMap& props ) const override;
     void writeSldMarker( QDomDocument& doc, QDomElement &element, const QgsStringMap& props ) const override;
 
-    bool writeDxf( QgsDxfExport& e, double mmMapUnitScaleFactor, const QString& layerName, QgsSymbolV2RenderContext* context, const QgsFeature* f, const QPointF& shift = QPointF( 0.0, 0.0 ) ) const override;
+    bool writeDxf( QgsDxfExport &e, double mmMapUnitScaleFactor, const QString &layerName, QgsSymbolV2RenderContext &context, QPointF shift = QPointF( 0.0, 0.0 ) ) const override;
 
     void setSymbolName( const QString& name ) { mSymbolName = name; }
     QString symbolName() const { return mSymbolName; }
@@ -53,6 +55,13 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
 
     Qt::PenStyle outlineStyle() const { return mOutlineStyle; }
     void setOutlineStyle( Qt::PenStyle outlineStyle ) { mOutlineStyle = outlineStyle; }
+
+    /** Get outline join style.
+     * @note added in 2.16 */
+    Qt::PenJoinStyle penJoinStyle() const { return mPenJoinStyle; }
+    /** Set outline join style.
+     * @note added in 2.16 */
+    void setPenJoinStyle( Qt::PenJoinStyle style ) { mPenJoinStyle = style; }
 
     void setOutlineWidth( double w ) { mOutlineWidth = w; }
     double outlineWidth() const { return mOutlineWidth; }
@@ -87,6 +96,8 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     void setMapUnitScale( const QgsMapUnitScale& scale ) override;
     QgsMapUnitScale mapUnitScale() const override;
 
+    QRectF bounds( QPointF point, QgsSymbolV2RenderContext& context ) override;
+
   private:
     QString mSymbolName;
     double mSymbolWidth;
@@ -97,6 +108,7 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
     QgsMapUnitScale mSymbolHeightMapUnitScale;
     QColor mOutlineColor;
     Qt::PenStyle mOutlineStyle;
+    Qt::PenJoinStyle mPenJoinStyle;
     double mOutlineWidth;
     QgsSymbolV2::OutputUnit mOutlineWidthUnit;
     QgsMapUnitScale mOutlineWidthMapUnitScale;
@@ -113,7 +125,9 @@ class CORE_EXPORT QgsEllipseSymbolLayerV2: public QgsMarkerSymbolLayerV2
       @param scaledHeight optional height
       @param f optional feature to render (0 if no data defined rendering)
      */
-    void preparePath( const QString& symbolName, QgsSymbolV2RenderContext& context, double* scaledWidth = 0, double* scaledHeight = 0, const QgsFeature* f = 0 );
+    void preparePath( const QString& symbolName, QgsSymbolV2RenderContext& context, double* scaledWidth = nullptr, double* scaledHeight = nullptr, const QgsFeature* f = nullptr );
+    QSizeF calculateSize( QgsSymbolV2RenderContext& context, double* scaledWidth = nullptr, double* scaledHeight = nullptr );
+    void calculateOffsetAndRotation( QgsSymbolV2RenderContext& context, double scaledWidth, double scaledHeight, bool& hasDataDefinedRotation, QPointF& offset, double& angle ) const;
 };
 
 #endif // QGSELLIPSESYMBOLLAYERV2_H

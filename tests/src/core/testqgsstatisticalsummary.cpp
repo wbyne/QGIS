@@ -147,7 +147,7 @@ void TestQgsStatisticSummary::individualStatCalculations_data()
 void TestQgsStatisticSummary::individualStatCalculations()
 {
   //tests calculation of statistics one at a time, to make sure statistic calculations are not
-  //dependant on each other
+  //dependent on each other
 
   QList<double> values;
   values << 4 << 4 << 2 << 3 << 3 << 3 << 5 << 5 << 8 << 8;
@@ -156,7 +156,9 @@ void TestQgsStatisticSummary::individualStatCalculations()
   QgsStatisticalSummary::Statistic stat = ( QgsStatisticalSummary::Statistic ) statInt;
   QFETCH( double, expected );
 
-  QgsStatisticalSummary s;
+  //start with a summary which calculates NO statistics
+  QgsStatisticalSummary s( QgsStatisticalSummary::Statistics( 0 ) );
+  //set it to calculate just a single statistic
   s.setStatistics( stat );
   QCOMPARE( s.statistics(), stat );
 

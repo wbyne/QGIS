@@ -11,18 +11,17 @@ __copyright__ = 'Copyright 2012, The QGIS Project'
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-import qgis
+import qgis  # NOQA
+
 import os
 import sys
 import glob
 import platform
 import tempfile
 
-from PyQt4.QtCore import QSize, QDir
-from PyQt4.QtGui import QWidget
+from qgis.PyQt.QtCore import QDir
 
 from qgis.core import (
-    QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsVectorFileWriter,
     QgsMapLayerRegistry,
@@ -31,11 +30,9 @@ from qgis.core import (
     QgsMapRendererSequentialJob,
     QgsFontUtils
 )
-from qgis.gui import QgsMapCanvas
-from qgis_interface import QgisInterface
+from qgis.testing import start_app
 import hashlib
 import re
-from itertools import izip
 try:
     import xml.etree.cElementTree as ET
 except ImportError:
@@ -44,24 +41,6 @@ except ImportError:
 import webbrowser
 import subprocess
 
-# Support python < 2.7 via unittest2 needed for expected failure decorator.
-# Note that you should ignore unused import warnings here as these are imported
-# from this module by other tests.
-if sys.version_info[0:2] < (2, 7):
-    try:
-        from unittest2 import TestCase, expectedFailure
-        import unittest2 as unittest
-    except ImportError:
-        print "You should install unittest2 to run the salt tests"
-        sys.exit(0)
-else:
-    from unittest import TestCase, expectedFailure
-    import unittest
-
-QGISAPP = None  # Static variable used to hold hand to running QGis app
-CANVAS = None
-PARENT = None
-IFACE = None
 GEOCRS = 4326  # constant for EPSG:GEOCRS Geographic CRS id
 
 FONTSLOADED = False
@@ -92,54 +71,11 @@ def assertHashForFile(theHash, theFilename):
 def hashForFile(theFilename):
     """Return an md5 checksum for a file"""
     myPath = theFilename
-    myData = file(myPath).read()
+    myData = open(myPath).read()
     myHash = hashlib.md5()
     myHash.update(myData)
     myHash = myHash.hexdigest()
     return myHash
-
-
-def getQgisTestApp():
-    """ Start one QGis application to test agaist
-
-    Input
-        NIL
-
-    Output
-        handle to qgis app
-
-
-    If QGis is already running the handle to that app will be returned
-    """
-
-    global QGISAPP  # pylint: disable=W0603
-
-    if QGISAPP is None:
-        myGuiFlag = True  # All test will run qgis in gui mode
-
-        # Note: QGIS_PREFIX_PATH is evaluated in QgsApplication -
-        # no need to mess with it here.
-        QGISAPP = QgsApplication(sys.argv, myGuiFlag)
-
-        QGISAPP.initQgis()
-        s = QGISAPP.showSettings()
-        print s
-
-    global PARENT  # pylint: disable=W0603
-    if PARENT is None:
-        PARENT = QWidget()
-
-    global CANVAS  # pylint: disable=W0603
-    if CANVAS is None:
-        CANVAS = QgsMapCanvas(PARENT)
-        CANVAS.resize(QSize(400, 400))
-
-    global IFACE  # pylint: disable=W0603
-    if IFACE is None:
-        # QgisInterface is a stub implementation of the QGIS plugin interface
-        IFACE = QgisInterface(CANVAS)
-
-    return QGISAPP, CANVAS, IFACE, PARENT
 
 
 def unitTestDataPath(theSubdir=None):
@@ -175,19 +111,19 @@ def setCanvasCrs(theEpsgId, theOtfpFlag=False):
                         on the CANVAS. Default to False.
     """
     # Enable on-the-fly reprojection
-    CANVAS.mapRenderer().setProjectionsEnabled(theOtfpFlag)
+    CANVAS.mapRenderer().setProjectionsEnabled(theOtfpFlag)  # FIXME
 
     # Create CRS Instance
     myCrs = QgsCoordinateReferenceSystem()
     myCrs.createFromId(theEpsgId, QgsCoordinateReferenceSystem.E)
 
     # Reproject all layers to WGS84 geographic CRS
-    CANVAS.mapRenderer().setDestinationCrs(myCrs)
+    CANVAS.mapRenderer().setDestinationCrs(myCrs)  # FIXME
 
 
 def writeShape(theMemoryLayer, theFileName):
     myFileName = os.path.join(str(QDir.tempPath()), theFileName)
-    print myFileName
+    print(myFileName)
     # Explicitly giving all options, not really needed but nice for clarity
     myErrorMessage = ''
     myOptions = []
@@ -222,20 +158,20 @@ def compareWkt(a, b, tol=0.000001):
     Compares two WKT strings, ignoring allowed differences between strings
     and allowing a tolerance for coordinates
     """
-    #ignore case
+    # ignore case
     a0 = a.lower()
     b0 = b.lower()
 
-    #remove optional spaces before z/m
+    # remove optional spaces before z/m
     r = re.compile("\s+([zm])")
     a0 = r.sub(r'\1', a0)
     b0 = r.sub(r'\1', b0)
 
-    #spaces before brackets are optional
+    # spaces before brackets are optional
     r = re.compile("\s*\(\s*")
     a0 = r.sub('(', a0)
     b0 = r.sub('(', b0)
-    #spaces after brackets are optional
+    # spaces after brackets are optional
     r = re.compile("\s*\)\s*")
     a0 = r.sub(')', a0)
     b0 = r.sub(')', b0)
@@ -254,7 +190,7 @@ def compareWkt(a, b, tol=0.000001):
     if len(a0) != len(b0):
         return False
 
-    for (a1, b1) in izip(a0, b0):
+    for (a1, b1) in zip(a0, b0):
         if not doubleNear(a1, b1, tol):
             return False
 
@@ -300,7 +236,7 @@ def mapSettingsString(ms):
 
     s = 'MapSettings...\n'
     s += '  layers(): {0}\n'.format(
-        [unicode(QgsMapLayerRegistry.instance().mapLayer(i).name())
+        [QgsMapLayerRegistry.instance().mapLayer(i).name()
          for i in ms.layers()])
     s += '  backgroundColor(): rgba {0},{1},{2},{3}\n'.format(
         ms.backgroundColor().red(), ms.backgroundColor().green(),
@@ -371,8 +307,7 @@ def getTestFont(style='Roman', size=12):
 
 
 def loadTestFonts():
-    if QGISAPP is None:
-        getQgisTestApp()
+    start_app()
 
     global FONTSLOADED  # pylint: disable=W0603
     if FONTSLOADED is False:
@@ -414,11 +349,12 @@ class DoxygenParser():
     Parses the XML files generated by Doxygen which describe the API docs
     """
 
-    def __init__(self, path):
+    def __init__(self, path, acceptable_missing={}):
         """
         Initializes the parser.
         :param path: Path to Doxygen XML output
         """
+        self.acceptable_missing = acceptable_missing
         self.documentable_members = 0
         self.documented_members = 0
         self.undocumented_string = ''
@@ -439,23 +375,31 @@ class DoxygenParser():
         documentable_members = 0
         documented_members = 0
 
-        #Wrap everything in a try, as sometimes Doxygen XML is malformed
+        # Wrap everything in a try, as sometimes Doxygen XML is malformed
         try:
             for event, elem in ET.iterparse(f):
                 if event == 'end' and elem.tag == 'compounddef':
                     if self.elemIsPublicClass(elem):
-                        #store documentation status
+                        # store documentation status
                         members, documented, undocumented, bindable = self.parseClassElem(elem)
                         documentable_members += members
                         documented_members += documented
                         class_name = elem.find('compoundname').text
-                        if documented < members:
+                        acceptable_missing = self.acceptable_missing.get(class_name, [])
+
+                        # GEN LIST
+                        # if len(undocumented) > 0:
+                        #     print('"%s": [%s],' % (class_name, ", ".join(['"%s"' % e.replace('"', '\\"') for e in undocumented])))
+
+                        unacceptable_undocumented = undocumented - set(acceptable_missing)
+
+                        if len(unacceptable_undocumented) > 0:
                             self.undocumented_string += "Class {}, {}/{} members documented\n".format(class_name, documented, members)
-                            for u in undocumented:
+                            for u in unacceptable_undocumented:
                                 self.undocumented_string += ' Missing: {}\n'.format(u)
                             self.undocumented_string += "\n"
 
-                        #store bindable members
+                        # store bindable members
                         if self.classElemIsBindable(elem):
                             for m in bindable:
                                 self.bindable_members.append(m)
@@ -470,7 +414,7 @@ class DoxygenParser():
                         line = l
                         break
             caret = '{:=>{}}'.format('^', col)
-            print 'ParseError in {}\n{}\n{}\n{}'.format(f, e, line, caret)
+            print('ParseError in {}\n{}\n{}\n{}'.format(f, e, line, caret))
 
         self.documentable_members += documentable_members
         self.documented_members += documented_members
@@ -492,12 +436,13 @@ class DoxygenParser():
             :param elem: XML element corresponding to a class
         """
         try:
-            #check for 'not available in python bindings' note in class docs
+            # check for classes with special python doc notes (probably 'not available' or renamed classes, either way
+            # they should be safe to ignore as obviously some consideration has been given to Python bindings)
             detailed_sec = elem.find('detaileddescription')
             for p in detailed_sec.getiterator('para'):
                 for s in p.getiterator('simplesect'):
                     for ps in s.getiterator('para'):
-                        if 'not available in python bindings' in ps.text.lower():
+                        if ps.text and 'python' in ps.text.lower():
                             return False
             return True
         except:
@@ -509,20 +454,23 @@ class DoxygenParser():
         """
         documentable_members = 0
         documented_members = 0
-        undocumented_members = []
+        undocumented_members = set()
         bindable_members = []
         # loop through all members
         for m in e.getiterator('memberdef'):
+            signature = self.memberSignature(m)
+            if signature is None:
+                continue
             if self.elemIsBindableMember(m):
                 bindable_member = [e.find('compoundname').text, m.find('name').text]
-                if not bindable_member in bindable_members:
+                if bindable_member not in bindable_members:
                     bindable_members.append(bindable_member)
             if self.elemIsDocumentableMember(m):
                 documentable_members += 1
                 if self.memberIsDocumented(m):
                     documented_members += 1
                 else:
-                    undocumented_members.append(self.memberSignature(m))
+                    undocumented_members.add(signature)
         return documentable_members, documented_members, undocumented_members, bindable_members
 
     def memberSignature(self, elem):
@@ -560,17 +508,17 @@ class DoxygenParser():
             return False
 
         if self.isVariable(elem) and self.visibility(elem) == 'protected':
-            #protected variables can't be bound in SIP
+            # protected variables can't be bound in SIP
             return False
 
-        #check for members with special python doc notes (probably 'not available' or renamed methods, either way
-        #they should be safe to ignore as obviously some consideration has been given to Python bindings)
+        # check for members with special python doc notes (probably 'not available' or renamed methods, either way
+        # they should be safe to ignore as obviously some consideration has been given to Python bindings)
         try:
             detailed_sec = elem.find('detaileddescription')
             for p in detailed_sec.getiterator('para'):
                 for s in p.getiterator('simplesect'):
                     for ps in s.getiterator('para'):
-                        if 'python' in ps.text.lower():
+                        if ps.text and 'python' in ps.text.lower():
                             return False
         except:
             pass
@@ -626,7 +574,7 @@ class DoxygenParser():
 
         # ignore certain obvious operators
         try:
-            if name.text in ('operator=', 'operator=='):
+            if name.text in ('operator=', 'operator==', 'operator!='):
                 return False
         except:
             pass
@@ -684,7 +632,7 @@ class DoxygenParser():
         try:
             name = member_elem.find('name').text
             if name.startswith('~'):
-                #destructor
+                # destructor
                 return True
         except:
             pass
@@ -697,7 +645,7 @@ class DoxygenParser():
         try:
             definition = member_elem.find('definition').text
             name = member_elem.find('name').text
-            if definition == '{}::{}'.format(name, name):
+            if '{}::{}'.format(name, name) in definition:
                 return True
         except:
             pass
@@ -760,14 +708,34 @@ class DoxygenParser():
             :param member_elem: XML element for a class member
         """
 
+        # look for both Q_DECL_DEPRECATED and Doxygen deprecated tag
+        decl_deprecated = False
         type_elem = member_elem.find('type')
         try:
             if 'Q_DECL_DEPRECATED' in type_elem.text:
-                return True
+                decl_deprecated = True
         except:
             pass
 
-        return False
+        doxy_deprecated = False
+        try:
+            for p in member_elem.find('detaileddescription').getiterator('para'):
+                for s in p.getiterator('xrefsect'):
+                    if s.find('xreftitle') is not None and 'Deprecated' in s.find('xreftitle').text:
+                        doxy_deprecated = True
+                        break
+        except:
+            assert 0, member_elem.find('definition').text
+
+        if not decl_deprecated and not doxy_deprecated:
+            return False
+
+        # only functions for now, but in future this should also apply for enums and variables
+        if member_elem.get('kind') in ('function', 'variable'):
+            assert decl_deprecated, 'Error: Missing Q_DECL_DEPRECATED for {}'.format(member_elem.find('definition').text)
+            assert doxy_deprecated, 'Error: Missing Doxygen deprecated tag for {}'.format(member_elem.find('definition').text)
+
+        return True
 
     def memberIsDocumented(self, member_elem):
         """ Tests whether an member has documentation

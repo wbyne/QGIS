@@ -219,6 +219,9 @@ void TestQgsExpressionContext::contextScopeFunctions()
 void TestQgsExpressionContext::contextStack()
 {
   QgsExpressionContext context;
+
+  context.popScope();
+
   //test retrieving from empty context
   QVERIFY( !context.hasVariable( "test" ) );
   QVERIFY( !context.variable( "test" ).isValid() );
@@ -290,6 +293,11 @@ void TestQgsExpressionContext::contextStack()
   scope2->addVariable( QgsExpressionContextScope::StaticVariable( "readonly", 5, true ) );
   QVERIFY( context.isReadOnly( "readonly" ) );
   QVERIFY( !context.isReadOnly( "test" ) );
+
+  // Check scopes can be popped
+  delete context.popScope();
+  QCOMPARE( scopes.length(), 2 );
+  QCOMPARE( scopes.at( 0 ), scope1 );
 }
 
 void TestQgsExpressionContext::contextCopy()
@@ -386,7 +394,7 @@ void TestQgsExpressionContext::evaluate()
   //test with a function provided by a context
   QgsExpression::registerFunction( new ModifiableFunction( 0 ), true );
   QgsExpression testExpWContextFunction( "test_function(1)" );
-  QVERIFY( !testExpWContextFunction.evaluate( ).isValid() );
+  QVERIFY( !testExpWContextFunction.evaluate().isValid() );
 
   int val1 = 5;
   s->addFunction( "test_function", new ModifiableFunction( &val1 ) );
@@ -480,10 +488,18 @@ void TestQgsExpressionContext::globalScope()
   QgsExpression expVersion( "var('qgis_version')" );
   QgsExpression expVersionNo( "var('qgis_version_no')" );
   QgsExpression expReleaseName( "var('qgis_release_name')" );
+  QgsExpression expAccountName( "var('user_account_name')" );
+  QgsExpression expUserFullName( "var('user_full_name')" );
+  QgsExpression expOsName( "var('qgis_os_name')" );
+  QgsExpression expPlatform( "var('qgis_platform')" );
 
   QCOMPARE( expVersion.evaluate( &context ).toString(), QString( QGis::QGIS_VERSION ) );
   QCOMPARE( expVersionNo.evaluate( &context ).toInt(), QGis::QGIS_VERSION_INT );
   QCOMPARE( expReleaseName.evaluate( &context ).toString(), QString( QGis::QGIS_RELEASE_NAME ) );
+  QCOMPARE( expAccountName.evaluate( &context ).toString(), QgsApplication::userLoginName() );
+  QCOMPARE( expUserFullName.evaluate( &context ).toString(), QgsApplication::userFullName() );
+  QCOMPARE( expOsName.evaluate( &context ).toString(), QgsApplication::osName() );
+  QCOMPARE( expPlatform.evaluate( &context ).toString(), QgsApplication::platform() );
 
   //test setGlobalVariables
   QgsStringMap vars;

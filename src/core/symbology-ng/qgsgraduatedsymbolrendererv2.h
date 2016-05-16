@@ -28,6 +28,8 @@ class CORE_EXPORT QgsRendererRangeV2
     QgsRendererRangeV2( double lowerValue, double upperValue, QgsSymbolV2* symbol, const QString& label, bool render = true );
     QgsRendererRangeV2( const QgsRendererRangeV2& range );
 
+    ~QgsRendererRangeV2() {}
+
     // default dtor is ok
     QgsRendererRangeV2& operator=( QgsRendererRangeV2 range );
 
@@ -116,7 +118,6 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
   public:
 
     QgsGraduatedSymbolRendererV2( const QString& attrName = QString(), const QgsRangeList& ranges = QgsRangeList() );
-    QgsGraduatedSymbolRendererV2( const QgsGraduatedSymbolRendererV2 & other );
 
     virtual ~QgsGraduatedSymbolRendererV2();
 
@@ -230,15 +231,16 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     //! @note Added in 2.6
     void calculateLabelPrecision( bool updateRanges = true );
 
-    static QgsGraduatedSymbolRendererV2* createRenderer( QgsVectorLayer* vlayer,
-        const QString& attrName,
-        int classes,
-        Mode mode,
-        QgsSymbolV2* symbol,
-        QgsVectorColorRampV2* ramp,
-        bool inverted = false,
-        const QgsRendererRangeV2LabelFormat& legendFormat = QgsRendererRangeV2LabelFormat()
-                                                       );
+    static QgsGraduatedSymbolRendererV2* createRenderer(
+      QgsVectorLayer* vlayer,
+      const QString& attrName,
+      int classes,
+      Mode mode,
+      QgsSymbolV2* symbol,
+      QgsVectorColorRampV2* ramp,
+      bool inverted = false,
+      const QgsRendererRangeV2LabelFormat& legendFormat = QgsRendererRangeV2LabelFormat()
+    );
 
     //! create renderer from XML element
     static QgsFeatureRendererV2* create( QDomElement& element );
@@ -256,15 +258,32 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     //! @note added in 2.10
     QgsLegendSymbolListV2 legendSymbolItemsV2() const override;
 
+    virtual QSet< QString > legendKeysForFeature( QgsFeature& feature, QgsRenderContext& context ) override;
 
+    /** Returns the renderer's source symbol, which is the base symbol used for the each classes' symbol before applying
+     * the classes' color.
+     * @see setSourceSymbol()
+     * @see sourceColorRamp()
+     */
     QgsSymbolV2* sourceSymbol();
+
+    /** Sets the source symbol for the renderer, which is the base symbol used for the each classes' symbol before applying
+     * the classes' color.
+     * @param sym source symbol, ownership is transferred to the renderer
+     * @see sourceSymbol()
+     * @see setSourceColorRamp()
+     */
     void setSourceSymbol( QgsSymbolV2* sym );
 
+    /** Returns the source color ramp, from which each classes' color is derived.
+     * @see setSourceColorRamp()
+     * @see sourceSymbol()
+     */
     QgsVectorColorRampV2* sourceColorRamp();
 
     /** Sets the source color ramp.
-      * @param ramp color ramp. Ownership is transferred to the renderer
-      */
+     * @param ramp color ramp. Ownership is transferred to the renderer
+     */
     void setSourceColorRamp( QgsVectorColorRampV2* ramp );
 
     //! @note added in 2.1
@@ -272,13 +291,17 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     void setInvertedColorRamp( bool inverted ) { mInvertedColorRamp = inverted; }
 
     /** Update the color ramp used. Also updates all symbols colors.
-      * Doesn't alter current breaks.
-      * @param ramp color ramp. Ownership is transferred to the renderer
-      * @param inverted set to true to invert ramp colors
-      */
-    void updateColorRamp( QgsVectorColorRampV2* ramp = 0, bool inverted = false );
+     * Doesn't alter current breaks.
+     * @param ramp color ramp. Ownership is transferred to the renderer
+     * @param inverted set to true to invert ramp colors
+     */
+    void updateColorRamp( QgsVectorColorRampV2* ramp = nullptr, bool inverted = false );
 
-    /** Update all the symbols but leave breaks and colors. */
+    /** Update all the symbols but leave breaks and colors. This method also sets the source
+     * symbol for the renderer.
+     * @param sym source symbol to use for classes. Ownership is not transferred.
+     * @see setSourceSymbol()
+     */
     void updateSymbols( QgsSymbolV2* sym );
 
     //! set varying symbol size for classes
@@ -325,6 +348,8 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
     //! @note added in 2.6
     virtual void checkLegendSymbolItem( const QString& key, bool state = true ) override;
 
+    virtual void setLegendSymbolItem( const QString& key, QgsSymbolV2* symbol ) override;
+
     //! If supported by the renderer, return classification attribute for the use in legend
     //! @note added in 2.6
     virtual QString legendClassificationAttribute() const override { return classAttribute(); }
@@ -357,7 +382,18 @@ class CORE_EXPORT QgsGraduatedSymbolRendererV2 : public QgsFeatureRendererV2
 
     QgsSymbolV2* symbolForValue( double value );
 
+    /** Returns the matching legend key for a value.
+     */
+    QString legendKeyForValue( double value ) const;
+
+    //! @note not available in Python bindings
     static const char * graduatedMethodStr( GraduatedMethod method );
+
+  private:
+
+    /** Returns calculated value used for classifying a feature.
+     */
+    QVariant valueForFeature( QgsFeature& feature, QgsRenderContext &context ) const;
 
 };
 Q_NOWARN_DEPRECATED_POP

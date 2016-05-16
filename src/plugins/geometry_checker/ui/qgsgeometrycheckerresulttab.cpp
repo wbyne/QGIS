@@ -38,13 +38,17 @@
 QString QgsGeometryCheckerResultTab::sSettingsGroup = "/geometry_checker/default_fix_methods/";
 
 QgsGeometryCheckerResultTab::QgsGeometryCheckerResultTab( QgisInterface* iface, QgsGeometryChecker* checker, QgsFeaturePool *featurePool, QTabWidget* tabWidget, QWidget* parent )
-    : QWidget( parent ), mTabWidget( tabWidget ), mIface( iface ), mChecker( checker ), mFeaturePool( featurePool )
+    : QWidget( parent )
+    , mTabWidget( tabWidget )
+    , mIface( iface )
+    , mChecker( checker )
+    , mFeaturePool( featurePool )
 {
   ui.setupUi( this );
   mErrorCount = 0;
   mFixedCount = 0;
   mCloseable = true;
-  mAttribTableDialog = 0;
+  mAttribTableDialog = nullptr;
 
   for ( int i = 0, n = mFeaturePool->getLayer()->fields().count(); i < n; ++i )
   {
@@ -304,7 +308,7 @@ void QgsGeometryCheckerResultTab::highlightErrors( bool current )
   mCurrentRubberBands.clear();
 
   QList<QTableWidgetItem*> items;
-  QList<QgsPoint> errorPositions;
+  QVector<QgsPoint> errorPositions;
   QgsRectangle totextent;
 
   if ( current )
@@ -333,7 +337,7 @@ void QgsGeometryCheckerResultTab::highlightErrors( bool current )
     {
       // QgsGeometry above takes ownership of geometry and deletes it when it goes out of scope
       delete geometry;
-      geometry = 0;
+      geometry = nullptr;
     }
 
     if ( ui.radioButtonError->isChecked() || current || error->status() == QgsGeometryCheckError::StatusFixed )
@@ -400,6 +404,11 @@ void QgsGeometryCheckerResultTab::onSelectionChanged( const QItemSelection &newS
   if ( idx.isValid() && !ui.tableWidgetErrors->isRowHidden( idx.row() )  && ui.tableWidgetErrors->selectionModel()->selectedIndexes().contains( idx ) )
   {
     highlightErrors();
+  }
+  else
+  {
+    qDeleteAll( mCurrentRubberBands );
+    mCurrentRubberBands.clear();
   }
   ui.pushButtonOpenAttributeTable->setEnabled( !newSel.isEmpty() );
 }

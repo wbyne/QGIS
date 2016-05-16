@@ -30,7 +30,7 @@ class GUI_EXPORT QgsSymbolsListWidget : public QWidget, private Ui::SymbolsListW
     Q_OBJECT
 
   public:
-    QgsSymbolsListWidget( QgsSymbolV2* symbol, QgsStyleV2* style, QMenu* menu, QWidget* parent, const QgsVectorLayer * layer = 0 );
+    QgsSymbolsListWidget( QgsSymbolV2* symbol, QgsStyleV2* style, QMenu* menu, QWidget* parent, const QgsVectorLayer * layer = nullptr );
 
     //! Destructor
     virtual ~QgsSymbolsListWidget();
@@ -41,7 +41,6 @@ class GUI_EXPORT QgsSymbolsListWidget : public QWidget, private Ui::SymbolsListW
      * @note added in QGIS 2.12
      * @see setExpressionContext()
      */
-
     QgsExpressionContext* expressionContext() const { return mPresetExpressionContext; }
 
     /** Sets the map canvas associated with the widget. This allows the widget to retrieve the current
@@ -81,6 +80,7 @@ class GUI_EXPORT QgsSymbolsListWidget : public QWidget, private Ui::SymbolsListW
     void setMarkerSize( double size );
     void setLineWidth( double width );
     void addSymbolToStyle();
+    void saveSymbol();
     void symbolAddedToStyle( const QString& name, QgsSymbolV2* symbol );
     void on_mSymbolUnitWidget_changed();
     void on_mTransparencySlider_valueChanged( int value );

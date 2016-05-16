@@ -46,6 +46,7 @@ QgsGeometryCollectionV2& QgsGeometryCollectionV2::operator=( const QgsGeometryCo
 {
   if ( &c != this )
   {
+    clearCache();
     QgsAbstractGeometryV2::operator=( c );
     int nGeoms = c.mGeometries.size();
     mGeometries.resize( nGeoms );
@@ -72,6 +73,7 @@ void QgsGeometryCollectionV2::clear()
   qDeleteAll( mGeometries );
   mGeometries.clear();
   mWkbType = QgsWKBTypes::Unknown;
+  clearCache(); //set bounding box invalid
 }
 
 int QgsGeometryCollectionV2::numGeometries() const
@@ -81,20 +83,13 @@ int QgsGeometryCollectionV2::numGeometries() const
 
 const QgsAbstractGeometryV2* QgsGeometryCollectionV2::geometryN( int n ) const
 {
-  if ( n >= mGeometries.size() )
-  {
-    return 0;
-  }
-  return mGeometries.at( n );
+  return mGeometries.value( n );
 }
 
 QgsAbstractGeometryV2* QgsGeometryCollectionV2::geometryN( int n )
 {
-  if ( n >= mGeometries.size() )
-  {
-    return 0;
-  }
-  return mGeometries.at( n );
+  clearCache();
+  return mGeometries.value( n );
 }
 
 bool QgsGeometryCollectionV2::addGeometry( QgsAbstractGeometryV2* g )
@@ -105,6 +100,7 @@ bool QgsGeometryCollectionV2::addGeometry( QgsAbstractGeometryV2* g )
   }
 
   mGeometries.append( g );
+  clearCache(); //set bounding box invalid
   return true;
 }
 
@@ -116,6 +112,7 @@ bool QgsGeometryCollectionV2::insertGeometry( QgsAbstractGeometryV2 *g, int inde
   }
 
   mGeometries.insert( index, g );
+  clearCache(); //set bounding box invalid
   return true;
 }
 
@@ -125,8 +122,9 @@ bool QgsGeometryCollectionV2::removeGeometry( int nr )
   {
     return false;
   }
-  delete mGeometries[nr];
+  delete mGeometries.at( nr );
   mGeometries.remove( nr );
+  clearCache(); //set bounding box invalid
   return true;
 }
 
@@ -147,20 +145,20 @@ int QgsGeometryCollectionV2::dimension() const
 
 void QgsGeometryCollectionV2::transform( const QgsCoordinateTransform& ct, QgsCoordinateTransform::TransformDirection d )
 {
-  QVector< QgsAbstractGeometryV2* >::iterator it = mGeometries.begin();
-  for ( ; it != mGeometries.end(); ++it )
+  Q_FOREACH ( QgsAbstractGeometryV2* g, mGeometries )
   {
-    ( *it )->transform( ct, d );
+    g->transform( ct, d );
   }
+  clearCache(); //set bounding box invalid
 }
 
 void QgsGeometryCollectionV2::transform( const QTransform& t )
 {
-  QVector< QgsAbstractGeometryV2* >::iterator it = mGeometries.begin();
-  for ( ; it != mGeometries.end(); ++it )
+  Q_FOREACH ( QgsAbstractGeometryV2* g, mGeometries )
   {
-    ( *it )->transform( t );
+    g->transform( t );
   }
+  clearCache(); //set bounding box invalid
 }
 
 #if 0
@@ -183,15 +181,15 @@ void QgsGeometryCollectionV2::draw( QPainter& p ) const
   }
 }
 
-bool QgsGeometryCollectionV2::fromWkb( const unsigned char * wkb )
+bool QgsGeometryCollectionV2::fromWkb( QgsConstWkbPtr wkbPtr )
 {
-  if ( !wkb )
+  if ( !wkbPtr )
   {
     return false;
   }
-  QgsConstWkbPtr wkbPtr( wkb + 1 );
-  //type
-  wkbPtr >> mWkbType;
+
+  mWkbType = wkbPtr.readHeader();
+
   int nGeometries = 0;
   wkbPtr >> nGeometries;
 
@@ -211,6 +209,7 @@ bool QgsGeometryCollectionV2::fromWkb( const unsigned char * wkb )
   {
     mGeometries[i] = geometryList.at( i );
   }
+  clearCache(); //set bounding box invalid
 
   return true;
 }
@@ -240,7 +239,7 @@ unsigned char* QgsGeometryCollectionV2::asWkb( int& binarySize ) const
 {
   binarySize = wkbSize();
   unsigned char* geomPtr = new unsigned char[binarySize];
-  QgsWkbPtr wkb( geomPtr );
+  QgsWkbPtr wkb( geomPtr, binarySize );
   wkb << static_cast<char>( QgsApplication::endian() );
   wkb << static_cast<quint32>( wkbType() );
   wkb << static_cast<quint32>( mGeometries.size() );
@@ -317,6 +316,15 @@ QString QgsGeometryCollectionV2::asJSON( int precision ) const
   return json;
 }
 
+QgsRectangle QgsGeometryCollectionV2::boundingBox() const
+{
+  if ( mBoundingBox.isNull() )
+  {
+    mBoundingBox = calculateBoundingBox();
+  }
+  return mBoundingBox;
+}
+
 QgsRectangle QgsGeometryCollectionV2::calculateBoundingBox() const
 {
   if ( mGeometries.size() < 1 )
@@ -324,29 +332,33 @@ QgsRectangle QgsGeometryCollectionV2::calculateBoundingBox() const
     return QgsRectangle();
   }
 
-  QgsRectangle bbox = mGeometries.at( 0 )->calculateBoundingBox();
+  QgsRectangle bbox = mGeometries.at( 0 )->boundingBox();
   for ( int i = 1; i < mGeometries.size(); ++i )
   {
-    QgsRectangle geomBox = mGeometries.at( i )->calculateBoundingBox();
+    QgsRectangle geomBox = mGeometries.at( i )->boundingBox();
     bbox.combineExtentWith( &geomBox );
   }
   return bbox;
 }
 
-void QgsGeometryCollectionV2::coordinateSequence( QList< QList< QList< QgsPointV2 > > >& coord ) const
+QgsCoordinateSequenceV2 QgsGeometryCollectionV2::coordinateSequence() const
 {
-  coord.clear();
+  if ( !mCoordinateSequence.isEmpty() )
+    return mCoordinateSequence;
+
   QVector< QgsAbstractGeometryV2* >::const_iterator geomIt = mGeometries.constBegin();
   for ( ; geomIt != mGeometries.constEnd(); ++geomIt )
   {
-    QList< QList< QList< QgsPointV2 > > > geomCoords;
-    ( *geomIt )->coordinateSequence( geomCoords );
-    QList< QList< QList< QgsPointV2 > > >::const_iterator cIt = geomCoords.constBegin();
+    QgsCoordinateSequenceV2 geomCoords = ( *geomIt )->coordinateSequence();
+
+    QgsCoordinateSequenceV2::const_iterator cIt = geomCoords.constBegin();
     for ( ; cIt != geomCoords.constEnd(); ++cIt )
     {
-      coord.push_back( *cIt );
+      mCoordinateSequence.push_back( *cIt );
     }
   }
+
+  return mCoordinateSequence;
 }
 
 double QgsGeometryCollectionV2::closestSegment( const QgsPointV2& pt, QgsPointV2& segmentPt,  QgsVertexId& vertexAfter, bool* leftOf, double epsilon ) const
@@ -358,7 +370,13 @@ bool QgsGeometryCollectionV2::nextVertex( QgsVertexId& id, QgsPointV2& vertex ) 
 {
   if ( id.part < 0 )
   {
-    id.part = 0; id.ring = -1; id.vertex = -1;
+    id.part = 0;
+    id.ring = -1;
+    id.vertex = -1;
+  }
+  if ( mGeometries.isEmpty() )
+  {
+    return false;
   }
 
   QgsAbstractGeometryV2* geom = mGeometries.at( id.part );
@@ -370,48 +388,50 @@ bool QgsGeometryCollectionV2::nextVertex( QgsVertexId& id, QgsPointV2& vertex ) 
   {
     return false;
   }
-  ++id.part; id.ring = -1; id.vertex = -1;
+  ++id.part;
+  id.ring = -1;
+  id.vertex = -1;
   return mGeometries.at( id.part )->nextVertex( id, vertex );
 }
 
-bool QgsGeometryCollectionV2::insertVertex( const QgsVertexId& position, const QgsPointV2& vertex )
+bool QgsGeometryCollectionV2::insertVertex( QgsVertexId position, const QgsPointV2& vertex )
 {
   if ( position.part >= mGeometries.size() )
   {
     return false;
   }
 
-  bool success = mGeometries[position.part]->insertVertex( position, vertex );
+  bool success = mGeometries.at( position.part )->insertVertex( position, vertex );
   if ( success )
   {
-    mBoundingBox = QgsRectangle(); //set bounding box invalid
+    clearCache(); //set bounding box invalid
   }
   return success;
 }
 
-bool QgsGeometryCollectionV2::moveVertex( const QgsVertexId& position, const QgsPointV2& newPos )
+bool QgsGeometryCollectionV2::moveVertex( QgsVertexId position, const QgsPointV2& newPos )
 {
   if ( position.part >= mGeometries.size() )
   {
     return false;
   }
 
-  bool success = mGeometries[position.part]->moveVertex( position, newPos );
+  bool success = mGeometries.at( position.part )->moveVertex( position, newPos );
   if ( success )
   {
-    mBoundingBox = QgsRectangle(); //set bounding box invalid
+    clearCache(); //set bounding box invalid
   }
   return success;
 }
 
-bool QgsGeometryCollectionV2::deleteVertex( const QgsVertexId& position )
+bool QgsGeometryCollectionV2::deleteVertex( QgsVertexId position )
 {
   if ( position.part >= mGeometries.size() )
   {
     return false;
   }
 
-  QgsAbstractGeometryV2* geom = mGeometries[position.part];
+  QgsAbstractGeometryV2* geom = mGeometries.at( position.part );
   if ( !geom )
   {
     return false;
@@ -427,7 +447,7 @@ bool QgsGeometryCollectionV2::deleteVertex( const QgsVertexId& position )
 
   if ( success )
   {
-    mBoundingBox = QgsRectangle(); //set bounding box invalid
+    clearCache(); //set bounding box invalid
   }
   return success;
 }
@@ -541,7 +561,8 @@ QgsAbstractGeometryV2* QgsGeometryCollectionV2::segmentize() const
   QgsGeometryCollectionV2* geomCollection = dynamic_cast<QgsGeometryCollectionV2*>( geom );
   if ( !geomCollection )
   {
-    delete geom; return clone();
+    delete geom;
+    return clone();
   }
 
   QVector< QgsAbstractGeometryV2* >::const_iterator geomIt = mGeometries.constBegin();
@@ -552,7 +573,7 @@ QgsAbstractGeometryV2* QgsGeometryCollectionV2::segmentize() const
   return geomCollection;
 }
 
-double QgsGeometryCollectionV2::vertexAngle( const QgsVertexId& vertex ) const
+double QgsGeometryCollectionV2::vertexAngle( QgsVertexId vertex ) const
 {
   if ( vertex.part >= mGeometries.size() )
   {
@@ -579,6 +600,7 @@ bool QgsGeometryCollectionV2::addZValue( double zValue )
   {
     geom->addZValue( zValue );
   }
+  clearCache();
   return true;
 }
 
@@ -593,5 +615,35 @@ bool QgsGeometryCollectionV2::addMValue( double mValue )
   {
     geom->addMValue( mValue );
   }
+  clearCache();
+  return true;
+}
+
+
+bool QgsGeometryCollectionV2::dropZValue()
+{
+  if ( !is3D() )
+    return false;
+
+  mWkbType = QgsWKBTypes::dropZ( mWkbType );
+  Q_FOREACH ( QgsAbstractGeometryV2* geom, mGeometries )
+  {
+    geom->dropZValue();
+  }
+  clearCache();
+  return true;
+}
+
+bool QgsGeometryCollectionV2::dropMValue()
+{
+  if ( !isMeasure() )
+    return false;
+
+  mWkbType = QgsWKBTypes::dropM( mWkbType );
+  Q_FOREACH ( QgsAbstractGeometryV2* geom, mGeometries )
+  {
+    geom->dropMValue();
+  }
+  clearCache();
   return true;
 }

@@ -25,14 +25,21 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import os
+
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QVariant
+
 from qgis.core import QGis, QgsProject, QgsCoordinateTransform, QgsFeature, QgsGeometry, QgsField
-from PyQt4.QtCore import QVariant
 from qgis.utils import iface
+
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.parameters import ParameterVector
 from processing.core.parameters import ParameterSelection
 from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
+
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 class ExportGeometryInfo(GeoAlgorithm):
@@ -40,6 +47,9 @@ class ExportGeometryInfo(GeoAlgorithm):
     INPUT = 'INPUT'
     METHOD = 'CALC_METHOD'
     OUTPUT = 'OUTPUT'
+
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'ftools', 'export_geometry.png'))
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Export/Add geometry columns')
@@ -95,7 +105,7 @@ class ExportGeometryInfo(GeoAlgorithm):
                                                      'NONE')[0]
             crs = layer.crs().srsid()
         elif method == 1:
-            mapCRS = iface.mapCanvas().mapRenderer().destinationCrs()
+            mapCRS = iface.mapCanvas().mapSettings().destinationCrs()
             layCRS = layer.crs()
             coordTransform = QgsCoordinateTransform(layCRS, mapCRS)
 
@@ -105,10 +115,9 @@ class ExportGeometryInfo(GeoAlgorithm):
         outFeat.initAttributes(len(fields))
         outFeat.setFields(fields)
 
-        current = 0
         features = vector.features(layer)
-        total = 100.0 / float(len(features))
-        for f in features:
+        total = 100.0 / len(features)
+        for current, f in enumerate(features):
             inGeom = f.geometry()
 
             if method == 1:
@@ -124,7 +133,6 @@ class ExportGeometryInfo(GeoAlgorithm):
             outFeat.setAttributes(attrs)
             writer.addFeature(outFeat)
 
-            current += 1
             progress.setPercentage(int(current * total))
 
         del writer

@@ -59,7 +59,7 @@ QgsOWSSourceSelect::QgsOWSSourceSelect( const QString& service, QWidget * parent
     , mService( service )
     , mManagerMode( managerMode )
     , mEmbeddedMode( embeddedMode )
-    , mCurrentTileset( 0 )
+    , mCurrentTileset( nullptr )
 {
   setupUi( this );
 
@@ -146,7 +146,7 @@ void QgsOWSSourceSelect::populateFormats()
 
   clearFormats();
 
-  if ( mProviderFormats.size() == 0 )
+  if ( mProviderFormats.isEmpty() )
   {
     mProviderFormats = providerFormats();
     for ( int i = 0; i < mProviderFormats.size(); i++ )
@@ -291,7 +291,7 @@ void QgsOWSSourceSelect::on_mSaveButton_clicked()
 
 void QgsOWSSourceSelect::on_mLoadButton_clicked()
 {
-  QString fileName = QFileDialog::getOpenFileName( this, tr( "Load connections" ), ".",
+  QString fileName = QFileDialog::getOpenFileName( this, tr( "Load connections" ), QDir::homePath(),
                      tr( "XML files (*.xml *XML)" ) );
   if ( fileName.isEmpty() )
   {
@@ -428,8 +428,8 @@ void QgsOWSSourceSelect::populateCRS()
     // check whether current CRS is supported
     // if not, use one of the available CRS
     QString defaultCRS;
-    QSet<QString>::const_iterator it = mSelectedLayersCRSs.begin();
-    for ( ; it != mSelectedLayersCRSs.end(); ++it )
+    QSet<QString>::const_iterator it = mSelectedLayersCRSs.constBegin();
+    for ( ; it != mSelectedLayersCRSs.constEnd(); ++it )
     {
       if ( it->compare( mSelectedCRS, Qt::CaseInsensitive ) == 0 )
         break;
@@ -479,7 +479,7 @@ void QgsOWSSourceSelect::on_mTilesetsTableWidget_itemClicked( QTableWidgetItem *
   }
   else
   {
-    mCurrentTileset = 0;
+    mCurrentTileset = nullptr;
   }
   mTilesetsTableWidget->blockSignals( false );
 

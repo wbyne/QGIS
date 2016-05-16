@@ -34,8 +34,6 @@ the rules and draws features with symbols from rules that match.
 class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
 {
   public:
-
-
     // TODO: use QVarLengthArray instead of QList
 
     enum FeatureFlags { FeatIsSelected = 1, FeatDrawMarkers = 2 };
@@ -43,7 +41,10 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
     // feature for rendering: QgsFeature and some flags
     struct FeatureToRender
     {
-      FeatureToRender( QgsFeature& _f, int _flags ) : feat( _f ), flags( _flags ) {}
+      FeatureToRender( QgsFeature& _f, int _flags )
+          : feat( _f )
+          , flags( _flags )
+      {}
       QgsFeature feat;
       int flags; // selected and/or draw markers
     };
@@ -52,7 +53,10 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
     // (both f, symbol are _not_ owned by this class)
     struct RenderJob
     {
-      RenderJob( FeatureToRender& _ftr, QgsSymbolV2* _s ) : ftr( _ftr ), symbol( _s ) {}
+      RenderJob( FeatureToRender& _ftr, QgsSymbolV2* _s )
+          : ftr( _ftr )
+          , symbol( _s )
+      {}
       FeatureToRender& ftr;
       QgsSymbolV2* symbol;
     };
@@ -65,6 +69,28 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
       ~RenderLevel() { Q_FOREACH ( RenderJob* j, jobs ) delete j; }
       int zIndex;
       QList<RenderJob*> jobs;
+
+      RenderLevel& operator=( const RenderLevel& rh )
+      {
+        zIndex = rh.zIndex;
+        qDeleteAll( jobs );
+        jobs.clear();
+        Q_FOREACH ( RenderJob* job, rh.jobs )
+        {
+          jobs << new RenderJob( *job );
+        }
+        return *this;
+      }
+
+      RenderLevel( const RenderLevel& other )
+          : zIndex( other.zIndex )
+      {
+        Q_FOREACH ( RenderJob* job, other.jobs )
+        {
+          jobs << new RenderJob( *job );
+        }
+      }
+
     };
 
     // rendering queue: a list of rendering levels
@@ -108,13 +134,13 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
          * Return the attributes used to evaluate the expression of this rule
          * @return A set of attribute names
          */
-        QSet<QString> usedAttributes();
+        QSet<QString> usedAttributes() const;
 
         //! @note available in python bindings as symbol2
-        QgsSymbolV2List symbols( const QgsRenderContext& context = QgsRenderContext() );
+        QgsSymbolV2List symbols( const QgsRenderContext& context = QgsRenderContext() ) const;
 
         //! @note not available in python bindings
-        QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, const QString& rule = "" );
+        QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, const QString& rule = "" ) const;
 
         //! @note added in 2.6
         QgsLegendSymbolListV2 legendSymbolItemsV2( int currentLevel = -1 ) const;
@@ -126,7 +152,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
          * @param context   The context in which the rendering happens
          * @return          True if the feature shall be rendered
          */
-        bool isFilterOK( QgsFeature& f, QgsRenderContext *context = 0 ) const;
+        bool isFilterOK( QgsFeature& f, QgsRenderContext *context = nullptr ) const;
 
         /**
          * Check if this rule applies for a given scale
@@ -164,6 +190,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         //! @note added in 2.6
         //! @deprecated use active instead
         Q_DECL_DEPRECATED bool checkState() const { return mIsActive; }
+
         /**
          * Returns if this rule is active
          *
@@ -203,7 +230,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
          *
          * @param filterExp An expression
          */
-        void setFilterExpression( const QString& filterExp ) { mFilterExp = filterExp; initFilter(); }
+        void setFilterExpression( const QString& filterExp );
 
         /**
          * Set a human readable description for this rule
@@ -214,7 +241,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
 
         //! @note added in 2.6
         //! @deprecated use setActive instead
-        void setCheckState( bool state ) { mIsActive = state; }
+        Q_DECL_DEPRECATED void setCheckState( bool state ) { mIsActive = state; }
 
         /**
          * Sets if this rule is active
@@ -225,12 +252,14 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         //! clone this rule, return new instance
         Rule* clone() const;
 
-        void toSld( QDomDocument& doc, QDomElement &element, QgsStringMap props );
+        void toSld( QDomDocument& doc, QDomElement &element, QgsStringMap props ) const;
         static Rule* createFromSld( QDomElement& element, QGis::GeometryType geomType );
 
-        QDomElement save( QDomDocument& doc, QgsSymbolV2Map& symbolMap );
+        QDomElement save( QDomDocument& doc, QgsSymbolV2Map& symbolMap ) const;
 
-        //! prepare the rule for rendering and its children (build active children array)
+        /** Prepare the rule for rendering and its children (build active children array)
+         * @deprecated use startRender( QgsRenderContext& context, const QgsFields& fields, QString& filter ) instead
+         */
         Q_DECL_DEPRECATED bool startRender( QgsRenderContext& context, const QgsFields& fields );
 
         //! prepare the rule for rendering and its children (build active children array)
@@ -255,13 +284,18 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         RenderResult renderFeature( FeatureToRender& featToRender, QgsRenderContext& context, RenderQueue& renderQueue );
 
         //! only tell whether a feature will be rendered without actually rendering it
-        bool willRenderFeature( QgsFeature& feat, QgsRenderContext* context = 0 );
+        bool willRenderFeature( QgsFeature& feat, QgsRenderContext* context = nullptr );
 
         //! tell which symbols will be used to render the feature
-        QgsSymbolV2List symbolsForFeature( QgsFeature& feat, QgsRenderContext* context = 0 );
+        QgsSymbolV2List symbolsForFeature( QgsFeature& feat, QgsRenderContext* context = nullptr );
+
+        /** Returns which legend keys match the feature
+         * @note added in QGIS 2.14
+         */
+        QSet< QString > legendKeysForFeature( QgsFeature& feat, QgsRenderContext* context = nullptr );
 
         //! tell which rules will be used to render the feature
-        RuleList rulesForFeature( QgsFeature& feat, QgsRenderContext* context = 0 );
+        RuleList rulesForFeature( QgsFeature& feat, QgsRenderContext* context = nullptr );
 
         /**
          * Stop a rendering process. Used to clean up the internal state of this rule
@@ -314,7 +348,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         void removeChildAt( int i );
 
         //! take child rule out, set parent as null
-        void takeChild( Rule* rule );
+        Rule* takeChild( Rule* rule );
 
         //! take child rule out, set parent as null
         Rule* takeChildAt( int i );
@@ -335,7 +369,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
          *
          * @param iselse If true, this rule is an ELSE rule
          */
-        void setIsElse( bool iselse ) { mElseRule = iselse; }
+        void setIsElse( bool iselse );
 
         /**
          * Check if this rule is an ELSE rule
@@ -363,6 +397,11 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
         // temporary while rendering
         QSet<int> mSymbolNormZLevels;
         RuleList mActiveChildren;
+
+      private:
+
+        Rule( const Rule& rh );
+        Rule& operator=( const Rule& rh );
     };
 
     /////
@@ -385,7 +424,7 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
 
     virtual void stopRender( QgsRenderContext& context ) override;
 
-    virtual QString filter() override;
+    virtual QString filter( const QgsFields& fields = QgsFields() ) override;
 
     virtual QList<QString> usedAttributes() override;
 
@@ -415,6 +454,8 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
     //! @note added in 2.5
     virtual void checkLegendSymbolItem( const QString& key, bool state = true ) override;
 
+    virtual void setLegendSymbolItem( const QString& key, QgsSymbolV2* symbol ) override;
+
     //! return a list of item text / symbol
     //! @note not available in python bindings
     virtual QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, const QString& rule = "" ) override;
@@ -437,6 +478,8 @@ class CORE_EXPORT QgsRuleBasedRendererV2 : public QgsFeatureRendererV2
     virtual QgsSymbolV2List symbolsForFeature( QgsFeature& feat, QgsRenderContext& context ) override;
 
     virtual QgsSymbolV2List originalSymbolsForFeature( QgsFeature& feat, QgsRenderContext& context ) override;
+
+    virtual QSet<QString> legendKeysForFeature( QgsFeature& feature, QgsRenderContext& context ) override;
 
     //! returns bitwise OR-ed capabilities of the renderer
     virtual int capabilities() override { return MoreSymbolsPerFeature | Filter | ScaleDependent; }

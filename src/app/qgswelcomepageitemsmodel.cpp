@@ -48,7 +48,7 @@ void QgsWelcomePageItemDelegate::paint( QPainter* painter, const QStyleOptionVie
     ctx.palette.setColor( QPalette::Text, optionV4.palette.color( QPalette::Active, QPalette::HighlightedText ) );
 
     QStyle *style = QApplication::style();
-    style->drawPrimitive( QStyle::PE_PanelItemViewItem, &option, painter, NULL );
+    style->drawPrimitive( QStyle::PE_PanelItemViewItem, &option, painter, nullptr );
   }
   else if ( option.state & QStyle::State_Enabled )
   {
@@ -56,7 +56,7 @@ void QgsWelcomePageItemDelegate::paint( QPainter* painter, const QStyleOptionVie
     ctx.palette.setColor( QPalette::Text, optionV4.palette.color( QPalette::Active, QPalette::Text ) );
 
     QStyle *style = QApplication::style();
-    style->drawPrimitive( QStyle::PE_PanelItemViewItem, &option, painter, NULL );
+    style->drawPrimitive( QStyle::PE_PanelItemViewItem, &option, painter, nullptr );
   }
   else
   {
@@ -159,7 +159,11 @@ QVariant QgsWelcomePageItemsModel::data( const QModelIndex& index, int role ) co
       }
     case Qt::DecorationRole:
     {
-      QImage thumbnail( mRecentProjects.at( index.row() ).previewImagePath );
+      QString filename( mRecentProjects.at( index.row() ).previewImagePath );
+      if ( filename.isEmpty() )
+        return QVariant();
+
+      QImage thumbnail( filename );
       if ( thumbnail.isNull() )
         return QVariant();
 

@@ -48,7 +48,10 @@
 class DummyPaintEffect : public QgsPaintEffect
 {
   public:
-    DummyPaintEffect( const QString& prop1, const QString& prop2 ) : mProp1( prop1 ), mProp2( prop2 ) {}
+    DummyPaintEffect( const QString& prop1, const QString& prop2 )
+        : mProp1( prop1 )
+        , mProp2( prop2 )
+    {}
     virtual ~DummyPaintEffect() {}
     virtual QString type() const override { return "Dummy"; }
     virtual QgsPaintEffect* clone() const override { return new DummyPaintEffect( mProp1, mProp2 ); }
@@ -254,13 +257,13 @@ void TestQgsPaintEffect::stackSaveRestore()
 
   //check if stack effect node was written
   QDomNodeList evalNodeList = effectParentElem.childNodes();
-  QCOMPARE( evalNodeList.length(), ( unsigned int )1 );
+  QCOMPARE( evalNodeList.count(), 1 );
   QDomElement effectElem = evalNodeList.at( 0 ).toElement();
   QCOMPARE( effectElem.attribute( "type" ), stack->type() );
 
   //should be two effect child nodes
   QDomNodeList childNodeList = effectElem.elementsByTagName( "effect" );
-  QCOMPARE( childNodeList.length(), ( unsigned int )2 );
+  QCOMPARE( childNodeList.count(), 2 );
   QCOMPARE( childNodeList.at( 0 ).toElement().attribute( "type" ), blur->type() );
   QCOMPARE( childNodeList.at( 1 ).toElement().attribute( "type" ), shadow->type() );
 

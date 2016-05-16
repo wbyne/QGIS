@@ -35,6 +35,7 @@
 #include "qgsproject.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsrendererv2.h"
+#include "qgsunittypes.h"
 
 #include <QSettings>
 #include <QMouseEvent>
@@ -183,11 +184,14 @@ void QgsMapToolIdentifyAction::deactivate()
   QgsMapTool::deactivate();
 }
 
-QGis::UnitType QgsMapToolIdentifyAction::displayUnits()
+QGis::UnitType QgsMapToolIdentifyAction::displayDistanceUnits() const
 {
-  // Get the units for display
-  QSettings settings;
-  return QGis::fromLiteral( settings.value( "/qgis/measure/displayunits", QGis::toLiteral( QGis::Meters ) ).toString() );
+  return QgsProject::instance()->distanceUnits();
+}
+
+QgsUnitTypes::AreaUnit QgsMapToolIdentifyAction::displayAreaUnits() const
+{
+  return QgsProject::instance()->areaUnits();
 }
 
 void QgsMapToolIdentifyAction::handleCopyToClipboard( QgsFeatureStore & featureStore )

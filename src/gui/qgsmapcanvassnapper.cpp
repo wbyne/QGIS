@@ -28,7 +28,7 @@
 
 QgsMapCanvasSnapper::QgsMapCanvasSnapper( QgsMapCanvas* canvas )
     : mMapCanvas( canvas )
-    , mSnapper( 0 )
+    , mSnapper( nullptr )
 {
   if ( !canvas )
     return;
@@ -36,7 +36,7 @@ QgsMapCanvasSnapper::QgsMapCanvasSnapper( QgsMapCanvas* canvas )
   mSnapper = new QgsSnapper( canvas->mapSettings() );
 }
 
-QgsMapCanvasSnapper::QgsMapCanvasSnapper(): mMapCanvas( 0 ), mSnapper( 0 )
+QgsMapCanvasSnapper::QgsMapCanvasSnapper(): mMapCanvas( nullptr ), mSnapper( nullptr )
 {
 }
 
@@ -55,11 +55,11 @@ void QgsMapCanvasSnapper::setMapCanvas( QgsMapCanvas* canvas )
   }
   else
   {
-    mSnapper = 0;
+    mSnapper = nullptr;
   }
 }
 
-int QgsMapCanvasSnapper::snapToCurrentLayer( const QPoint& p, QList<QgsSnappingResult>& results,
+int QgsMapCanvasSnapper::snapToCurrentLayer( QPoint p, QList<QgsSnappingResult>& results,
     QgsSnapper::SnappingType snap_to,
     double snappingTol,
     const QList<QgsPoint>& excludePoints,
@@ -120,7 +120,7 @@ int QgsMapCanvasSnapper::snapToCurrentLayer( const QPoint& p, QList<QgsSnappingR
   return 0;
 }
 
-int QgsMapCanvasSnapper::snapToBackgroundLayers( const QPoint& p, QList<QgsSnappingResult>& results, const QList<QgsPoint>& excludePoints )
+int QgsMapCanvasSnapper::snapToBackgroundLayers( QPoint p, QList<QgsSnappingResult>& results, const QList<QgsPoint>& excludePoints )
 {
   const QgsPoint mapCoordPoint = mMapCanvas->mapSettings().mapToPixel().toMapCoordinates( p.x(), p.y() );
   return snapToBackgroundLayers( mapCoordPoint, results, excludePoints );
@@ -279,8 +279,8 @@ int QgsMapCanvasSnapper::snapToBackgroundLayers( const QgsPoint& point, QList<Qg
   if ( intersectionSnapping != 1 )
     return 0;
 
-  QList<QgsSnappingResult> segments;
-  QList<QgsSnappingResult> points;
+  QVector<QgsSnappingResult> segments;
+  QVector<QgsSnappingResult> points;
   for ( QList<QgsSnappingResult>::const_iterator it = results.constBegin();
         it != results.constEnd();
         ++it )
@@ -297,12 +297,12 @@ int QgsMapCanvasSnapper::snapToBackgroundLayers( const QgsPoint& point, QList<Qg
     }
   }
 
-  if ( segments.length() < 2 )
+  if ( segments.count() < 2 )
     return 0;
 
   QList<QgsSnappingResult> myResults;
 
-  for ( QList<QgsSnappingResult>::const_iterator oSegIt = segments.constBegin();
+  for ( QVector<QgsSnappingResult>::const_iterator oSegIt = segments.constBegin();
         oSegIt != segments.constEnd();
         ++oSegIt )
   {
@@ -314,7 +314,7 @@ int QgsMapCanvasSnapper::snapToBackgroundLayers( const QgsPoint& point, QList<Qg
 
     QgsGeometry* lineA = QgsGeometry::fromPolyline( vertexPoints );
 
-    for ( QList<QgsSnappingResult>::iterator iSegIt = segments.begin();
+    for ( QVector<QgsSnappingResult>::iterator iSegIt = segments.begin();
           iSegIt != segments.end();
           ++iSegIt )
     {

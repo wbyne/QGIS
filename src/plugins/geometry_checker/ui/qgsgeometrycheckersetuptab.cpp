@@ -39,7 +39,8 @@
 
 
 QgsGeometryCheckerSetupTab::QgsGeometryCheckerSetupTab( QgisInterface* iface , QWidget *parent )
-    : QWidget( parent ), mIface( iface )
+    : QWidget( parent )
+    , mIface( iface )
 
 {
   ui.setupUi( this );
@@ -81,21 +82,25 @@ void QgsGeometryCheckerSetupTab::updateLayers()
   ui.comboBoxInputLayer->clear();
 
   // Collect layers
-  QgsMapLayer* currentLayer = mIface->mapCanvas()->currentLayer();
+  // Don't switch current layer if dialog is visible to avoid confusing the user
+  QgsMapLayer* currentLayer = isVisible() ? 0 : mIface->mapCanvas()->currentLayer();
   int currIdx = -1;
+  int idx = 0;
   Q_FOREACH ( QgsMapLayer* layer, QgsMapLayerRegistry::instance()->mapLayers() )
   {
+    QgsDebugMsg( QString( "Adding layer, have %1 in list" ).arg( ui.comboBoxInputLayer->count() ) );
     if ( qobject_cast<QgsVectorLayer*>( layer ) )
     {
       ui.comboBoxInputLayer->addItem( layer->name(), layer->id() );
       if ( layer->name() == prevLayer )
       {
-        currIdx = ui.comboBoxInputLayer->count() - 1;
+        currIdx = idx;
       }
       else if ( currIdx == -1 && layer == currentLayer )
       {
-        currIdx = ui.comboBoxInputLayer->count() - 1;
+        currIdx = idx;
       }
+      ++idx;
     }
   }
   ui.comboBoxInputLayer->setCurrentIndex( qMax( 0, currIdx ) );
@@ -105,9 +110,8 @@ QgsVectorLayer* QgsGeometryCheckerSetupTab::getSelectedLayer()
 {
   int inputIdx = ui.comboBoxInputLayer->currentIndex();
   if ( inputIdx < 0 )
-  {
-    return 0;
-  }
+    return nullptr;
+
   QgsVectorLayer *layer = dynamic_cast<QgsVectorLayer*>( ui.comboBoxInputLayer->currentLayer() );
   return layer;
 }
@@ -116,7 +120,7 @@ void QgsGeometryCheckerSetupTab::validateInput()
 {
   QgsVectorLayer* layer = getSelectedLayer();
   int nApplicable = 0;
-  if ( layer != 0 )
+  if ( layer )
   {
     Q_FOREACH ( const QgsGeometryCheckFactory* factory, QgsGeometryCheckFactoryRegistry::getCheckFactories() )
     {
@@ -124,7 +128,7 @@ void QgsGeometryCheckerSetupTab::validateInput()
     }
   }
   bool outputOk = ui.radioButtonOuputModifyInput->isChecked() || !ui.lineEditOutput->text().isEmpty();
-  mRunButton->setEnabled( layer != 0 && nApplicable > 0 && outputOk );
+  mRunButton->setEnabled( layer && nApplicable > 0 && outputOk );
 }
 
 void QgsGeometryCheckerSetupTab::selectOutputFile()
@@ -170,8 +174,13 @@ void QgsGeometryCheckerSetupTab::runChecks()
 {
   /** Get selected layer **/
   QgsVectorLayer* layer = getSelectedLayer();
-  if ( layer == 0 )
+  if ( !layer )
+    return;
+
+  if ( ui.radioButtonOutputNew->isChecked() &&
+       layer->dataProvider()->dataSourceUri().startsWith( ui.lineEditOutput->text() ) )
   {
+    QMessageBox::critical( this, tr( "Invalid Output Layer" ), tr( "The chosen output layer is the same as the input layer." ) );
     return;
   }
 
@@ -210,10 +219,11 @@ void QgsGeometryCheckerSetupTab::runChecks()
       QgsMapLayerRegistry::instance()->removeMapLayers( toRemove );
     }
 
-    QgsVectorFileWriter::WriterError err =  QgsVectorFileWriter::writeAsVectorFormat( layer, filename, layer->dataProvider()->encoding(), &layer->crs(), mOutputDriverName, selectedOnly );
+    QString errMsg;
+    QgsVectorFileWriter::WriterError err =  QgsVectorFileWriter::writeAsVectorFormat( layer, filename, layer->dataProvider()->encoding(), &layer->crs(), mOutputDriverName, selectedOnly, &errMsg );
     if ( err != QgsVectorFileWriter::NoError )
     {
-      QMessageBox::critical( this, tr( "Layer Creation Failed" ), tr( "Failed to create the output layer." ) );
+      QMessageBox::critical( this, tr( "Layer Creation Failed" ), tr( "Failed to create the output layer: %1" ).arg( errMsg ) );
       mRunButton->setEnabled( true );
       ui.labelStatus->hide();
       unsetCursor();
@@ -304,6 +314,7 @@ void QgsGeometryCheckerSetupTab::runChecks()
   connect( checker, SIGNAL( progressValue( int ) ), ui.progressBar, SLOT( setValue( int ) ) );
   connect( &futureWatcher, SIGNAL( finished() ), &evLoop, SLOT( quit() ) );
   connect( mAbortButton, SIGNAL( clicked() ), &futureWatcher, SLOT( cancel() ) );
+  connect( mAbortButton, SIGNAL( clicked() ), this, SLOT( showCancelFeedback() ) );
 
   int maxSteps = 0;
   futureWatcher.setFuture( checker->execute( &maxSteps ) );
@@ -312,12 +323,22 @@ void QgsGeometryCheckerSetupTab::runChecks()
 
   /** Restore window **/
   unsetCursor();
+  mAbortButton->setEnabled( true );
   ui.buttonBox->removeButton( mAbortButton );
   mRunButton->setEnabled( true );
   mRunButton->show();
   ui.progressBar->hide();
+  ui.labelStatus->hide();
   ui.widgetInputs->setEnabled( true );
 
   /** Show result **/
   emit checkerFinished( !futureWatcher.isCanceled() );
+}
+
+void QgsGeometryCheckerSetupTab::showCancelFeedback()
+{
+  mAbortButton->setEnabled( false );
+  ui.labelStatus->setText( tr( "<b>Waiting for running checks to finish...</b>" ) );
+  ui.labelStatus->show();
+  ui.progressBar->hide() ;
 }

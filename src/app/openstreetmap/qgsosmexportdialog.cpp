@@ -27,8 +27,9 @@
 #include <QSettings>
 #include <QStandardItemModel>
 
-QgsOSMExportDialog::QgsOSMExportDialog( QWidget *parent ) :
-    QDialog( parent ), mDatabase( new QgsOSMDatabase )
+QgsOSMExportDialog::QgsOSMExportDialog( QWidget *parent )
+    : QDialog( parent )
+    , mDatabase( new QgsOSMDatabase )
 {
   setupUi( this );
 
@@ -57,7 +58,7 @@ QgsOSMExportDialog::~QgsOSMExportDialog()
 void QgsOSMExportDialog::onBrowse()
 {
   QSettings settings;
-  QString lastDir = settings.value( "/osm/lastDir" ).toString();
+  QString lastDir = settings.value( "/osm/lastDir", QDir::homePath() ).toString();
 
   QString fileName = QFileDialog::getOpenFileName( this, QString(), lastDir, tr( "SQLite databases (*.db)" ) );
   if ( fileName.isNull() )

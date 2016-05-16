@@ -75,17 +75,17 @@ void QgsMapToolAddPart::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
   {
     case CapturePoint:
     {
-      QgsPoint layerPoint;
+      QgsPointV2 layerPoint;
       QgsPoint mapPoint = e->mapPoint();
 
-      if ( nextPoint( mapPoint, layerPoint ) != 0 )
+      if ( nextPoint( QgsPointV2( mapPoint ), layerPoint ) != 0 )
       {
         QgsDebugMsg( "nextPoint failed" );
         return;
       }
 
       vlayer->beginEditCommand( tr( "Part added" ) );
-      errorCode = vlayer->addPart( QList<QgsPoint>() << layerPoint );
+      errorCode = vlayer->addPart( QgsPointSequenceV2() << layerPoint );
     }
     break;
 
@@ -95,7 +95,7 @@ void QgsMapToolAddPart::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
       //add point to list and to rubber band
       if ( e->button() == Qt::LeftButton )
       {
-        int error = addVertex( e->mapPoint() );
+        int error = addVertex( e->mapPoint(), e->mapPointMatch() );
         if ( error == 1 )
         {
           QgsDebugMsg( "current layer is not a vector layer" );
@@ -131,7 +131,7 @@ void QgsMapToolAddPart::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
       bool hasCurvedSegments = captureCurve()->hasCurvedSegments();
       bool providerSupportsCurvedSegments = vlayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
 
-      QgsCurveV2* curveToAdd = 0;
+      QgsCurveV2* curveToAdd = nullptr;
       if ( hasCurvedSegments && providerSupportsCurvedSegments )
       {
         curveToAdd = captureCurve()->clone();
@@ -159,7 +159,7 @@ void QgsMapToolAddPart::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
           return;
         }
 
-        errorCode = vlayer->addPart( dynamic_cast<QgsCurveV2*>( cpGeom->exteriorRing()->clone() ) );
+        errorCode = vlayer->addPart( cpGeom->exteriorRing()->clone() );
         delete geom;
       }
       else

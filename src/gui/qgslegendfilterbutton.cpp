@@ -21,10 +21,10 @@
 #include <qgsapplication.h>
 #include <qgsexpressionbuilderdialog.h>
 
-QgsLegendFilterButton::QgsLegendFilterButton( QWidget* parent ) :
-    QToolButton( parent )
-    , mMenu( 0 )
-    , mLayer( 0 )
+QgsLegendFilterButton::QgsLegendFilterButton( QWidget* parent )
+    : QToolButton( parent )
+    , mMenu( nullptr )
+    , mLayer( nullptr )
 {
   mMenu = new QMenu( this );
   mSetExpressionAction = new QAction( tr( "Edit filter expression" ), mMenu );

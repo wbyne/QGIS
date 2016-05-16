@@ -32,6 +32,9 @@
 extern "C"
 {
 #include <grass/version.h>
+#if defined(_MSC_VER) && defined(M_PI_4)
+#undef M_PI_4 //avoid redefinition warning
+#endif
 #include <grass/gprojects.h>
 #include <grass/gis.h>
 #include <grass/dbmi.h>
@@ -346,7 +349,8 @@ bool QgsGrassVectorMap::closeEdit( bool newMap )
 #endif
 
   mIsEdited = false;
-  QgsGrass::unlock();closeAllIterators(); // blocking
+  QgsGrass::unlock();
+  closeAllIterators(); // blocking
 
   closeMap();
   openMap();
@@ -512,10 +516,9 @@ bool QgsGrassVectorMap::mapOutdated()
   return false;
 }
 
-bool QgsGrassVectorMap::attributesOutdated( )
+bool QgsGrassVectorMap::attributesOutdated()
 {
   QgsDebugMsg( "entered" );
-
 
   QString dp = mGrassObject.mapsetPath() + "/vector/" + mGrassObject.name() + "/dbln";
   QFileInfo di( dp );
@@ -638,7 +641,7 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::lineGeometry( int id )
     return 0;
   }
 
-  QList<QgsPointV2> pointList;
+  QgsPointSequenceV2 pointList;
   pointList.reserve( points->n_points );
   for ( int i = 0; i < points->n_points; i++ )
   {
@@ -690,7 +693,7 @@ QgsAbstractGeometryV2 * QgsGrassVectorMap::areaGeometry( int id )
   QgsGrass::lock();
   Vect_get_area_points( mMap, id, points );
 
-  QList<QgsPointV2> pointList;
+  QgsPointSequenceV2 pointList;
   pointList.reserve( points->n_points );
   for ( int i = 0; i < points->n_points; i++ )
   {

@@ -36,8 +36,8 @@
 
 QgsComposerLegend::QgsComposerLegend( QgsComposition* composition )
     : QgsComposerItem( composition )
-    , mCustomLayerTree( 0 )
-    , mComposerMap( 0 )
+    , mCustomLayerTree( nullptr )
+    , mComposerMap( nullptr )
     , mLegendFilterByMap( false )
     , mFilterOutAtlas( false )
     , mFilterAskedForUpdate( false )
@@ -58,10 +58,10 @@ QgsComposerLegend::QgsComposerLegend( QgsComposition* composition )
 }
 
 QgsComposerLegend::QgsComposerLegend()
-    : QgsComposerItem( 0 )
-    , mLegendModel2( 0 )
-    , mCustomLayerTree( 0 )
-    , mComposerMap( 0 )
+    : QgsComposerItem( nullptr )
+    , mLegendModel2( nullptr )
+    , mCustomLayerTree( nullptr )
+    , mComposerMap( nullptr )
     , mLegendFilterByMap( false )
     , mLegendFilterByExpression( false )
     , mFilterOutAtlas( false )
@@ -196,7 +196,7 @@ void QgsComposerLegend::setAutoUpdateModel( bool autoUpdate )
   if ( autoUpdate == autoUpdateModel() )
     return;
 
-  setCustomLayerTree( autoUpdate ? 0 : QgsLayerTree::toGroup( QgsProject::instance()->layerTreeRoot()->clone() ) );
+  setCustomLayerTree( autoUpdate ? nullptr : QgsLayerTree::toGroup( QgsProject::instance()->layerTreeRoot()->clone() ) );
   adjustBoxSize();
   updateItem();
 }
@@ -322,7 +322,7 @@ bool QgsComposerLegend::writeXML( QDomElement& elem, QDomDocument & doc ) const
 
   //write general properties
   composerLegendElem.setAttribute( "title", mSettings.title() );
-  composerLegendElem.setAttribute( "titleAlignment", QString::number(( int ) mSettings.titleAlignment() ) );
+  composerLegendElem.setAttribute( "titleAlignment", QString::number( static_cast< int >( mSettings.titleAlignment() ) ) );
   composerLegendElem.setAttribute( "columnCount", QString::number( mSettings.columnCount() ) );
   composerLegendElem.setAttribute( "splitLayer", QString::number( mSettings.splitLayer() ) );
   composerLegendElem.setAttribute( "equalColumnWidth", QString::number( mSettings.equalColumnWidth() ) );
@@ -421,7 +421,7 @@ bool QgsComposerLegend::readXML( const QDomElement& itemElem, const QDomDocument
   mSettings.setTitle( itemElem.attribute( "title" ) );
   if ( !itemElem.attribute( "titleAlignment" ).isEmpty() )
   {
-    mSettings.setTitleAlignment(( Qt::AlignmentFlag )itemElem.attribute( "titleAlignment" ).toInt() );
+    mSettings.setTitleAlignment( static_cast< Qt::AlignmentFlag >( itemElem.attribute( "titleAlignment" ).toInt() ) );
   }
   int colCount = itemElem.attribute( "columnCount", "1" ).toInt();
   if ( colCount < 1 ) colCount = 1;
@@ -430,7 +430,7 @@ bool QgsComposerLegend::readXML( const QDomElement& itemElem, const QDomDocument
   mSettings.setEqualColumnWidth( itemElem.attribute( "equalColumnWidth", "0" ).toInt() == 1 );
 
   QDomNodeList stylesNodeList = itemElem.elementsByTagName( "styles" );
-  if ( stylesNodeList.size() > 0 )
+  if ( !stylesNodeList.isEmpty() )
   {
     QDomNode stylesNode = stylesNodeList.at( 0 );
     for ( int i = 0; i < stylesNode.childNodes().size(); i++ )
@@ -492,7 +492,7 @@ bool QgsComposerLegend::readXML( const QDomElement& itemElem, const QDomDocument
 
   //restore general composer item properties
   QDomNodeList composerItemList = itemElem.elementsByTagName( "ComposerItem" );
-  if ( composerItemList.size() > 0 )
+  if ( !composerItemList.isEmpty() )
   {
     QDomElement composerItemElem = composerItemList.at( 0 ).toElement();
     _readXML( composerItemElem, doc );
@@ -592,7 +592,7 @@ void QgsComposerLegend::setComposerMap( const QgsComposerMap* map )
 
 void QgsComposerLegend::invalidateCurrentMap()
 {
-  setComposerMap( 0 );
+  setComposerMap( nullptr );
 }
 
 void QgsComposerLegend::mapLayerStyleOverridesChanged()
@@ -659,7 +659,7 @@ void QgsComposerLegend::doUpdateFilterByMap()
     mLegendModel2->setLegendFilter( &ms, /* useExtent */ mInAtlas || mLegendFilterByMap, filterPolygon, /* useExpressions */ true );
   }
   else
-    mLegendModel2->setLegendFilterByMap( 0 );
+    mLegendModel2->setLegendFilterByMap( nullptr );
 }
 
 void QgsComposerLegend::setLegendFilterOutAtlas( bool doFilter )

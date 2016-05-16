@@ -39,7 +39,7 @@
 #include <QHash>
 
 #define ERR(message) QGS_ERROR_MESSAGE(message,"GRASS provider")
-#define ERROR(message) QgsError(message,"GRASS provider")
+#define QGS_ERROR(message) QgsError(message,"GRASS provider")
 
 // Do not use warning dialogs, providers are also created on threads (rendering) where dialogs connot be used (constructing QPixmap icon)
 
@@ -421,7 +421,10 @@ QList<QgsColorRampShader::ColorRampItem> QgsGrassRasterProvider::colorTable( int
     ct.append( ctItem2 );
     QgsDebugMsg( QString( "color %1 %2 %3 %4" ).arg( i->value2 ).arg( i->red2 ).arg( i->green2 ).arg( i->blue2 ) );
 
-    v = i->value2; r = i->red2; g = i->green2; b = i->blue2;
+    v = i->value2;
+    r = i->red2;
+    g = i->green2;
+    b = i->blue2;
   }
   return ct;
 }
@@ -470,7 +473,7 @@ QgsRasterIdentifyResult QgsGrassRasterProvider::identify( const QgsPoint & thePo
 
   if ( theFormat != QgsRaster::IdentifyFormatValue )
   {
-    return QgsRasterIdentifyResult( ERROR( tr( "Format not supported" ) ) );
+    return QgsRasterIdentifyResult( QGS_ERROR( tr( "Format not supported" ) ) );
   }
 
   if ( !extent().contains( thePoint ) )
@@ -487,7 +490,7 @@ QgsRasterIdentifyResult QgsGrassRasterProvider::identify( const QgsPoint & thePo
 
   if ( !ok )
   {
-    return QgsRasterIdentifyResult( ERROR( tr( "Cannot read data" ) ) );
+    return QgsRasterIdentifyResult( QGS_ERROR( tr( "Cannot read data" ) ) );
   }
 
   // no data?
@@ -528,13 +531,10 @@ QGis::DataType QgsGrassRasterProvider::srcDataType( int bandNo ) const
   {
     case CELL_TYPE:
       return QGis::Int32;
-      break;
     case FCELL_TYPE:
       return QGis::Float32;
-      break;
     case DCELL_TYPE:
       return QGis::Float64;
-      break;
   }
   return QGis::UnknownDataType;
 }

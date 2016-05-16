@@ -25,10 +25,13 @@ __copyright__ = '(C) 2014, Alexander Bruy'
 
 __revision__ = '$Format:%H$'
 
+import os
 import random
 
-from PyQt4.QtCore import QVariant
-from qgis.core import QGis, QgsFields, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsSpatialIndex, QgsDistanceArea
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QVariant
+from qgis.core import (QGis, QgsFields, QgsField, QgsFeature, QgsPoint,
+                       QgsGeometry, QgsSpatialIndex, QgsDistanceArea)
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
@@ -39,6 +42,8 @@ from processing.core.parameters import ParameterSelection
 from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
 
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
+
 
 class RandomPointsPolygonsVariable(GeoAlgorithm):
 
@@ -47,6 +52,9 @@ class RandomPointsPolygonsVariable(GeoAlgorithm):
     MIN_DISTANCE = 'MIN_DISTANCE'
     STRATEGY = 'STRATEGY'
     OUTPUT = 'OUTPUT'
+
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'ftools', 'random_points.png'))
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Random points inside polygons (variable)')

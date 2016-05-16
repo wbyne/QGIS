@@ -13,7 +13,7 @@
 void QgsGeometryAreaCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -55,7 +55,7 @@ void QgsGeometryAreaCheck::fixError( QgsGeometryCheckError* error, int method, i
     return;
   }
   QgsAbstractGeometryV2* geom = feature.geometry()->geometry();
-  const QgsVertexId& vidx = error->vidx();
+  QgsVertexId vidx = error->vidx();
 
   // Check if polygon still exists
   if ( !vidx.isValid( geom ) )
@@ -121,7 +121,7 @@ bool QgsGeometryAreaCheck::mergeWithNeighbor( QgsFeature& feature, int partIdx, 
   QgsAbstractGeometryV2* geom = feature.geometry()->geometry();
 
   // Search for touching neighboring geometries
-  Q_FOREACH ( const QgsFeatureId& testId, mFeaturePool->getIntersects( feature.geometry()->boundingBox() ) )
+  Q_FOREACH ( QgsFeatureId testId, mFeaturePool->getIntersects( feature.geometry()->boundingBox() ) )
   {
     QgsFeature testFeature;
     if ( !mFeaturePool->get( testId, testFeature ) )
@@ -182,14 +182,6 @@ bool QgsGeometryAreaCheck::mergeWithNeighbor( QgsFeature& feature, int partIdx, 
     return method == MergeIdenticalAttribute ? true : false;
   }
 
-
-  // Remove polygon from source geometry
-  deleteFeatureGeometryPart( feature, partIdx, changes );
-  if ( mergeFeature.id() == feature.id() && mergePartIdx > partIdx )
-  {
-    --mergePartIdx;
-  }
-
   // Merge geometries
   QgsAbstractGeometryV2* mergeGeom = mergeFeature.geometry()->geometry();
   QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( QgsGeomUtils::getGeomPart( mergeGeom, mergePartIdx ), QgsGeometryCheckPrecision::tolerance() );
@@ -199,6 +191,14 @@ bool QgsGeometryAreaCheck::mergeWithNeighbor( QgsFeature& feature, int partIdx, 
   {
     return false;
   }
+
+  // Remove polygon from source geometry
+  deleteFeatureGeometryPart( feature, partIdx, changes );
+  if ( mergeFeature.id() == feature.id() && mergePartIdx > partIdx )
+  {
+    --mergePartIdx;
+  }
+  // Replace polygon in merge geometry
   replaceFeatureGeometryPart( mergeFeature, mergePartIdx, combinedGeom, changes );
 
   return true;

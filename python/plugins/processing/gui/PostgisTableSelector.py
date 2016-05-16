@@ -1,8 +1,38 @@
+# -*- coding: utf-8 -*-
+
+"""
+***************************************************************************
+    PostgisTableSelector.py
+    ---------------------
+    Date                 : November 2015
+    Copyright            : (C) 2015 by Victor Olaya
+    Email                : volayaf at gmail dot com
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************
+"""
+
+__author__ = 'Victor Olaya'
+__date__ = 'November 2015'
+__copyright__ = '(C) 2015, Victor Olaya'
+
+# This will get replaced with a git SHA1 when you do a git archive
+
+__revision__ = '$Format:%H$'
+
+
 import os
-from PyQt4 import uic, QtCore, QtGui
+from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QTreeWidgetItem, QMessageBox
+from qgis.PyQt import uic
 from processing.algs.qgis.postgis_utils import GeoDB
-from qgis.core import *
-from PyQt4.QtGui import QMessageBox
+from qgis.core import QgsDataSourceURI, QgsCredentials
 
 pluginPath = os.path.split(os.path.dirname(__file__))[0]
 WIDGET, BASE = uic.loadUiType(
@@ -17,7 +47,7 @@ class PostgisTableSelector(BASE, WIDGET):
         self.table = None
         self.schema = None
         self.setupUi(self)
-        settings = QtCore.QSettings()
+        settings = QSettings()
         settings.beginGroup('/PostgreSQL/connections/')
         names = settings.childGroups()
         settings.endGroup()
@@ -55,14 +85,14 @@ class PostgisTableSelector(BASE, WIDGET):
         self.close()
 
 
-class ConnectionItem(QtGui.QTreeWidgetItem):
-
-    connIcon = QtGui.QIcon(os.path.dirname(__file__) + '/../images/postgis.png')
-    schemaIcon = QtGui.QIcon(os.path.dirname(__file__) + '/../images/namespace.png')
+class ConnectionItem(QTreeWidgetItem):
 
     def __init__(self, connection):
-        QtGui.QTreeWidgetItem.__init__(self)
-        self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.ShowIndicator)
+        self.connIcon = QIcon(os.path.dirname(__file__) + '/../images/postgis.png')
+        self.schemaIcon = QIcon(os.path.dirname(__file__) + '/../images/namespace.png')
+
+        QTreeWidgetItem.__init__(self)
+        self.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
         self.connection = connection
         self.setText(0, connection)
         self.setIcon(0, self.connIcon)
@@ -70,7 +100,7 @@ class ConnectionItem(QtGui.QTreeWidgetItem):
     def populateSchemas(self):
         if self.childCount() != 0:
             return
-        settings = QtCore.QSettings()
+        settings = QSettings()
         connSettings = '/PostgreSQL/connections/' + self.connection
         database = settings.value(connSettings + '/database')
         user = settings.value(connSettings + '/username')
@@ -86,7 +116,7 @@ class ConnectionItem(QtGui.QTreeWidgetItem):
             geodb = GeoDB(host, int(port), database, user, passwd)
             schemas = geodb.list_schemas()
             for oid, name, owner, perms in schemas:
-                item = QtGui.QTreeWidgetItem()
+                item = QTreeWidgetItem()
                 item.setText(0, name)
                 item.setIcon(0, self.schemaIcon)
                 self.addChild(item)

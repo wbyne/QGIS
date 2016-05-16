@@ -16,7 +16,7 @@
 #include "qgsvectorfieldsymbollayer.h"
 #include "qgsvectorlayer.h"
 
-QgsVectorFieldSymbolLayerWidget::QgsVectorFieldSymbolLayerWidget( const QgsVectorLayer* vl, QWidget* parent ): QgsSymbolLayerV2Widget( parent, vl ), mLayer( 0 )
+QgsVectorFieldSymbolLayerWidget::QgsVectorFieldSymbolLayerWidget( const QgsVectorLayer* vl, QWidget* parent ): QgsSymbolLayerV2Widget( parent, vl ), mLayer( nullptr )
 {
   setupUi( this );
 
@@ -24,12 +24,11 @@ QgsVectorFieldSymbolLayerWidget::QgsVectorFieldSymbolLayerWidget( const QgsVecto
 
   if ( mVectorLayer )
   {
-    const QgsFields& fm = mVectorLayer->fields();
     mXAttributeComboBox->addItem( "" );
     mYAttributeComboBox->addItem( "" );
-    for ( int idx = 0; idx < fm.count(); ++idx )
+    Q_FOREACH ( const QgsField& f, mVectorLayer->fields() )
     {
-      QString fieldName = fm[idx].name();
+      QString fieldName = f.name();
       mXAttributeComboBox->addItem( fieldName );
       mYAttributeComboBox->addItem( fieldName );
     }

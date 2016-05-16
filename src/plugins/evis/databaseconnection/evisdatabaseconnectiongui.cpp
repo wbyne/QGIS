@@ -58,7 +58,7 @@ eVisDatabaseConnectionGui::eVisDatabaseConnectionGui( QList<QTemporaryFile*>* th
 
   //Initialize varaibles
   mQueryDefinitionMap = new QMap<int, eVisQueryDefinition>;
-  mDatabaseConnection = 0;
+  mDatabaseConnection = nullptr;
 
   //Create a new instance of the file selector
   mDatabaseLayerFieldSelector = new eVisDatabaseLayerFieldSelectionGui( this, fl );
@@ -108,7 +108,7 @@ eVisDatabaseConnectionGui::~eVisDatabaseConnectionGui()
 void eVisDatabaseConnectionGui::drawNewVectorLayer( const QString& layerName, const QString& xCoordinate, const QString& yCoordinate )
 {
   //if coorindate fields are defined, load as a delimited text layer
-  if ( !xCoordinate.isEmpty() && !yCoordinate.isEmpty() && mTempOutputFileList->size() > 0 )
+  if ( !xCoordinate.isEmpty() && !yCoordinate.isEmpty() && !mTempOutputFileList->isEmpty() )
   {
     //fileName is only available if the file is open
     //the last file in the list is always the newest
@@ -129,18 +129,18 @@ void eVisDatabaseConnectionGui::drawNewVectorLayer( const QString& layerName, co
 void eVisDatabaseConnectionGui::on_buttonBox_accepted()
 {
   //Deallocate memory, basically a predescructor
-  if ( 0 != mDatabaseConnection )
+  if ( mDatabaseConnection )
   {
     mDatabaseConnection->close();
     delete( mDatabaseConnection );
   }
 
-  if ( 0 != mDatabaseLayerFieldSelector )
+  if ( mDatabaseLayerFieldSelector )
   {
     delete( mDatabaseLayerFieldSelector );
   }
 
-  if ( 0 != mQueryDefinitionMap )
+  if ( mQueryDefinitionMap )
   {
     mQueryDefinitionMap->clear();
     delete mQueryDefinitionMap;
@@ -273,7 +273,7 @@ void eVisDatabaseConnectionGui::on_pbtnConnect_clicked()
     }
 
     //If there is aready a database connection object, reset with the current parameters
-    if ( 0 != mDatabaseConnection )
+    if ( mDatabaseConnection )
     {
       mDatabaseConnection->resetConnectionParameters( leDatabaseHost->text(), leDatabasePort->text().toInt(), leDatabaseName->text(), leDatabaseUsername->text(), leDatabasePassword->text(), myDatabaseType );
     }
@@ -313,7 +313,7 @@ void eVisDatabaseConnectionGui::on_pbtnLoadPredefinedQueries_clicked()
   //There probably needs to be some more error checking, but works for now.
 
   //Select the XML file to parse
-  QString myFilename = QFileDialog::getOpenFileName( this, tr( "Open File" ), ".", "XML ( *.xml )" );
+  QString myFilename = QFileDialog::getOpenFileName( this, tr( "Open File" ), QDir::homePath(), "XML ( *.xml )" );
   if ( myFilename != "" )
   {
     //Display the name of the file being parsed
@@ -453,9 +453,9 @@ void eVisDatabaseConnectionGui::on_cboxPredefinedQueryList_currentIndexChanged( 
 void eVisDatabaseConnectionGui::on_pbtnOpenFile_clicked()
 {
   if ( cboxDatabaseType->currentText() == "MSAccess" )
-    leDatabaseName->setText( QFileDialog::getOpenFileName( this, tr( "Open File" ), ".", "MSAccess ( *.mdb )" ) );
+    leDatabaseName->setText( QFileDialog::getOpenFileName( this, tr( "Open File" ), QDir::homePath(), "MSAccess ( *.mdb )" ) );
   else
-    leDatabaseName->setText( QFileDialog::getOpenFileName( this, tr( "Open File" ), ".", "Sqlite ( *.db )" ) );
+    leDatabaseName->setText( QFileDialog::getOpenFileName( this, tr( "Open File" ), QDir::homePath(), "Sqlite ( *.db )" ) );
 }
 
 /**
@@ -467,11 +467,11 @@ void eVisDatabaseConnectionGui::on_pbtnRunQuery_clicked()
   if ( !teditSqlStatement->toPlainText().isEmpty() )
   {
     //Verify that we have an active database connection
-    if ( 0 != mDatabaseConnection )
+    if ( mDatabaseConnection )
     {
       //Execute query
       QSqlQuery* myResults = mDatabaseConnection->query( teditSqlStatement->toPlainText() );
-      if ( 0 == myResults )
+      if ( !myResults )
       {
         teditConsole->append( tr( "Error: Query failed: %1" ).arg( mDatabaseConnection->lastError() ) );
       }

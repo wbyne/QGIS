@@ -25,7 +25,7 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
-from PyQt4.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import QgsField, QgsFeatureRequest, QgsFeature, QgsGeometry
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.parameters import ParameterVector
@@ -79,11 +79,9 @@ class PointsInPolygonUnique(GeoAlgorithm):
         outFeat = QgsFeature()
         geom = QgsGeometry()
 
-        current = 0
-
         features = vector.features(polyLayer)
-        total = 100.0 / float(len(features))
-        for ftPoly in features:
+        total = 100.0 / len(features)
+        for current, ftPoly in enumerate(features):
             geom = ftPoly.geometry()
             engine = QgsGeometry.createGeometryEngine(geom.geometry())
             engine.prepareGeometry()
@@ -111,7 +109,6 @@ class PointsInPolygonUnique(GeoAlgorithm):
             outFeat.setAttributes(attrs)
             writer.addFeature(outFeat)
 
-            current += 1
-            progress.setPercentage(current / total)
+            progress.setPercentage(int(current * total))
 
         del writer

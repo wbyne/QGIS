@@ -25,8 +25,9 @@ class QgsSnapIndex
   public:
     struct CoordIdx
     {
-      CoordIdx( const QgsAbstractGeometryV2* _geom, const QgsVertexId& _vidx )
-          : geom( _geom ), vidx( _vidx )
+      CoordIdx( const QgsAbstractGeometryV2* _geom, QgsVertexId _vidx )
+          : geom( _geom )
+          , vidx( _vidx )
       {}
       QgsPointV2 point() const { return geom->vertexAt( vidx ); }
 
@@ -70,7 +71,7 @@ class QgsSnapIndex
     ~QgsSnapIndex();
     void addGeometry( const QgsAbstractGeometryV2 *geom );
     QgsPointV2 getClosestSnapToPoint( const QgsPointV2& p, const QgsPointV2& q );
-    SnapItem *getSnapItem( const QgsPointV2& pos, double tol, PointSnapItem **pSnapPoint = 0, SegmentSnapItem **pSnapSegment = 0 ) const;
+    SnapItem *getSnapItem( const QgsPointV2& pos, double tol, PointSnapItem **pSnapPoint = nullptr, SegmentSnapItem **pSnapSegment = nullptr ) const;
 
   private:
     typedef QList<SnapItem*> Cell;
@@ -101,6 +102,9 @@ class QgsSnapIndex
     void addSegment( const CoordIdx* idxFrom, const CoordIdx* idxTo );
     const Cell* getCell( int col, int row ) const;
     Cell &getCreateCell( int col, int row );
+
+    QgsSnapIndex( const QgsSnapIndex& rh );
+    QgsSnapIndex& operator=( const QgsSnapIndex& rh );
 };
 
 #endif // QGSSNAPINDEX_H

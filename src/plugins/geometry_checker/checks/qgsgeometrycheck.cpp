@@ -49,17 +49,17 @@ double QgsGeometryCheckPrecision::reducedTolerance()
 }
 
 QgsGeometryCheckError::QgsGeometryCheckError( const QgsGeometryCheck* check,
-    const QgsFeatureId& featureId,
+    QgsFeatureId featureId,
     const QgsPointV2& errorLocation,
-    const QgsVertexId& vidx,
+    QgsVertexId vidx,
     const QVariant& value , ValueType valueType )
-    : mCheck( check ),
-    mFeatureId( featureId ),
-    mErrorLocation( errorLocation ),
-    mVidx( vidx ),
-    mValue( value ),
-    mValueType( valueType ),
-    mStatus( StatusPending )
+    : mCheck( check )
+    , mFeatureId( featureId )
+    , mErrorLocation( errorLocation )
+    , mVidx( vidx )
+    , mValue( value )
+    , mValueType( valueType )
+    , mStatus( StatusPending )
 {}
 
 QgsGeometryCheckError::~QgsGeometryCheckError()
@@ -70,8 +70,11 @@ QgsAbstractGeometryV2 *QgsGeometryCheckError::geometry()
 {
   QgsFeature f;
   if ( mCheck->getFeaturePool()->get( featureId(), f ) && f.geometry() )
-    return f.geometry()->geometry()->clone();
-  return 0;
+  {
+    QgsAbstractGeometryV2* geom = f.geometry()->geometry();
+    return mVidx.part >= 0 ? QgsGeomUtils::getGeomPart( geom, mVidx.part )->clone() : geom->clone();
+  }
+  return nullptr;
 }
 
 bool QgsGeometryCheckError::handleChanges( const QgsGeometryCheck::Changes& changes )

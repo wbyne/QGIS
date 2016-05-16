@@ -290,7 +290,7 @@ struct QgsWmtsTheme
   QgsWmtsTheme *subTheme;
   QStringList layerRefs;
 
-  QgsWmtsTheme() : subTheme( 0 ) {}
+  QgsWmtsTheme() : subTheme( nullptr ) {}
   ~QgsWmtsTheme() { delete subTheme; }
 };
 
@@ -428,7 +428,10 @@ enum QgsWmsDpiMode
 
 struct QgsWmsParserSettings
 {
-  QgsWmsParserSettings( bool ignAxis = false, bool invAxis = false ) : ignoreAxisOrientation( ignAxis ), invertAxisOrientation( invAxis ) {}
+  QgsWmsParserSettings( bool ignAxis = false, bool invAxis = false )
+      : ignoreAxisOrientation( ignAxis )
+      , invertAxisOrientation( invAxis )
+  {}
   bool ignoreAxisOrientation;
   bool invertAxisOrientation;
 };
@@ -436,7 +439,11 @@ struct QgsWmsParserSettings
 struct QgsWmsAuthorization
 {
   QgsWmsAuthorization( const QString& userName = QString(), const QString& password = QString(), const QString& referer = QString(), const QString& authcfg = QString() )
-      : mUserName( userName ), mPassword( password ), mReferer( referer ), mAuthCfg( authcfg ) {}
+      : mUserName( userName )
+      , mPassword( password )
+      , mReferer( referer )
+      , mAuthCfg( authcfg )
+  {}
 
   bool setAuthorization( QNetworkRequest &request ) const
   {
@@ -600,7 +607,7 @@ class QgsWmsCapabilities
     void parseCapability( QDomElement const & e, QgsWmsCapabilityProperty& capabilityProperty );
     void parseRequest( QDomElement const & e, QgsWmsRequestProperty& requestProperty );
     void parseLegendUrl( QDomElement const &e, QgsWmsLegendUrlProperty &legendUrlProperty );
-    void parseLayer( QDomElement const & e, QgsWmsLayerProperty& layerProperty, QgsWmsLayerProperty *parentProperty = 0 );
+    void parseLayer( QDomElement const & e, QgsWmsLayerProperty& layerProperty, QgsWmsLayerProperty *parentProperty = nullptr );
     void parseStyle( QDomElement const & e, QgsWmsStyleProperty& styleProperty );
 
     void parseOperationType( QDomElement const & e, QgsWmsOperationType& operationType );
@@ -685,20 +692,15 @@ class QgsWmsCapabilities
 
 
 /** Class that handles download of capabilities.
- * Methods of this class may only be called directly from the thread to which instance of the class has affinity.
- * It is possible to connect to abort() slot from another thread however.
- */
-/* The requirement to call methods only from the thread to which this class instance has affinity guarantees that
- * abort() cannot be called in the middle of another method and makes it simple to check if the request was aborted.
  */
 class QgsWmsCapabilitiesDownload : public QObject
 {
     Q_OBJECT
 
   public:
-    explicit QgsWmsCapabilitiesDownload( QObject* parent = 0 );
+    explicit QgsWmsCapabilitiesDownload( bool forceRefresh, QObject* parent = nullptr );
 
-    QgsWmsCapabilitiesDownload( const QString& baseUrl, const QgsWmsAuthorization& auth, QObject* parent = 0 );
+    QgsWmsCapabilitiesDownload( const QString& baseUrl, const QgsWmsAuthorization& auth, bool forceRefresh, QObject* parent = nullptr );
 
     virtual ~QgsWmsCapabilitiesDownload();
 
@@ -710,8 +712,7 @@ class QgsWmsCapabilitiesDownload : public QObject
 
     QByteArray response() const { return mHttpCapabilitiesResponse; }
 
-  public slots:
-    /** Abort network request immediately */
+    //! Abort network request immediately
     void abort();
 
   signals:
@@ -721,14 +722,7 @@ class QgsWmsCapabilitiesDownload : public QObject
     /** \brief emit a signal once the download is finished */
     void downloadFinished();
 
-    /** Send request via signal/slot to main another thread */
-    void sendRequest( const QNetworkRequest & request );
-
-    /** Abort request through QgsNetworkAccessManager */
-    void deleteReply( QNetworkReply * reply );
-
   protected slots:
-    void requestSent( QNetworkReply * reply, QObject *sender );
     void capabilitiesReplyFinished();
     void capabilitiesReplyProgress( qint64, qint64 );
 
@@ -751,9 +745,7 @@ class QgsWmsCapabilitiesDownload : public QObject
     QByteArray mHttpCapabilitiesResponse;
 
     bool mIsAborted;
-
-  private:
-    void connectManager();
+    bool mForceRefresh;
 };
 
 

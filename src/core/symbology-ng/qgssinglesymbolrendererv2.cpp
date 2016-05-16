@@ -201,14 +201,13 @@ QgsSingleSymbolRendererV2* QgsSingleSymbolRendererV2::clone() const
   QgsSingleSymbolRendererV2* r = new QgsSingleSymbolRendererV2( mSymbol->clone() );
   r->setUsingSymbolLevels( usingSymbolLevels() );
   r->setSizeScaleField( sizeScaleField() );
-  copyPaintEffect( r );
+  copyRendererData( r );
   return r;
 }
 
 void QgsSingleSymbolRendererV2::toSld( QDomDocument& doc, QDomElement &element ) const
 {
   QgsStringMap props;
-  QString errorMsg;
   if ( mRotation.data() )
     props[ "angle" ] = mRotation->expression();
   if ( mSizeScale.data() )
@@ -237,12 +236,12 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::create( QDomElement& element )
 {
   QDomElement symbolsElem = element.firstChildElement( "symbols" );
   if ( symbolsElem.isNull() )
-    return NULL;
+    return nullptr;
 
   QgsSymbolV2Map symbolMap = QgsSymbolLayerV2Utils::loadSymbols( symbolsElem );
 
   if ( !symbolMap.contains( "0" ) )
-    return NULL;
+    return nullptr;
 
   QgsSingleSymbolRendererV2* r = new QgsSingleSymbolRendererV2( symbolMap.take( "0" ) );
 
@@ -276,7 +275,7 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& ele
   if ( ruleElem.isNull() )
   {
     QgsDebugMsg( "no Rule elements found!" );
-    return NULL;
+    return nullptr;
   }
 
   QString label, description;
@@ -327,8 +326,8 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& ele
     childElem = childElem.nextSiblingElement();
   }
 
-  if ( layers.size() == 0 )
-    return NULL;
+  if ( layers.isEmpty() )
+    return nullptr;
 
   // now create the symbol
   QgsSymbolV2 *symbol;
@@ -348,7 +347,7 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& ele
 
     default:
       QgsDebugMsg( QString( "invalid geometry type: found %1" ).arg( geomType ) );
-      return NULL;
+      return nullptr;
   }
 
   // and finally return the new renderer
@@ -380,6 +379,14 @@ QDomElement QgsSingleSymbolRendererV2::save( QDomDocument& doc )
 
   if ( mPaintEffect && !QgsPaintEffectRegistry::isDefaultStack( mPaintEffect ) )
     mPaintEffect->saveProperties( doc, rendererElem );
+
+  if ( !mOrderBy.isEmpty() )
+  {
+    QDomElement orderBy = doc.createElement( "orderby" );
+    mOrderBy.save( orderBy );
+    rendererElem.appendChild( orderBy );
+  }
+  rendererElem.setAttribute( "enableorderby", ( mOrderByEnabled ? "1" : "0" ) );
 
   return rendererElem;
 }
@@ -416,11 +423,11 @@ QgsLegendSymbolListV2 QgsSingleSymbolRendererV2::legendSymbolItemsV2() const
       QgsScaleExpression scaleExp( sizeDD.expressionString() );
       if ( scaleExp.type() != QgsScaleExpression::Unknown )
       {
-        QgsLegendSymbolItemV2 title( NULL, scaleExp.baseExpression(), 0 );
+        QgsLegendSymbolItemV2 title( nullptr, scaleExp.baseExpression(), nullptr );
         lst << title;
         Q_FOREACH ( double v, QgsSymbolLayerV2Utils::prettyBreaks( scaleExp.minValue(), scaleExp.maxValue(), 4 ) )
         {
-          QgsLegendSymbolItemV2 si( mSymbol.data(), QString::number( v ), 0 );
+          QgsLegendSymbolItemV2 si( mSymbol.data(), QString::number( v ), nullptr );
           QgsMarkerSymbolV2 * s = static_cast<QgsMarkerSymbolV2 *>( si.symbol() );
           s->setDataDefinedSize( 0 );
           s->setSize( scaleExp.size( v ) );
@@ -431,34 +438,58 @@ QgsLegendSymbolListV2 QgsSingleSymbolRendererV2::legendSymbolItemsV2() const
     }
   }
 
-  lst << QgsLegendSymbolItemV2( mSymbol.data(), QString(), 0 );
+  lst << QgsLegendSymbolItemV2( mSymbol.data(), QString(), nullptr );
   return lst;
+}
+
+QSet< QString > QgsSingleSymbolRendererV2::legendKeysForFeature( QgsFeature& feature, QgsRenderContext& context )
+{
+  Q_UNUSED( feature );
+  Q_UNUSED( context );
+  return QSet< QString >() << QString();
+}
+
+void QgsSingleSymbolRendererV2::setLegendSymbolItem( const QString& key, QgsSymbolV2* symbol )
+{
+  Q_UNUSED( key );
+  setSymbol( symbol );
 }
 
 QgsSingleSymbolRendererV2* QgsSingleSymbolRendererV2::convertFromRenderer( const QgsFeatureRendererV2 *renderer )
 {
+  QgsSingleSymbolRendererV2* r = nullptr;
   if ( renderer->type() == "singleSymbol" )
   {
-    return dynamic_cast<QgsSingleSymbolRendererV2*>( renderer->clone() );
+    r = dynamic_cast<QgsSingleSymbolRendererV2*>( renderer->clone() );
   }
-  if ( renderer->type() == "pointDisplacement" )
+  else if ( renderer->type() == "pointDisplacement" )
   {
     const QgsPointDisplacementRenderer* pointDisplacementRenderer = dynamic_cast<const QgsPointDisplacementRenderer*>( renderer );
     if ( pointDisplacementRenderer )
-      return convertFromRenderer( pointDisplacementRenderer->embeddedRenderer() );
+      r = convertFromRenderer( pointDisplacementRenderer->embeddedRenderer() );
   }
-  if ( renderer->type() == "invertedPolygonRenderer" )
+  else if ( renderer->type() == "invertedPolygonRenderer" )
   {
     const QgsInvertedPolygonRenderer* invertedPolygonRenderer = dynamic_cast<const QgsInvertedPolygonRenderer*>( renderer );
     if ( invertedPolygonRenderer )
-      return convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
+      r = convertFromRenderer( invertedPolygonRenderer->embeddedRenderer() );
   }
 
-  QgsRenderContext context;
-  QgsSymbolV2List symbols = const_cast<QgsFeatureRendererV2 *>( renderer )->symbols( context );
-  if ( symbols.size() > 0 )
+  if ( !r )
   {
-    return new QgsSingleSymbolRendererV2( symbols.at( 0 )->clone() );
+    QgsRenderContext context;
+    QgsSymbolV2List symbols = const_cast<QgsFeatureRendererV2 *>( renderer )->symbols( context );
+    if ( !symbols.isEmpty() )
+    {
+      r = new QgsSingleSymbolRendererV2( symbols.at( 0 )->clone() );
+    }
   }
-  return 0;
+
+  if ( r )
+  {
+    r->setOrderBy( renderer->orderBy() );
+    r->setOrderByEnabled( renderer->orderByEnabled() );
+  }
+
+  return r;
 }

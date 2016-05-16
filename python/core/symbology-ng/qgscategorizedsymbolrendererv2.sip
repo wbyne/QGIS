@@ -29,6 +29,10 @@ class QgsRendererCategoryV2
     QString dump() const;
 
     void toSld( QDomDocument& doc, QDomElement &element, QgsStringMap props ) const;
+
+  protected:
+
+    void swap( QgsRendererCategoryV2 & other );
 };
 
 typedef QList<QgsRendererCategoryV2> QgsCategoryList;
@@ -66,8 +70,16 @@ class QgsCategorizedSymbolRendererV2 : QgsFeatureRendererV2
     //! returns bitwise OR-ed capabilities of the renderer
     virtual int capabilities();
 
+    virtual QString filter( const QgsFields& fields = QgsFields() );
+
     //! @note available in python as symbols2
     virtual QgsSymbolV2List symbols( QgsRenderContext& context ) /PyName=symbols2/;
+
+    /** Update all the symbols but leave categories and colors. This method also sets the source
+     * symbol for the renderer.
+     * @param sym source symbol to use for categories. Ownership is not transferred.
+     * @see setSourceSymbol()
+     */
     void updateSymbols( QgsSymbolV2 * sym );
 
     const QgsCategoryList& categories() const;
@@ -115,13 +127,33 @@ class QgsCategorizedSymbolRendererV2 : QgsFeatureRendererV2
     //! @note added in 2.10
     QgsLegendSymbolListV2 legendSymbolItemsV2() const;
 
+    virtual QSet< QString > legendKeysForFeature( QgsFeature& feature, QgsRenderContext& context );
+
+    /** Returns the renderer's source symbol, which is the base symbol used for the each categories' symbol before applying
+     * the categories' color.
+     * @see setSourceSymbol()
+     * @see sourceColorRamp()
+     */
     QgsSymbolV2* sourceSymbol();
+
+    /** Sets the source symbol for the renderer, which is the base symbol used for the each categories' symbol before applying
+     * the categories' color.
+     * @param sym source symbol, ownership is transferred to the renderer
+     * @see sourceSymbol()
+     * @see setSourceColorRamp()
+     */
     void setSourceSymbol( QgsSymbolV2* sym /Transfer/ );
 
+    /** Returns the source color ramp, from which each categories' color is derived.
+     * @see setSourceColorRamp()
+     * @see sourceSymbol()
+     */
     QgsVectorColorRampV2* sourceColorRamp();
 
     /** Sets the source color ramp.
       * @param ramp color ramp. Ownership is transferred to the renderer
+      * @see sourceColorRamp()
+      * @see setSourceSymbol()
       */
     void setSourceColorRamp( QgsVectorColorRampV2* ramp /Transfer/ );
 
@@ -153,6 +185,8 @@ class QgsCategorizedSymbolRendererV2 : QgsFeatureRendererV2
     // @note added in 2.5
     virtual bool legendSymbolItemChecked( const QString& key );
 
+    virtual void setLegendSymbolItem( const QString& key, QgsSymbolV2* symbol /Transfer/ );
+
     //! item in symbology was checked
     // @note added in 2.5
     virtual void checkLegendSymbolItem( const QString& key, bool state = true );
@@ -168,6 +202,8 @@ class QgsCategorizedSymbolRendererV2 : QgsFeatureRendererV2
 
   protected:
     void rebuildHash();
+
+    QgsSymbolV2* skipRender();
 
     QgsSymbolV2* symbolForValue( const QVariant& value );
 

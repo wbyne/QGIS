@@ -96,13 +96,13 @@ class QgsWcsProvider : public QgsRasterDataProvider, QgsGdalProviderBase
 
   public:
     /**
-    * Constructor for the provider.
-    *
-    * \param   uri   HTTP URL of the Web Server.  If needed a proxy will be used
-    *                otherwise we contact the host directly.
-    *
-    */
-    explicit QgsWcsProvider( QString const & uri = 0 );
+     * Constructor for the provider.
+     *
+     * \param   uri   HTTP URL of the Web Server.  If needed a proxy will be used
+     *                otherwise we contact the host directly.
+     *
+     */
+    explicit QgsWcsProvider( QString const & uri = nullptr );
 
     //! Destructor
     virtual ~QgsWcsProvider();
@@ -157,7 +157,7 @@ class QgsWcsProvider : public QgsRasterDataProvider, QgsGdalProviderBase
     void getCache( int bandNo, QgsRectangle  const & viewExtent, int width, int height, QString crs = "" );
 
     /** Return the extent for this data layer
-    */
+     */
     virtual QgsRectangle extent() override;
 
     /** Returns true if layer is valid
@@ -208,14 +208,9 @@ class QgsWcsProvider : public QgsRasterDataProvider, QgsGdalProviderBase
     /** \brief emit a signal to notify of a progress event */
     void progressChanged( int theProgress, int theTotalSteps );
 
-    /** \brief emit a signal to be caught by qgisapp and display a msg on status bar */
-    void statusChanged( QString const &  theStatusQString );
-
     void dataChanged();
 
   private:
-    void showMessageBox( const QString& title, const QString& text );
-
     // case insensitive attribute value lookup
     static QString nodeAttribute( const QDomElement &e, const QString& name, const QString& defValue = QString::null );
 
@@ -436,7 +431,6 @@ class QgsWcsDownloadHandler : public QObject
   protected:
     void finish() { QMetaObject::invokeMethod( mEventLoop, "quit", Qt::QueuedConnection ); }
 
-    QgsNetworkAccessManager* mNAM;
     QgsWcsAuthorization& mAuth;
     QEventLoop* mEventLoop;
 

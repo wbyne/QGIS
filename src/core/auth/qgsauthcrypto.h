@@ -17,11 +17,13 @@
 #ifndef QGSAUTHCRYPTO_H
 #define QGSAUTHCRYPTO_H
 
+#include <QFile>
 #include <QString>
 
 /** \ingroup core
  * Funtions for hashing/checking master password and encrypt/decrypting data with password
  * \since 2.8
+ * \note not available in Python bindings
  */
 class CORE_EXPORT QgsAuthCrypto
 {
@@ -40,13 +42,13 @@ class CORE_EXPORT QgsAuthCrypto
     static void passwordKeyHash( const QString &pass,
                                  QString *salt,
                                  QString *hash,
-                                 QString *cipheriv = 0 );
+                                 QString *cipheriv = nullptr );
 
     /** Verify existing master password hash to a re-generated one */
     static bool verifyPasswordKeyHash( const QString& pass,
                                        const QString& salt,
                                        const QString& hash,
-                                       QString *hashderived = 0 );
+                                       QString *hashderived = nullptr );
 
   private:
     static QString encryptdecrypt( const QString& passstr,

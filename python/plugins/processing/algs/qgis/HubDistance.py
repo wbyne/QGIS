@@ -25,7 +25,7 @@ __copyright__ = '(C) 2010, Michael Minn'
 
 __revision__ = '$Format:%H$'
 
-from PyQt4.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import QGis, QgsField, QgsGeometry, QgsDistanceArea, QgsFeature
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
@@ -119,9 +119,8 @@ class HubDistance(GeoAlgorithm):
 
         # Scan source points, find nearest hub, and write to output file
         features = vector.features(layerPoints)
-        count = len(features)
-        total = 100.0 / float(count)
-        for count, f in enumerate(features):
+        total = 100.0 / len(features)
+        for current, f in enumerate(features):
             src = f.geometry().boundingBox().center()
 
             closest = hubs[0]
@@ -157,7 +156,7 @@ class HubDistance(GeoAlgorithm):
                 feat.setGeometry(QgsGeometry.fromPolyline([src, closest.point]))
 
             writer.addFeature(feat)
-            progress.setPercentage(int(count * total))
+            progress.setPercentage(int(current * total))
 
         del writer
 

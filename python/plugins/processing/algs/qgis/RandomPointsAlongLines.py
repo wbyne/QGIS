@@ -27,8 +27,10 @@ __revision__ = '$Format:%H$'
 
 import random
 
-from PyQt4.QtCore import QVariant
-from qgis.core import QGis, QgsFields, QgsField, QgsGeometry, QgsSpatialIndex, QgsDistanceArea, QgsFeatureRequest, QgsFeature, QgsPoint
+from qgis.PyQt.QtCore import QVariant
+from qgis.core import (QGis, QgsFields, QgsField, QgsGeometry, QgsSpatialIndex,
+                       QgsDistanceArea, QgsFeatureRequest, QgsFeature,
+                       QgsPoint)
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog

@@ -82,7 +82,7 @@ void QgsMeasureTool::activate()
        ( mCanvas->extent().height() > 360 ||
          mCanvas->extent().width() > 720 ) )
   {
-    QMessageBox::warning( NULL, tr( "Incorrect measure results" ),
+    QMessageBox::warning( nullptr, tr( "Incorrect measure results" ),
                           tr( "<p>This map is defined with a geographic coordinate system "
                               "(latitude/longitude) "
                               "but the map extents suggests that it is actually a projected "
@@ -108,12 +108,8 @@ void QgsMeasureTool::restart()
   mRubberBand->reset( mMeasureArea ? QGis::Polygon : QGis::Line );
   mRubberBandPoints->reset( QGis::Point );
 
-  // re-read settings
-  updateSettings();
-
   mDone = true;
   mWrongProjectProjection = false;
-
 }
 
 void QgsMeasureTool::updateSettings()
@@ -217,7 +213,7 @@ void QgsMeasureTool::keyPressEvent( QKeyEvent* e )
 }
 
 
-void QgsMeasureTool::addPoint( QgsPoint &point )
+void QgsMeasureTool::addPoint( const QgsPoint &point )
 {
   QgsDebugMsg( "point=" + point.toString() );
 

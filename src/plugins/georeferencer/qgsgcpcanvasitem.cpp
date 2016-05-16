@@ -20,7 +20,8 @@
 #include "qgsrasterlayer.h"
 
 QgsGCPCanvasItem::QgsGCPCanvasItem( QgsMapCanvas* mapCanvas, const QgsGeorefDataPoint* dataPoint, bool isGCPSource )
-    : QgsMapCanvasItem( mapCanvas ), mDataPoint( dataPoint )
+    : QgsMapCanvasItem( mapCanvas )
+    , mDataPoint( dataPoint )
     , mPointBrush( Qt::red )
     , mLabelBrush( Qt::yellow )
     , mIsGCPSource( isGCPSource )
@@ -187,7 +188,7 @@ double QgsGCPCanvasItem::residualToScreenFactor() const
   double mapUnitsPerRasterPixel = 1.0;
 
   QStringList canvasLayers = mMapCanvas->mapSettings().layers();
-  if ( canvasLayers.size() > 0 )
+  if ( !canvasLayers.isEmpty() )
   {
     QString layerId = canvasLayers.at( 0 );
     QgsMapLayer* mapLayer = QgsMapLayerRegistry::instance()->mapLayer( layerId );

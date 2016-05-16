@@ -91,7 +91,7 @@ int getrusage( int who, struct rusage * rusage )
     return -1;
   }
 
-  if ( rusage == ( struct rusage * ) NULL )
+  if ( !rusage )
   {
     errno = EFAULT;
     return -1;
@@ -239,10 +239,10 @@ void QgsBench::render()
   {
     for ( int i = 0; i < mTimes.size(); i++ )
     {
-      avg[t] += mTimes[i][t];
+      avg[t] += mTimes.at( i )[t];
 
-      if ( i == 0 || mTimes[i][t] < min[t] ) min[t] = mTimes[i][t];
-      if ( i == 0 || mTimes[i][t] > max[t] ) max[t] = mTimes[i][t];
+      if ( i == 0 || mTimes.at( i )[t] < min[t] ) min[t] = mTimes.at( i )[t];
+      if ( i == 0 || mTimes.at( i )[t] > max[t] ) max[t] = mTimes.at( i )[t];
     }
     avg[t] /= mTimes.size();
   }
@@ -254,7 +254,7 @@ void QgsBench::render()
     {
       for ( int i = 0; i < mTimes.size(); i++ )
       {
-        double d = fabs( avg[t] - mTimes[i][t] );
+        double d = fabs( avg[t] - mTimes.at( i )[t] );
         stdev[t] += pow( d, 2 );
         if ( i == 0 || d > maxdev[t] ) maxdev[t] = d;
       }
@@ -315,7 +315,7 @@ QString QgsBench::serialize( const QMap<QString, QVariant>& theMap, int level )
   QMap<QString, QVariant>::const_iterator i = theMap.constBegin();
   while ( i != theMap.constEnd() )
   {
-    switch (( QMetaType::Type )i.value().type() )
+    switch ( static_cast< QMetaType::Type >( i.value().type() ) )
     {
       case QMetaType::Int:
         list.append( space2 + '\"' + i.key() + "\": " + QString( "%1" ).arg( i.value().toInt() ) );

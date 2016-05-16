@@ -28,6 +28,7 @@ class QgsAuthMethodEdit;
 
 /** \ingroup gui
  * Widget for editing an authentication configuration
+ * \note not available in Python bindings
  */
 class GUI_EXPORT QgsAuthConfigEdit : public QDialog, private Ui::QgsAuthConfigEdit
 {
@@ -48,7 +49,7 @@ class GUI_EXPORT QgsAuthConfigEdit : public QDialog, private Ui::QgsAuthConfigEd
      * @param authcfg Authentication config id for a existing config in auth database
      * @param dataprovider The provider origin of the edit, to allow for customized code and filtering
      */
-    explicit QgsAuthConfigEdit( QWidget *parent = 0, const QString& authcfg = QString(),
+    explicit QgsAuthConfigEdit( QWidget *parent = nullptr, const QString& authcfg = QString(),
                                 const QString &dataprovider = QString() );
     ~QgsAuthConfigEdit();
 

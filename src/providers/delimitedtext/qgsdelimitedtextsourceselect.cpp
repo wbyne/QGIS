@@ -33,13 +33,13 @@
 
 const int MAX_SAMPLE_LENGTH = 200;
 
-QgsDelimitedTextSourceSelect::QgsDelimitedTextSourceSelect( QWidget * parent, Qt::WindowFlags fl, bool embedded ):
-    QDialog( parent, fl ),
-    mFile( new QgsDelimitedTextFile() ),
-    mExampleRowCount( 20 ),
-    mBadRowCount( 0 ),
-    mPluginKey( "/Plugin-DelimitedText" ),
-    mLastFileType( "" )
+QgsDelimitedTextSourceSelect::QgsDelimitedTextSourceSelect( QWidget * parent, Qt::WindowFlags fl, bool embedded )
+    : QDialog( parent, fl )
+    , mFile( new QgsDelimitedTextFile() )
+    , mExampleRowCount( 20 )
+    , mBadRowCount( 0 )
+    , mPluginKey( "/Plugin-DelimitedText" )
+    , mLastFileType( "" )
 {
 
   setupUi( this );
@@ -124,7 +124,7 @@ void QgsDelimitedTextSourceSelect::on_buttonBox_accepted()
   }
   if ( delimiterChars->isChecked() )
   {
-    if ( selectedChars().size() == 0 )
+    if ( selectedChars().isEmpty() )
     {
       QMessageBox::warning( this, tr( "No delimiters set" ), tr( "Use one or more characters as the delimiter, or choose a different delimiter type" ) );
       txtDelimiterOther->setFocus();
@@ -627,7 +627,7 @@ void QgsDelimitedTextSourceSelect::getOpenFileName()
   QString s = QFileDialog::getOpenFileName(
                 this,
                 tr( "Choose a delimited text file to open" ),
-                settings.value( mPluginKey + "/text_path", "./" ).toString(),
+                settings.value( mPluginKey + "/text_path", QDir::homePath() ).toString(),
                 tr( "Text files" ) + " (*.txt *.csv *.dat *.wkt);;"
                 + tr( "All files" ) + " (* *.*)",
                 &selectedFilter
@@ -678,7 +678,7 @@ bool QgsDelimitedTextSourceSelect::validate()
   {
     message = tr( "Please enter a layer name" );
   }
-  else if ( delimiterChars->isChecked() && selectedChars().size() == 0 )
+  else if ( delimiterChars->isChecked() && selectedChars().isEmpty() )
   {
     message = tr( "At least one delimiter character must be specified" );
   }

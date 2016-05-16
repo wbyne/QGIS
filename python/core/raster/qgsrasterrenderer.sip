@@ -6,6 +6,25 @@ class QgsRasterRenderer : QgsRasterInterface
 %End
 
   public:
+    // Origin of min / max values
+    enum MinMaxOrigin
+    {
+      MinMaxUnknown,
+      MinMaxUser, // entered by user
+      // method
+      MinMaxMinMax,
+      MinMaxCumulativeCut,
+      MinMaxStdDev,
+      // Extent
+      MinMaxFullExtent,
+      MinMaxSubExtent,
+      // Precision
+      MinMaxEstimated,
+      MinMaxExact
+    };
+
+    static const QRgb NODATA_COLOR;
+
     QgsRasterRenderer( QgsRasterInterface* input = 0, const QString& type = "" );
     virtual ~QgsRasterRenderer();
 
@@ -49,5 +68,10 @@ class QgsRasterRenderer : QgsRasterInterface
 
     /** Write upper class info into rasterrenderer element (called by writeXML method of subclasses)*/
     void _writeXML( QDomDocument& doc, QDomElement& rasterRendererElem ) const;
+
+  private:
+
+    QgsRasterRenderer( const QgsRasterRenderer& );
+    const QgsRasterRenderer& operator=( const QgsRasterRenderer& );
 
 };

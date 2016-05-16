@@ -23,8 +23,10 @@ class QgsRenderContext;
 
 class APP_EXPORT QgsLabelPreview : public QLabel
 {
+    Q_OBJECT
+
   public:
-    QgsLabelPreview( QWidget* parent = NULL );
+    QgsLabelPreview( QWidget* parent = nullptr );
 
     void setTextColor( const QColor& color );
 

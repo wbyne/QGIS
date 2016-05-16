@@ -59,7 +59,7 @@ class GUI_EXPORT QgsOWSSourceSelect : public QDialog, public Ui::QgsOWSSourceSel
     };
 
     //! Constructor
-    QgsOWSSourceSelect( const QString& service, QWidget *parent = 0, const Qt::WindowFlags& fl = QgisGui::ModalDialogFlags, bool managerMode = false, bool embeddedMode = false );
+    QgsOWSSourceSelect( const QString& service, QWidget *parent = nullptr, const Qt::WindowFlags& fl = QgisGui::ModalDialogFlags, bool managerMode = false, bool embeddedMode = false );
     //! Destructor
     ~QgsOWSSourceSelect();
 
@@ -77,8 +77,8 @@ class GUI_EXPORT QgsOWSSourceSelect : public QDialog, public Ui::QgsOWSSourceSel
     void on_mLoadButton_clicked();
 
     /** Connects to the database using the stored connection parameters.
-    * Once connected, available layers are displayed.
-    */
+     * Once connected, available layers are displayed.
+     */
     void on_mConnectButton_clicked();
 
     //! Determines the layers the user selected

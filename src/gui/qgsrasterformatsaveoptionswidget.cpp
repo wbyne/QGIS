@@ -33,8 +33,12 @@ QMap< QString, QStringList > QgsRasterFormatSaveOptionsWidget::mBuiltinProfiles;
 
 QgsRasterFormatSaveOptionsWidget::QgsRasterFormatSaveOptionsWidget( QWidget* parent, const QString& format,
     QgsRasterFormatSaveOptionsWidget::Type type, const QString& provider )
-    : QWidget( parent ), mFormat( format ), mProvider( provider ), mRasterLayer( 0 )
-    , mRasterFileName( QString() ), mPyramids( false )
+    : QWidget( parent )
+    , mFormat( format )
+    , mProvider( provider )
+    , mRasterLayer( nullptr )
+    , mRasterFileName( QString() )
+    , mPyramids( false )
     , mPyramidsFormat( QgsRaster::PyramidsGTiff )
 
 {
@@ -157,7 +161,7 @@ void QgsRasterFormatSaveOptionsWidget::updateProfiles()
   {
     it.next();
     QString profileKey = it.key();
-    if ( ! profileKeys.contains( profileKey ) && it.value().count() > 0 )
+    if ( ! profileKeys.contains( profileKey ) && !it.value().isEmpty() )
     {
       // insert key if is for all formats or this format (GTiff)
       if ( it.value()[0] == "" ||  it.value()[0] == format )
@@ -512,8 +516,8 @@ void QgsRasterFormatSaveOptionsWidget::setCreateOptions()
 {
   QSettings mySettings;
   QString myProfiles;
-  QMap< QString, QString >::iterator i = mOptionsMap.begin();
-  while ( i != mOptionsMap.end() )
+  QMap< QString, QString >::const_iterator i = mOptionsMap.constBegin();
+  while ( i != mOptionsMap.constEnd() )
   {
     setCreateOptions( i.key(), i.value() );
     myProfiles += i.key() + QLatin1String( " " );
@@ -582,7 +586,7 @@ bool QgsRasterFormatSaveOptionsWidget::eventFilter( QObject *obj, QEvent *event 
     QMouseEvent *mouseEvent = static_cast<QMouseEvent *>( event );
     if ( mouseEvent && ( mouseEvent->button() == Qt::RightButton ) )
     {
-      QMenu* menu = 0;
+      QMenu* menu = nullptr;
       QString text;
       if ( mOptionsStackedWidget->currentIndex() == 0 )
         text = tr( "Use simple interface" );

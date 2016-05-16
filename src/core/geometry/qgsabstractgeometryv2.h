@@ -19,19 +19,21 @@ email                : marco.hugentobler at sourcepole dot com
 #include "qgscoordinatetransform.h"
 #include "qgsrectangle.h"
 #include "qgswkbtypes.h"
+#include "qgswkbptr.h"
+
 #include <QString>
 
-class QgsCoordinateTransform;
 class QgsMapToPixel;
 class QgsCurveV2;
 class QgsMultiCurveV2;
 class QgsMultiPointV2;
 class QgsPointV2;
-class QgsConstWkbPtr;
 struct QgsVertexId;
-class QgsWkbPtr;
 class QPainter;
 
+typedef QList< QgsPointV2 > QgsPointSequenceV2;
+typedef QList< QgsPointSequenceV2 > QgsRingSequenceV2;
+typedef QList< QgsRingSequenceV2 > QgsCoordinateSequenceV2;
 
 /** \ingroup core
  * \class QgsAbstractGeometryV2
@@ -56,12 +58,7 @@ class CORE_EXPORT QgsAbstractGeometryV2
 
     /** Returns the minimal bounding box for the geometry
      */
-    QgsRectangle boundingBox() const;
-
-    /** Calculates the minimal bounding box for the geometry. Derived classes should override this method
-     * to return the correct bounding box.
-     */
-    virtual QgsRectangle calculateBoundingBox() const;
+    virtual QgsRectangle boundingBox() const = 0;
 
     //mm-sql interface
     /** Returns the inherent dimension of the geometry. For example, this is 0 for a point geometry,
@@ -114,7 +111,7 @@ class CORE_EXPORT QgsAbstractGeometryV2
     /** Sets the geometry from a WKB string.
      * @see fromWkt
      */
-    virtual bool fromWkb( const unsigned char * wkb ) = 0;
+    virtual bool fromWkb( QgsConstWkbPtr wkb ) = 0;
 
     /** Sets the geometry from a WKT string.
      * @see fromWkb
@@ -205,13 +202,13 @@ class CORE_EXPORT QgsAbstractGeometryV2
      * in this variable if found.
      * @param vertex container for found node
      * @return false if at end
-    */
+     */
     virtual bool nextVertex( QgsVertexId& id, QgsPointV2& vertex ) const = 0;
 
     /** Retrieves the sequence of geometries, rings and nodes.
-     * @param coord destination for coordinate sequence.
+     * @return coordinate sequence
      */
-    virtual void coordinateSequence( QList< QList< QList< QgsPointV2 > > >& coord ) const = 0;
+    virtual QgsCoordinateSequenceV2 coordinateSequence() const = 0;
 
     /** Returns the number of nodes contained in the geometry
      */
@@ -219,13 +216,14 @@ class CORE_EXPORT QgsAbstractGeometryV2
 
     /** Returns the point corresponding to a specified vertex id
      */
-    virtual QgsPointV2 vertexAt( const QgsVertexId& id ) const = 0;
+    virtual QgsPointV2 vertexAt( QgsVertexId id ) const = 0;
 
     /** Searches for the closest segment of the geometry to a given point.
-     * @param pt Specifies the point for search
+     * @param pt specifies the point to find closest segment to
      * @param segmentPt storage for the closest point within the geometry
-     * @param vertexAfter storage for the id of the vertex after the closest segment
-     * @param leftOf returns if the point lies on the left of right side of the segment ( < 0 means left, > 0 means right )
+     * @param vertexAfter storage for the ID of the vertex at the end of the closest segment
+     * @param leftOf returns whether the point lies on the left side of the nearest segment (true if point is to left of segment,
+     * false if point is to right of segment)
      * @param epsilon epsilon for segment snapping
      * @returns squared distance to closest segment
      */
@@ -240,7 +238,7 @@ class CORE_EXPORT QgsAbstractGeometryV2
      * @see moveVertex
      * @see deleteVertex
      */
-    virtual bool insertVertex( const QgsVertexId& position, const QgsPointV2& vertex ) = 0;
+    virtual bool insertVertex( QgsVertexId position, const QgsPointV2& vertex ) = 0;
 
     /** Moves a vertex within the geometry
      * @param position vertex id for vertex to move
@@ -249,7 +247,7 @@ class CORE_EXPORT QgsAbstractGeometryV2
      * @see insertVertex
      * @see deleteVertex
      */
-    virtual bool moveVertex( const QgsVertexId& position, const QgsPointV2& newPos ) = 0;
+    virtual bool moveVertex( QgsVertexId position, const QgsPointV2& newPos ) = 0;
 
     /** Deletes a vertex within the geometry
      * @param position vertex id for vertex to delete
@@ -257,7 +255,7 @@ class CORE_EXPORT QgsAbstractGeometryV2
      * @see insertVertex
      * @see moveVertex
      */
-    virtual bool deleteVertex( const QgsVertexId& position ) = 0;
+    virtual bool deleteVertex( QgsVertexId position ) = 0;
 
     /** Returns the length of the geometry.
      * @see area()
@@ -293,20 +291,35 @@ class CORE_EXPORT QgsAbstractGeometryV2
      */
     virtual QgsAbstractGeometryV2* segmentize() const { return clone(); }
 
-    /** Returns approximate rotation angle for a vertex. Usually average angle between adjacent segments.
-        @param vertex the vertex id
-        @return rotation in radians, clockwise from north*/
-    virtual double vertexAngle( const QgsVertexId& vertex ) const = 0;
+    /** Returns the geometry converted to the more generic curve type.
+        E.g. QgsLineStringV2 -> QgsCompoundCurveV2, QgsPolygonV2 -> QgsCurvePolygonV2,
+        QgsMultiLineStringV2 -> QgsMultiCurveV2, QgsMultiPolygonV2 -> QgsMultiSurfaceV2
+        @return the converted geometry. Caller takes ownership*/
+    virtual QgsAbstractGeometryV2* toCurveType() const { return 0; }
+
+    /** Returns approximate angle at a vertex. This is usually the average angle between adjacent
+     * segments, and can be pictured as the orientation of a line following the curvature of the
+     * geometry at the specified vertex.
+     * @param vertex the vertex id
+     * @return rotation in radians, clockwise from north
+     */
+    virtual double vertexAngle( QgsVertexId vertex ) const = 0;
 
     virtual int vertexCount( int part = 0, int ring = 0 ) const = 0;
     virtual int ringCount( int part = 0 ) const = 0;
+
+    /** Returns count of parts contained in the geometry.
+     * @see vertexCount
+     * @see ringCount
+     */
     virtual int partCount() const = 0;
 
     /** Adds a z-dimension to the geometry, initialized to a preset value.
      * @param zValue initial z-value for all nodes
      * @returns true on success
      * @note added in QGIS 2.12
-     * @see addMValue
+     * @see dropZValue()
+     * @see addMValue()
      */
     virtual bool addZValue( double zValue = 0 ) = 0;
 
@@ -314,27 +327,48 @@ class CORE_EXPORT QgsAbstractGeometryV2
      * @param mValue initial m-value for all nodes
      * @returns true on success
      * @note added in QGIS 2.12
-     * @see addZValue
+     * @see dropMValue()
+     * @see addZValue()
      */
     virtual bool addMValue( double mValue = 0 ) = 0;
 
+    /** Drops any z-dimensions which exist in the geometry.
+     * @returns true if Z values were present and have been removed
+     * @see addZValue()
+     * @see dropMValue()
+     * @note added in QGIS 2.14
+     */
+    virtual bool dropZValue() = 0;
+
+    /** Drops any measure values which exist in the geometry.
+     * @returns true if m-values were present and have been removed
+     * @see addMValue()
+     * @see dropZValue()
+     * @note added in QGIS 2.14
+     */
+    virtual bool dropMValue() = 0;
+
+    /** Converts the geometry to a specified type.
+     * @returns true if conversion was successful
+     * @note added in QGIS 2.14
+     */
+    virtual bool convertTo( QgsWKBTypes::Type type );
+
   protected:
     QgsWKBTypes::Type mWkbType;
-    mutable QgsRectangle mBoundingBox;
 
     /** Updates the geometry type based on whether sub geometries contain z or m values.
      */
     void setZMTypeFromSubGeometry( const QgsAbstractGeometryV2* subggeom, QgsWKBTypes::Type baseGeomType );
 
-    /** Reads a WKB header and tests its validity.
-     * @param wkbPtr
-     * @param wkbType destination for WKB type from header
-     * @param endianSwap will be set to true if endian from WKB must be swapped to match QGIS platform endianness
-     * @param expectedType expected WKB type
-     * @returns true if header is valid and matches expected type
-     * @note not available in Python bindings
+    /** Default calculator for the minimal bounding box for the geometry. Derived classes should override this method
+     * if a more efficient bounding box calculation is available.
      */
-    static bool readWkbHeader( QgsConstWkbPtr& wkbPtr, QgsWKBTypes::Type& wkbType, bool& endianSwap, QgsWKBTypes::Type expectedType );
+    virtual QgsRectangle calculateBoundingBox() const;
+
+    /** Clears any cached parameters associated with the geometry, eg bounding boxes
+     */
+    virtual void clearCache() const {}
 
 };
 
@@ -353,29 +387,33 @@ struct CORE_EXPORT QgsVertexId
   };
 
   QgsVertexId( int _part = -1, int _ring = -1, int _vertex = -1, VertexType _type = SegmentVertex )
-      : part( _part ), ring( _ring ), vertex( _vertex ), type( _type ) {}
+      : part( _part )
+      , ring( _ring )
+      , vertex( _vertex )
+      , type( _type )
+  {}
 
   /** Returns true if the vertex id is valid
    */
   bool isValid() const { return part >= 0 && ring >= 0 && vertex >= 0; }
 
-  bool operator==( const QgsVertexId& other ) const
+  bool operator==( QgsVertexId other ) const
   {
     return part == other.part && ring == other.ring && vertex == other.vertex;
   }
-  bool operator!=( const QgsVertexId& other ) const
+  bool operator!=( QgsVertexId other ) const
   {
     return part != other.part || ring != other.ring || vertex != other.vertex;
   }
-  bool partEqual( const QgsVertexId& o ) const
+  bool partEqual( QgsVertexId o ) const
   {
     return part >= 0 && o.part == part;
   }
-  bool ringEqual( const QgsVertexId& o ) const
+  bool ringEqual( QgsVertexId o ) const
   {
     return partEqual( o ) && ( ring >= 0 && o.ring == ring );
   }
-  bool vertexEqual( const QgsVertexId& o ) const
+  bool vertexEqual( QgsVertexId o ) const
   {
     return ringEqual( o ) && ( vertex >= 0 && o.ring == ring );
   }

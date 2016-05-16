@@ -17,8 +17,11 @@
 #define QGSVECTORLAYERLABELPROVIDER_H
 
 #include "qgslabelingenginev2.h"
+#include "qgsrendererv2.h"
 
 class QgsAbstractFeatureSource;
+class QgsFeatureRendererV2;
+class QgsSymbolV2;
 
 /**
  * @brief The QgsVectorLayerLabelProvider class implements a label provider
@@ -26,13 +29,19 @@ class QgsAbstractFeatureSource;
  * custom properties or from the given settings.
  *
  * @note added in QGIS 2.12
+ * @note this class is not a part of public API yet. See notes in QgsLabelingEngineV2
+ * @note not available in Python bindings
  */
 class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
 {
   public:
 
     //! Convenience constructor to initialize the provider from given vector layer
-    explicit QgsVectorLayerLabelProvider( QgsVectorLayer* layer, bool withFeatureLoop = true, const QgsPalLayerSettings* settings = 0, const QString& layerName = QString() );
+    explicit QgsVectorLayerLabelProvider( QgsVectorLayer* layer,
+                                          const QString& providerId,
+                                          bool withFeatureLoop = true,
+                                          const QgsPalLayerSettings* settings = nullptr,
+                                          const QString& layerName = QString() );
 
     //! Construct diagram provider with all the necessary configuration parameters
     QgsVectorLayerLabelProvider( const QgsPalLayerSettings& settings,
@@ -40,7 +49,8 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
                                  const QgsFields& fields,
                                  const QgsCoordinateReferenceSystem& crs,
                                  QgsAbstractFeatureSource* source,
-                                 bool ownsSource );
+                                 bool ownsSource,
+                                 QgsFeatureRendererV2* renderer = nullptr );
 
     ~QgsVectorLayerLabelProvider();
 
@@ -64,8 +74,22 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
      * @param feature feature to label
      * @param context render context. The QgsExpressionContext contained within the render context
      * must have already had the feature and fields sets prior to calling this method.
+     * @param obstacleGeometry optional obstacle geometry, if a different geometry to the feature's geometry
+     * should be used as an obstacle for labels (eg, if the feature has been rendered with an offset point
+     * symbol, the obstacle geometry should represent the bounds of the offset symbol). If not set,
+     * the feature's original geometry will be used as an obstacle for labels.
      */
-    virtual void registerFeature( QgsFeature& feature, QgsRenderContext &context );
+    virtual void registerFeature( QgsFeature& feature, QgsRenderContext &context, QgsGeometry* obstacleGeometry = nullptr );
+
+    /** Returns the geometry for a point feature which should be used as an obstacle for labels. This
+     * obstacle geometry will respect the dimensions and offsets of the symbol used to render the
+     * point, and ensures that labels will not overlap large or offset points.
+     * @param fet point feature
+     * @param context render context
+     * @param symbols symbols rendered for point feature
+     * @note added in QGIS 2.14
+     */
+    static QgsGeometry* getPointObstacleGeometry( QgsFeature& fet, QgsRenderContext& context, const QgsSymbolV2List& symbols );
 
   protected:
     //! initialization method - called from constructors
@@ -76,8 +100,10 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
   protected:
     //! Layer's labeling configuration
     QgsPalLayerSettings mSettings;
-    //! Layer's ID
-    QString mLayerId;
+    //! Geometry type of layer
+    QGis::GeometryType mLayerGeometryType;
+
+    QgsFeatureRendererV2* mRenderer;
 
     // these are needed only if using own renderer loop
 
@@ -93,6 +119,5 @@ class CORE_EXPORT QgsVectorLayerLabelProvider : public QgsAbstractLabelProvider
     //! List of generated
     QList<QgsLabelFeature*> mLabels;
 };
-
 
 #endif // QGSVECTORLAYERLABELPROVIDER_H

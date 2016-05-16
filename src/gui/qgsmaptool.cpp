@@ -26,8 +26,8 @@ QgsMapTool::QgsMapTool( QgsMapCanvas* canvas )
     : QObject( canvas )
     , mCanvas( canvas )
     , mCursor( Qt::CrossCursor )
-    , mAction( NULL )
-    , mButton( NULL )
+    , mAction( nullptr )
+    , mButton( nullptr )
     , mToolName( QString() )
 {
 }
@@ -39,7 +39,7 @@ QgsMapTool::~QgsMapTool()
 }
 
 
-QgsPoint QgsMapTool::toMapCoordinates( const QPoint& point )
+QgsPoint QgsMapTool::toMapCoordinates( QPoint point )
 {
   return mCanvas->getCoordinateTransform()->toMapCoordinates( point );
 }
@@ -51,7 +51,7 @@ QgsPointV2 QgsMapTool::toMapCoordinates( QgsMapLayer* layer, const QgsPointV2& p
 }
 
 
-QgsPoint QgsMapTool::toLayerCoordinates( QgsMapLayer* layer, const QPoint& point )
+QgsPoint QgsMapTool::toLayerCoordinates( QgsMapLayer* layer, QPoint point )
 {
   QgsPoint pt = toMapCoordinates( point );
   return toLayerCoordinates( layer, pt );
@@ -118,7 +118,7 @@ void QgsMapTool::setAction( QAction* action )
 void QgsMapTool::actionDestroyed()
 {
   if ( mAction == sender() )
-    mAction = 0;
+    mAction = nullptr;
 }
 
 QAction* QgsMapTool::action()

@@ -48,6 +48,10 @@ class QgsSvgCacheEntry
     bool operator==( const QgsSvgCacheEntry& other ) const;
     /** Return memory usage in bytes*/
     int dataSize() const;
+
+  private:
+
+    QgsSvgCacheEntry( const QgsSvgCacheEntry& rh );
 };
 
 /** A cache for images / pictures derived from svg files. This class supports parameter replacement in svg files
@@ -122,10 +126,38 @@ class QgsSvgCache : QObject
      * @param defaultOutlineWidth will be set to default outline width specified in SVG, if present
      * @note available in python bindings as containsParamsV2
      * @note added in QGIS 2.12
+     * @deprecated use variant with fill and outline opacity
      */
     void containsParams( const QString& path, bool& hasFillParam, bool& hasDefaultFillParam, QColor& defaultFillColor,
                          bool& hasOutlineParam, bool& hasDefaultOutlineColor, QColor& defaultOutlineColor,
-                         bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth ) const /PyName=containsParamsV2/;
+                         bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth ) const /Deprecated,PyName=containsParamsV2/;
+
+    /** Tests if an svg file contains parameters for fill, outline color, outline width. If yes, possible default values are returned. If there are several
+     * default values in the svg file, only the first one is considered.
+     * @param path path to SVG file
+     * @param hasFillParam will be true if fill param present in SVG
+     * @param hasDefaultFillParam will be true if fill param has a default value specified
+     * @param defaultFillColor will be set to default fill color specified in SVG, if present
+     * @param hasFillOpacityParam will be true if fill opacity param present in SVG
+     * @param hasDefaultFillOpacity will be true if fill opacity param has a default value specified
+     * @param defaultFillOpacity will be set to default fill opacity specified in SVG, if present
+     * @param hasOutlineParam will be true if outline param present in SVG
+     * @param hasDefaultOutlineColor will be true if outline param has a default value specified
+     * @param defaultOutlineColor will be set to default outline color specified in SVG, if present
+     * @param hasOutlineWidthParam will be true if outline width param present in SVG
+     * @param hasDefaultOutlineWidth will be true if outline width param has a default value specified
+     * @param defaultOutlineWidth will be set to default outline width specified in SVG, if present
+     * @param hasOutlineOpacityParam will be true if outline opacity param present in SVG
+     * @param hasDefaultOutlineOpacity will be true if outline opacity param has a default value specified
+     * @param defaultOutlineOpacity will be set to default outline opacity specified in SVG, if present
+     * @note available in python bindings as containsParamsV3
+     * @note added in QGIS 2.14
+     */
+    void containsParams( const QString& path, bool& hasFillParam, bool& hasDefaultFillParam, QColor& defaultFillColor,
+                         bool& hasFillOpacityParam, bool& hasDefaultFillOpacity, double& defaultFillOpacity,
+                         bool& hasOutlineParam, bool& hasDefaultOutlineColor, QColor& defaultOutlineColor,
+                         bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth,
+                         bool& hasOutlineOpacityParam, bool& hasDefaultOutlineOpacity, double& defaultOutlineOpacity ) const /PyName=containsParamsV3/;
 
     /** Get image data*/
     QByteArray getImageData( const QString &path ) const;
@@ -144,7 +176,7 @@ class QgsSvgCache : QObject
 
     /** Creates new cache entry and returns pointer to it
      * @param file Absolute or relative path to SVG file. If the path is relative the file is searched by QgsSymbolLayerV2Utils::symbolNameToPath() in SVG paths.
-    in settings svg/searchPathsForSVG
+     * in settings svg/searchPathsForSVG
      * @param size size of cached image
      * @param fill color of fill
      * @param outline color of outline
@@ -167,4 +199,5 @@ class QgsSvgCache : QObject
 
     //Removes entry from the ordered list (but does not delete the entry itself)
     void takeEntryFromList( QgsSvgCacheEntry* entry );
+
 };

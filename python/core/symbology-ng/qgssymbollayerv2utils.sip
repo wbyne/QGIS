@@ -285,7 +285,7 @@ class QgsSymbolLayerV2Utils
      * @param colors colors to export
      * @returns true if export was successful
      * @see importColorsFromGpl
-    */
+     */
     static bool saveColorsToGpl( QFile &file, const QString& paletteName, const QgsNamedColorList& colors );
 
     /**
@@ -295,7 +295,7 @@ class QgsSymbolLayerV2Utils
      * @param name will be set to palette name from gpl file, if present
      * @returns list of imported colors
      * @see saveColorsToGpl
-    */
+     */
     static QgsNamedColorList importColorsFromGpl( QFile &file, bool &ok, QString& name );
 
     /**
@@ -326,7 +326,7 @@ class QgsSymbolLayerV2Utils
      * @param u units to convert from
      * @param scale map unit scale, specifying limits for the map units to convert from
      * @see convertToPainterUnits()
-    */
+     */
     static double lineWidthScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u, const QgsMapUnitScale& scale = QgsMapUnitScale() );
 
     /** Converts a size from the specied units to painter units. The conversion respects the limits
@@ -336,14 +336,28 @@ class QgsSymbolLayerV2Utils
      * @param unit units for specified size
      * @param scale map unit scale
      * @note added in QGIS 2.12
-     * @see lineWidthScaleFactor
+     * @see lineWidthScaleFactor()
+     * @see convertToMapUnits()
      */
     static double convertToPainterUnits( const QgsRenderContext&c, double size, QgsSymbolV2::OutputUnit unit, const QgsMapUnitScale& scale = QgsMapUnitScale() );
 
+    /** Converts a size from the specied units to map units. The conversion respects the limits
+     * specified by the optional scale parameter.
+     * @param c render context
+     * @param size size to convert
+     * @param unit units for specified size
+     * @param scale map unit scale
+     * @note added in QGIS 2.16
+     * @see convertToPainterUnits()
+     */
+    static double convertToMapUnits( const QgsRenderContext&c, double size, QgsSymbolV2::OutputUnit unit, const QgsMapUnitScale& scale = QgsMapUnitScale() );
+
     /** Returns scale factor painter units -> pixel dimensions*/
     static double pixelSizeScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u, const QgsMapUnitScale& scale = QgsMapUnitScale() );
+
     /** Returns scale factor painter units -> map units*/
     static double mapUnitScaleFactor( const QgsRenderContext& c, QgsSymbolV2::OutputUnit u, const QgsMapUnitScale& scale = QgsMapUnitScale() );
+
     /** Creates a render context for a pixel based device*/
     static QgsRenderContext createRenderContext( QPainter* p );
 
@@ -351,7 +365,7 @@ class QgsSymbolLayerV2Utils
     static void multiplyImageOpacity( QImage* image, qreal alpha );
 
     /** Blurs an image in place, e.g. creating Qt-independent drop shadows */
-    static void blurImageInPlace( QImage& image, const QRect& rect, int radius, bool alphaOnly );
+    static void blurImageInPlace( QImage& image, QRect rect, int radius, bool alphaOnly );
 
     /** Converts a QColor into a premultiplied ARGB QColor value using a specified alpha value
      * @note added in 2.3
@@ -361,7 +375,7 @@ class QgsSymbolLayerV2Utils
     /** Sorts the passed list in requested order*/
     static void sortVariantList( QList<QVariant>& list, Qt::SortOrder order );
     /** Returns a point on the line from startPoint to directionPoint that is a certain distance away from the starting point*/
-    static QPointF pointOnLineWithDistance( const QPointF& startPoint, const QPointF& directionPoint, double distance );
+    static QPointF pointOnLineWithDistance( QPointF startPoint, QPointF directionPoint, double distance );
 
     //! Return a list of all available svg files
     static QStringList listSvgFiles();
@@ -385,7 +399,7 @@ class QgsSymbolLayerV2Utils
     static QPointF polygonPointOnSurface( const QPolygonF& points );
 
     //! Calculate whether a point is within of a QPolygonF
-    static bool pointInPolygon( const QPolygonF &points, const QPointF &point );
+    static bool pointInPolygon( const QPolygonF &points, QPointF point );
 
     /** Return a new valid expression instance for given field or expression string.
      * If the input is not a valid expression, it is assumed that it is a field name and gets properly quoted.

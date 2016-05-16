@@ -58,7 +58,7 @@ void QgsSimplifyDialog::enableOkButton( bool enabled )
 
 QgsMapToolSimplify::QgsMapToolSimplify( QgsMapCanvas* canvas )
     : QgsMapToolEdit( canvas )
-    , mSelectionRubberBand( 0 )
+    , mSelectionRubberBand( nullptr )
     , mDragging( false )
     , mOriginalVertexCount( 0 )
     , mReducedVertexCount( 0 )
@@ -113,7 +113,7 @@ void QgsMapToolSimplify::updateSimplificationPreview()
     if ( QgsGeometry* g = fSel.constGeometry()->simplify( layerTolerance ) )
     {
       mReducedVertexCount += vertexCount( g );
-      mRubberBands[i]->setToGeometry( g, vl );
+      mRubberBands.at( i )->setToGeometry( g, vl );
       delete g;
     }
     else
@@ -238,7 +238,7 @@ void QgsMapToolSimplify::canvasReleaseEvent( QgsMapMouseEvent* e )
     return;
 
   delete mSelectionRubberBand;
-  mSelectionRubberBand = 0;
+  mSelectionRubberBand = nullptr;
 
   if ( mDragging && ( mSelectionRect.topLeft() != mSelectionRect.bottomRight() ) )
   {
@@ -276,7 +276,7 @@ void QgsMapToolSimplify::canvasReleaseEvent( QgsMapMouseEvent* e )
 }
 
 
-void QgsMapToolSimplify::selectOneFeature( const QPoint& canvasPoint )
+void QgsMapToolSimplify::selectOneFeature( QPoint canvasPoint )
 {
   QgsVectorLayer * vlayer = currentVectorLayer();
   QgsPoint layerCoords = toLayerCoordinates( vlayer, canvasPoint );
@@ -337,7 +337,7 @@ void QgsMapToolSimplify::clearSelection()
 void QgsMapToolSimplify::deactivate()
 {
   delete mSelectionRubberBand;
-  mSelectionRubberBand = 0;
+  mSelectionRubberBand = nullptr;
 
   if ( mSimplifyDialog->isVisible() )
     mSimplifyDialog->close();

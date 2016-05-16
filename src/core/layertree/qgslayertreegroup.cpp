@@ -64,7 +64,7 @@ QgsLayerTreeGroup* QgsLayerTreeGroup::addGroup( const QString &name )
 QgsLayerTreeLayer*QgsLayerTreeGroup::insertLayer( int index, QgsMapLayer* layer )
 {
   if ( !layer || QgsMapLayerRegistry::instance()->mapLayer( layer->id() ) != layer )
-    return 0;
+    return nullptr;
 
   QgsLayerTreeLayer* ll = new QgsLayerTreeLayer( layer );
   insertChildNode( index, ll );
@@ -74,7 +74,7 @@ QgsLayerTreeLayer*QgsLayerTreeGroup::insertLayer( int index, QgsMapLayer* layer 
 QgsLayerTreeLayer* QgsLayerTreeGroup::addLayer( QgsMapLayer* layer )
 {
   if ( !layer || QgsMapLayerRegistry::instance()->mapLayer( layer->id() ) != layer )
-    return 0;
+    return nullptr;
 
   QgsLayerTreeLayer* ll = new QgsLayerTreeLayer( layer );
   addChildNode( ll );
@@ -90,9 +90,9 @@ void QgsLayerTreeGroup::insertChildNode( int index, QgsLayerTreeNode* node )
 
 void QgsLayerTreeGroup::insertChildNodes( int index, const QList<QgsLayerTreeNode*>& nodes )
 {
-  QgsLayerTreeNode* meChild = 0;
+  QgsLayerTreeNode* meChild = nullptr;
   if ( mMutuallyExclusive && mMutuallyExclusiveChildIndex >= 0 && mMutuallyExclusiveChildIndex < mChildren.count() )
-    meChild = mChildren[mMutuallyExclusiveChildIndex];
+    meChild = mChildren.at( mMutuallyExclusiveChildIndex );
 
   // low-level insert
   insertChildrenPrivate( index, nodes );
@@ -148,9 +148,9 @@ void QgsLayerTreeGroup::removeLayer( QgsMapLayer* layer )
 
 void QgsLayerTreeGroup::removeChildren( int from, int count )
 {
-  QgsLayerTreeNode* meChild = 0;
+  QgsLayerTreeNode* meChild = nullptr;
   if ( mMutuallyExclusive && mMutuallyExclusiveChildIndex >= 0 && mMutuallyExclusiveChildIndex < mChildren.count() )
-    meChild = mChildren[mMutuallyExclusiveChildIndex];
+    meChild = mChildren.at( mMutuallyExclusiveChildIndex );
 
   removeChildrenPrivate( from, count );
 
@@ -174,7 +174,7 @@ void QgsLayerTreeGroup::removeChildrenGroupWithoutLayers()
     if ( treeNode->nodeType() == QgsLayerTreeNode::NodeGroup )
     {
       QgsLayerTreeGroup* treeGroup = qobject_cast<QgsLayerTreeGroup*>( treeNode );
-      if ( treeGroup->findLayerIds().count() == 0 )
+      if ( treeGroup->findLayerIds().isEmpty() )
         removeChildNode( treeNode );
       else
         treeGroup->removeChildrenGroupWithoutLayers();
@@ -204,7 +204,7 @@ QgsLayerTreeLayer *QgsLayerTreeGroup::findLayer( const QString& layerId ) const
         return res;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 QList<QgsLayerTreeLayer*> QgsLayerTreeGroup::findLayers() const
@@ -237,13 +237,13 @@ QgsLayerTreeGroup* QgsLayerTreeGroup::findGroup( const QString& name )
       }
     }
   }
-  return 0;
+  return nullptr;
 }
 
 QgsLayerTreeGroup* QgsLayerTreeGroup::readXML( QDomElement& element )
 {
   if ( element.tagName() != "layer-tree-group" )
-    return 0;
+    return nullptr;
 
   QString name = element.attribute( "name" );
   bool isExpanded = ( element.attribute( "expanded", "1" ) == "1" );
@@ -452,7 +452,7 @@ void QgsLayerTreeGroup::updateVisibilityFromChildren()
   if ( mChangingChildVisibility )
     return;
 
-  if ( mChildren.count() == 0 )
+  if ( mChildren.isEmpty() )
     return;
 
   if ( mMutuallyExclusive )
@@ -462,7 +462,7 @@ void QgsLayerTreeGroup::updateVisibilityFromChildren()
     if ( mMutuallyExclusiveChildIndex < 0 || mMutuallyExclusiveChildIndex >= mChildren.count() )
       return;
 
-    Qt::CheckState meChildState = _nodeIsChecked( mChildren[mMutuallyExclusiveChildIndex] ) ? Qt::Checked : Qt::Unchecked;
+    Qt::CheckState meChildState = _nodeIsChecked( mChildren.at( mMutuallyExclusiveChildIndex ) ) ? Qt::Checked : Qt::Unchecked;
 
     setVisible( meChildState );
     return;

@@ -28,8 +28,8 @@
 
 QgsMapToolMeasureAngle::QgsMapToolMeasureAngle( QgsMapCanvas* canvas )
     : QgsMapTool( canvas )
-    , mRubberBand( 0 )
-    , mResultDisplay( 0 )
+    , mRubberBand( nullptr )
+    , mResultDisplay( nullptr )
 {
   mToolName = tr( "Measure angle" );
 
@@ -91,7 +91,7 @@ void QgsMapToolMeasureAngle::canvasReleaseEvent( QgsMapMouseEvent* e )
 
   if ( mAnglePoints.size() < 1 )
   {
-    if ( mResultDisplay == NULL )
+    if ( !mResultDisplay )
     {
       mResultDisplay = new QgsDisplayAngle( this, Qt::WindowStaysOnTopHint );
       QObject::connect( mResultDisplay, SIGNAL( rejected() ), this, SLOT( stopMeasuring() ) );
@@ -111,9 +111,9 @@ void QgsMapToolMeasureAngle::canvasReleaseEvent( QgsMapMouseEvent* e )
 void QgsMapToolMeasureAngle::stopMeasuring()
 {
   delete mRubberBand;
-  mRubberBand = 0;
+  mRubberBand = nullptr;
   delete mResultDisplay;
-  mResultDisplay = 0;
+  mResultDisplay = nullptr;
   mAnglePoints.clear();
 }
 
@@ -141,7 +141,7 @@ void QgsMapToolMeasureAngle::createRubberBand()
   mRubberBand->setWidth( 3 );
 }
 
-QgsPoint QgsMapToolMeasureAngle::snapPoint( const QPoint& p )
+QgsPoint QgsMapToolMeasureAngle::snapPoint( QPoint p )
 {
   QgsPointLocator::Match m = mCanvas->snappingUtils()->snapToMap( p );
   return m.isValid() ? m.point() : mCanvas->getCoordinateTransform()->toMapCoordinates( p );

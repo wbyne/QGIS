@@ -24,9 +24,11 @@
 #include <QListView>
 #include <QSettings>
 
-QgsWelcomePage::QgsWelcomePage( QWidget* parent )
+QgsWelcomePage::QgsWelcomePage( bool skipVersionCheck, QWidget* parent )
     : QWidget( parent )
 {
+  QSettings settings;
+
   QVBoxLayout* mainLayout = new QVBoxLayout;
   mainLayout->setMargin( 0 );
   setLayout( mainLayout );
@@ -38,6 +40,7 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
 
   QWidget* recentProjctsContainer = new QWidget;
   recentProjctsContainer->setLayout( new QVBoxLayout );
+  recentProjctsContainer->layout()->setContentsMargins( 3, 3, 3, 0 );
   QLabel* recentProjectsTitle = new QLabel( QString( "<h1>%1</h1>" ).arg( tr( "Recent Projects" ) ) );
   recentProjctsContainer->layout()->addWidget( recentProjectsTitle );
 
@@ -57,8 +60,11 @@ QgsWelcomePage::QgsWelcomePage( QWidget* parent )
   mVersionInformation->setVisible( false );
 
   mVersionInfo = new QgsVersionInfo();
-  connect( mVersionInfo, SIGNAL( versionInfoAvailable() ), this, SLOT( versionInfoReceived() ) );
-  mVersionInfo->checkVersion();
+  if ( !QgsApplication::isRunningFromBuildDir() && settings.value( "/qgis/checkVersion", true ).toBool() && !skipVersionCheck )
+  {
+    connect( mVersionInfo, SIGNAL( versionInfoAvailable() ), this, SLOT( versionInfoReceived() ) );
+    mVersionInfo->checkVersion();
+  }
 
   connect( recentProjectsListView, SIGNAL( activated( QModelIndex ) ), this, SLOT( itemActivated( QModelIndex ) ) );
 }

@@ -41,6 +41,8 @@ class TestQgsLabelingEngineV2 : public QObject
     void testBasic();
     void testDiagrams();
     void testRuleBased();
+    void zOrder(); //test that labels are stacked correctly
+    void testEncodeDecodePositionOrder();
 
   private:
     QgsVectorLayer* vl;
@@ -84,7 +86,7 @@ void TestQgsLabelingEngineV2::init()
 
 void TestQgsLabelingEngineV2::cleanup()
 {
-  QgsMapLayerRegistry::instance()->removeMapLayer( vl->id( ) );
+  QgsMapLayerRegistry::instance()->removeMapLayer( vl->id() );
   vl = 0;
 }
 
@@ -125,15 +127,16 @@ void TestQgsLabelingEngineV2::testBasic()
 
   QgsLabelingEngineV2 engine;
   engine.setMapSettings( mapSettings );
-  engine.addProvider( new QgsVectorLayerLabelProvider( vl ) );
+  engine.addProvider( new QgsVectorLayerLabelProvider( vl, QString() ) );
   //engine.setFlags( QgsLabelingEngineV2::RenderOutlineLabels | QgsLabelingEngineV2::DrawLabelRectOnly );
   engine.run( context );
 
   p.end();
 
-  QVERIFY( imageCheck( "labeling_basic", img, 0 ) );
+  QVERIFY( imageCheck( "labeling_basic", img, 20 ) );
 
   // now let's test the variant when integrated into rendering loop
+  //note the reference images are slightly different due to use of renderer for this test
 
   job.start();
   job.waitForFinished();
@@ -141,8 +144,9 @@ void TestQgsLabelingEngineV2::testBasic()
 
   vl->setCustomProperty( "labeling/enabled", false );
 
-  QVERIFY( imageCheck( "labeling_basic", img2, 0 ) );
+  QVERIFY( imageCheck( "labeling_basic", img2, 20 ) );
 }
+
 
 void TestQgsLabelingEngineV2::testDiagrams()
 {
@@ -176,7 +180,7 @@ void TestQgsLabelingEngineV2::testDiagrams()
 
   p.end();
 
-  QVERIFY( imageCheck( "labeling_point_diagrams", img, 0 ) );
+  QVERIFY( imageCheck( "labeling_point_diagrams", img, 20 ) );
 
   // now let's test the variant when integrated into rendering loop
   job.start();
@@ -184,7 +188,7 @@ void TestQgsLabelingEngineV2::testDiagrams()
   QImage img2 = job.renderedImage();
 
   vl->loadDefaultStyle( res );
-  QVERIFY( imageCheck( "labeling_point_diagrams", img2, 0 ) );
+  QVERIFY( imageCheck( "labeling_point_diagrams", img2, 20 ) );
 }
 
 
@@ -235,7 +239,7 @@ void TestQgsLabelingEngineV2::testRuleBased()
   job.start();
   job.waitForFinished();
   QImage img = job.renderedImage();
-  QVERIFY( imageCheck( "labeling_rulebased", img, 0 ) );
+  QVERIFY( imageCheck( "labeling_rulebased", img, 20 ) );
 
   // test read/write rules
   QDomDocument doc, doc2, doc3;
@@ -255,7 +259,7 @@ void TestQgsLabelingEngineV2::testRuleBased()
 
   delete rl2;
 
-  /*
+#if 0
   QPainter p( &img );
   QgsRenderContext context = QgsRenderContext::fromMapSettings( mapSettings );
   context.setPainter( &p );
@@ -263,8 +267,150 @@ void TestQgsLabelingEngineV2::testRuleBased()
   QgsLabelingEngineV2 engine;
   engine.setMapSettings( mapSettings );
   engine.addProvider( new QgsRuleBasedLabelProvider( , vl ) );
-  engine.run( context );*/
+  engine.run( context );
+#endif
+}
 
+void TestQgsLabelingEngineV2::zOrder()
+{
+  QSize size( 640, 480 );
+  QgsMapSettings mapSettings;
+  mapSettings.setOutputSize( size );
+  mapSettings.setExtent( vl->extent() );
+  mapSettings.setLayers( QStringList() << vl->id() );
+  mapSettings.setOutputDpi( 96 );
+
+  QgsMapRendererSequentialJob job( mapSettings );
+  job.start();
+  job.waitForFinished();
+
+  QImage img = job.renderedImage();
+
+  QPainter p( &img );
+  QgsRenderContext context = QgsRenderContext::fromMapSettings( mapSettings );
+  context.setPainter( &p );
+
+  QgsPalLayerSettings pls1;
+  pls1.enabled = true;
+  pls1.fieldName = "Class";
+  pls1.placement = QgsPalLayerSettings::OverPoint;
+  pls1.quadOffset = QgsPalLayerSettings::QuadrantAboveRight;
+  pls1.displayAll = true;
+  pls1.textFont = QgsFontUtils::getStandardTestFont( "Bold" );
+  pls1.textFont.setPointSizeF( 70 );
+  //use data defined coloring and font size so that stacking order of labels can be determined
+  pls1.setDataDefinedProperty( QgsPalLayerSettings::Color, true, true, "case when \"Class\"='Jet' then '#ff5500' when \"Class\"='B52' then '#00ffff' else '#ff00ff' end", QString() );
+  pls1.setDataDefinedProperty( QgsPalLayerSettings::Size, true, true, "case when \"Class\"='Jet' then 100 when \"Class\"='B52' then 30 else 50 end", QString() );
+
+  QgsVectorLayerLabelProvider* provider1 = new QgsVectorLayerLabelProvider( vl, QString(), true, &pls1 );
+  QgsLabelingEngineV2 engine;
+  engine.setMapSettings( mapSettings );
+  engine.addProvider( provider1 );
+  //engine.setFlags( QgsLabelingEngineV2::RenderOutlineLabels | QgsLabelingEngineV2::DrawLabelRectOnly );
+  engine.run( context );
+  p.end();
+  engine.removeProvider( provider1 );
+
+  // since labels are all from same layer and have same z-index then smaller labels should be stacked on top of larger
+  // labels. Eg: B52 > Biplane > Jet
+  QVERIFY( imageCheck( "label_order_size", img, 20 ) );
+  img = job.renderedImage();
+
+  //test data defined z-index
+  pls1.setDataDefinedProperty( QgsPalLayerSettings::ZIndex, true, true, "case when \"Class\"='Jet' then 3 when \"Class\"='B52' then 1 else 2 end", QString() );
+  provider1 = new QgsVectorLayerLabelProvider( vl, QString(), true, &pls1 );
+  engine.addProvider( provider1 );
+  p.begin( &img );
+  engine.run( context );
+  p.end();
+  engine.removeProvider( provider1 );
+
+  // z-index will take preference over label size, so labels should be stacked Jet > Biplane > B52
+  QVERIFY( imageCheck( "label_order_zindex", img, 20 ) );
+  img = job.renderedImage();
+
+  pls1.removeAllDataDefinedProperties();
+  pls1.textColor = QColor( 255, 50, 100 );
+  pls1.textFont.setPointSizeF( 30 );
+  provider1 = new QgsVectorLayerLabelProvider( vl, QString(), true, &pls1 );
+  engine.addProvider( provider1 );
+
+  //add a second layer
+  QString filename = QString( TEST_DATA_DIR ) + "/points.shp";
+  QgsVectorLayer* vl2 = new QgsVectorLayer( filename, "points", "ogr" );
+  Q_ASSERT( vl2->isValid() );
+  QgsMapLayerRegistry::instance()->addMapLayer( vl2 );
+
+  QgsPalLayerSettings pls2( pls1 );
+  pls2.textColor = QColor( 0, 0, 0 );
+  QgsVectorLayerLabelProvider* provider2 = new QgsVectorLayerLabelProvider( vl2, QString(), true, &pls2 );
+  engine.addProvider( provider2 );
+
+  mapSettings.setLayers( QStringList() << vl->id() << vl2->id() );
+  engine.setMapSettings( mapSettings );
+
+  p.begin( &img );
+  engine.run( context );
+  p.end();
+
+  // labels have same z-index, so layer order will be used
+  QVERIFY( imageCheck( "label_order_layer1", img, 20 ) );
+  img = job.renderedImage();
+
+  //flip layer order and re-test
+  mapSettings.setLayers( QStringList() << vl2->id() << vl->id() );
+  engine.setMapSettings( mapSettings );
+  p.begin( &img );
+  engine.run( context );
+  p.end();
+
+  // label order should be reversed
+  QVERIFY( imageCheck( "label_order_layer2", img, 20 ) );
+  img = job.renderedImage();
+
+  //try mixing layer order and z-index
+  engine.removeProvider( provider1 );
+  pls1.setDataDefinedProperty( QgsPalLayerSettings::ZIndex, true, true, "if(\"Class\"='Jet',3,0)", QString() );
+  provider1 = new QgsVectorLayerLabelProvider( vl, QString(), true, &pls1 );
+  engine.addProvider( provider1 );
+
+  p.begin( &img );
+  engine.run( context );
+  p.end();
+
+  // label order should be most labels from layer 1, then labels from layer 2, then "Jet"s from layer 1
+  QVERIFY( imageCheck( "label_order_mixed", img, 20 ) );
+  img = job.renderedImage();
+
+  //cleanup
+  QgsMapLayerRegistry::instance()->removeMapLayer( vl2 );
+}
+
+void TestQgsLabelingEngineV2::testEncodeDecodePositionOrder()
+{
+  //create an ordered position list
+  QVector< QgsPalLayerSettings::PredefinedPointPosition > original;
+  //make sure all placements are added here
+  original << QgsPalLayerSettings::BottomLeft << QgsPalLayerSettings::BottomSlightlyLeft
+  << QgsPalLayerSettings::BottomMiddle << QgsPalLayerSettings::BottomSlightlyRight
+  << QgsPalLayerSettings::BottomRight << QgsPalLayerSettings::MiddleRight
+  << QgsPalLayerSettings::MiddleLeft << QgsPalLayerSettings::TopLeft
+  << QgsPalLayerSettings::TopSlightlyLeft << QgsPalLayerSettings::TopMiddle
+  << QgsPalLayerSettings::TopSlightlyRight << QgsPalLayerSettings::TopRight;
+  //encode list
+  QString encoded = QgsLabelingUtils::encodePredefinedPositionOrder( original );
+  QVERIFY( !encoded.isEmpty() );
+
+  //decode
+  QVector< QgsPalLayerSettings::PredefinedPointPosition > decoded = QgsLabelingUtils::decodePredefinedPositionOrder( encoded );
+  QCOMPARE( decoded, original );
+
+  //test decoding with a messy string
+  decoded = QgsLabelingUtils::decodePredefinedPositionOrder( ",tr,x,BSR, L, t,," );
+  QVector< QgsPalLayerSettings::PredefinedPointPosition > expected;
+  expected << QgsPalLayerSettings::TopRight << QgsPalLayerSettings::BottomSlightlyRight
+  << QgsPalLayerSettings::MiddleLeft << QgsPalLayerSettings::TopMiddle;
+  QCOMPARE( decoded, expected );
 }
 
 bool TestQgsLabelingEngineV2::imageCheck( const QString& testName, QImage &image, int mismatchCount )

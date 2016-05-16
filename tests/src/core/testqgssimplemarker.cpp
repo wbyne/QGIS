@@ -59,6 +59,13 @@ class TestQgsSimpleMarkerSymbol : public QObject
     void cleanup() {} // will be called after every testfunction.
 
     void simpleMarkerSymbol();
+    void simpleMarkerSymbolBevelJoin();
+    void simpleMarkerSymbolMiterJoin();
+    void simpleMarkerSymbolRoundJoin();
+    void bounds();
+    void boundsWithOffset();
+    void boundsWithRotation();
+    void boundsWithRotationAndOffset();
 
   private:
     bool mTestHasError;
@@ -133,10 +140,115 @@ void TestQgsSimpleMarkerSymbol::simpleMarkerSymbol()
 
   mSimpleMarkerLayer->setColor( Qt::blue );
   mSimpleMarkerLayer->setBorderColor( Qt::black );
-  mSimpleMarkerLayer->setName( "circle" );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Circle );
   mSimpleMarkerLayer->setSize( 5 );
   mSimpleMarkerLayer->setOutlineWidth( 1 );
   QVERIFY( imageCheck( "simplemarker" ) );
+}
+
+void TestQgsSimpleMarkerSymbol::simpleMarkerSymbolBevelJoin()
+{
+  mReport += "<h2>Simple marker symbol layer test</h2>\n";
+
+  mSimpleMarkerLayer->setColor( Qt::blue );
+  mSimpleMarkerLayer->setBorderColor( Qt::black );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Triangle );
+  mSimpleMarkerLayer->setSize( 25 );
+  mSimpleMarkerLayer->setOutlineWidth( 3 );
+  mSimpleMarkerLayer->setPenJoinStyle( Qt::BevelJoin );
+  QVERIFY( imageCheck( "simplemarker_beveljoin" ) );
+}
+
+void TestQgsSimpleMarkerSymbol::simpleMarkerSymbolMiterJoin()
+{
+  mReport += "<h2>Simple marker symbol layer test</h2>\n";
+
+  mSimpleMarkerLayer->setColor( Qt::blue );
+  mSimpleMarkerLayer->setBorderColor( Qt::black );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Triangle );
+  mSimpleMarkerLayer->setSize( 25 );
+  mSimpleMarkerLayer->setOutlineWidth( 3 );
+  mSimpleMarkerLayer->setPenJoinStyle( Qt::MiterJoin );
+  QVERIFY( imageCheck( "simplemarker_miterjoin" ) );
+}
+
+void TestQgsSimpleMarkerSymbol::simpleMarkerSymbolRoundJoin()
+{
+  mReport += "<h2>Simple marker symbol layer test</h2>\n";
+
+  mSimpleMarkerLayer->setColor( Qt::blue );
+  mSimpleMarkerLayer->setBorderColor( Qt::black );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Triangle );
+  mSimpleMarkerLayer->setSize( 25 );
+  mSimpleMarkerLayer->setOutlineWidth( 3 );
+  mSimpleMarkerLayer->setPenJoinStyle( Qt::RoundJoin );
+  QVERIFY( imageCheck( "simplemarker_roundjoin" ) );
+}
+
+void TestQgsSimpleMarkerSymbol::bounds()
+{
+  mSimpleMarkerLayer->setColor( QColor( 200, 200, 200 ) );
+  mSimpleMarkerLayer->setBorderColor( QColor( 0, 0, 0 ) );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Circle );
+  mSimpleMarkerLayer->setSize( 5 );
+  mSimpleMarkerLayer->setDataDefinedProperty( "size", new QgsDataDefined( true, true, "min(\"importance\" * 2, 6)" ) );
+  mSimpleMarkerLayer->setOutlineWidth( 0.5 );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "simplemarker_bounds" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  mSimpleMarkerLayer->removeDataDefinedProperty( "size" );
+  QVERIFY( result );
+}
+
+void TestQgsSimpleMarkerSymbol::boundsWithOffset()
+{
+  mSimpleMarkerLayer->setColor( QColor( 200, 200, 200 ) );
+  mSimpleMarkerLayer->setBorderColor( QColor( 0, 0, 0 ) );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Circle );
+  mSimpleMarkerLayer->setSize( 5 );
+  mSimpleMarkerLayer->setDataDefinedProperty( "offset", new QgsDataDefined( true, true, "if(importance > 2, '5,10', '10, 5')" ) );
+  mSimpleMarkerLayer->setOutlineWidth( 0.5 );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "simplemarker_boundsoffset" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  mSimpleMarkerLayer->removeDataDefinedProperty( "offset" );
+  QVERIFY( result );
+}
+
+void TestQgsSimpleMarkerSymbol::boundsWithRotation()
+{
+  mSimpleMarkerLayer->setColor( QColor( 200, 200, 200 ) );
+  mSimpleMarkerLayer->setBorderColor( QColor( 0, 0, 0 ) );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Square );
+  mSimpleMarkerLayer->setSize( 5 );
+  mSimpleMarkerLayer->setDataDefinedProperty( "angle", new QgsDataDefined( true, true, "importance * 20" ) );
+  mSimpleMarkerLayer->setOutlineWidth( 0.5 );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "simplemarker_boundsrotation" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  mSimpleMarkerLayer->removeDataDefinedProperty( "angle" );
+  QVERIFY( result );
+}
+
+void TestQgsSimpleMarkerSymbol::boundsWithRotationAndOffset()
+{
+  mSimpleMarkerLayer->setColor( QColor( 200, 200, 200 ) );
+  mSimpleMarkerLayer->setBorderColor( QColor( 0, 0, 0 ) );
+  mSimpleMarkerLayer->setShape( QgsSimpleMarkerSymbolLayerBase::Square );
+  mSimpleMarkerLayer->setSize( 5 );
+  mSimpleMarkerLayer->setDataDefinedProperty( "offset", new QgsDataDefined( true, true, "if(importance > 2, '5,10', '10, 5')" ) );
+  mSimpleMarkerLayer->setDataDefinedProperty( "angle", new QgsDataDefined( true, false, QString(), "heading" ) );
+  mSimpleMarkerLayer->setOutlineWidth( 0.5 );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "simplemarker_boundsrotationoffset" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  mSimpleMarkerLayer->removeDataDefinedProperty( "offset" );
+  mSimpleMarkerLayer->removeDataDefinedProperty( "angle" );
+  QVERIFY( result );
 }
 
 //

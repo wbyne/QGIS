@@ -31,19 +31,18 @@ __revision__ = '$Format:%H$'
 
 import os
 import re
-from PyQt4.QtCore import QCoreApplication
-from PyQt4.QtGui import QIcon
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.parameters import ParameterMultipleInput
 from processing.core.parameters import ParameterRaster
 from processing.core.parameters import ParameterVector
 from processing.core.parameters import ParameterBoolean
 from processing.core.parameters import ParameterSelection
-from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
 from processing.core.ProcessingLog import ProcessingLog
 from processing.core.parameters import getParameterFromString
 from processing.core.outputs import getOutputFromString
-from OTBUtils import OTBUtils
+from . import OTBUtils
 from processing.core.parameters import ParameterExtent
 from processing.tools.system import getTempFilename
 import xml.etree.ElementTree as ET
@@ -77,12 +76,16 @@ class OTBAlgorithm(GeoAlgorithm):
         return QIcon(os.path.join(pluginPath, 'images', 'otb.png'))
 
     def help(self):
-        folder = os.path.join(OTBUtils.otbDescriptionPath(), 'doc')
+        version = OTBUtils.getInstalledVersion()
+        folder = OTBUtils.compatibleDescriptionPath(version)
+        if folder is None:
+            return False, None
+        folder = os.path.join(folder, 'doc')
         helpfile = os.path.join(unicode(folder), self.appkey + ".html")
         if os.path.exists(helpfile):
             return False, helpfile
         else:
-            raise False
+            return False, None
 
     def adapt_list_to_string(self, c_list):
         a_list = c_list[1:]
@@ -166,15 +169,8 @@ class OTBAlgorithm(GeoAlgorithm):
                                        self.tr('Could not open OTB algorithm: %s\n%s' % (self.descriptionFile, line)))
                 raise e
 
-    def checkBeforeOpeningParametersDialog(self):
-        return OTBUtils.checkOtbConfiguration()
-
     def processAlgorithm(self, progress):
         currentOs = os.name
-
-        msg = OTBUtils.checkOtbConfiguration()
-        if msg:
-            raise GeoAlgorithmExecutionException(msg)
 
         path = OTBUtils.otbPath()
 
@@ -340,7 +336,7 @@ class OTBAlgorithm(GeoAlgorithm):
 
         if not found:
             ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
-                                   self.tr("Adapter for %s not found" % the_key))
+                                   self.tr("Adapter for %s not found") % the_key)
 
         #frames = inspect.getouterframes(inspect.currentframe())[1:]
         #for a_frame in frames:

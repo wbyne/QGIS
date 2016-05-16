@@ -37,8 +37,8 @@
 QgsExpressionBuilderWidget::QgsExpressionBuilderWidget( QWidget *parent )
     : QWidget( parent )
     , mAutoSave( true )
-    , mLayer( NULL )
-    , highlighter( NULL )
+    , mLayer( nullptr )
+    , highlighter( nullptr )
     , mExpressionValid( false )
 {
   setupUi( this );
@@ -218,7 +218,7 @@ void QgsExpressionBuilderWidget::updateFunctionFileList( const QString& path )
 void QgsExpressionBuilderWidget::newFunctionFile( const QString& fileName )
 {
   QList<QListWidgetItem*> items = cmbFileNames->findItems( fileName, Qt::MatchExactly );
-  if ( items.count() > 0 )
+  if ( !items.isEmpty() )
     return;
 
   QString templatetxt;
@@ -269,7 +269,7 @@ void QgsExpressionBuilderWidget::on_expressionTree_doubleClicked( const QModelIn
 {
   QModelIndex idx = mProxyModel->mapToSource( index );
   QgsExpressionItem* item = dynamic_cast<QgsExpressionItem*>( mModel->itemFromIndex( idx ) );
-  if ( item == 0 )
+  if ( !item )
     return;
 
   // Don't handle the double click it we are on a header node.
@@ -301,7 +301,7 @@ void QgsExpressionBuilderWidget::loadFieldNames( const QgsFields& fields )
   fieldNames.reserve( fields.count() );
   for ( int i = 0; i < fields.count(); ++i )
   {
-    QString fieldName = fields[i].name();
+    QString fieldName = fields.at( i ).name();
     fieldNames << fieldName;
     registerItem( "Fields and Values", fieldName, " \"" + fieldName + "\" ", "", QgsExpressionItem::Field, false, i );
   }
@@ -557,7 +557,7 @@ void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
       mExpressionContext.setFeature( mFeature );
       QVariant value = exp.evaluate( &mExpressionContext );
       if ( !exp.hasEvalError() )
-        lblPreview->setText( formatPreviewString( value ) );
+        lblPreview->setText( QgsExpression::formatPreviewString( value ) );
     }
     else
     {
@@ -572,7 +572,7 @@ void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
     QVariant value = exp.evaluate( &mExpressionContext );
     if ( !exp.hasEvalError() )
     {
-      lblPreview->setText( formatPreviewString( value ) );
+      lblPreview->setText( QgsExpression::formatPreviewString( value ) );
     }
   }
 
@@ -595,38 +595,6 @@ void QgsExpressionBuilderWidget::on_txtExpressionString_textChanged()
     txtExpressionString->setToolTip( "" );
     lblPreview->setToolTip( "" );
     emit expressionParsed( true );
-  }
-}
-
-QString QgsExpressionBuilderWidget::formatPreviewString( const QVariant& value ) const
-{
-  if ( value.canConvert<QgsGeometry>() )
-  {
-    //result is a geometry
-    QgsGeometry geom = value.value<QgsGeometry>();
-    if ( geom.isEmpty() )
-      return tr( "<i>&lt;empty geometry&gt;</i>" );
-    else
-      return tr( "<i>&lt;geometry: %1&gt;</i>" ).arg( QgsWKBTypes::displayString( geom.geometry()->wkbType() ) );
-  }
-  else if ( value.canConvert< QgsFeature >() )
-  {
-    //result is a feature
-    QgsFeature feat = value.value<QgsFeature>();
-    return tr( "<i>&lt;feature: %1&gt;</i>" ).arg( feat.id() );
-  }
-  else
-  {
-    QString previewString = value.toString();
-
-    if ( previewString.length() > 63 )
-    {
-      return QString( tr( "%1..." ) ).arg( previewString.left( 60 ) );
-    }
-    else
-    {
-      return previewString;
-    }
   }
 }
 
@@ -665,9 +633,19 @@ void QgsExpressionBuilderWidget::on_txtSearchEdit_textChanged()
 {
   mProxyModel->setFilterWildcard( txtSearchEdit->text() );
   if ( txtSearchEdit->text().isEmpty() )
+  {
     expressionTree->collapseAll();
+  }
   else
+  {
     expressionTree->expandAll();
+    QModelIndex index = mProxyModel->index( 0, 0 );
+    if ( mProxyModel->hasChildren( index ) )
+    {
+      QModelIndex child = mProxyModel->index( 0, 0, index );
+      expressionTree->selectionModel()->setCurrentIndex( child, QItemSelectionModel::ClearAndSelect );
+    }
+  }
 }
 
 void QgsExpressionBuilderWidget::on_txtSearchEditValues_textChanged()
@@ -701,7 +679,7 @@ void QgsExpressionBuilderWidget::operatorButtonClicked()
   txtExpressionString->setFocus();
 }
 
-void QgsExpressionBuilderWidget::showContextMenu( const QPoint & pt )
+void QgsExpressionBuilderWidget::showContextMenu( QPoint pt )
 {
   QModelIndex idx = expressionTree->indexAt( pt );
   idx = mProxyModel->mapToSource( idx );
@@ -817,3 +795,53 @@ QString QgsExpressionBuilderWidget::loadFunctionHelp( QgsExpressionItem* express
 
 
 
+
+
+QgsExpressionItemSearchProxy::QgsExpressionItemSearchProxy()
+{
+  setFilterCaseSensitivity( Qt::CaseInsensitive );
+}
+
+bool QgsExpressionItemSearchProxy::filterAcceptsRow( int source_row, const QModelIndex& source_parent ) const
+{
+  QModelIndex index = sourceModel()->index( source_row, 0, source_parent );
+  QgsExpressionItem::ItemType itemType = QgsExpressionItem::ItemType( sourceModel()->data( index, QgsExpressionItem::ItemTypeRole ).toInt() );
+
+  int count = sourceModel()->rowCount( index );
+  bool matchchild = false;
+  for ( int i = 0; i < count; ++i )
+  {
+    if ( filterAcceptsRow( i, index ) )
+    {
+      matchchild = true;
+      break;
+    }
+  }
+
+  if ( itemType == QgsExpressionItem::Header && matchchild )
+    return true;
+
+  if ( itemType == QgsExpressionItem::Header )
+    return false;
+
+  return QSortFilterProxyModel::filterAcceptsRow( source_row, source_parent );
+}
+
+bool QgsExpressionItemSearchProxy::lessThan( const QModelIndex& left, const QModelIndex& right ) const
+{
+  int leftSort = sourceModel()->data( left, QgsExpressionItem::CustomSortRole ).toInt();
+  int rightSort = sourceModel()->data( right,  QgsExpressionItem::CustomSortRole ).toInt();
+  if ( leftSort != rightSort )
+    return leftSort < rightSort;
+
+  QString leftString = sourceModel()->data( left, Qt::DisplayRole ).toString();
+  QString rightString = sourceModel()->data( right, Qt::DisplayRole ).toString();
+
+  //ignore $ prefixes when sorting
+  if ( leftString.startsWith( '$' ) )
+    leftString = leftString.mid( 1 );
+  if ( rightString.startsWith( '$' ) )
+    rightString = rightString.mid( 1 );
+
+  return QString::localeAwareCompare( leftString, rightString ) < 0;
+}

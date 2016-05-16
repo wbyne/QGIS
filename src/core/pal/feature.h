@@ -39,7 +39,7 @@
 #include <cmath>
 #include <QString>
 
-#include "qgslabelingenginev2.h"
+#include "qgslabelfeature.h"
 
 /**
  * \class pal::LabelInfo
@@ -73,6 +73,10 @@ namespace pal
       double label_height;
       int char_num;
       CharacterInfo* char_info;
+    private:
+
+      LabelInfo( const LabelInfo& rh );
+      LabelInfo& operator=( const LabelInfo& rh );
   };
 
   class LabelPosition;
@@ -94,53 +98,11 @@ namespace pal
         */
       FeaturePart( QgsLabelFeature* lf, const GEOSGeometry* geom );
 
+      FeaturePart( const FeaturePart& other );
+
       /** Delete the feature
        */
       virtual ~FeaturePart();
-
-      /** Generate candidates for point feature, located around a specified point.
-       * @param x x coordinate of the point
-       * @param y y coordinate of the point
-       * @param lPos pointer to an array of candidates, will be filled by generated candidates
-       * @param angle orientation of the label
-       * @param mapShape optional geometry of source polygon
-       * @returns the number of generated candidates
-       */
-      int setPositionForPoint( double x, double y, QList<LabelPosition *> &lPos, double angle, PointSet *mapShape = 0 );
-
-      /** Generate one candidate over or offset the specified point.
-       * @param x x coordinate of the point
-       * @param y y coordinate of the point
-       * @param lPos pointer to an array of candidates, will be filled by generated candidate
-       * @param angle orientation of the label
-       * @param mapShape optional geometry of source polygon
-       * @returns the number of generated candidates (always 1)
-       */
-      int setPositionOverPoint( double x, double y, QList<LabelPosition *> &lPos, double angle, PointSet *mapShape = 0 );
-
-      /** Generate candidates for line feature.
-       * @param lPos pointer to an array of candidates, will be filled by generated candidates
-       * @param mapShape a pointer to the line
-       * @returns the number of generated candidates
-       */
-      int setPositionForLine( QList<LabelPosition *> &lPos, PointSet *mapShape );
-
-      LabelPosition* curvedPlacementAtOffset( PointSet* path_positions, double* path_distances,
-                                              int orientation, int index, double distance );
-
-      /** Generate curved candidates for line features.
-       * @param lPos pointer to an array of candidates, will be filled by generated candidates
-       * @param mapShape a pointer to the line
-       * @returns the number of generated candidates
-       */
-      int setPositionForLineCurved( QList<LabelPosition *> &lPos, PointSet* mapShape );
-
-      /** Generate candidates for polygon features.
-       * \param lPos pointer to an array of candidates, will be filled by generated candidates
-       * \param mapShape a pointer to the polygon
-       * \return the number of generated candidates
-       */
-      int setPositionForPolygon( QList<LabelPosition *> &lPos, PointSet *mapShape );
 
       /** Returns the parent feature.
        */
@@ -150,21 +112,79 @@ namespace pal
        */
       Layer* layer();
 
-      /** Generic method to generate candidates. This method will call either setPositionFromPoint(),
-       * setPositionFromLine or setPositionFromPolygon
-       * \param lPos pointer to an array of candidates, will be filled by generated candidates
-       * \param bbox_min min values of the map extent
-       * \param bbox_max max values of the map extent
-       * \param mapShape generate candidates for this spatial entity
-       * \param candidates index for candidates
-       * \return the number of candidates in *lPos
-       */
-      int setPosition( QList<LabelPosition *> &lPos, double bbox_min[2], double bbox_max[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>*candidates );
-
       /** Returns the unique ID of the feature.
        */
       QgsFeatureId featureId() const;
 
+      /** Generic method to generate label candidates for the feature.
+       * \param lPos pointer to an array of candidates, will be filled by generated candidates
+       * \param bboxMin min values of the map extent
+       * \param bboxMax max values of the map extent
+       * \param mapShape generate candidates for this spatial entity
+       * \param candidates index for candidates
+       * \return the number of candidates generated in lPos
+       */
+      int createCandidates( QList<LabelPosition *> &lPos, double bboxMin[2], double bboxMax[2], PointSet *mapShape, RTree<LabelPosition*, double, 2, double>* candidates );
+
+      /** Generate candidates for point feature, located around a specified point.
+       * @param x x coordinate of the point
+       * @param y y coordinate of the point
+       * @param lPos pointer to an array of candidates, will be filled by generated candidates
+       * @param angle orientation of the label
+       * @param mapShape optional geometry of source polygon
+       * @returns the number of generated candidates
+       */
+      int createCandidatesAroundPoint( double x, double y, QList<LabelPosition *> &lPos, double angle, PointSet *mapShape = nullptr );
+
+      /** Generate one candidate over or offset the specified point.
+       * @param x x coordinate of the point
+       * @param y y coordinate of the point
+       * @param lPos pointer to an array of candidates, will be filled by generated candidate
+       * @param angle orientation of the label
+       * @param mapShape optional geometry of source polygon
+       * @returns the number of generated candidates (always 1)
+       */
+      int createCandidatesOverPoint( double x, double y, QList<LabelPosition *> &lPos, double angle, PointSet *mapShape = nullptr );
+
+      /** Generates candidates following a prioritised list of predefined positions around a point.
+       * @param x x coordinate of the point
+       * @param y y coordinate of the point
+       * @param lPos pointer to an array of candidates, will be filled by generated candidate
+       * @param angle orientation of the label
+       * @returns the number of generated candidates
+       */
+      int createCandidatesAtOrderedPositionsOverPoint( double x, double y, QList<LabelPosition *> &lPos, double angle );
+
+      /** Generate candidates for line feature.
+       * @param lPos pointer to an array of candidates, will be filled by generated candidates
+       * @param mapShape a pointer to the line
+       * @returns the number of generated candidates
+       */
+      int createCandidatesAlongLine( QList<LabelPosition *> &lPos, PointSet *mapShape );
+
+      LabelPosition* curvedPlacementAtOffset( PointSet* path_positions, double* path_distances,
+                                              int orientation, int index, double distance );
+
+      /** Generate curved candidates for line features.
+       * @param lPos pointer to an array of candidates, will be filled by generated candidates
+       * @param mapShape a pointer to the line
+       * @returns the number of generated candidates
+       */
+      int createCurvedCandidatesAlongLine( QList<LabelPosition *> &lPos, PointSet* mapShape );
+
+      /** Generate candidates for polygon features.
+       * \param lPos pointer to an array of candidates, will be filled by generated candidates
+       * \param mapShape a pointer to the polygon
+       * \return the number of generated candidates
+       */
+      int createCandidatesForPolygon( QList<LabelPosition *> &lPos, PointSet *mapShape );
+
+      /** Tests whether this feature part belongs to the same QgsLabelFeature as another
+       * feature part.
+       * @param part part to compare to
+       * @returns true if both parts belong to same QgsLabelFeature
+       */
+      bool hasSameLabelFeatureAs( FeaturePart* part ) const;
 
 #if 0
       /**

@@ -18,10 +18,14 @@
 #include "qgsdatadefined.h"
 #include "qgsgeometry.h"
 #include "qgslabelsearchtree.h"
-#include "qgspalgeometry.h"
 #include "qgspallabeling.h"
+#include "qgstextlabelfeature.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayerfeatureiterator.h"
+#include "qgsrendererv2.h"
+#include "qgspolygonv2.h"
+#include "qgslinestringv2.h"
+#include "qgsmultipolygonv2.h"
 
 #include "feature.h"
 #include "labelposition.h"
@@ -39,19 +43,22 @@ static void _fixQPictureDPI( QPainter* p )
   // Then when being drawn, it scales the painter. The following call
   // negates the effect. There is no way of setting QPicture's DPI.
   // See QTBUG-20361
-  p->scale(( double )qt_defaultDpiX() / p->device()->logicalDpiX(),
-           ( double )qt_defaultDpiY() / p->device()->logicalDpiY() );
+  p->scale( static_cast< double >( qt_defaultDpiX() ) / p->device()->logicalDpiX(),
+            static_cast< double >( qt_defaultDpiY() ) / p->device()->logicalDpiY() );
 }
 
 
 
-QgsVectorLayerLabelProvider::QgsVectorLayerLabelProvider( QgsVectorLayer* layer, bool withFeatureLoop, const QgsPalLayerSettings* settings, const QString& layerName )
+QgsVectorLayerLabelProvider::QgsVectorLayerLabelProvider( QgsVectorLayer* layer, const QString& providerId, bool withFeatureLoop, const QgsPalLayerSettings* settings, const QString& layerName )
+    : QgsAbstractLabelProvider( layer->id(), providerId )
+    , mSettings( settings ? *settings : QgsPalLayerSettings::fromLayer( layer ) )
+    , mLayerGeometryType( layer->geometryType() )
+    , mRenderer( layer->rendererV2() )
+    , mFields( layer->fields() )
+    , mCrs( layer->crs() )
 {
-  mSettings = settings ? *settings : QgsPalLayerSettings::fromLayer( layer );
   mName = layerName.isEmpty() ? layer->id() : layerName;
-  mLayerId = layer->id();
-  mFields = layer->fields();
-  mCrs = layer->crs();
+
   if ( withFeatureLoop )
   {
     mSource = new QgsVectorLayerFeatureSource( layer );
@@ -59,22 +66,23 @@ QgsVectorLayerLabelProvider::QgsVectorLayerLabelProvider( QgsVectorLayer* layer,
   }
   else
   {
-    mSource = 0;
+    mSource = nullptr;
     mOwnsSource = false;
   }
 
   init();
 }
 
-QgsVectorLayerLabelProvider::QgsVectorLayerLabelProvider(
-  const QgsPalLayerSettings& settings,
-  const QString& layerId,
-  const QgsFields& fields,
-  const QgsCoordinateReferenceSystem& crs,
-  QgsAbstractFeatureSource* source,
-  bool ownsSource )
-    : mSettings( settings )
-    , mLayerId( layerId )
+QgsVectorLayerLabelProvider::QgsVectorLayerLabelProvider( const QgsPalLayerSettings& settings,
+    const QString& layerId,
+    const QgsFields& fields,
+    const QgsCoordinateReferenceSystem& crs,
+    QgsAbstractFeatureSource* source,
+    bool ownsSource, QgsFeatureRendererV2* renderer )
+    : QgsAbstractLabelProvider( layerId )
+    , mSettings( settings )
+    , mLayerGeometryType( QGis::UnknownGeometry )
+    , mRenderer( renderer )
     , mFields( fields )
     , mCrs( crs )
     , mSource( source )
@@ -96,7 +104,17 @@ void QgsVectorLayerLabelProvider::init()
   if ( mSettings.fitInPolygonOnly ) mFlags |= FitInPolygonOnly;
   if ( mSettings.labelPerPart ) mFlags |= LabelPerFeaturePart;
   mPriority = 1 - mSettings.priority / 10.0; // convert 0..10 --> 1..0
-  mObstacleType = mSettings.obstacleType;
+
+  if ( mLayerGeometryType == QGis::Point && mRenderer )
+  {
+    //override obstacle type to treat any intersection of a label with the point symbol as a high cost conflict
+    mObstacleType = QgsPalLayerSettings::PolygonWhole;
+  }
+  else
+  {
+    mObstacleType = mSettings.obstacleType;
+  }
+
   mUpsidedownLabels = mSettings.upsidedownLabels;
 }
 
@@ -210,7 +228,7 @@ bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStr
   lyr.fieldIndex = mFields.fieldNameIndex( lyr.fieldName );
 
   lyr.xform = &mapSettings.mapToPixel();
-  lyr.ct = 0;
+  lyr.ct = nullptr;
   if ( mapSettings.hasCrsTransformEnabled() )
   {
     if ( context.coordinateTransform() )
@@ -251,6 +269,9 @@ QList<QgsLabelFeature*> QgsVectorLayerLabelProvider::labelFeatures( QgsRenderCon
   if ( !prepare( ctx, attrNames ) )
     return QList<QgsLabelFeature*>();
 
+  if ( mRenderer )
+    mRenderer->startRender( ctx, mFields );
+
   QgsRectangle layerExtent = ctx.extent();
   if ( mSettings.ct )
     layerExtent = mSettings.ct->transformBoundingBox( ctx.extent(), QgsCoordinateTransform::ReverseTransform );
@@ -260,25 +281,120 @@ QList<QgsLabelFeature*> QgsVectorLayerLabelProvider::labelFeatures( QgsRenderCon
   request.setSubsetOfAttributes( attrNames, mFields );
   QgsFeatureIterator fit = mSource->getFeatures( request );
 
+  QgsExpressionContextScope* symbolScope = new QgsExpressionContextScope();
+  ctx.expressionContext().appendScope( symbolScope );
   QgsFeature fet;
   while ( fit.nextFeature( fet ) )
   {
-    registerFeature( fet, ctx );
+    QScopedPointer<QgsGeometry> obstacleGeometry;
+    if ( mRenderer )
+    {
+      QgsSymbolV2List symbols = mRenderer->originalSymbolsForFeature( fet, ctx );
+      if ( !symbols.isEmpty() && fet.constGeometry()->type() == QGis::Point )
+      {
+        //point feature, use symbol bounds as obstacle
+        obstacleGeometry.reset( QgsVectorLayerLabelProvider::getPointObstacleGeometry( fet, ctx, symbols ) );
+      }
+      if ( !symbols.isEmpty() )
+      {
+        symbolScope = QgsExpressionContextUtils::updateSymbolScope( symbols.at( 0 ), symbolScope );
+      }
+    }
+    ctx.expressionContext().setFeature( fet );
+    registerFeature( fet, ctx, obstacleGeometry.data() );
   }
+
+  if ( ctx.expressionContext().lastScope() == symbolScope )
+    delete ctx.expressionContext().popScope();
+
+  if ( mRenderer )
+    mRenderer->stopRender( ctx );
 
   return mLabels;
 }
 
-
-void QgsVectorLayerLabelProvider::registerFeature( QgsFeature& feature, QgsRenderContext& context )
+void QgsVectorLayerLabelProvider::registerFeature( QgsFeature& feature, QgsRenderContext& context, QgsGeometry* obstacleGeometry )
 {
-  QgsLabelFeature* label = 0;
-  mSettings.registerFeature( feature, context, QString(), &label );
+  QgsLabelFeature* label = nullptr;
+  mSettings.registerFeature( feature, context, &label, obstacleGeometry );
   if ( label )
     mLabels << label;
 }
 
+QgsGeometry* QgsVectorLayerLabelProvider::getPointObstacleGeometry( QgsFeature& fet, QgsRenderContext& context, const QgsSymbolV2List& symbols )
+{
+  if ( !fet.constGeometry() || fet.constGeometry()->isEmpty() || fet.constGeometry()->type() != QGis::Point )
+    return nullptr;
 
+  bool isMultiPoint = fet.constGeometry()->geometry()->nCoordinates() > 1;
+  QgsAbstractGeometryV2* obstacleGeom = nullptr;
+  if ( isMultiPoint )
+    obstacleGeom = new QgsMultiPolygonV2();
+
+  // for each point
+  for ( int i = 0; i < fet.constGeometry()->geometry()->nCoordinates(); ++i )
+  {
+    QRectF bounds;
+    QgsPointV2 p =  fet.constGeometry()->geometry()->vertexAt( QgsVertexId( i, 0, 0 ) );
+    double x = p.x();
+    double y = p.y();
+    double z = 0; // dummy variable for coordinate transforms
+
+    //transform point to pixels
+    if ( context.coordinateTransform() )
+    {
+      context.coordinateTransform()->transformInPlace( x, y, z );
+    }
+    context.mapToPixel().transformInPlace( x, y );
+
+    QPointF pt( x, y );
+    Q_FOREACH ( QgsSymbolV2* symbol, symbols )
+    {
+      if ( symbol->type() == QgsSymbolV2::Marker )
+      {
+        if ( bounds.isValid() )
+          bounds = bounds.united( static_cast< QgsMarkerSymbolV2* >( symbol )->bounds( pt, context, fet ) );
+        else
+          bounds = static_cast< QgsMarkerSymbolV2* >( symbol )->bounds( pt, context, fet );
+      }
+    }
+
+    //convert bounds to a geometry
+    QgsLineStringV2* boundLineString = new QgsLineStringV2();
+    boundLineString->addVertex( QgsPointV2( bounds.topLeft() ) );
+    boundLineString->addVertex( QgsPointV2( bounds.topRight() ) );
+    boundLineString->addVertex( QgsPointV2( bounds.bottomRight() ) );
+    boundLineString->addVertex( QgsPointV2( bounds.bottomLeft() ) );
+
+    //then transform back to map units
+    //TODO - remove when labeling is refactored to use screen units
+    for ( int i = 0; i < boundLineString->numPoints(); ++i )
+    {
+      QgsPoint point = context.mapToPixel().toMapCoordinates( boundLineString->xAt( i ), boundLineString->yAt( i ) );
+      boundLineString->setXAt( i, point.x() );
+      boundLineString->setYAt( i, point.y() );
+    }
+    if ( context.coordinateTransform() )
+    {
+      boundLineString->transform( *context.coordinateTransform(), QgsCoordinateTransform::ReverseTransform );
+    }
+    boundLineString->close();
+
+    QgsPolygonV2* obstaclePolygon = new QgsPolygonV2();
+    obstaclePolygon->setExteriorRing( boundLineString );
+
+    if ( isMultiPoint )
+    {
+      static_cast<QgsMultiPolygonV2*>( obstacleGeom )->addGeometry( obstaclePolygon );
+    }
+    else
+    {
+      obstacleGeom = obstaclePolygon;
+    }
+  }
+
+  return new QgsGeometry( obstacleGeom );
+}
 
 void QgsVectorLayerLabelProvider::drawLabel( QgsRenderContext& context, pal::LabelPosition* label ) const
 {
@@ -374,7 +490,7 @@ void QgsVectorLayerLabelProvider::drawLabel( QgsRenderContext& context, pal::Lab
 
   // add to the results
   QString labeltext = label->getFeaturePart()->feature()->labelText();
-  mEngine->results()->mLabelSearchTree->insertLabel( label, label->getFeaturePart()->featureId(), mLayerId, labeltext, dFont, false, lf->hasFixedPosition() );
+  mEngine->results()->mLabelSearchTree->insertLabel( label, label->getFeaturePart()->featureId(), mLayerId, labeltext, dFont, false, lf->hasFixedPosition(), mProviderId );
 }
 
 

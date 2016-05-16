@@ -32,28 +32,10 @@
 #include <QPushButton>
 #include <QDoubleSpinBox>
 
-
-class QgsSnappingDock : public QDockWidget
-{
-  public:
-    QgsSnappingDock( const QString & title, QWidget * parent = 0, Qt::WindowFlags flags = 0 )
-        : QDockWidget( title, parent, flags )
-    {
-      setObjectName( "Snapping and Digitizing Options" ); // set object name so the position can be saved
-    }
-
-    virtual void closeEvent( QCloseEvent *e ) override
-    {
-      Q_UNUSED( e );
-      // deleteLater();
-    }
-
-};
-
 QgsSnappingDialog::QgsSnappingDialog( QWidget* parent, QgsMapCanvas* canvas )
     : QDialog( parent )
     , mMapCanvas( canvas )
-    , mDock( 0 )
+    , mDock( nullptr )
 {
   setupUi( this );
 
@@ -107,8 +89,8 @@ QgsSnappingDialog::QgsSnappingDialog( QWidget* parent, QgsMapCanvas* canvas )
 }
 
 QgsSnappingDialog::QgsSnappingDialog()
-    : mMapCanvas( NULL )
-    , mDock( NULL )
+    : mMapCanvas( nullptr )
+    , mDock( nullptr )
 {
 }
 
@@ -213,9 +195,15 @@ void QgsSnappingDialog::apply()
   QString snapMode;
   switch ( mSnapModeComboBox->currentIndex() )
   {
-    case 0: snapMode = "current_layer"; break;
-    case 1: snapMode = "all_layers"; break;
-    default: snapMode = "advanced"; break;
+    case 0:
+      snapMode = "current_layer";
+      break;
+    case 1:
+      snapMode = "all_layers";
+      break;
+    default:
+      snapMode = "advanced";
+      break;
   }
   QgsProject::instance()->writeEntry( "Digitizing", "/SnappingMode", snapMode );
 
@@ -379,7 +367,7 @@ void QgsSnappingDialog::addLayer( QgsMapLayer *theMapLayer )
   cbxUnits->setCurrentIndex( defaultSnappingUnit );
   mLayerTreeWidget->setItemWidget( item, 4, cbxUnits );
 
-  QCheckBox *cbxAvoidIntersection = 0;
+  QCheckBox *cbxAvoidIntersection = nullptr;
   if ( currentVectorLayer->geometryType() == QGis::Polygon )
   {
     cbxAvoidIntersection = new QCheckBox( mLayerTreeWidget );
@@ -461,14 +449,14 @@ void QgsSnappingDialog::layersWillBeRemoved( const QStringList& thelayers )
 {
   Q_FOREACH ( const QString& theLayerId, thelayers )
   {
-    QTreeWidgetItem *item = 0;
+    QTreeWidgetItem *item = nullptr;
 
     for ( int i = 0; i < mLayerTreeWidget->topLevelItemCount(); ++i )
     {
       item = mLayerTreeWidget->topLevelItem( i );
       if ( item && item->data( 0, Qt::UserRole ).toString() == theLayerId )
         break;
-      item = 0;
+      item = nullptr;
     }
 
     if ( item )
@@ -507,4 +495,21 @@ void QgsSnappingDialog::setSnappingMode()
     mSnapModeComboBox->setCurrentIndex( 2 );
   onSnappingModeIndexChanged( mSnapModeComboBox->currentIndex() );
   mSnapModeComboBox->blockSignals( false );
+}
+
+
+//
+// QgsSnappingDock
+//
+
+QgsSnappingDock::QgsSnappingDock( const QString& title, QWidget* parent, Qt::WindowFlags flags )
+    : QDockWidget( title, parent, flags )
+{
+  setObjectName( "Snapping and Digitizing Options" ); // set object name so the position can be saved
+}
+
+void QgsSnappingDock::closeEvent( QCloseEvent* e )
+{
+  Q_UNUSED( e );
+  // deleteLater();
 }

@@ -78,8 +78,18 @@ class TestQgsGrassCommand
       RedoAll
     };
 
-    TestQgsGrassCommand() : command( AddFeature ), verify( true ), fid( 0 ), geometry( 0 ) {}
-    TestQgsGrassCommand( Command c ) : command( c ), verify( true ), fid( 0 ), geometry( 0 ) {}
+    TestQgsGrassCommand()
+        : command( AddFeature )
+        , verify( true )
+        , fid( 0 )
+        , geometry( 0 )
+    {}
+    TestQgsGrassCommand( Command c )
+        : command( c )
+        , verify( true )
+        , fid( 0 )
+        , geometry( 0 )
+    {}
 
     QString toString() const;
     Command command;
@@ -1479,7 +1489,7 @@ QList<QgsFeature> TestQgsGrassProvider::getFeatures( QgsVectorLayer *layer )
 
 bool TestQgsGrassProvider::equal( QgsFeature feature, QgsFeature expectedFeature )
 {
-  if ( !feature.geometry()->equals( expectedFeature.geometry() ) )
+  if ( !feature.constGeometry()->equals( expectedFeature.constGeometry() ) )
   {
     return false;
   }

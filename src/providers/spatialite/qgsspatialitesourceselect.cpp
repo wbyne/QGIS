@@ -54,7 +54,7 @@ QgsSpatiaLiteSourceSelect::QgsSpatiaLiteSourceSelect( QWidget * parent, Qt::Wind
   btnSave->hide();
   btnLoad->hide();
 
-  mStatsButton = new QPushButton( tr( "&Update statistics" ) );
+  mStatsButton = new QPushButton( tr( "&Update Statistics" ) );
   connect( mStatsButton, SIGNAL( clicked() ), this, SLOT( updateStatistics() ) );
   mStatsButton->setEnabled( false );
 
@@ -269,11 +269,11 @@ bool QgsSpatiaLiteSourceSelect::newConnection( QWidget* parent )
 {
   // Retrieve last used project dir from persistent settings
   QSettings settings;
-  QString lastUsedDir = settings.value( "/UI/lastSpatiaLiteDir", "." ).toString();
+  QString lastUsedDir = settings.value( "/UI/lastSpatiaLiteDir", QDir::homePath() ).toString();
 
   QString myFile = QFileDialog::getOpenFileName( parent,
                    tr( "Choose a SpatiaLite/SQLite DB to open" ),
-                   lastUsedDir, tr( "SpatiaLite DB" ) + " (*.sqlite *.db);;" + tr( "All files" ) + " (*)" );
+                   lastUsedDir, tr( "SpatiaLite DB" ) + " (*.sqlite *.db *.sqlite3 *.db3 *.s3db);;" + tr( "All files" ) + " (*)" );
 
   if ( myFile.isEmpty() )
     return false;
@@ -295,7 +295,7 @@ bool QgsSpatiaLiteSourceSelect::newConnection( QWidget* parent )
   while ( ! settings.value( baseKey + savedName + "/sqlitepath", "" ).toString().isEmpty() )
   {
     bool ok;
-    savedName = QInputDialog::getText( NULL , tr( "Cannot add connection '%1'" ).arg( myName ) ,
+    savedName = QInputDialog::getText( nullptr , tr( "Cannot add connection '%1'" ).arg( myName ) ,
                                        tr( "A connection with the same name already exists,\nplease provide a new name:" ), QLineEdit::Normal,
                                        "", &ok );
     if ( !ok || savedName.isEmpty() )
@@ -383,7 +383,7 @@ void QgsSpatiaLiteSourceSelect::addTables()
 
   QItemSelection selection = mTablesTreeView->selectionModel()->selection();
   QModelIndexList selectedIndices = selection.indexes();
-  QStandardItem *currentItem = 0;
+  QStandardItem *currentItem = nullptr;
 
   QModelIndexList::const_iterator selected_it = selectedIndices.constBegin();
   for ( ; selected_it != selectedIndices.constEnd(); ++selected_it )

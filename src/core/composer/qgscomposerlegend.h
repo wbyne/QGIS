@@ -41,8 +41,10 @@ class QgsLegendRenderer;
  */
 class CORE_EXPORT QgsLegendModelV2 : public QgsLayerTreeModel
 {
+    Q_OBJECT
+
   public:
-    QgsLegendModelV2( QgsLayerTreeGroup* rootNode, QObject *parent = 0 );
+    QgsLegendModelV2( QgsLayerTreeGroup* rootNode, QObject *parent = nullptr );
 
     QVariant data( const QModelIndex& index, int role ) const override;
 
@@ -74,7 +76,7 @@ class CORE_EXPORT QgsComposerLegend : public QgsComposerItem
     void adjustBoxSize();
 
     /** Returns pointer to the legend model*/
-    //! @note deprecated in 2.6 - use modelV2()
+    //! @deprecated in 2.6 - use modelV2()
     Q_DECL_DEPRECATED QgsLegendModel* model() {return &mLegendModel;}
 
     //! @note added in 2.6
@@ -114,13 +116,13 @@ class CORE_EXPORT QgsComposerLegend : public QgsComposerItem
      * @returns Qt::AlignmentFlag for the legend title
      * @note added in 2.3
      * @see setTitleAlignment
-    */
+     */
     Qt::AlignmentFlag titleAlignment() const;
     /** Sets the alignment of the legend title
      * @param alignment Text alignment for drawing the legend title
      * @note added in 2.3
      * @see titleAlignment
-    */
+     */
     void setTitleAlignment( Qt::AlignmentFlag alignment );
 
     /** Returns reference to modifiable style */

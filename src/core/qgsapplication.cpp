@@ -39,8 +39,14 @@
 
 #ifndef Q_OS_WIN
 #include <netinet/in.h>
+#include <pwd.h>
 #else
 #include <winsock.h>
+#include <windows.h>
+#include <Lmcons.h>
+#define SECURITY_WIN32
+#include <Security.h>
+#pragma comment( lib, "Secur32.lib" )
 #endif
 
 #include "qgsconfig.h"
@@ -72,6 +78,10 @@ QStringList ABISYM( QgsApplication::mGdalSkipList );
 int ABISYM( QgsApplication::mMaxThreads );
 QString ABISYM( QgsApplication::mAuthDbDirPath );
 
+QString QgsApplication::sUserName;
+QString QgsApplication::sUserFullName;
+QString QgsApplication::sPlatformName = "desktop";
+
 const char* QgsApplication::QGIS_ORGANIZATION_NAME = "QGIS";
 const char* QgsApplication::QGIS_ORGANIZATION_DOMAIN = "qgis.org";
 const char* QgsApplication::QGIS_APPLICATION_NAME = "QGIS2";
@@ -89,9 +99,11 @@ const char* QgsApplication::QGIS_APPLICATION_NAME = "QGIS2";
   so that platform-conditional code is minimized and paths are easier
   to change due to centralization.
 */
-QgsApplication::QgsApplication( int & argc, char ** argv, bool GUIenabled, const QString& customConfigPath )
+QgsApplication::QgsApplication( int & argc, char ** argv, bool GUIenabled, const QString& customConfigPath, const QString& platformName )
     : QApplication( argc, argv, GUIenabled )
 {
+  sPlatformName = platformName;
+
   init( customConfigPath ); // init can also be called directly by e.g. unit tests that don't inherit QApplication.
 }
 
@@ -382,6 +394,10 @@ QString QgsApplication::activeThemePath()
   return userThemesFolder() + QDir::separator() + themeName() + QDir::separator() + "icons/";
 }
 
+QString QgsApplication::appIconPath()
+{
+  return iconsPath() + ( QDate::currentDate().month() == 12 ? tr( "qgis-icon-60x60_xmas.png", "December application icon" ) : QString( "qgis-icon-60x60.png" ) );
+}
 
 QString QgsApplication::iconPath( const QString& iconFile )
 {
@@ -396,22 +412,32 @@ QString QgsApplication::iconPath( const QString& iconFile )
 
 QIcon QgsApplication::getThemeIcon( const QString &theName )
 {
+  QgsApplication* app = qobject_cast<QgsApplication*>( instance() );
+  if ( app && app->mIconCache.contains( theName ) )
+    return app->mIconCache.value( theName );
+
+  QIcon icon;
+
   QString myPreferredPath = activeThemePath() + QDir::separator() + theName;
   QString myDefaultPath = defaultThemePath() + QDir::separator() + theName;
   if ( QFile::exists( myPreferredPath ) )
   {
-    return QIcon( myPreferredPath );
+    icon = QIcon( myPreferredPath );
   }
   else if ( QFile::exists( myDefaultPath ) )
   {
     //could still return an empty icon if it
     //doesnt exist in the default theme either!
-    return QIcon( myDefaultPath );
+    icon = QIcon( myDefaultPath );
   }
   else
   {
-    return QIcon();
+    icon = QIcon();
   }
+
+  if ( app )
+    app->mIconCache.insert( theName, icon );
+  return icon;
 }
 
 // TODO: add some caching mechanism ?
@@ -680,7 +706,7 @@ QStringList QgsApplication::svgPaths()
   //defined by user in options dialog
   QSettings settings;
   QStringList myPathList;
-  QString myPaths = settings.value( "svg/searchPathsForSVG", "" ).toString();
+  QString myPaths = settings.value( "svg/searchPathsForSVG", QDir::homePath() ).toString();
   if ( !myPaths.isEmpty() )
   {
     myPathList = myPaths.split( '|' );
@@ -699,7 +725,7 @@ QStringList QgsApplication::composerTemplatePaths()
   //defined by user in options dialog
   QSettings settings;
   QStringList myPathList;
-  QString myPaths = settings.value( "composer/searchPathsForTemplates", "" ).toString();
+  QString myPaths = settings.value( "composer/searchPathsForTemplates", QDir::homePath() ).toString();
   if ( !myPaths.isEmpty() )
   {
     myPathList = myPaths.split( '|' );
@@ -711,6 +737,100 @@ QStringList QgsApplication::composerTemplatePaths()
 QString QgsApplication::userStyleV2Path()
 {
   return qgisSettingsDirPath() + QLatin1String( "symbology-ng-style.db" );
+}
+
+QRegExp QgsApplication::shortNameRegExp()
+{
+  return QRegExp( "^[A-Za-z][A-Za-z0-9\\._-]*" );
+}
+
+QString QgsApplication::userLoginName()
+{
+  if ( !sUserName.isEmpty() )
+    return sUserName;
+
+#ifdef Q_OS_WIN
+  TCHAR name [ UNLEN + 1 ];
+  DWORD size = UNLEN + 1;
+
+  if ( GetUserName(( TCHAR* )name, &size ) )
+  {
+    sUserName = QString( name );
+  }
+
+#else
+  QProcess process;
+
+  process.start( "whoami" );
+  process.waitForFinished();
+  sUserName = process.readAllStandardOutput().trimmed();
+#endif
+
+  if ( !sUserName.isEmpty() )
+    return sUserName;
+
+  //backup plan - use environment variables
+  sUserName = qgetenv( "USER" );
+  if ( !sUserName.isEmpty() )
+    return sUserName;
+
+  //last resort
+  sUserName = qgetenv( "USERNAME" );
+  return sUserName;
+}
+
+QString QgsApplication::userFullName()
+{
+  if ( !sUserFullName.isEmpty() )
+    return sUserFullName;
+
+#ifdef Q_OS_WIN
+  TCHAR name [ UNLEN + 1 ];
+  DWORD size = UNLEN + 1;
+
+  //note - this only works for accounts connected to domain
+  if ( GetUserNameEx( NameDisplay, ( TCHAR* )name, &size ) )
+  {
+    sUserFullName = QString( name );
+  }
+
+  //fall back to login name
+  if ( sUserFullName.isEmpty() )
+    sUserFullName = userLoginName();
+#elif defined(Q_OS_ANDROID)
+  sUserFullName = "Not available";
+#else
+  struct passwd *p = getpwuid( getuid() );
+
+  if ( p )
+  {
+    QString gecosName = QString( p->pw_gecos );
+    sUserFullName = gecosName.left( gecosName.indexOf( ',', 0 ) );
+  }
+
+#endif
+
+  return sUserFullName;
+}
+
+QString QgsApplication::osName()
+{
+#if defined(Q_OS_ANDROID)
+  return QLatin1String( "android" );
+#elif defined(Q_OS_MAC)
+  return QLatin1String( "osx" );
+#elif defined(Q_OS_WIN)
+  return QLatin1String( "windows" );
+#elif defined(Q_OS_LINUX)
+  return QLatin1String( "linux" );
+#else
+  return QLatin1String( "unknown" );
+#endif
+}
+
+QString QgsApplication::platform()
+{
+  return sPlatformName;
 }
 
 QString QgsApplication::userThemesFolder()
@@ -757,17 +877,21 @@ void QgsApplication::initQgis()
 
 void QgsApplication::exitQgis()
 {
-  delete QgsProviderRegistry::instance();
-
   delete QgsAuthManager::instance();
 
   //Ensure that all remaining deleteLater QObjects are actually deleted before we exit.
   //This isn't strictly necessary (since we're exiting anyway) but doing so prevents a lot of
   //LeakSanitiser noise which hides real issues
-  QgsApplication::sendPostedEvents( 0, QEvent::DeferredDelete );
+  QgsApplication::sendPostedEvents( nullptr, QEvent::DeferredDelete );
+
+  delete QgsProviderRegistry::instance();
 
   //delete all registered functions from expression engine (see above comment)
   QgsExpression::cleanRegisteredFunctions();
+
+  // tear-down GDAL/OGR
+  OGRCleanupAll();
+  GDALDestroyDriverManager();
 }
 
 QString QgsApplication::showSettings()
@@ -946,8 +1070,8 @@ QString QgsApplication::absolutePathToRelativePath( const QString& aPath, const 
 
   // remove common part
   int n = 0;
-  while ( aPathElems.size() > 0 &&
-          targetElems.size() > 0 &&
+  while ( !aPathElems.isEmpty() &&
+          !targetElems.isEmpty() &&
           aPathElems[0].compare( targetElems[0], cs ) == 0 )
   {
     aPathElems.removeFirst();
@@ -961,7 +1085,7 @@ QString QgsApplication::absolutePathToRelativePath( const QString& aPath, const 
     return aPathUrl;
   }
 
-  if ( targetElems.size() > 0 )
+  if ( !targetElems.isEmpty() )
   {
     // go up to the common directory
     for ( int i = 0; i < targetElems.size(); i++ )
@@ -1155,7 +1279,7 @@ bool QgsApplication::createDB( QString *errorMessage )
     }
 
     char *errmsg;
-    int res = sqlite3_exec( db, "SELECT epsg FROM tbl_srs LIMIT 0", 0, 0, &errmsg );
+    int res = sqlite3_exec( db, "SELECT epsg FROM tbl_srs LIMIT 0", nullptr, nullptr, &errmsg );
     if ( res == SQLITE_OK )
     {
       // epsg column exists => need migration
@@ -1174,7 +1298,7 @@ bool QgsApplication::createDB( QString *errorMessage )
                          "deprecated boolean);"
                          "CREATE INDEX idx_srsauthid on tbl_srs(auth_name,auth_id);"
                          "INSERT INTO tbl_srs(srs_id,description,projection_acronym,ellipsoid_acronym,parameters,srid,auth_name,auth_id,is_geo,deprecated) SELECT srs_id,description,projection_acronym,ellipsoid_acronym,parameters,srid,'','',is_geo,0 FROM tbl_srs_bak;"
-                         "DROP TABLE tbl_srs_bak", 0, 0, &errmsg ) != SQLITE_OK
+                         "DROP TABLE tbl_srs_bak", nullptr, nullptr, &errmsg ) != SQLITE_OK
          )
       {
         if ( errorMessage )
@@ -1191,7 +1315,7 @@ bool QgsApplication::createDB( QString *errorMessage )
       sqlite3_free( errmsg );
     }
 
-    if ( sqlite3_exec( db, "DROP VIEW vw_srs", 0, 0, &errmsg ) != SQLITE_OK )
+    if ( sqlite3_exec( db, "DROP VIEW vw_srs", nullptr, nullptr, &errmsg ) != SQLITE_OK )
     {
       QgsDebugMsg( QString( "vw_srs didn't exists in private qgis.db: %1" ).arg( errmsg ) );
     }
@@ -1209,7 +1333,7 @@ bool QgsApplication::createDB( QString *errorMessage )
                        ",a.deprecated AS deprecated"
                        " FROM tbl_srs a"
                        " LEFT OUTER JOIN tbl_projection b ON a.projection_acronym=b.acronym"
-                       " ORDER BY coalesce(b.name,a.projection_acronym),a.description", 0, 0, &errmsg ) != SQLITE_OK
+                       " ORDER BY coalesce(b.name,a.projection_acronym),a.description", nullptr, nullptr, &errmsg ) != SQLITE_OK
        )
     {
       if ( errorMessage )

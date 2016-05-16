@@ -17,6 +17,7 @@
 #include "qgsgrassnewmapset.h"
 #include "qgsgrassplugin.h"
 #include "qgsgrass.h"
+#include "qgis.h"
 
 #include "qgisinterface.h"
 #include "qgsapplication.h"
@@ -37,6 +38,9 @@
 
 extern "C"
 {
+#if defined(_MSC_VER) && defined(M_PI_4)
+#undef M_PI_4 //avoid redefinition warning
+#endif
 #include <grass/gprojects.h>
 }
 
@@ -56,9 +60,9 @@ bool QgsGrassNewMapset::mRunning = false;
 
 QgsGrassNewMapset::QgsGrassNewMapset( QgisInterface *iface,
                                       QgsGrassPlugin *plugin, QWidget * parent,
-                                      Qt::WindowFlags f ) :
-    QWizard( parent, f ),
-    QgsGrassNewMapsetBase()
+                                      Qt::WindowFlags f )
+    : QWizard( parent, f )
+    , QgsGrassNewMapsetBase()
 {
   QgsDebugMsg( "QgsGrassNewMapset()" );
 
@@ -128,7 +132,7 @@ QgsGrassNewMapset::~QgsGrassNewMapset()
 /*************************** DATABASE *******************************/
 void QgsGrassNewMapset::browseDatabase()
 {
-  QString selectedDir = QFileDialog::getExistingDirectory( this, NULL, mDatabaseLineEdit->text() );
+  QString selectedDir = QFileDialog::getExistingDirectory( this, nullptr, mDatabaseLineEdit->text() );
   if ( selectedDir.isEmpty() )
   {
     return;
@@ -295,6 +299,7 @@ int QgsGrassNewMapset::nextId() const
         id = MAPSET;
         break;
       }
+      FALLTHROUGH;
     case DATABASE:
     case CRS:
     case REGION:
@@ -404,8 +409,8 @@ void QgsGrassNewMapset::setGrassProjection()
   {
     QgsDebugMsg( QString( "proj4 = %1" ).arg( proj4.toLocal8Bit().constData() ) );
 
-    OGRSpatialReferenceH hCRS = NULL;
-    hCRS = OSRNewSpatialReference( NULL );
+    OGRSpatialReferenceH hCRS = nullptr;
+    hCRS = OSRNewSpatialReference( nullptr );
     int errcode;
 
     {
@@ -424,7 +429,7 @@ void QgsGrassNewMapset::setGrassProjection()
     }
     else
     {
-      char *wkt = NULL;
+      char *wkt = nullptr;
 
       QgsDebugMsg( QString( "OSRIsGeographic = %1" ).arg( OSRIsGeographic( hCRS ) ) );
       QgsDebugMsg( QString( "OSRIsProjected = %1" ).arg( OSRIsProjected( hCRS ) ) );
@@ -567,10 +572,7 @@ void QgsGrassNewMapset::setRegionPage()
 
     QgsRectangle ext = mIface->mapCanvas()->extent();
 
-    if ( ext.xMinimum() >= ext.xMaximum() || ext.yMinimum() >= ext.yMaximum() )
-    {
-      mCurrentRegionButton->setEnabled( false );
-    }
+    mCurrentRegionButton->setEnabled( !ext.isEmpty() );
   }
 
   checkRegion();
@@ -697,7 +699,8 @@ void QgsGrassNewMapset::checkRegion()
   mCellHead.ns_res  = res;
   mCellHead.ns_res3 = res3;
   mCellHead.tb_res  = 1.;
-  mCellHead.zone = 0;
+  // Do not override zone, it was set in setGrassProjection()
+  //mCellHead.zone = 0;
 
   button( QWizard::NextButton )->setEnabled( true );
 }

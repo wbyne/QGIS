@@ -59,8 +59,8 @@ void QgsGrassRegionEdit::canvasPressEvent( QgsMapMouseEvent * event )
 {
   QgsDebugMsg( "entered." );
   mDraw = true;
-  mRubberBand->reset( true );
-  mSrcRubberBand->reset( true );
+  mRubberBand->reset( QGis::Polygon );
+  mSrcRubberBand->reset( QGis::Polygon );
   emit captureStarted();
 
   mStartPoint = toMapCoordinates( event->pos() );
@@ -93,8 +93,8 @@ void QgsGrassRegionEdit::canvasReleaseEvent( QgsMapMouseEvent * event )
 //! called when map tool is about to get inactive
 void QgsGrassRegionEdit::deactivate()
 {
-  mRubberBand->reset( true );
-  mSrcRubberBand->reset( true );
+  mRubberBand->reset( QGis::Polygon );
+  mSrcRubberBand->reset( QGis::Polygon );
   QgsMapTool::deactivate();
 }
 
@@ -167,7 +167,7 @@ void QgsGrassRegionEdit::drawRegion( QgsMapCanvas *canvas, QgsRubberBand* rubber
   {
     transform( canvas, points, coordinateTransform );
   }
-  rubberBand->reset( isPolygon );
+  rubberBand->reset( isPolygon ? QGis::Polygon : QGis::Line );
   for ( int i = 0; i < points.size(); i++ )
   {
     bool update = false; // true to update canvas
@@ -431,12 +431,22 @@ void QgsGrassRegion::colsChanged()
 
 void QgsGrassRegion::adjust()
 {
+  QgsDebugMsg( "entered" );
+  mButtonBox->button( QDialogButtonBox::Apply )->setDisabled( false );
   int rc = 0;
   if ( mRowsColsRadio->isChecked() )
   {
     rc = 1;
   }
-  G_adjust_Cell_head( &mWindow, rc, rc );
+  G_TRY
+  {
+    G_adjust_Cell_head( &mWindow, rc, rc );
+  }
+  G_CATCH( QgsGrass::Exception &e )
+  {
+    QgsGrass::warning( e );
+    mButtonBox->button( QDialogButtonBox::Apply )->setDisabled( true );
+  }
 }
 
 void QgsGrassRegion::radioChanged()

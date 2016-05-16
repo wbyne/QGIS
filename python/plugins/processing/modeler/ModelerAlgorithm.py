@@ -33,8 +33,8 @@ import time
 import json
 import codecs
 import traceback
-from PyQt4.QtCore import QCoreApplication, QPointF
-from PyQt4.QtGui import QIcon
+from qgis.PyQt.QtCore import QCoreApplication, QPointF
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsRasterLayer, QgsVectorLayer
 from qgis.gui import QgsMessageBar
 from qgis.utils import iface
@@ -42,7 +42,17 @@ from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.modeler.WrongModelException import WrongModelException
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
 from processing.modeler.ModelerUtils import ModelerUtils
-from processing.core.parameters import getParameterFromString, ParameterRaster, ParameterVector, ParameterTable, ParameterTableField, ParameterBoolean, ParameterString, ParameterNumber, ParameterExtent, ParameterDataObject, ParameterMultipleInput
+from processing.core.parameters import (getParameterFromString,
+                                        ParameterRaster,
+                                        ParameterVector,
+                                        ParameterTable,
+                                        ParameterTableField,
+                                        ParameterBoolean,
+                                        ParameterString,
+                                        ParameterNumber,
+                                        ParameterExtent,
+                                        ParameterDataObject,
+                                        ParameterMultipleInput)
 from processing.tools import dataobjects
 from processing.gui.Help2Html import getHtmlFromDescriptionsDict
 
@@ -133,7 +143,7 @@ class Algorithm():
                 if isinstance(v, (ValueFromInput, ValueFromOutput)):
                     return v.asPythonParameter()
                 elif isinstance(v, basestring):
-                    return "'%s'" % v
+                    return "\\n".join(("'%s'" % v).splitlines())
                 elif isinstance(v, list):
                     return "[%s]" % ",".join([_toString(val) for val in v])
                 else:
@@ -273,7 +283,7 @@ class ModelerAlgorithm(GeoAlgorithm):
             alg.outputs[out].pos = (alg.outputs[out].pos or
                                     alg.pos + QPointF(
                 ModelerGraphicItem.BOX_WIDTH,
-                        (i + 1.5) * ModelerGraphicItem.BOX_HEIGHT))
+                (i + 1.5) * ModelerGraphicItem.BOX_HEIGHT))
 
     def removeAlgorithm(self, name):
         """Returns True if the algorithm could be removed, False if
@@ -355,7 +365,7 @@ class ModelerAlgorithm(GeoAlgorithm):
                         if isinstance(v, ValueFromOutput) and v.alg == name:
                             algs.update(self.getDependentAlgorithms(alg.name))
                 elif isinstance(value, ValueFromOutput) and value.alg == name:
-                            algs.update(self.getDependentAlgorithms(alg.name))
+                    algs.update(self.getDependentAlgorithms(alg.name))
 
         return algs
 
@@ -375,10 +385,11 @@ class ModelerAlgorithm(GeoAlgorithm):
                 if param.name in alg.params:
                     value = self.resolveValue(alg.params[param.name])
                 else:
-                    iface.messageBar().pushMessage(self.tr("Warning"),
-                                                   self.tr("Parameter %s in algorithm %s in the model is run with default value! Edit the model to make sure that this is correct." % (param.name, alg.name)),
-                                                   QgsMessageBar.WARNING, 4)
-                    value = None
+                    if iface is not None:
+                        iface.messageBar().pushMessage(self.tr("Warning"),
+                                                       self.tr("Parameter %s in algorithm %s in the model is run with default value! Edit the model to make sure that this is correct.") % (param.name, alg.name),
+                                                       QgsMessageBar.WARNING, 4)
+                    value = param.default
                 if value is None and isinstance(param, ParameterExtent):
                     value = self.getMinCoveringExtent()
                 # We allow unexistent filepaths, since that allows
@@ -386,7 +397,9 @@ class ModelerAlgorithm(GeoAlgorithm):
                 if not param.setValue(value) and not isinstance(param,
                                                                 ParameterDataObject):
                     raise GeoAlgorithmExecutionException(
-                        self.tr('Wrong value: %s', 'ModelerAlgorithm') % value)
+                        self.tr('Wrong value %s for %s %s', 'ModelerAlgorithm')
+                        % (value, param.__class__.__name__, param.name))
+
         for out in algInstance.outputs:
             if not out.hidden:
                 if out.name in alg.outputs:
@@ -511,6 +524,12 @@ class ModelerAlgorithm(GeoAlgorithm):
         else:
             return 'modeler:' + os.path.basename(self.descriptionFile)[:-6].lower()
 
+    def checkBeforeOpeningParametersDialog(self):
+        for alg in self.algs.values():
+            algInstance = ModelerUtils.getAlgorithm(alg.consoleName)
+            if algInstance is None:
+                return "The model you are trying to run contains an algorithm that is not available: <i>%s</i>" % alg.consoleName
+
     def setModelerView(self, dialog):
         self.modelerdialog = dialog
 
@@ -535,7 +554,7 @@ class ModelerAlgorithm(GeoAlgorithm):
             try:
                 d = o.todict()
                 return {"class": o.__class__.__module__ + "." + o.__class__.__name__, "values": d}
-            except Exception as e:
+            except Exception:
                 pass
         return json.dumps(self, default=todict, indent=4)
 
@@ -590,7 +609,7 @@ class ModelerAlgorithm(GeoAlgorithm):
         try:
             alg = ModelerAlgorithm.fromJsonFile(filename)
             return alg
-        except WrongModelException as e:
+        except WrongModelException:
             alg = ModelerAlgorithm.fromOldFormatFile(filename)
             return alg
 
@@ -618,7 +637,7 @@ class ModelerAlgorithm(GeoAlgorithm):
                     line = lines.readline().strip('\n')
                     tokens = line.split(',')
                     model.addParameter(ModelerParameter(param,
-                                       QPointF(float(tokens[0]), float(tokens[1]))))
+                                                        QPointF(float(tokens[0]), float(tokens[1]))))
                     modelParameters.append(param.name)
                 elif line.startswith('VALUE:'):
                     valueLine = line[len('VALUE:'):]
@@ -647,7 +666,14 @@ class ModelerAlgorithm(GeoAlgorithm):
                                     modelAlg.params[param.name] = None
                                 else:
                                     tokens = line.split('|')
-                                    algIdx = int(tokens[0])
+                                    try:
+                                        algIdx = int(tokens[0])
+                                    except:
+                                        raise WrongModelException(
+                                            _tr('Number of parameters in the '
+                                                '{} algorithm does not match '
+                                                'current Processing '
+                                                'implementation'.format(alg.name)))
                                     if algIdx == -1:
                                         if tokens[1] in modelParameters:
                                             modelAlg.params[param.name] = ValueFromInput(tokens[1])

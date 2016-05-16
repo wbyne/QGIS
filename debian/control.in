@@ -6,18 +6,22 @@ Priority: optional
 Build-Depends:
  bison,
  cmake (>= 2.8),
-#sid stretch jessie wheezy saucy trusty utopic vivid wily# debhelper (>= 9),
+#wily# cmake (<< 3.3.2),
+#sid stretch jessie wheezy trusty wily xenial# debhelper (>= 9),
+#sid stretch jessie trusty wily xenial# dh-python,
 #precise# debhelper (>= 7),
  flex,
  grass-dev,
  libexpat1-dev,
  libfcgi-dev,
-#sid stretch jessie trusty utopic vivid wily# libgdal-dev (>= 1.10.1-0~),
+#sid stretch jessie trusty wily xenial# libgdal-dev (>= 1.10.1-0~),
 #precise# libgdal-dev (>= 1.9.0) | libgdal1-dev (<< 1.9.0),
-#saucy# libgdal-dev (>= 1.9.0),
 #wheezy# libgdal1-dev,
+ gdal-bin,
+ python-gdal,
  libgeos-dev (>= 3.0.0),
- libgsl-dev | libgsl0-dev,
+#jessie wheezy precise trusty wily# libgsl0-dev,
+#sid stretch xenial# libgsl-dev,
  libpq-dev,
  libproj-dev,
  libqt4-dev (>= 4.7.0),
@@ -26,7 +30,7 @@ Build-Depends:
  libqca2-plugin-ossl,
  libqtwebkit-dev,
 #stretch jessie wheezy# libqwt-dev,
-#precise saucy trusty utopic vivid wily stretch sid# libqwt5-qt4-dev,
+#precise trusty wily xenial sid# libqwt5-qt4-dev,
  libspatialite-dev,
  libsqlite3-dev,
  libspatialindex-dev,
@@ -36,14 +40,15 @@ Build-Depends:
  python-qt4 (>= 4.1.0),
  python-qt4-dev,
  python-qt4-sql,
-#precise saucy wheezy# python,
-#precise saucy# python-central (>= 0.5),
-#saucy wheezy# python-dev,
-#saucy# libpython2.7-dev,
-#sid stretch jessie trusty utopic vivid wily# python-all (>= 2.6.6-3~), python-all-dev (>= 2.6.6-3~),
-#sid stretch jessie wily# pyqt4.qsci-dev,
-#sid stretch jessie trusty utopic vivid wily# python-pyspatialite,
-#sid stretch# dh-python,
+ python-yaml, python-mock,
+#stretch sid wily xenial# python-future,
+#precise wheezy# python,
+#precise# python-central (>= 0.5),
+#wheezy# python-dev,
+#sid stretch jessie trusty wily xenial# python-all (>= 2.6.6-3~), python-all-dev (>= 2.6.6-3~),
+#sid stretch jessie wily xenial# pyqt4.qsci-dev,
+#sid stretch jessie trusty wily xenial# python-pyspatialite,
+#sid wheezy jessie stretch trusty wily xenial# python-nose2,
  python-sip (>= 4.5.0),
  python-sip-dev (>= 4.5.0),
  libosgearth-dev,
@@ -55,15 +60,16 @@ Build-Depends:
  txt2tags,
  xvfb, xauth,
  xfonts-base, xfonts-100dpi, xfonts-75dpi, xfonts-scalable,
-#oracle# oracle-instantclient11.2-devel,
+#oracle# oracle-instantclient12.1-devel,
  spawn-fcgi, lighttpd, poppler-utils, locales, qt4-doc-html,
- libqt4-sql-sqlite
+ libqt4-sql-sqlite, python-psycopg2
 Build-Conflicts: libqgis-dev, qgis-dev
-#sid stretch jessie vivid wily#Standards-Version: 3.9.6
+#sid stretch xenial#Standards-Version: 3.9.7
+#jessie wily#Standards-Version: 3.9.6
 #wheezy#Standards-Version: 3.9.3
-#precise saucy trusty utopic#Standards-Version: 3.8.4
+#precise trusty#Standards-Version: 3.8.4
 #sid stretch jessie#X-Python-Version: >= 2.7, << 2.8
-#wheezy precise saucy trusty utopic vivid wily#XS-Python-Version: current
+#wheezy precise trusty wily xenial#XS-Python-Version: current
 Vcs-Browser: https://github.com/qgis/QGIS/
 Vcs-Git: https://github.com/qgis/QGIS.git
 Homepage: http://qgis.org/
@@ -73,13 +79,13 @@ Architecture: any
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
+ python-qgis (= ${binary:Version}),
  qgis-providers (= ${binary:Version}),
  qgis-common (= ${source:Version})
 Recommends:
  qgis-plugin-grass,
  qgis-provider-grass,
- qgis-plugin-globe,
- python-qgis
+ qgis-plugin-globe
 Suggests: gpsbabel
 Conflicts: uim-qt3
 Description: Geographic Information System (GIS)
@@ -236,12 +242,12 @@ Section: libdevel
 Depends:
  grass-dev,
  libexpat1-dev,
-#sid stretch jessie trusty utopic vivid wily# libgdal-dev (>= 1.10.1-0~),
+#sid stretch jessie trusty wily xenial# libgdal-dev (>= 1.10.1-0~),
 #precise# libgdal-dev (>= 1.9.0) | libgdal1-dev (<< 1.9.0),
-#saucy# libgdal-dev (>= 1.9.0),
 #wheezy# libgdal1-dev,
  libgeos-dev (>= 3.0.0),
- libgsl-dev | libgsl0-dev,
+#jessie wheezy precise trusty wily# libgsl0-dev,
+#sid stretch xenial# libgsl-dev,
  libpq-dev,
  libproj-dev,
  libqgis-app{QGIS_ABI} (= ${binary:Version}),
@@ -296,7 +302,7 @@ Architecture: any
 Depends:
  ${shlibs:Depends},
  ${misc:Depends}
-Description: GRASS plugin for QGIS
+Description: GRASS provider for QGIS
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
  display databases of geographic information.
  .
@@ -307,7 +313,7 @@ Architecture: any
 Depends:
  qgis (= ${binary:Version}),
  qgis-plugin-grass-common (= ${source:Version}),
- qgis-provider-grass (= ${source:Version}),
+ qgis-provider-grass (= ${binary:Version}),
  ${shlibs:Depends},
  ${misc:Depends},
 #!precise# grass-core
@@ -339,6 +345,7 @@ Architecture: any
 Depends:
  qgis (= ${binary:Version}),
  qgis-plugin-globe-common (= ${source:Version}),
+ openscenegraph-plugin-osgearth,
  ${shlibs:Depends},
  ${misc:Depends}
 Description: OSG globe plugin for QGIS
@@ -376,15 +383,15 @@ Depends:
  python-dateutil,
  python-tz,
  python-six,
-#sid stretch jessie trusty utopic vivid wily# python-pyspatialite,
-#jessie# liblwgeom-2.1.4,
-#stretch sid# liblwgeom-2.1.8,
+ python-yaml,
+#sid stretch jessie trusty wily xenial# python-pyspatialite,
  libqgispython{QGIS_ABI},
  ${shlibs:Depends},
  ${python:Depends},
  ${misc:Depends},
  ${sip:Depends}
 Provides: ${python:Provides}
+Recommends: liblwgeom-dev
 #wheezy precise#XB-Python-Version: ${python:Versions}
 Description: Python bindings to QGIS
  QGIS is a Geographic Information System (GIS) which manages, analyzes and
@@ -400,6 +407,7 @@ Depends:
  gdal-bin,
  python-gdal,
  python-matplotlib,
+ python-shapely,
  libqgis-customwidgets,
  ${misc:Depends}
 XB-Python-Version: ${python:Versions}

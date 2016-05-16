@@ -60,6 +60,8 @@ class TestQgsFontMarkerSymbol : public QObject
     void cleanup() {} // will be called after every testfunction.
 
     void fontMarkerSymbol();
+    void fontMarkerSymbolOutline();
+    void bounds();
 
   private:
     bool mTestHasError;
@@ -140,6 +142,35 @@ void TestQgsFontMarkerSymbol::fontMarkerSymbol()
   QVERIFY( imageCheck( "fontmarker" ) );
 }
 
+void TestQgsFontMarkerSymbol::fontMarkerSymbolOutline()
+{
+  mFontMarkerLayer->setColor( Qt::blue );
+  QFont font = QgsFontUtils::getStandardTestFont( "Bold" );
+  mFontMarkerLayer->setFontFamily( font.family() );
+  mFontMarkerLayer->setCharacter( 'A' );
+  mFontMarkerLayer->setSize( 30 );
+  mFontMarkerLayer->setOutlineWidth( 3.5 );
+  QVERIFY( imageCheck( "fontmarker_outline" ) );
+}
+
+void TestQgsFontMarkerSymbol::bounds()
+{
+  mFontMarkerLayer->setColor( Qt::blue );
+  QFont font = QgsFontUtils::getStandardTestFont( "Bold" );
+  mFontMarkerLayer->setFontFamily( font.family() );
+  //use a narrow character to test that width is correctly calculated
+  mFontMarkerLayer->setCharacter( 'l' );
+  mFontMarkerLayer->setSize( 12 );
+  mFontMarkerLayer->setOutlineWidth( 0 );
+  mFontMarkerLayer->setDataDefinedProperty( "size", new QgsDataDefined( true, true, "min(\"importance\" * 4.47214, 7.07106)" ) );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "fontmarker_bounds" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  QVERIFY( result );
+}
+
+
 //
 // Private helper functions not called directly by CTest
 //
@@ -155,7 +186,7 @@ bool TestQgsFontMarkerSymbol::imageCheck( const QString& theTestType )
   myChecker.setControlPathPrefix( "symbol_fontmarker" );
   myChecker.setControlName( "expected_" + theTestType );
   myChecker.setMapSettings( mMapSettings );
-  bool myResultFlag = myChecker.runTest( theTestType );
+  bool myResultFlag = myChecker.runTest( theTestType, 30 );
   mReport += myChecker.report();
   return myResultFlag;
 }

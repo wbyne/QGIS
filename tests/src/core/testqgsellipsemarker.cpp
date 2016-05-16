@@ -60,6 +60,10 @@ class TestQgsEllipseMarkerSymbol : public QObject
     void cleanup() {} // will be called after every testfunction.
 
     void ellipseMarkerSymbol();
+    void ellipseMarkerSymbolBevelJoin();
+    void ellipseMarkerSymbolMiterJoin();
+    void ellipseMarkerSymbolRoundJoin();
+    void bounds();
 
   private:
     bool mTestHasError;
@@ -140,6 +144,65 @@ void TestQgsEllipseMarkerSymbol::ellipseMarkerSymbol()
   mEllipseMarkerLayer->setOutlineWidth( 0.8 );
   QVERIFY( imageCheck( "ellipsemarker" ) );
 }
+
+void TestQgsEllipseMarkerSymbol::ellipseMarkerSymbolBevelJoin()
+{
+  mReport += "<h2>Ellipse marker symbol layer test</h2>\n";
+
+  mEllipseMarkerLayer->setFillColor( Qt::blue );
+  mEllipseMarkerLayer->setOutlineColor( Qt::black );
+  mEllipseMarkerLayer->setSymbolName( "triangle" );
+  mEllipseMarkerLayer->setSymbolHeight( 25 );
+  mEllipseMarkerLayer->setSymbolWidth( 20 );
+  mEllipseMarkerLayer->setOutlineWidth( 3 );
+  mEllipseMarkerLayer->setPenJoinStyle( Qt::BevelJoin );
+  QVERIFY( imageCheck( "ellipsemarker_beveljoin" ) );
+}
+
+void TestQgsEllipseMarkerSymbol::ellipseMarkerSymbolMiterJoin()
+{
+  mReport += "<h2>Ellipse marker symbol layer test</h2>\n";
+
+  mEllipseMarkerLayer->setFillColor( Qt::blue );
+  mEllipseMarkerLayer->setOutlineColor( Qt::black );
+  mEllipseMarkerLayer->setSymbolName( "triangle" );
+  mEllipseMarkerLayer->setSymbolHeight( 25 );
+  mEllipseMarkerLayer->setSymbolWidth( 20 );
+  mEllipseMarkerLayer->setOutlineWidth( 3 );
+  mEllipseMarkerLayer->setPenJoinStyle( Qt::MiterJoin );
+  QVERIFY( imageCheck( "ellipsemarker_miterjoin" ) );
+}
+
+void TestQgsEllipseMarkerSymbol::ellipseMarkerSymbolRoundJoin()
+{
+  mReport += "<h2>Ellipse marker symbol layer test</h2>\n";
+
+  mEllipseMarkerLayer->setFillColor( Qt::blue );
+  mEllipseMarkerLayer->setOutlineColor( Qt::black );
+  mEllipseMarkerLayer->setSymbolName( "triangle" );
+  mEllipseMarkerLayer->setSymbolHeight( 25 );
+  mEllipseMarkerLayer->setSymbolWidth( 20 );
+  mEllipseMarkerLayer->setOutlineWidth( 3 );
+  mEllipseMarkerLayer->setPenJoinStyle( Qt::RoundJoin );
+  QVERIFY( imageCheck( "ellipsemarker_roundjoin" ) );
+}
+
+void TestQgsEllipseMarkerSymbol::bounds()
+{
+  mEllipseMarkerLayer->setFillColor( Qt::blue );
+  mEllipseMarkerLayer->setOutlineColor( Qt::black );
+  mEllipseMarkerLayer->setSymbolName( "circle" );
+  mEllipseMarkerLayer->setSymbolHeight( 3 );
+  mEllipseMarkerLayer->setSymbolWidth( 6 );
+  mEllipseMarkerLayer->setDataDefinedProperty( "size", new QgsDataDefined( true, true, "min(\"importance\" * 2, 6)" ) );
+  mEllipseMarkerLayer->setOutlineWidth( 0.5 );
+
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, true );
+  bool result = imageCheck( "ellipsemarker_bounds" );
+  mMapSettings.setFlag( QgsMapSettings::DrawSymbolBounds, false );
+  QVERIFY( result );
+}
+
 
 //
 // Private helper functions not called directly by CTest

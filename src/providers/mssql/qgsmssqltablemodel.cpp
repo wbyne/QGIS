@@ -56,7 +56,7 @@ void QgsMssqlTableModel::addTableEntry( const QgsMssqlLayerProperty &layerProper
   QList<QStandardItem*> schemaItems = findItems( layerProperty.schemaName, Qt::MatchExactly, dbtmSchema );
 
   // there is already an item for this schema
-  if ( schemaItems.size() > 0 )
+  if ( !schemaItems.isEmpty() )
   {
     schemaItem = schemaItems.at( dbtmSchema );
   }
@@ -96,9 +96,16 @@ void QgsMssqlTableModel::addTableEntry( const QgsMssqlLayerProperty &layerProper
   QString pkText, pkCol = "";
   switch ( layerProperty.pkCols.size() )
   {
-    case 0:   pkText = ""; break;
-    case 1:   pkText = layerProperty.pkCols[0]; pkCol = pkText; break;
-    default:  pkText = tr( "Select..." ); break;
+    case 0:
+      pkText = "";
+      break;
+    case 1:
+      pkText = layerProperty.pkCols[0];
+      pkCol = pkText;
+      break;
+    default:
+      pkText = tr( "Select..." );
+      break;
   }
 
   QStandardItem *pkItem = new QStandardItem( pkText );
@@ -330,7 +337,7 @@ bool QgsMssqlTableModel::setData( const QModelIndex &idx, const QVariant &value,
       idx.sibling( idx.row(), dbtmSrid ).data().toInt( &ok );
 
     QStringList pkCols = idx.sibling( idx.row(), dbtmPkCol ).data( Qt::UserRole + 1 ).toStringList();
-    if ( ok && pkCols.size() > 0 )
+    if ( ok && !pkCols.isEmpty() )
       ok = pkCols.contains( idx.sibling( idx.row(), dbtmPkCol ).data().toString() );
 
     for ( int i = 0; i < dbtmColumns; i++ )
@@ -359,7 +366,7 @@ QString QgsMssqlTableModel::layerURI( const QModelIndex &index, const QString &c
   QStandardItem *pkItem = itemFromIndex( index.sibling( index.row(), dbtmPkCol ) );
   QString pkColumnName = pkItem->data( Qt::UserRole + 2 ).toString();
 
-  if ( pkItem->data( Qt::UserRole + 1 ).toStringList().size() > 0 &&
+  if ( !pkItem->data( Qt::UserRole + 1 ).toStringList().isEmpty() &&
        !pkItem->data( Qt::UserRole + 1 ).toStringList().contains( pkColumnName ) )
     // no valid primary candidate selected
     return QString::null;
@@ -386,7 +393,7 @@ QString QgsMssqlTableModel::layerURI( const QModelIndex &index, const QString &c
   QgsDataSourceURI uri( connInfo );
   uri.setDataSource( schemaName, tableName, geomColumnName, sql, pkColumnName );
   uri.setUseEstimatedMetadata( useEstimatedMetadata );
-  uri.setWkbType( wkbType );
+  uri.setWkbType( QGis::fromOldWkbType( wkbType ) );
   uri.setSrid( srid );
   uri.disableSelectAtId( !selectAtId );
 

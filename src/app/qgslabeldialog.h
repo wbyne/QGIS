@@ -28,7 +28,7 @@ class APP_EXPORT QgsLabelDialog: public QWidget, private Ui::QgsLabelDialogBase
     Q_OBJECT
 
   public:
-    QgsLabelDialog( QgsLabel *label, QWidget * parent = 0 );
+    QgsLabelDialog( QgsLabel *label, QWidget * parent = nullptr );
     ~QgsLabelDialog();
     int itemNoForField( const QString& theFieldName, const QStringList& theFieldList );
 
@@ -59,7 +59,7 @@ class APP_EXPORT QgsLabelDialog: public QWidget, private Ui::QgsLabelDialogBase
 
   public slots:
     /** Applies the changes to the label class */
-    void apply( void );
+    void apply();
 
     /** Change font - reimplements method from base class*/
     void changeFont();
@@ -69,7 +69,7 @@ class APP_EXPORT QgsLabelDialog: public QWidget, private Ui::QgsLabelDialogBase
     void changeFontColor();
 
     /** Initialise dialog to vector layer values */
-    void init( void );
+    void init();
 
     void on_cboLabelField_activated( int ) {emit labelSourceSet(); }
 

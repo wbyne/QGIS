@@ -56,7 +56,7 @@ QgsDataDefined* QgsDataDefined::fromMap( const QgsStringMap &map, const QString 
   if ( !map.contains( QString( "%1expression" ).arg( prefix ) ) )
   {
     //requires at least the expression value
-    return 0;
+    return nullptr;
   }
 
   bool active = ( map.value( QString( "%1active" ).arg( prefix ), "1" ) != QLatin1String( "0" ) );
@@ -330,7 +330,9 @@ bool QgsDataDefined::setFromXmlElement( const QDomElement &element )
   d->active = element.attribute( "active" ).compare( "true", Qt::CaseInsensitive ) == 0;
   d->useExpression = element.attribute( "useExpr" ).compare( "true", Qt::CaseInsensitive ) == 0;
   d->field = element.attribute( "field" );
-  setExpressionString( element.attribute( "expr" ) );
+  d->expressionString = element.attribute( "expr" );
+  d->expressionPrepared = false;
+  d->exprRefColumns.clear();
   return true;
 }
 

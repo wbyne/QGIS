@@ -27,10 +27,18 @@ __revision__ = '$Format:%H$'
 
 import os
 
-from PyQt4.QtCore import QPyNullVariant, QCoreApplication, QSettings
-from PyQt4.QtGui import QIcon
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QObject, pyqtSignal
+from qgis.PyQt.QtGui import QIcon
+from qgis.core import NULL
 from processing.tools.system import defaultOutputFolder
 import processing.tools.dataobjects
+
+
+class SettingsWatcher(QObject):
+
+    settingsChanged = pyqtSignal()
+
+settingsWatcher = SettingsWatcher()
 
 
 class ProcessingConfig:
@@ -52,6 +60,7 @@ class ProcessingConfig:
     WARN_UNMATCHING_CRS = 'WARN_UNMATCHING_CRS'
     DEFAULT_OUTPUT_RASTER_LAYER_EXT = 'DEFAULT_OUTPUT_RASTER_LAYER_EXT'
     DEFAULT_OUTPUT_VECTOR_LAYER_EXT = 'DEFAULT_OUTPUT_VECTOR_LAYER_EXT'
+    SHOW_PROVIDERS_TOOLTIP = "SHOW_PROVIDERS_TOOLTIP"
 
     settings = {}
     settingIcons = {}
@@ -80,6 +89,10 @@ class ProcessingConfig:
             ProcessingConfig.tr('General'),
             ProcessingConfig.SHOW_RECENT_ALGORITHMS,
             ProcessingConfig.tr('Show recently executed algorithms'), True))
+        ProcessingConfig.addSetting(Setting(
+            ProcessingConfig.tr('General'),
+            ProcessingConfig.SHOW_PROVIDERS_TOOLTIP,
+            ProcessingConfig.tr('Show tooltip when there are disabled providers'), True))
         ProcessingConfig.addSetting(Setting(
             ProcessingConfig.tr('General'),
             ProcessingConfig.OUTPUT_FOLDER,
@@ -132,13 +145,13 @@ class ProcessingConfig:
             ProcessingConfig.tr('General'),
             ProcessingConfig.DEFAULT_OUTPUT_VECTOR_LAYER_EXT,
             ProcessingConfig.tr('Default output vector layer extension'), extensions[0],
-                                valuetype=Setting.SELECTION, options=extensions))
+            valuetype=Setting.SELECTION, options=extensions))
         extensions = processing.tools.dataobjects.getSupportedOutputRasterLayerExtensions()
         ProcessingConfig.addSetting(Setting(
             ProcessingConfig.tr('General'),
             ProcessingConfig.DEFAULT_OUTPUT_RASTER_LAYER_EXT,
             ProcessingConfig.tr('Default output raster layer extension'), extensions[0],
-                                valuetype=Setting.SELECTION, options=extensions))
+            valuetype=Setting.SELECTION, options=extensions))
 
     @staticmethod
     def setGroupIcon(group, icon):
@@ -183,8 +196,11 @@ class ProcessingConfig:
     def getSetting(name):
         if name in ProcessingConfig.settings.keys():
             v = ProcessingConfig.settings[name].value
-            if isinstance(v, QPyNullVariant):
-                v = None
+            try:
+                if v == NULL:
+                    v = None
+            except:
+                pass
             return v
         else:
             return None
@@ -249,7 +265,8 @@ class Setting:
                         raise ValueError(self.tr('Specified path does not exist:\n%s') % unicode(v))
                 validator = checkFileOrFolder
             else:
-                validator = lambda x: True
+                def validator(x):
+                    return True
         self.validator = validator
         self.value = default
 

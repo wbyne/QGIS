@@ -21,8 +21,8 @@
 #include "qgsvectorlayer.h"
 
 QgsRelation::QgsRelation()
-    : mReferencingLayer( NULL )
-    , mReferencedLayer( NULL )
+    : mReferencingLayer( nullptr )
+    , mReferencedLayer( nullptr )
     , mValid( false )
 {
 }
@@ -48,7 +48,7 @@ QgsRelation QgsRelation::createFromXML( const QDomNode &node )
   QgsMapLayer* referencingLayer = mapLayers[referencingLayerId];
   QgsMapLayer* referencedLayer = mapLayers[referencedLayerId];
 
-  if ( NULL == referencingLayer )
+  if ( !referencingLayer )
   {
     QgsLogger::warning( QApplication::translate( "QgsRelation", "Relation defined for layer '%1' which does not exist." ).arg( referencingLayerId ) );
   }
@@ -57,7 +57,7 @@ QgsRelation QgsRelation::createFromXML( const QDomNode &node )
     QgsLogger::warning( QApplication::translate( "QgsRelation", "Relation defined for layer '%1' which is not of type VectorLayer." ).arg( referencingLayerId ) );
   }
 
-  if ( NULL == referencedLayer )
+  if ( !referencedLayer )
   {
     QgsLogger::warning( QApplication::translate( "QgsRelation", "Relation defined for layer '%1' which does not exist." ).arg( referencedLayerId ) );
   }
@@ -111,6 +111,8 @@ void QgsRelation::writeXML( QDomNode &node, QDomDocument &doc ) const
 void QgsRelation::setRelationId( const QString& id )
 {
   mRelationId = id;
+
+  updateRelationStatus();
 }
 
 void QgsRelation::setRelationName( const QString& name )
@@ -138,7 +140,7 @@ void QgsRelation::addFieldPair( const QString& referencingField, const QString& 
   updateRelationStatus();
 }
 
-void QgsRelation::addFieldPair( QgsRelation::FieldPair fieldPair )
+void QgsRelation::addFieldPair( const FieldPair& fieldPair )
 {
   mFieldPairs << fieldPair;
   updateRelationStatus();
@@ -260,6 +262,29 @@ QList<QgsRelation::FieldPair> QgsRelation::fieldPairs() const
   return mFieldPairs;
 }
 
+QgsAttributeList QgsRelation::referencedFields() const
+{
+  QgsAttributeList attrs;
+
+  Q_FOREACH ( const FieldPair& pair, mFieldPairs )
+  {
+    attrs << mReferencedLayer->fieldNameIndex( pair.second );
+  }
+  return attrs;
+}
+
+QgsAttributeList QgsRelation::referencingFields() const
+{
+  QgsAttributeList attrs;
+
+  Q_FOREACH ( const FieldPair& pair, mFieldPairs )
+  {
+    attrs << mReferencingLayer->fieldNameIndex( pair.first );
+  }
+  return attrs;
+
+}
+
 bool QgsRelation::isValid() const
 {
   return mValid;
@@ -273,6 +298,9 @@ void QgsRelation::updateRelationStatus()
   mReferencedLayer = qobject_cast<QgsVectorLayer*>( mapLayers[mReferencedLayerId] );
 
   mValid = true;
+
+  if ( mRelationId.isEmpty() )
+    mValid = false;
 
   if ( !mReferencedLayer || !mReferencingLayer )
   {

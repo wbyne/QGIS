@@ -25,8 +25,13 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import os
 import math
-from qgis.core import QgsFeatureRequest, QgsFeature, QgsGeometry, QgsDistanceArea
+
+from qgis.PyQt.QtGui import QIcon
+
+from qgis.core import QgsFeatureRequest, QgsDistanceArea
+
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.parameters import ParameterNumber
 from processing.core.parameters import ParameterVector
@@ -34,6 +39,8 @@ from processing.core.parameters import ParameterSelection
 from processing.core.parameters import ParameterTableField
 from processing.core.outputs import OutputTable
 from processing.tools import dataobjects, vector
+
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 class PointDistance(GeoAlgorithm):
@@ -45,6 +52,9 @@ class PointDistance(GeoAlgorithm):
     MATRIX_TYPE = 'MATRIX_TYPE'
     NEAREST_POINTS = 'NEAREST_POINTS'
     DISTANCE_MATRIX = 'DISTANCE_MATRIX'
+
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'ftools', 'matrix.png'))
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Distance matrix')
@@ -113,15 +123,11 @@ class PointDistance(GeoAlgorithm):
         inIdx = inLayer.fieldNameIndex(inField)
         outIdx = targetLayer.fieldNameIndex(targetField)
 
-        outFeat = QgsFeature()
-        inGeom = QgsGeometry()
-        outGeom = QgsGeometry()
         distArea = QgsDistanceArea()
 
         features = vector.features(inLayer)
-        current = 0
-        total = 100.0 / float(len(features))
-        for inFeat in features:
+        total = 100.0 / len(features)
+        for current, inFeat in enumerate(features):
             inGeom = inFeat.geometry()
             inID = unicode(inFeat.attributes()[inIdx])
             featList = index.nearestNeighbor(inGeom.asPoint(), nPoints)
@@ -145,10 +151,9 @@ class PointDistance(GeoAlgorithm):
                     vari += (i - mean) * (i - mean)
                 vari = math.sqrt(vari / len(distList))
                 self.writer.addRecord([inID, unicode(mean),
-                                      unicode(vari), unicode(min(distList)),
-                                      unicode(max(distList))])
+                                       unicode(vari), unicode(min(distList)),
+                                       unicode(max(distList))])
 
-            current += 1
             progress.setPercentage(int(current * total))
 
     def regularMatrix(self, inLayer, inField, targetLayer, targetField,
@@ -157,17 +162,12 @@ class PointDistance(GeoAlgorithm):
 
         inIdx = inLayer.fieldNameIndex(inField)
 
-        outFeat = QgsFeature()
-        inGeom = QgsGeometry()
-        outGeom = QgsGeometry()
         distArea = QgsDistanceArea()
 
         first = True
-        current = 0
         features = vector.features(inLayer)
-        total = 100.0 / float(len(features))
-
-        for inFeat in features:
+        total = 100.0 / len(features)
+        for current, inFeat in enumerate(features):
             inGeom = inFeat.geometry()
             inID = unicode(inFeat.attributes()[inIdx])
             featList = index.nearestNeighbor(inGeom.asPoint(), nPoints)
@@ -188,5 +188,4 @@ class PointDistance(GeoAlgorithm):
                 data.append(unicode(float(dist)))
             self.writer.addRecord(data)
 
-            current += 1
             progress.setPercentage(int(current * total))

@@ -1,3 +1,17 @@
+/***************************************************************************
+    qgsmaphittest.cpp
+    ---------------------
+    begin                : September 2014
+    copyright            : (C) 2014 by Martin Dobias
+    email                : wonder dot sk at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
 #include <QScopedPointer>
 
 #include "qgsmaphittest.h"
@@ -13,7 +27,9 @@
 #include "qgscrscache.h"
 
 QgsMapHitTest::QgsMapHitTest( const QgsMapSettings& settings, const QgsGeometry& polygon, const LayerFilterExpression& layerFilterExpression )
-    : mSettings( settings ), mLayerFilterExpression( layerFilterExpression ), mOnlyExpressions( false )
+    : mSettings( settings )
+    , mLayerFilterExpression( layerFilterExpression )
+    , mOnlyExpressions( false )
 {
   if ( !polygon.isEmpty() && polygon.type() == QGis::Polygon )
   {
@@ -22,7 +38,9 @@ QgsMapHitTest::QgsMapHitTest( const QgsMapSettings& settings, const QgsGeometry&
 }
 
 QgsMapHitTest::QgsMapHitTest( const QgsMapSettings& settings, const LayerFilterExpression& layerFilterExpression )
-    : mSettings( settings ), mLayerFilterExpression( layerFilterExpression ), mOnlyExpressions( true )
+    : mSettings( settings )
+    , mLayerFilterExpression( layerFilterExpression )
+    , mOnlyExpressions( true )
 {
 }
 
@@ -45,9 +63,10 @@ void QgsMapHitTest::run()
 
     if ( !mOnlyExpressions )
     {
-      if ( vl->hasScaleBasedVisibility() && ( mSettings.scale() < vl->minimumScale() || mSettings.scale() > vl->maximumScale() ) )
+      if ( !vl->isInScaleRange( mSettings.scale() ) )
       {
         mHitTest[vl] = SymbolV2Set(); // no symbols -> will not be shown
+        mHitTestRuleKey[vl] = SymbolV2Set();
         continue;
       }
 
@@ -60,7 +79,8 @@ void QgsMapHitTest::run()
 
     context.expressionContext() << QgsExpressionContextUtils::layerScope( vl );
     SymbolV2Set& usedSymbols = mHitTest[vl];
-    runHitTestLayer( vl, usedSymbols, context );
+    SymbolV2Set& usedSymbolsRuleKey = mHitTestRuleKey[vl];
+    runHitTestLayer( vl, usedSymbols, usedSymbolsRuleKey, context );
   }
 
   painter.end();
@@ -74,7 +94,15 @@ bool QgsMapHitTest::symbolVisible( QgsSymbolV2* symbol, QgsVectorLayer* layer ) 
   return mHitTest.value( layer ).contains( QgsSymbolLayerV2Utils::symbolProperties( symbol ) );
 }
 
-void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbols, QgsRenderContext& context )
+bool QgsMapHitTest::legendKeyVisible( const QString& ruleKey, QgsVectorLayer* layer ) const
+{
+  if ( !layer || !mHitTestRuleKey.contains( layer ) )
+    return false;
+
+  return mHitTestRuleKey.value( layer ).contains( ruleKey );
+}
+
+void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbols, SymbolV2Set& usedSymbolsRuleKey, QgsRenderContext& context )
 {
   bool hasStyleOverride = mSettings.layerStyleOverrides().contains( vl->id() );
   if ( hasStyleOverride )
@@ -111,6 +139,7 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbol
   QgsFeatureIterator fi = vl->getFeatures( request );
 
   SymbolV2Set lUsedSymbols;
+  SymbolV2Set lUsedSymbolsRuleKey;
   bool allExpressionFalse = false;
   bool hasExpression = mLayerFilterExpression.contains( vl->id() );
   QScopedPointer<QgsExpression> expr;
@@ -142,6 +171,11 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbol
 
     //make sure we store string representation of symbol, not pointer
     //otherwise layer style override changes will delete original symbols and leave hanging pointers
+    Q_FOREACH ( const QString& legendKey, r->legendKeysForFeature( f, context ) )
+    {
+      lUsedSymbolsRuleKey.insert( legendKey );
+    }
+
     if ( moreSymbolsPerFeature )
     {
       Q_FOREACH ( QgsSymbolV2* s, r->originalSymbolsForFeature( f, context ) )
@@ -163,6 +197,7 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbol
   {
     // QSet is implicitly shared => constant time
     usedSymbols = lUsedSymbols;
+    usedSymbolsRuleKey = lUsedSymbolsRuleKey;
   }
 
   if ( hasStyleOverride )

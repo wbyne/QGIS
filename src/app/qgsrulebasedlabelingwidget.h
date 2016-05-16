@@ -1,3 +1,17 @@
+/***************************************************************************
+    qgsrulebasedlabelingwidget.h
+    ---------------------
+    begin                : September 2015
+    copyright            : (C) 2015 by Martin Dobias
+    email                : wonder dot sk at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
 #ifndef QGSRULEBASEDLABELINGWIDGET_H
 #define QGSRULEBASEDLABELINGWIDGET_H
 
@@ -16,7 +30,7 @@ class APP_EXPORT QgsRuleBasedLabelingModel : public QAbstractItemModel
     Q_OBJECT
 
   public:
-    QgsRuleBasedLabelingModel( QgsRuleBasedLabeling::Rule* rootRule, QObject* parent = 0 );
+    QgsRuleBasedLabelingModel( QgsRuleBasedLabeling::Rule* rootRule, QObject* parent = nullptr );
 
     virtual Qt::ItemFlags flags( const QModelIndex &index ) const override;
     virtual QVariant data( const QModelIndex &index, int role = Qt::DisplayRole ) const override;
@@ -58,26 +72,36 @@ class APP_EXPORT QgsRuleBasedLabelingModel : public QAbstractItemModel
 };
 
 
+class QgsLabelingRulePropsDialog;
+
 
 class QgsRuleBasedLabelingWidget : public QWidget, private Ui::QgsRuleBasedLabelingWidget
 {
     Q_OBJECT
   public:
-    QgsRuleBasedLabelingWidget( QgsVectorLayer* layer, QgsMapCanvas* canvas, QWidget* parent = 0 );
+    QgsRuleBasedLabelingWidget( QgsVectorLayer* layer, QgsMapCanvas* canvas, QWidget* parent = nullptr, bool dockMode = false );
     ~QgsRuleBasedLabelingWidget();
 
     //! save config to layer
     void writeSettingsToLayer();
+    void setDockMode( bool enabled );
 
   signals:
+    void widgetChanged();
 
   protected slots:
+    void saveRuleEdit();
     void addRule();
+    void saveRule();
+    void rejectRule();
     void editRule();
     void editRule( const QModelIndex& index );
     void removeRule();
     void copy();
     void paste();
+
+  private:
+    void addNewRule( QgsRuleBasedLabeling::Rule* newrule );
 
   protected:
     QgsRuleBasedLabeling::Rule* currentRule();
@@ -88,10 +112,12 @@ class QgsRuleBasedLabelingWidget : public QWidget, private Ui::QgsRuleBasedLabel
 
     QgsRuleBasedLabeling::Rule* mRootRule;
     QgsRuleBasedLabelingModel* mModel;
+    QgsLabelingRulePropsDialog* mRuleProps;
 
     QAction* mCopyAction;
     QAction* mPasteAction;
     QAction* mDeleteAction;
+    bool mDockMode;
 };
 
 
@@ -106,14 +132,29 @@ class APP_EXPORT QgsLabelingRulePropsDialog : public QDialog, private Ui::QgsLab
     Q_OBJECT
 
   public:
-    QgsLabelingRulePropsDialog( QgsRuleBasedLabeling::Rule* rule, QgsVectorLayer* layer, QWidget* parent = 0, QgsMapCanvas* mapCanvas = 0 );
+    enum Mode
+    {
+      Adding,
+      Editing
+    };
+
+    QgsLabelingRulePropsDialog( QgsRuleBasedLabeling::Rule* rule, QgsVectorLayer* layer,
+                                QWidget* parent = nullptr, QgsMapCanvas* mapCanvas = nullptr,
+                                bool dockMode = false );
     ~QgsLabelingRulePropsDialog();
 
     QgsRuleBasedLabeling::Rule* rule() { return mRule; }
 
+    Mode currentMode() { return mCurrentMode; }
+    void setCurrentMode( Mode currentMode ) { mCurrentMode = currentMode; }
+
+  signals:
+    void widgetChanged();
+
   public slots:
     void testFilter();
     void buildExpression();
+    void updateRule();
     void accept() override;
 
   protected:
@@ -124,6 +165,8 @@ class APP_EXPORT QgsLabelingRulePropsDialog : public QDialog, private Ui::QgsLab
     QgsPalLayerSettings* mSettings; // a clone of original settings
 
     QgsMapCanvas* mMapCanvas;
+    bool mDockMode;
+    Mode mCurrentMode;
 };
 
 

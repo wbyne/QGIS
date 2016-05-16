@@ -18,7 +18,7 @@
 void QgsGeometryTypeCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -74,13 +74,14 @@ void QgsGeometryTypeCheck::fixError( QgsGeometryCheckError* error, int method, i
         changes[newFeature.id()].append( Change( ChangeFeature, ChangeAdded ) );
       }
       // Recycle feature for part 0
-      feature.setGeometry( new QgsGeometry( QgsGeomUtils::getGeomPart( geom, 0 ) ) );
+      feature.setGeometry( new QgsGeometry( QgsGeomUtils::getGeomPart( geom, 0 )->clone() ) );
+      mFeaturePool->updateFeature( feature );
       changes[feature.id()].append( Change( ChangeFeature, ChangeChanged ) );
     }
     // Check if corresponding multi type is allowed
     else if ( QgsWKBTypes::isSingleType( type ) && (( 1 << QgsWKBTypes::multiType( type ) ) & mAllowedTypes ) != 0 )
     {
-      QgsGeometryCollectionV2* geomCollection = 0;
+      QgsGeometryCollectionV2* geomCollection = nullptr;
       switch ( QgsWKBTypes::multiType( type ) )
       {
         case QgsWKBTypes::MultiPoint:

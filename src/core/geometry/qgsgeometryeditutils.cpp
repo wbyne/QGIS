@@ -50,17 +50,20 @@ int QgsGeometryEditUtils::addRing( QgsAbstractGeometryV2* geom, QgsCurveV2* ring
   }
   else
   {
-    delete ring; return 1; //not polygon / multipolygon;
+    delete ring;
+    return 1; //not polygon / multipolygon;
   }
 
   //ring must be closed
   if ( !ring->isClosed() )
   {
-    delete ring; return 2;
+    delete ring;
+    return 2;
   }
   else if ( !ring->isRing() )
   {
-    delete ring; return 3;
+    delete ring;
+    return 3;
   }
 
   QScopedPointer<QgsGeometryEngine> ringGeom( QgsGeometry::createGeometryEngine( ring ) );
@@ -78,7 +81,8 @@ int QgsGeometryEditUtils::addRing( QgsAbstractGeometryV2* geom, QgsCurveV2* ring
       {
         if ( !ringGeom->disjoint( *( *polyIter )->interiorRing( i ) ) )
         {
-          delete ring; return 4;
+          delete ring;
+          return 4;
         }
       }
 
@@ -92,7 +96,8 @@ int QgsGeometryEditUtils::addRing( QgsAbstractGeometryV2* geom, QgsCurveV2* ring
       return 0; //success
     }
   }
-  delete ring; return 5; //not contained in any outer ring
+  delete ring;
+  return 5; //not contained in any outer ring
 }
 
 int QgsGeometryEditUtils::addPart( QgsAbstractGeometryV2* geom, QgsAbstractGeometryV2* part )
@@ -120,7 +125,7 @@ int QgsGeometryEditUtils::addPart( QgsAbstractGeometryV2* geom, QgsAbstractGeome
     QgsCurveV2* curve = dynamic_cast<QgsCurveV2*>( part );
     if ( curve && curve->isClosed() && curve->numPoints() >= 4 )
     {
-      QgsCurvePolygonV2 *poly = 0;
+      QgsCurvePolygonV2 *poly = nullptr;
       if ( curve->geometryType() == "LineString" )
       {
         poly = new QgsPolygonV2();
@@ -150,14 +155,16 @@ int QgsGeometryEditUtils::addPart( QgsAbstractGeometryV2* geom, QgsAbstractGeome
       {
         while ( geomCollection->numGeometries() > n )
           geomCollection->removeGeometry( n );
-        delete part; return 2;
+        delete part;
+        return 2;
       }
 
       delete part;
     }
     else
     {
-      delete part; return 2;
+      delete part;
+      return 2;
     }
   }
   else
@@ -221,7 +228,7 @@ QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstra
   QScopedPointer<QgsGeometryEngine> geomEngine( QgsGeometry::createGeometryEngine( &geom ) );
   if ( geomEngine.isNull() )
   {
-    return 0;
+    return nullptr;
   }
   QgsWKBTypes::Type geomTypeBeforeModification = geom.wkbType();
 
@@ -229,19 +236,19 @@ QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstra
   //check if g has polygon type
   if ( QgsWKBTypes::geometryType( geomTypeBeforeModification ) != QgsWKBTypes::PolygonGeometry )
   {
-    return 0;
+    return nullptr;
   }
 
   //read avoid intersections list from project properties
   bool listReadOk;
   QStringList avoidIntersectionsList = QgsProject::instance()->readListEntry( "Digitizing", "/AvoidIntersectionsList", QStringList(), &listReadOk );
   if ( !listReadOk )
-    return 0; //no intersections stored in project does not mean error
+    return nullptr; //no intersections stored in project does not mean error
 
-  QList< const QgsAbstractGeometryV2* > nearGeometries;
+  QList< QgsAbstractGeometryV2* > nearGeometries;
 
   //go through list, convert each layer to vector layer and call QgsVectorLayer::removePolygonIntersections for each
-  QgsVectorLayer* currentLayer = 0;
+  QgsVectorLayer* currentLayer = nullptr;
   QStringList::const_iterator aIt = avoidIntersectionsList.constBegin();
   for ( ; aIt != avoidIntersectionsList.constEnd(); ++aIt )
   {
@@ -262,17 +269,17 @@ QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstra
         if ( ignoreIds.contains( f.id() ) )
           continue;
 
-        if ( !f.geometry() )
+        if ( !f.constGeometry() )
           continue;
 
-        nearGeometries << f.geometry()->geometry()->clone();
+        nearGeometries << f.constGeometry()->geometry()->clone();
       }
     }
   }
 
   if ( nearGeometries.isEmpty() )
   {
-    return 0;
+    return nullptr;
   }
 
 
@@ -280,7 +287,7 @@ QgsAbstractGeometryV2* QgsGeometryEditUtils::avoidIntersections( const QgsAbstra
   qDeleteAll( nearGeometries );
   if ( !combinedGeometries )
   {
-    return 0;
+    return nullptr;
   }
 
   QgsAbstractGeometryV2* diffGeom = geomEngine.data()->difference( *combinedGeometries );

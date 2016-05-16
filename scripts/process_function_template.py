@@ -3,6 +3,13 @@ import os
 import json
 import glob
 
+sys.path.append(
+    os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        '../python/ext-libs'))
+
+from six import string_types
+
 cpp = open(sys.argv[1], "w")
 cpp.write(
     "#include \"qgsexpression.h\"\n"
@@ -24,7 +31,7 @@ def quote(v):
     elif isinstance(v, list):
         return map(quote, v)
 
-    elif isinstance(v, str) or isinstance(v, unicode):
+    elif isinstance(v, string_types):
         return v.replace('"', '\\"').replace('\n', '\\n')
 
     elif isinstance(v, bool):
@@ -38,7 +45,7 @@ for f in sorted(glob.glob('resources/function_help/json/*')):
         try:
             json_params = json.load(function_file)
         except:
-            print f
+            print(f)
             raise
 
     json_params = quote(json_params)
@@ -66,7 +73,7 @@ for f in sorted(glob.glob('resources/function_help/json/*')):
         for v in json_params['variants']:
             if not 'arguments' in v:
                 raise BaseException("%s: arguments expected for operator")
-            if len(v['arguments']) < 1 or len(v['arguments']) > 2:
+            if len(list(v['arguments'])) < 1 or len(list(v['arguments'])) > 2:
                 raise BaseException("%s: 1 or 2 arguments expected for operator")
 
     cpp.write("\n\n  gFunctionHelpTexts.insert( {0},\n    Help( {0}, tr( \"{1}\" ), tr( \"{2}\" ),\n      QList<HelpVariant>()".format(
@@ -79,11 +86,13 @@ for f in sorted(glob.glob('resources/function_help/json/*')):
 
         if 'arguments' in v:
             for a in v['arguments']:
-                cpp.write("\n              << HelpArg( tr( \"{0}\" ), tr( \"{1}\" ), {2}, {3} )".format(
+                cpp.write("\n              << HelpArg( \"{0}\", tr( \"{1}\" ), {2}, {3} )".format(
                     a['arg'],
                     a.get('description', ''),
                     "true" if a.get('descOnly', False) else "false",
-                    "true" if a.get('syntaxOnly', False) else "false")
+                    "true" if a.get('syntaxOnly', False) else "false",
+                    "true" if a.get('optional', False) else "false",
+                    a.get('default', ''))
                 )
 
         cpp.write(",\n          /* variableLenArguments */ {0}".format(
@@ -113,5 +122,5 @@ for f in sorted(glob.glob('resources/function_help/text/*')):
         cpp.write("\n\n  gFunctionHelpTexts.insert( \"{0}\",\n    Help( tr( \"{0}\" ), tr( \"group\" ), tr( \"{1}\" ), QList<HelpVariant>() ) );\n".format(
             n, content.read().replace("\\", "&#92;").replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')))
 
-cpp.write("\n}")
+cpp.write("\n}\n")
 cpp.close()

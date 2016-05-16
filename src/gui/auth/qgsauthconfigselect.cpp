@@ -34,8 +34,8 @@ QgsAuthConfigSelect::QgsAuthConfigSelect( QWidget *parent, const QString &datapr
     , mDataProvider( dataprovider )
     , mConfigs( QgsAuthMethodConfigsMap() )
     , mDisabled( false )
-    , mAuthNotifyLayout( 0 )
-    , mAuthNotify( 0 )
+    , mAuthNotifyLayout( nullptr )
+    , mAuthNotify( nullptr )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {
@@ -139,15 +139,15 @@ void QgsAuthConfigSelect::populateConfigSelector()
   cmbConfigSelect->addItem( tr( "No authentication" ), "0" );
 
   QgsStringMap sortmap;
-  QgsAuthMethodConfigsMap::iterator cit = mConfigs.begin();
-  for ( cit = mConfigs.begin(); cit != mConfigs.end(); ++cit )
+  QgsAuthMethodConfigsMap::const_iterator cit = mConfigs.constBegin();
+  for ( cit = mConfigs.constBegin(); cit != mConfigs.constEnd(); ++cit )
   {
     QgsAuthMethodConfig config = cit.value();
     sortmap.insert( config.name(), cit.key() );
   }
 
-  QgsStringMap::iterator sm = sortmap.begin();
-  for ( sm = sortmap.begin(); sm != sortmap.end(); ++sm )
+  QgsStringMap::const_iterator sm = sortmap.constBegin();
+  for ( sm = sortmap.constBegin(); sm != sortmap.constEnd(); ++sm )
   {
     cmbConfigSelect->addItem( sm.key(), sm.value() );
   }
@@ -257,8 +257,8 @@ QgsAuthConfigUriEdit::QgsAuthConfigUriEdit( QWidget *parent, const QString &data
     , mDataUri( QString() )
     , mDataUriOrig( QString() )
     , mDisabled( false )
-    , mAuthNotifyLayout( 0 )
-    , mAuthNotify( 0 )
+    , mAuthNotifyLayout( nullptr )
+    , mAuthNotify( nullptr )
 {
   if ( QgsAuthManager::instance()->isDisabled() )
   {

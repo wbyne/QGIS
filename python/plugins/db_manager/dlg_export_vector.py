@@ -22,8 +22,9 @@ The content of this file is based on
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import Qt, QObject, SIGNAL, QSettings, QFileInfo
-from PyQt4.QtGui import QDialog, QFileDialog, QMessageBox, QApplication, QCursor
+from qgis.PyQt.QtCore import Qt, QSettings, QFileInfo
+from qgis.PyQt.QtWidgets import QDialog, QFileDialog, QMessageBox, QApplication
+from qgis.PyQt.QtGui import QCursor
 
 import qgis.core
 
@@ -38,7 +39,7 @@ class DlgExportVector(QDialog, Ui_Dialog):
         self.db = inDb
         self.setupUi(self)
 
-        vectorFilterName = "lastVectorFileFilter" # "lastRasterFileFilter"
+        vectorFilterName = "lastVectorFileFilter"  # "lastRasterFileFilter"
         self.lastUsedVectorFilterSettingsKey = u"/UI/{0}".format(vectorFilterName)
         self.lastUsedVectorDirSettingsKey = u"/UI/{0}Dir".format(vectorFilterName)
 
@@ -54,7 +55,7 @@ class DlgExportVector(QDialog, Ui_Dialog):
         self.editSourceSrid.setText("%s" % srid)
         self.editTargetSrid.setText("%s" % srid)
 
-        QObject.connect(self.btnChooseOutputFile, SIGNAL("clicked()"), self.chooseOutputFile)
+        self.btnChooseOutputFile.clicked.connect(self.chooseOutputFile)
         self.checkSupports()
 
     def checkSupports(self):
@@ -79,6 +80,13 @@ class DlgExportVector(QDialog, Ui_Dialog):
         if filename == "":
             return
 
+        filterString = qgis.core.QgsVectorFileWriter.filterForDriver(selectedFilter)
+        ext = filterString[filterString.find('.'):]
+        ext = ext[:ext.find(' ')]
+
+        if not filename.lower().endswith(ext):
+            filename += ext
+
         # store the last used dir
         settings.setValue(self.lastUsedVectorDirSettingsKey, QFileInfo(filename).filePath())
 
@@ -98,7 +106,7 @@ class DlgExportVector(QDialog, Ui_Dialog):
 
     def populateFileFilters(self):
         # populate the combo with supported vector file formats
-        for name, filt in qgis.core.QgsVectorFileWriter.ogrDriverList().iteritems():
+        for name, filt in qgis.core.QgsVectorFileWriter.ogrDriverList().items():
             self.cboFileFormat.addItem(name, filt)
 
         # set the last used filter

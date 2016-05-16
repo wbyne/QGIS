@@ -27,9 +27,6 @@
 #include <QSettings>
 #include <QScrollArea>
 
-QIcon QgsCollapsibleGroupBoxBasic::mCollapseIcon;
-QIcon QgsCollapsibleGroupBoxBasic::mExpandIcon;
-
 QgsCollapsibleGroupBoxBasic::QgsCollapsibleGroupBoxBasic( QWidget *parent )
     : QGroupBox( parent )
 {
@@ -57,19 +54,16 @@ void QgsCollapsibleGroupBoxBasic::init()
   mInitFlatChecked = false;
   mScrollOnExpand = true;
   mShown = false;
-  mParentScrollArea = 0;
-  mSyncParent = 0;
+  mParentScrollArea = nullptr;
+  mSyncParent = nullptr;
   mSyncGroup = "";
   mAltDown = false;
   mShiftDown = false;
   mTitleClicked = false;
 
   // init icons
-  if ( mCollapseIcon.isNull() )
-  {
-    mCollapseIcon = QgsApplication::getThemeIcon( "/mIconCollapse.png" );
-    mExpandIcon = QgsApplication::getThemeIcon( "/mIconExpand.png" );
-  }
+  mCollapseIcon = QgsApplication::getThemeIcon( "/mIconCollapse.png" );
+  mExpandIcon = QgsApplication::getThemeIcon( "/mIconExpand.png" );
 
   // collapse button
   mCollapseButton = new QgsGroupBoxCollapseButton( this );
@@ -89,7 +83,7 @@ void QgsCollapsibleGroupBoxBasic::init()
 
 void QgsCollapsibleGroupBoxBasic::showEvent( QShowEvent * event )
 {
-  //QgsDebugMsg( "Entered" );
+  QgsDebugMsg( "Entered" );
   // initialise widget on first show event only
   if ( mShown )
   {
@@ -108,7 +102,7 @@ void QgsCollapsibleGroupBoxBasic::showEvent( QShowEvent * event )
   if ( parent() && parent()->parent() )
     mParentScrollArea = dynamic_cast<QScrollArea*>( parent()->parent()->parent() );
   else
-    mParentScrollArea = 0;
+    mParentScrollArea = nullptr;
   if ( mParentScrollArea )
   {
     QgsDebugMsg( "found a QScrollArea parent: " + mParentScrollArea->objectName() );
@@ -262,7 +256,7 @@ void QgsCollapsibleGroupBoxBasic::toggleCollapsed()
     }
     else
     {
-      mSyncParent = 0;
+      mSyncParent = nullptr;
     }
 
     if ( mSyncParent )
@@ -482,14 +476,16 @@ void QgsCollapsibleGroupBoxBasic::collapseExpandFixes()
 // ----
 
 QgsCollapsibleGroupBox::QgsCollapsibleGroupBox( QWidget *parent, QSettings* settings )
-    : QgsCollapsibleGroupBoxBasic( parent ), mSettings( settings )
+    : QgsCollapsibleGroupBoxBasic( parent )
+    , mSettings( settings )
 {
   init();
 }
 
 QgsCollapsibleGroupBox::QgsCollapsibleGroupBox( const QString &title,
     QWidget *parent, QSettings* settings )
-    : QgsCollapsibleGroupBoxBasic( title, parent ), mSettings( settings )
+    : QgsCollapsibleGroupBoxBasic( title, parent )
+    , mSettings( settings )
 {
   init();
 }
@@ -500,7 +496,7 @@ QgsCollapsibleGroupBox::~QgsCollapsibleGroupBox()
   saveState();
   if ( mDelSettings ) // local settings obj to delete
     delete mSettings;
-  mSettings = 0; // null the pointer (in case of outside settings obj)
+  mSettings = nullptr; // null the pointer (in case of outside settings obj)
 }
 
 void QgsCollapsibleGroupBox::setSettings( QSettings* settings )
@@ -559,12 +555,12 @@ QString QgsCollapsibleGroupBox::saveKey() const
   // currently QgsCollapsibleGroupBox/window()/object
   QString saveKey = '/' + objectName();
   // QObject* parentWidget = parent();
-  // while ( parentWidget != NULL )
+  // while ( parentWidget )
   // {
   //   saveKey = "/" + parentWidget->objectName() + saveKey;
   //   parentWidget = parentWidget->parent();
   // }
-  // if ( parent() != NULL )
+  // if ( parent() )
   //   saveKey = "/" + parent()->objectName() + saveKey;
   QString setgrp = mSettingGroup.isEmpty() ? window()->objectName() : mSettingGroup;
   saveKey = '/' + setgrp + saveKey;

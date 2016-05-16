@@ -41,98 +41,12 @@ extern "C"
 #include <grass/glocale.h>
 }
 
-//#include <gdal.h>         // to collect version information
-
-//bool QgsGrassModule::mExecPathInited = 0;
-//QStringList QgsGrassModule::mExecPath;
-
-QString QgsGrassModule::findExec( QString file )
-{
-  QgsDebugMsg( "called." );
-
-  // Init mExecPath
-  // Windows searches first in current directory
-  // TODO verify if/why applicationDirPath() is necessary
-#if 0
-  if ( !mExecPathInited )
-  {
-    QString path = getenv( "PATH" );
-    QgsDebugMsg( "path = " + path );
-
-
-#ifdef Q_OS_WIN
-    mExecPath = path.split( ";" );
-    mExecPath.prepend( QgsGrass::shortPath( QgsApplication::applicationDirPath() ) );
-#elif defined(Q_OS_MACX)
-    mExecPath = path.split( ":" );
-    mExecPath.prepend( QgsApplication::applicationDirPath() + "/bin" );
-    mExecPath.prepend( QgsApplication::applicationDirPath() + "/grass/bin" );
-#else
-    mExecPath = path.split( ":" );
-    mExecPath.prepend( QgsApplication::applicationDirPath() );
-#endif
-    mExecPathInited = true;
-  }
-#endif
-
-  if ( QFile::exists( file ) )
-  {
-    return file;  // full path
-  }
-
-#ifdef Q_OS_WIN
-  // On windows try .bat first
-  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
-  {
-    QString full = path + "/" + file + ".bat";
-    if ( QFile::exists( full ) )
-    {
-      return full;
-    }
-  }
-
-  // .exe next
-  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
-  {
-    QString full = path + "/" + file + ".exe";
-    if ( QFile::exists( full ) )
-    {
-      return full;
-    }
-  }
-
-  // and then try if it's a script (w/o extension)
-#endif
-
-  // Search for module
-  Q_FOREACH ( const QString& path, QgsGrass::grassModulesPaths() )
-  {
-    QString full = path + "/" + file;
-    if ( QFile::exists( full ) )
-    {
-      QgsDebugMsg( "found " + full );
-      return full;
-    }
-    else
-    {
-      QgsDebugMsg( "not found " + full );
-    }
-  }
-
-  return QString();
-}
-
-bool QgsGrassModule::inExecPath( QString file )
-{
-  return !findExec( file ).isNull();
-}
-
 QStringList QgsGrassModule::execArguments( QString module )
 {
   QString exe;
   QStringList arguments;
 
-  exe = QgsGrassModule::findExec( module );
+  exe = QgsGrass::findModule( module );
   if ( exe.isNull() )
   {
     return arguments;
@@ -172,7 +86,7 @@ QProcessEnvironment QgsGrassModule::processEnvironment( bool direct )
 
 QgsGrassModule::QgsGrassModule( QgsGrassTools *tools, QString moduleName, QgisInterface *iface,
                                 bool direct, QWidget *parent, Qt::WindowFlags f )
-    : QDialog( parent, f )
+    : QWidget( parent, f )
     , QgsGrassModuleBase()
     , mOptions( 0 )
     , mSuccess( false )
@@ -234,15 +148,8 @@ QgsGrassModule::QgsGrassModule( QgsGrassTools *tools, QString moduleName, QgisIn
   // => test if the module is in path and if it is not
   // add .exe and test again
 #ifdef Q_OS_WIN
-  if ( inExecPath( xName ) )
-  {
-    mXName = xName;
-  }
-  else if ( inExecPath( xName + ".exe" ) )
-  {
-    mXName = xName + ".exe";
-  }
-  else
+  mXName = QgsGrass::findModule( xName );
+  if ( mXName.isNull() )
   {
     QgsDebugMsg( "Module " + xName + " not found" );
     mErrors.append( tr( "Module %1 not found" ).arg( xName ) );
@@ -356,7 +263,7 @@ QPixmap QgsGrassModule::pixmap( QString path, int height )
 
   // Create vector of available pictures
   int cnt = 1;
-  while ( 1 )
+  for ( ;; )
   {
     // SVG
     QString fpath = path + "." + QString::number( cnt ) + ".svg";
@@ -593,7 +500,7 @@ void QgsGrassModule::run()
         QMessageBox questionBox( QMessageBox::Question, tr( "Warning" ),
                                  tr( "Input %1 outside current region!" ).arg( outsideRegion.join( "," ) ),
                                  QMessageBox::Ok | QMessageBox::Cancel );
-        QPushButton *resetButton = NULL;
+        QPushButton *resetButton = nullptr;
         if ( QgsGrass::versionMajor() > 6 || ( QgsGrass::versionMajor() == 6 && QgsGrass::versionMinor() >= 1 ) )
         {
           resetButton = questionBox.addButton( tr( "Use Input Region" ), QMessageBox::DestructiveRole );
@@ -674,12 +581,12 @@ void QgsGrassModule::run()
     }
 
     /* WARNING - TODO: there was a bug in GRASS 6.0.0 / 6.1.CVS (< 2005-04-29):
-    * db_start_driver set GISRC_MODE_MEMORY eviroment variable to 1 if
-    * G_get_gisrc_mode() == G_GISRC_MODE_MEMORY but the variable wasn't unset
-    * if  G_get_gisrc_mode() == G_GISRC_MODE_FILE. Because QGIS GRASS provider starts drivers in
-    * G_GISRC_MODE_MEMORY mode, the variable remains set in variable when a module is run
-    * -> unset GISRC_MODE_MEMORY. Remove later once 6.1.x / 6.0.1 is widespread.
-    */
+     * db_start_driver set GISRC_MODE_MEMORY eviroment variable to 1 if
+     * G_get_gisrc_mode() == G_GISRC_MODE_MEMORY but the variable wasn't unset
+     * if  G_get_gisrc_mode() == G_GISRC_MODE_FILE. Because QGIS GRASS provider starts drivers in
+     * G_GISRC_MODE_MEMORY mode, the variable remains set in variable when a module is run
+     * -> unset GISRC_MODE_MEMORY. Remove later once 6.1.x / 6.0.1 is widespread.
+    *   */
     putenv(( char* ) "GISRC_MODE_MEMORY" );  // unset
 
     mOutputTextBrowser->clear();
@@ -752,7 +659,7 @@ void QgsGrassModule::run()
 
 #ifdef Q_OS_WIN
     // we already know it exists from execArguments()
-    QString exe = QgsGrassModule::findExec( mXName );
+    QString exe = QgsGrass::findModule( mXName );
     QFileInfo fi( exe );
     if ( !fi.isExecutable() )
     {
@@ -839,7 +746,7 @@ void QgsGrassModule::finished( int exitCode, QProcess::ExitStatus exitStatus )
     if ( exitCode == 0 )
     {
       mOutputTextBrowser->append( tr( "<B>Successfully finished</B>" ) );
-      mProgressBar->setValue( 100 );
+      setProgress( 100, true );
       mSuccess = true;
       mViewButton->setEnabled( !mOutputVector.isEmpty() || !mOutputRaster.isEmpty() );
       mOptions->freezeOutput( false );
@@ -877,7 +784,7 @@ void QgsGrassModule::readStdout()
     if ( rxpercent.indexIn( line ) != -1 )
     {
       int progress = rxpercent.cap( 1 ).toInt();
-      mProgressBar->setValue( progress );
+      setProgress( progress );
     }
     else
     {
@@ -903,13 +810,26 @@ void QgsGrassModule::readStderr()
     QgsGrass::ModuleOutput type =  QgsGrass::parseModuleOutput( line, text, html, percent );
     if ( type == QgsGrass::OutputPercent )
     {
-      mProgressBar->setValue( percent );
+      setProgress( percent );
     }
     else if ( type == QgsGrass::OutputMessage || type == QgsGrass::OutputWarning || type == QgsGrass::OutputError )
     {
       mOutputTextBrowser->append( html );
     }
   }
+}
+
+void QgsGrassModule::setProgress( int percent, bool force )
+{
+  int max = 100;
+  // Do not set 100% until module finished, see #3131
+  if ( percent >= 100 && !force )
+  {
+    max = 0; // busy indicator
+    percent = 0;
+  }
+  mProgressBar->setMaximum( max );
+  mProgressBar->setValue( percent );
 }
 
 void QgsGrassModule::close()

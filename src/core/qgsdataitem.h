@@ -84,7 +84,8 @@ class CORE_EXPORT QgsDataItem : public QObject
       Directory,
       Layer,
       Error,
-      Favourites
+      Favourites,
+      Project //! Represents a QGIS project
     };
 
     /** Create new data item. */
@@ -116,30 +117,48 @@ class CORE_EXPORT QgsDataItem : public QObject
     virtual void setState( State state );
 
     //! @deprecated in 2.8, use state()
-    bool isPopulated() { return state() == Populated; }
+    Q_DECL_DEPRECATED bool isPopulated() { return state() == Populated; }
 
-    // Insert new child using alphabetical order based on mName, emits necessary signal to model before and after, sets parent and connects signals
-    // refresh - refresh populated item, emit signals to model
+    /** Inserts a new child item. The child will be inserted at a position using an alphabetical order based on mName.
+     * @param child child item to insert. Ownership is transferred, and item parent will be set and relevant connections made.
+     * @param refresh - set to true to refresh populated item, emitting relevant signals to the model
+     * @see deleteChildItem()
+     */
     virtual void addChildItem( QgsDataItem *child, bool refresh = false );
 
-    // remove and delete child item, signals to browser are emitted
+    /** Removes and deletes a child item, emitting relevant signals to the model.
+     * @param child child to remove. Item must exist as a current child.
+     * @see addChildItem()
+     */
     virtual void deleteChildItem( QgsDataItem * child );
 
-    // remove child item but don't delete it, signals to browser are emitted
-    // returns pointer to the removed item or null if no such item was found
+    /** Removes a child item and returns it without deleting it. Emits relevant signals to model as required.
+     * @param child child to remove
+     * @returns pointer to the removed item or null if no such item was found
+     */
     virtual QgsDataItem *removeChildItem( QgsDataItem * child );
 
+    /** Returns true if this item is equal to another item (by testing item type and path).
+     */
     virtual bool equal( const QgsDataItem *other );
 
-    virtual QWidget *paramWidget() { return 0; }
+    virtual QWidget *paramWidget() { return nullptr; }
 
-    // list of actions provided by this item - usually used for popup menu on right-click
+    /** Returns the list of actions available for this item. This is usually used for the popup menu on right-clicking
+     * the item. Subclasses should override this to provide actions.
+     */
     virtual QList<QAction*> actions() { return QList<QAction*>(); }
 
-    // whether accepts drag&drop'd layers - e.g. for import
+    /** Returns whether the item accepts drag and dropped layers - e.g. for importing a dataset to a provider.
+     * Subclasses should override this and handleDrop() to accept dropped layers.
+     * @see handleDrop()
+     */
     virtual bool acceptDrop() { return false; }
 
-    // try to process the data dropped on this item
+    /** Attempts to process the mime data dropped on this item. Subclasses must override this and acceptDrop() if they
+     * accept dropped layers.
+     * @see acceptDrop()
+     */
     virtual bool handleDrop( const QMimeData * /*data*/, Qt::DropAction /*action*/ ) { return false; }
 
     enum Capability
@@ -228,7 +247,7 @@ class CORE_EXPORT QgsDataItem : public QObject
     QString mToolTip;
     QString mIconName;
     QIcon mIcon;
-    static QMap<QString, QIcon> mIconMap;
+    QMap<QString, QIcon> mIconMap;
 
   public slots:
     /** Safely delete the item:
@@ -254,7 +273,7 @@ class CORE_EXPORT QgsDataItem : public QObject
     void emitBeginRemoveItems( QgsDataItem* parent, int first, int last );
     void emitEndRemoveItems();
     void emitDataChanged( QgsDataItem* item );
-    void emitDataChanged( );
+    void emitDataChanged();
     void emitStateChanged( QgsDataItem* item, QgsDataItem::State oldState );
     virtual void childrenCreated();
 
@@ -409,6 +428,9 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
     //! @note deprecated since 2.10 - use QgsDataItemProviderRegistry
     Q_DECL_DEPRECATED static QVector<QLibrary*> mLibraries;
 
+    /** Check if the given path is hidden from the browser model */
+    static bool hiddenPath( QString path );
+
   public slots:
     virtual void childrenCreated() override;
     void directoryChanged();
@@ -420,6 +442,25 @@ class CORE_EXPORT QgsDirectoryItem : public QgsDataCollectionItem
   private:
     QFileSystemWatcher * mFileSystemWatcher;
     bool mRefreshLater;
+};
+
+/**
+ Data item that can be used to represent QGIS projects.
+ */
+class CORE_EXPORT QgsProjectItem : public QgsDataItem
+{
+    Q_OBJECT
+  public:
+
+    /**
+     * @brief A data item holding a reference to a QGIS project file.
+     * @param parent The parent data item.
+     * @param name The name of the of the project. Displayed to the user.
+     * @param path The full path to the project.
+     */
+    QgsProjectItem( QgsDataItem* parent, const QString& name, const QString& path );
+    ~QgsProjectItem();
+
 };
 
 /**
@@ -443,7 +484,7 @@ class CORE_EXPORT QgsDirectoryParamWidget : public QTreeWidget
     Q_OBJECT
 
   public:
-    QgsDirectoryParamWidget( const QString& path, QWidget* parent = NULL );
+    QgsDirectoryParamWidget( const QString& path, QWidget* parent = nullptr );
 
   protected:
     void mousePressEvent( QMouseEvent* event ) override;
@@ -466,6 +507,9 @@ class CORE_EXPORT QgsFavouritesItem : public QgsDataCollectionItem
     void removeDirectory( QgsDirectoryItem *item );
 
     static const QIcon &iconFavourites();
+
+  private:
+    QVector<QgsDataItem*> createChildren( const QString& favDir );
 };
 
 /** A zip file: contains layers, using GDAL/OGR VSIFILE mechanism */

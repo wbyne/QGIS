@@ -32,8 +32,8 @@ QgsRendererV2Widget* QgsPointDisplacementRendererWidget::create( QgsVectorLayer*
 
 QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVectorLayer* layer, QgsStyleV2* style, QgsFeatureRendererV2* renderer )
     : QgsRendererV2Widget( layer, style )
-    , mRenderer( NULL )
-    , mEmbeddedRendererWidget( 0 )
+    , mRenderer( nullptr )
+    , mEmbeddedRendererWidget( nullptr )
 {
   if ( !layer )
   {
@@ -44,7 +44,7 @@ QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVecto
   if ( layer->wkbType() != QGis::WKBPoint && layer->wkbType()  != QGis::WKBPoint25D )
   {
     //setup blank dialog
-    mRenderer = 0;
+    mRenderer = nullptr;
     setupBlankUi( layer->name() );
     return;
   }
@@ -68,10 +68,9 @@ QgsPointDisplacementRendererWidget::QgsPointDisplacementRendererWidget( QgsVecto
   //insert attributes into combo box
   if ( layer )
   {
-    const QgsFields& layerAttributes = layer->fields();
-    for ( int idx = 0; idx < layerAttributes.count(); ++idx )
+    Q_FOREACH ( const QgsField& f, layer->fields() )
     {
-      mLabelFieldComboBox->addItem( layerAttributes[idx].name() );
+      mLabelFieldComboBox->addItem( f.name() );
     }
     mLabelFieldComboBox->addItem( tr( "None" ) );
 
@@ -231,7 +230,7 @@ void QgsPointDisplacementRendererWidget::on_mRendererSettingsButton_clicked()
     layout->addWidget( mEmbeddedRendererWidget, 0, 0 );
     layout->addWidget( buttonBox, 1, 0 );
     d->exec();
-    mEmbeddedRendererWidget->setParent( 0 );
+    mEmbeddedRendererWidget->setParent( nullptr );
     delete d;
   }
 }

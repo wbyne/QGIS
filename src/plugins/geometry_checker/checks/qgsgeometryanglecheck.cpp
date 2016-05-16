@@ -11,7 +11,7 @@
 void QgsGeometryAngleCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -38,8 +38,8 @@ void QgsGeometryAngleCheck::collectErrors( QList<QgsGeometryCheckError*>& errors
           QgsVector v21, v23;
           try
           {
-            v21 = QgsVector( p1.x() - p2.x(), p1.y() - p2.y() ).normal();
-            v23 = QgsVector( p3.x() - p2.x(), p3.y() - p2.y() ).normal();
+            v21 = QgsVector( p1.x() - p2.x(), p1.y() - p2.y() ).normalized();
+            v23 = QgsVector( p3.x() - p2.x(), p3.y() - p2.y() ).normalized();
           }
           catch ( const QgsException& )
           {
@@ -67,7 +67,7 @@ void QgsGeometryAngleCheck::fixError( QgsGeometryCheckError* error, int method, 
     return;
   }
   QgsAbstractGeometryV2* geometry = feature.geometry()->geometry();
-  const QgsVertexId& vidx = error->vidx();
+  QgsVertexId vidx = error->vidx();
 
   // Check if point still exists
   if ( !vidx.isValid( geometry ) )
@@ -84,8 +84,8 @@ void QgsGeometryAngleCheck::fixError( QgsGeometryCheckError* error, int method, 
   QgsVector v21, v23;
   try
   {
-    v21 = QgsVector( p1.x() - p2.x(), p1.y() - p2.y() ).normal();
-    v23 = QgsVector( p3.x() - p2.x(), p3.y() - p2.y() ).normal();
+    v21 = QgsVector( p1.x() - p2.x(), p1.y() - p2.y() ).normalized();
+    v23 = QgsVector( p3.x() - p2.x(), p3.y() - p2.y() ).normalized();
   }
   catch ( const QgsException& )
   {

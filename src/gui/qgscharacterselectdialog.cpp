@@ -19,7 +19,8 @@
 
 
 QgsCharacterSelectorDialog::QgsCharacterSelectorDialog( QWidget *parent, const Qt::WindowFlags& fl )
-    : QDialog( parent, fl ), mChar( QChar::Null )
+    : QDialog( parent, fl )
+    , mChar( QChar::Null )
 {
   setupUi( this );
   mCharWidget = new CharacterWidget( this );
@@ -53,7 +54,7 @@ const QChar& QgsCharacterSelectorDialog::selectCharacter( bool* gotChar, const Q
   return mChar;
 }
 
-void QgsCharacterSelectorDialog::setCharacter( const QChar & chr )
+void QgsCharacterSelectorDialog::setCharacter( QChar chr )
 {
   mChar = chr;
 }

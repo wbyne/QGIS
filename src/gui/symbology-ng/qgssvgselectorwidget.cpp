@@ -65,18 +65,23 @@ QVariant QgsSvgSelectorListModel::data( const QModelIndex & index, int role ) co
     {
       // render SVG file
       QColor fill, outline;
-      double outlineWidth;
-      bool fillParam, outlineParam, outlineWidthParam;
-      bool hasDefaultFillColor = false, hasDefaultOutlineColor = false, hasDefaultOutlineWidth = false;
+      double outlineWidth, fillOpacity, outlineOpacity;
+      bool fillParam, fillOpacityParam, outlineParam, outlineWidthParam, outlineOpacityParam;
+      bool hasDefaultFillColor = false, hasDefaultFillOpacity = false, hasDefaultOutlineColor = false,
+                                 hasDefaultOutlineWidth = false, hasDefaultOutlineOpacity = false;
       QgsSvgCache::instance()->containsParams( entry, fillParam, hasDefaultFillColor, fill,
+          fillOpacityParam, hasDefaultFillOpacity, fillOpacity,
           outlineParam, hasDefaultOutlineColor, outline,
-          outlineWidthParam, hasDefaultOutlineWidth, outlineWidth );
+          outlineWidthParam, hasDefaultOutlineWidth, outlineWidth,
+          outlineOpacityParam, hasDefaultOutlineOpacity, outlineOpacity );
 
       //if defaults not set in symbol, use these values
       if ( !hasDefaultFillColor )
         fill = QColor( 200, 200, 200 );
+      fill.setAlphaF( hasDefaultFillOpacity ? fillOpacity : 1.0 );
       if ( !hasDefaultOutlineColor )
         outline = Qt::black;
+      outline.setAlphaF( hasDefaultOutlineOpacity ? outlineOpacity : 1.0 );
       if ( !hasDefaultOutlineWidth )
         outlineWidth = 0.2;
 
@@ -255,7 +260,7 @@ void QgsSvgSelectorWidget::populateIcons( const QModelIndex& idx )
 void QgsSvgSelectorWidget::on_mFilePushButton_clicked()
 {
   QSettings settings;
-  QString openDir = settings.value( "/UI/lastSVGMarkerDir", "." ).toString();
+  QString openDir = settings.value( "/UI/lastSVGMarkerDir", QDir::homePath() ).toString();
 
   QString lineEditText = mFileLineEdit->text();
   if ( !lineEditText.isEmpty() )
@@ -264,7 +269,7 @@ void QgsSvgSelectorWidget::on_mFilePushButton_clicked()
     openDir = openDirFileInfo.path();
   }
 
-  QString file = QFileDialog::getOpenFileName( 0,
+  QString file = QFileDialog::getOpenFileName( nullptr,
                  tr( "Select SVG file" ),
                  openDir,
                  tr( "SVG files" ) + " (*.svg *.SVG)" );

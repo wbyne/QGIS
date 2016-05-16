@@ -204,7 +204,7 @@ void TestQgsField::convertCompatible()
 
   QVariant stringVar( "test string" );
   QVERIFY( stringField.convertCompatible( stringVar ) );
-  QCOMPARE( stringVar.toString( ), QString( "test string" ) );
+  QCOMPARE( stringVar.toString(), QString( "test string" ) );
   QVariant nullString = QVariant( QVariant::String );
   QVERIFY( stringField.convertCompatible( nullString ) );
   QCOMPARE( nullString.type(), QVariant::String );
@@ -217,10 +217,10 @@ void TestQgsField::convertCompatible()
   QVERIFY( stringField.convertCompatible( nullInt ) );
   QCOMPARE( nullInt.type(), QVariant::String );
   QVERIFY( nullInt.isNull() );
-  QVariant doubleVar( 9.7 );
+  QVariant doubleVar( 1.25 );
   QVERIFY( stringField.convertCompatible( doubleVar ) );
   QCOMPARE( doubleVar.type(), QVariant::String );
-  QCOMPARE( doubleVar, QVariant( "9.7" ) );
+  QCOMPARE( doubleVar, QVariant( "1.25" ) );
   QVariant nullDouble = QVariant( QVariant::Double );
   QVERIFY( stringField.convertCompatible( nullDouble ) );
   QCOMPARE( nullDouble.type(), QVariant::String );
@@ -232,7 +232,7 @@ void TestQgsField::convertCompatible()
   stringVar = QVariant( "test string" );
   QVERIFY( !doubleField.convertCompatible( stringVar ) );
   QCOMPARE( stringVar.type(), QVariant::Double );
-  QVERIFY( stringVar.isNull( ) );
+  QVERIFY( stringVar.isNull() );
   nullString = QVariant( QVariant::String );
   QVERIFY( doubleField.convertCompatible( nullString ) );
   QCOMPARE( nullString.type(), QVariant::Double );
@@ -245,10 +245,10 @@ void TestQgsField::convertCompatible()
   QVERIFY( doubleField.convertCompatible( nullInt ) );
   QCOMPARE( nullInt.type(), QVariant::Double );
   QVERIFY( nullInt.isNull() );
-  doubleVar = QVariant( 9.7 );
+  doubleVar = QVariant( 1.25 );
   QVERIFY( doubleField.convertCompatible( doubleVar ) );
   QCOMPARE( doubleVar.type(), QVariant::Double );
-  QCOMPARE( doubleVar, QVariant( 9.7 ) );
+  QCOMPARE( doubleVar, QVariant( 1.25 ) );
   nullDouble = QVariant( QVariant::Double );
   QVERIFY( doubleField.convertCompatible( nullDouble ) );
   QCOMPARE( nullDouble.type(), QVariant::Double );
@@ -271,13 +271,13 @@ void TestQgsField::convertCompatible()
   QVariant largeDouble( 9999999999.99 );
   QVERIFY( !intField.convertCompatible( largeDouble ) );
   QCOMPARE( largeDouble.type(), QVariant::Int );
-  QVERIFY( largeDouble.isNull( ) );
+  QVERIFY( largeDouble.isNull() );
 
   //conversion of string double value to int
   QVariant notNumberString( "notanumber" );
   QVERIFY( !intField.convertCompatible( notNumberString ) );
   QCOMPARE( notNumberString.type(), QVariant::Int );
-  QVERIFY( notNumberString.isNull( ) );
+  QVERIFY( notNumberString.isNull() );
   //small double, should be rounded
   QVariant smallDoubleString( "45.7" );
   QVERIFY( intField.convertCompatible( smallDoubleString ) );
@@ -291,13 +291,13 @@ void TestQgsField::convertCompatible()
   QVariant largeDoubleString( "9999999999.99" );
   QVERIFY( !intField.convertCompatible( largeDoubleString ) );
   QCOMPARE( largeDoubleString.type(), QVariant::Int );
-  QVERIFY( largeDoubleString.isNull( ) );
+  QVERIFY( largeDoubleString.isNull() );
 
   //conversion of longlong to int
   QVariant longlong( 99999999999999999LL );
   QVERIFY( !intField.convertCompatible( longlong ) );
   QCOMPARE( longlong.type(), QVariant::Int );
-  QVERIFY( longlong.isNull( ) );
+  QVERIFY( longlong.isNull() );
   QVariant smallLonglong( 99LL );
   QVERIFY( intField.convertCompatible( smallLonglong ) );
   QCOMPARE( smallLonglong.type(), QVariant::Int );

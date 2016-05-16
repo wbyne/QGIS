@@ -25,7 +25,10 @@
 #include "qgssnapindex.h"
 
 QgsGeometrySnapper::QgsGeometrySnapper( QgsVectorLayer *adjustLayer, QgsVectorLayer *referenceLayer, bool selectedOnly, double snapToleranceMapUnits, const QgsMapSettings *mapSettings )
-    : mAdjustLayer( adjustLayer ), mReferenceLayer( referenceLayer ), mSnapToleranceMapUnits( snapToleranceMapUnits ), mMapSettings( mapSettings )
+    : mAdjustLayer( adjustLayer )
+    , mReferenceLayer( referenceLayer )
+    , mSnapToleranceMapUnits( snapToleranceMapUnits )
+    , mMapSettings( mapSettings )
 {
   if ( selectedOnly )
   {
@@ -49,11 +52,13 @@ QgsGeometrySnapper::QgsGeometrySnapper( QgsVectorLayer *adjustLayer, QgsVectorLa
 
 QFuture<void> QgsGeometrySnapper::processFeatures()
 {
+  emit progressRangeChanged( 0, mFeatures.size() );
   return QtConcurrent::map( mFeatures, ProcessFeatureWrapper( this ) );
 }
 
-void QgsGeometrySnapper::processFeature( const QgsFeatureId &id )
+void QgsGeometrySnapper::processFeature( QgsFeatureId id )
 {
+  emit progressStep();
   // Get current feature
   QgsFeature feature;
   if ( !getFeature( mAdjustLayer, mAdjustLayerMutex, id, feature ) )
@@ -75,7 +80,7 @@ void QgsGeometrySnapper::processFeature( const QgsFeatureId &id )
   mIndexMutex.lock();
   QList<QgsFeatureId> refFeatureIds = mIndex.intersects( feature.geometry()->boundingBox() );
   mIndexMutex.unlock();
-  Q_FOREACH ( const QgsFeatureId& refId, refFeatureIds )
+  Q_FOREACH ( QgsFeatureId refId, refFeatureIds )
   {
     QgsFeature refFeature;
     if ( getFeature( mReferenceLayer, mReferenceLayerMutex, refId, refFeature ) )
@@ -111,8 +116,8 @@ void QgsGeometrySnapper::processFeature( const QgsFeatureId &id )
       for ( int iVert = 0, nVerts = polyLineSize( subjGeom, iPart, iRing ); iVert < nVerts; ++iVert )
       {
 
-        QgsSnapIndex::PointSnapItem* snapPoint = 0;
-        QgsSnapIndex::SegmentSnapItem* snapSegment = 0;
+        QgsSnapIndex::PointSnapItem* snapPoint = nullptr;
+        QgsSnapIndex::SegmentSnapItem* snapSegment = nullptr;
         QgsVertexId vidx( iPart, iRing, iVert );
         QgsPointV2 p = subjGeom->vertexAt( vidx );
         if ( !refSnapIndex.getSnapItem( p, snapTolerance, &snapPoint, &snapSegment ) )
@@ -155,8 +160,8 @@ void QgsGeometrySnapper::processFeature( const QgsFeatureId &id )
         for ( int iVert = 0, nVerts = polyLineSize( refGeom, iPart, iRing ); iVert < nVerts; ++iVert )
         {
 
-          QgsSnapIndex::PointSnapItem* snapPoint = 0;
-          QgsSnapIndex::SegmentSnapItem* snapSegment = 0;
+          QgsSnapIndex::PointSnapItem* snapPoint = nullptr;
+          QgsSnapIndex::SegmentSnapItem* snapSegment = nullptr;
           QgsPointV2 point = refGeom->vertexAt( QgsVertexId( iPart, iRing, iVert ) );
           if ( subjSnapIndex->getSnapItem( point, snapTolerance, &snapPoint, &snapSegment ) )
           {
@@ -232,7 +237,7 @@ void QgsGeometrySnapper::processFeature( const QgsFeatureId &id )
   mAdjustLayerMutex.unlock();
 }
 
-bool QgsGeometrySnapper::getFeature( QgsVectorLayer *layer, QMutex &mutex, const QgsFeatureId &id, QgsFeature &feature )
+bool QgsGeometrySnapper::getFeature( QgsVectorLayer *layer, QMutex &mutex, QgsFeatureId id, QgsFeature &feature )
 {
   QMutexLocker locker( &mutex );
   QgsFeatureRequest req( id );

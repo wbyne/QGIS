@@ -67,7 +67,7 @@ void QgsMapToolSplitFeatures::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
       }
     }
 
-    int error = addVertex( e->mapPoint() );
+    int error = addVertex( e->mapPoint(), e->mapPointMatch() );
     if ( error == 1 )
     {
       //current layer is not a vector layer
@@ -129,7 +129,7 @@ void QgsMapToolSplitFeatures::cadCanvasReleaseEvent( QgsMapMouseEvent * e )
       //several intersections but only one split (most likely line)
       QgisApp::instance()->messageBar()->pushMessage(
         tr( "No feature split done" ),
-        tr( "An error occured during splitting." ),
+        tr( "An error occurred during splitting." ),
         QgsMessageBar::WARNING,
         QgisApp::instance()->messageTimeout() );
     }

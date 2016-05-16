@@ -20,7 +20,7 @@
 #include "qgsfeature.h"
 #include <QUrl>
 
-class QWebPage;
+class QgsWebPage;
 class QImage;
 class QgsVectorLayer;
 class QgsNetworkContentFetcher;
@@ -32,7 +32,7 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
   public:
 
     /** Source modes for the HTML content to render in the item
-    */
+     */
     enum ContentMode
     {
       Url, /*!< Using this mode item fetches its content via a url*/
@@ -202,7 +202,7 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
     bool writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames = false ) const override;
     bool readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames = false ) override;
     void addFrame( QgsComposerFrame* frame, bool recalcFrameSizes = true ) override;
-    //overriden to break frames without dividing lines of text
+    //overridden to break frames without dividing lines of text
     double findNearbyPageBreak( double yPos ) override;
 
   public slots:
@@ -214,13 +214,13 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
      * @see setUrl
      * @see url
      */
-    void loadHtml( const bool useCache = false, const QgsExpressionContext* context = 0 );
+    void loadHtml( const bool useCache = false, const QgsExpressionContext* context = nullptr );
 
     /** Recalculates the frame sizes for the current viewport dimensions*/
     void recalculateFrameSizes() override;
     void refreshExpressionContext();
 
-    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties, const QgsExpressionContext* context = 0 ) override;
+    virtual void refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property = QgsComposerObject::AllProperties, const QgsExpressionContext* context = nullptr ) override;
 
   private slots:
     void frameLoaded( bool ok = true );
@@ -228,7 +228,7 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
   private:
     ContentMode mContentMode;
     QUrl mUrl;
-    QWebPage* mWebPage;
+    QgsWebPage* mWebPage;
     QString mHtml;
     QString mFetchedHtml;
     QString mLastFetchedUrl;
@@ -247,6 +247,9 @@ class CORE_EXPORT QgsComposerHtml: public QgsComposerMultiFrame
 
     QString mUserStylesheet;
     bool mEnableUserStylesheet;
+
+    //! JSON string representation of current atlas feature
+    QString mAtlasFeatureJSON;
 
     QgsNetworkContentFetcher* mFetcher;
 

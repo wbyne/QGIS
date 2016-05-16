@@ -28,22 +28,14 @@
 #include <QPointer>
 #include <QGroupBox>
 
-
-QIcon QgsDataDefinedButton::mIconDataDefine;
-QIcon QgsDataDefinedButton::mIconDataDefineOn;
-QIcon QgsDataDefinedButton::mIconDataDefineError;
-QIcon QgsDataDefinedButton::mIconDataDefineExpression;
-QIcon QgsDataDefinedButton::mIconDataDefineExpressionOn;
-QIcon QgsDataDefinedButton::mIconDataDefineExpressionError;
-
 QgsDataDefinedButton::QgsDataDefinedButton( QWidget* parent,
     const QgsVectorLayer* vl,
     const QgsDataDefined* datadefined,
     const DataTypes& datatypes,
     const QString& description )
     : QToolButton( parent )
-    , mExpressionContextCallback( 0 )
-    , mExpressionContextCallbackContext( 0 )
+    , mExpressionContextCallback( nullptr )
+    , mExpressionContextCallbackContext( nullptr )
 {
   // set up static icons
   if ( mIconDataDefine.isNull() )
@@ -86,7 +78,7 @@ QgsDataDefinedButton::QgsDataDefinedButton( QWidget* parent,
   mActionDescription = new QAction( tr( "Description..." ), this );
 
   mActionExpDialog = new QAction( tr( "Edit..." ), this );
-  mActionExpression = 0;
+  mActionExpression = nullptr;
   mActionPasteExpr = new QAction( tr( "Paste" ), this );
   mActionCopyExpr = new QAction( tr( "Copy" ), this );
   mActionClearExpr = new QAction( tr( "Clear" ), this );
@@ -166,10 +158,8 @@ void QgsDataDefinedButton::init( const QgsVectorLayer* vl,
   if ( mVectorLayer )
   {
     // store just a list of fields of unknown type or those that match the expected type
-    const QgsFields& fields = mVectorLayer->fields();
-    for ( int i = 0; i < fields.count(); ++i )
+    Q_FOREACH ( const QgsField& f, mVectorLayer->fields() )
     {
-      const QgsField& f = fields.at( i );
       bool fieldMatch = false;
       // NOTE: these are the only QVariant enums supported at this time (see QgsField)
       QString fieldType;
@@ -290,7 +280,7 @@ void QgsDataDefinedButton::aboutToShowMenu()
 
     mFieldsMenu->clear();
 
-    if ( mFieldNameList.size() > 0 )
+    if ( !mFieldNameList.isEmpty() )
     {
 
       for ( int j = 0; j < mFieldNameList.count(); ++j )
@@ -906,7 +896,8 @@ QString QgsDataDefinedButton::fillStyleDesc()
 
 QString QgsDataDefinedButton::markerStyleDesc()
 {
-  return trString() + QLatin1String( "[<b>circle</b>|<b>rectangle</b>|<b>cross</b>|<b>triangle</b>]" );
+  return trString() + QLatin1String( "[<b>circle</b>|<b>rectangle</b>|<b>diamond</b>|<b>cross</b>|<b>triangle"
+                                     "</b>|<b>right_half_triangle</b>|<b>left_half_triangle</b>|<b>semi_circle</b>]" );
 }
 
 QString QgsDataDefinedButton::customDashDesc()

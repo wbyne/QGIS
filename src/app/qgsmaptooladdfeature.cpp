@@ -21,6 +21,7 @@
 #include "qgsfield.h"
 #include "qgsgeometry.h"
 #include "qgslinestringv2.h"
+#include "qgsmultipointv2.h"
 #include "qgsmapcanvas.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsmapmouseevent.h"
@@ -112,7 +113,17 @@ void QgsMapToolAddFeature::cadCanvasReleaseEvent( QgsMapMouseEvent* e )
     QgsPoint savePoint; //point in layer coordinates
     try
     {
-      savePoint = toLayerCoordinates( vlayer, e->mapPoint() );
+      QgsPointV2 fetchPoint;
+      int res;
+      res = fetchLayerPoint( e->mapPointMatch(), fetchPoint );
+      if ( res == 0 )
+      {
+        savePoint = QgsPoint( fetchPoint.x(), fetchPoint.y() );
+      }
+      else
+      {
+        savePoint = toLayerCoordinates( vlayer, e->mapPoint() );
+      }
       QgsDebugMsg( "savePoint = " + savePoint.toString() );
     }
     catch ( QgsCsException &cse )
@@ -129,14 +140,24 @@ void QgsMapToolAddFeature::cadCanvasReleaseEvent( QgsMapMouseEvent* e )
     {
       QgsFeature f( vlayer->fields(), 0 );
 
-      QgsGeometry *g = 0;
-      if ( layerWKBType == QGis::WKBPoint || layerWKBType == QGis::WKBPoint25D )
+      QgsGeometry *g = nullptr;
+      if ( layerWKBType == QGis::WKBPoint )
       {
         g = QgsGeometry::fromPoint( savePoint );
       }
-      else if ( layerWKBType == QGis::WKBMultiPoint || layerWKBType == QGis::WKBMultiPoint25D )
+      else if ( layerWKBType == QGis::WKBPoint25D )
+      {
+        g = new QgsGeometry( new QgsPointV2( QgsWKBTypes::PointZ, savePoint.x(), savePoint.y(), 0.0 ) );
+      }
+      else if ( layerWKBType == QGis::WKBMultiPoint )
       {
         g = QgsGeometry::fromMultiPoint( QgsMultiPoint() << savePoint );
+      }
+      else if ( layerWKBType == QGis::WKBMultiPoint25D )
+      {
+        QgsMultiPointV2* mp = new QgsMultiPointV2();
+        mp->addGeometry( new QgsPointV2( QgsWKBTypes::PointZ, savePoint.x(), savePoint.y(), 0.0 ) );
+        g = new QgsGeometry( mp );
       }
       else
       {
@@ -173,7 +194,7 @@ void QgsMapToolAddFeature::cadCanvasReleaseEvent( QgsMapMouseEvent* e )
     //add point to list and to rubber band
     if ( e->button() == Qt::LeftButton )
     {
-      int error = addVertex( e->mapPoint() );
+      int error = addVertex( e->mapPoint(), e->mapPointMatch() );
       if ( error == 1 )
       {
         //current layer is not a vector layer
@@ -220,7 +241,7 @@ void QgsMapToolAddFeature::cadCanvasReleaseEvent( QgsMapMouseEvent* e )
       bool hasCurvedSegments = captureCurve()->hasCurvedSegments();
       bool providerSupportsCurvedSegments = vlayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
 
-      QgsCurveV2* curveToAdd = 0;
+      QgsCurveV2* curveToAdd = nullptr;
       if ( hasCurvedSegments && providerSupportsCurvedSegments )
       {
         curveToAdd = captureCurve()->clone();
@@ -236,7 +257,7 @@ void QgsMapToolAddFeature::cadCanvasReleaseEvent( QgsMapMouseEvent* e )
       }
       else
       {
-        QgsCurvePolygonV2* poly = 0;
+        QgsCurvePolygonV2* poly = nullptr;
         if ( hasCurvedSegments && providerSupportsCurvedSegments )
         {
           poly = new QgsCurvePolygonV2();

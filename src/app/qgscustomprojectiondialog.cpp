@@ -51,8 +51,6 @@ QgsCustomProjectionDialog::QgsCustomProjectionDialog( QWidget *parent, Qt::Windo
   QSettings settings;
   restoreGeometry( settings.value( "/Windows/CustomProjection/geometry" ).toByteArray() );
 
-  pbnAdd->setIcon( QgsApplication::getThemeIcon( "symbologyAdd.svg" ) );
-  pbnRemove->setIcon( QgsApplication::getThemeIcon( "symbologyRemove.svg" ) );
   // user database is created at QGIS startup in QgisApp::createDB
   // we just check whether there is our database [MD]
   QFileInfo myFileInfo;
@@ -89,7 +87,7 @@ void QgsCustomProjectionDialog::populateList()
   sqlite3_stmt *myPreparedStatement;
   int           myResult;
   //check the db is available
-  myResult = sqlite3_open_v2( QgsApplication::qgisUserDbFilePath().toUtf8().data(), &myDatabase, SQLITE_OPEN_READONLY, NULL );
+  myResult = sqlite3_open_v2( QgsApplication::qgisUserDbFilePath().toUtf8().data(), &myDatabase, SQLITE_OPEN_READONLY, nullptr );
   if ( myResult != SQLITE_OK )
   {
     QgsDebugMsg( QString( "Can't open database: %1" ).arg( sqlite3_errmsg( myDatabase ) ) );
@@ -403,7 +401,7 @@ void QgsCustomProjectionDialog::on_buttonBox_accepted()
 
   //Check if all CRS are valid:
   QgsCoordinateReferenceSystem CRS;
-  for ( size_t i = 0; i < customCRSids.size(); ++i )
+  for ( int i = 0; i < customCRSids.size(); ++i )
   {
     CRS.createFromProj4( customCRSparameters[i] );
     if ( !CRS.isValid() )
@@ -415,19 +413,19 @@ void QgsCustomProjectionDialog::on_buttonBox_accepted()
   }
   //Modify the CRS changed:
   bool save_success = true;
-  for ( size_t i = 0; i < customCRSids.size(); ++i )
+  for ( int i = 0; i < customCRSids.size(); ++i )
   {
     CRS.createFromProj4( customCRSparameters[i] );
     //Test if we just added this CRS (if it has no existing ID)
     if ( customCRSids[i] == "" )
     {
-      save_success = save_success && saveCRS( CRS, customCRSnames[i], "", true );
+      save_success &= saveCRS( CRS, customCRSnames[i], "", true );
     }
     else
     {
       if ( existingCRSnames[customCRSids[i]] != customCRSnames[i] || existingCRSparameters[customCRSids[i]] != customCRSparameters[i] )
       {
-        save_success = save_success && saveCRS( CRS, customCRSnames[i], customCRSids[i], false );
+        save_success &= saveCRS( CRS, customCRSnames[i], customCRSids[i], false );
       }
     }
     if ( ! save_success )
@@ -436,9 +434,9 @@ void QgsCustomProjectionDialog::on_buttonBox_accepted()
     }
   }
   QgsDebugMsg( "We remove the deleted CRS." );
-  for ( size_t i = 0; i < deletedCRSs.size(); ++i )
+  for ( int i = 0; i < deletedCRSs.size(); ++i )
   {
-    save_success = save_success && deleteCRS( deletedCRSs[i] );
+    save_success &= deleteCRS( deletedCRSs[i] );
     if ( ! save_success )
     {
       QgsDebugMsg( QString( "Problem for layer '%1'" ).arg( customCRSparameters[i] ) );
@@ -463,7 +461,7 @@ void QgsCustomProjectionDialog::on_pbnCalculate_clicked()
 
   QgsDebugMsg( QString( "My proj: %1" ).arg( teParameters->toPlainText() ) );
 
-  if ( myProj == NULL )
+  if ( !myProj )
   {
     QMessageBox::information( this, tr( "QGIS Custom Projection" ),
                               tr( "This proj4 projection definition is not valid." ) );
@@ -490,7 +488,7 @@ void QgsCustomProjectionDialog::on_pbnCalculate_clicked()
 
   projPJ wgs84Proj = pj_init_plus( GEOPROJ4.toLocal8Bit().data() ); //defined in qgis.h
 
-  if ( wgs84Proj == NULL )
+  if ( !wgs84Proj )
   {
     QMessageBox::information( this, tr( "QGIS Custom Projection" ),
                               tr( "Internal Error (source projection invalid?)" ) );

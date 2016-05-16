@@ -179,7 +179,7 @@ class QgsVectorLayerCache : QObject
      * @brief Is emitted when an attribute is changed. Is re-emitted after the layer itself emits this signal.
      *        You should connect to this signal, to be sure, to not get a cached value if querying the cache.
      */
-    void attributeValueChanged( const QgsFeatureId& fid, const int& field, const QVariant &value );
+    void attributeValueChanged( QgsFeatureId fid, int field, const QVariant &value );
 
     /**
      * Is emitted, when a new feature has been added to the layer and this cache.
@@ -189,6 +189,11 @@ class QgsVectorLayerCache : QObject
      * @param fid The featureid of the changed feature
      */
     void featureAdded( QgsFeatureId fid );
+
+    /**
+     * The cache has been invalidated and cleared.
+     */
+    void invalidated();
 
 };
 

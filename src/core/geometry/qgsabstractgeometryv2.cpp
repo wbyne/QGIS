@@ -18,6 +18,7 @@ email                : marco.hugentobler at sourcepole dot com
 #include "qgswkbptr.h"
 #include "qgsgeos.h"
 #include "qgsmaptopixel.h"
+
 #include <limits>
 #include <QTransform>
 
@@ -44,23 +45,14 @@ QgsAbstractGeometryV2& QgsAbstractGeometryV2::operator=( const QgsAbstractGeomet
   return *this;
 }
 
-QgsRectangle QgsAbstractGeometryV2::boundingBox() const
-{
-  if ( mBoundingBox.isNull() )
-  {
-    mBoundingBox = calculateBoundingBox();
-  }
-  return mBoundingBox;
-}
-
 bool QgsAbstractGeometryV2::is3D() const
 {
-  return(( mWkbType >= 1001 && mWkbType <= 1017 ) || ( mWkbType > 3000 || mWkbType & 0x80000000 ) );
+  return QgsWKBTypes::hasZ( mWkbType );
 }
 
 bool QgsAbstractGeometryV2::isMeasure() const
 {
-  return ( mWkbType >= 2001 && mWkbType <= 3017 );
+  return QgsWKBTypes::hasM( mWkbType );
 }
 
 #if 0
@@ -81,20 +73,34 @@ void QgsAbstractGeometryV2::setZMTypeFromSubGeometry( const QgsAbstractGeometryV
     return;
   }
 
+  //special handling for 25d types:
+  if ( baseGeomType == QgsWKBTypes::LineString &&
+       ( subgeom->wkbType() == QgsWKBTypes::Point25D || subgeom->wkbType() == QgsWKBTypes::LineString25D ) )
+  {
+    mWkbType = QgsWKBTypes::LineString25D;
+    return;
+  }
+  else if ( baseGeomType == QgsWKBTypes::Polygon &&
+            ( subgeom->wkbType() == QgsWKBTypes::Point25D || subgeom->wkbType() == QgsWKBTypes::LineString25D ) )
+  {
+    mWkbType = QgsWKBTypes::Polygon25D;
+    return;
+  }
+
   bool hasZ = subgeom->is3D();
   bool hasM = subgeom->isMeasure();
 
   if ( hasZ && hasM )
   {
-    mWkbType = ( QgsWKBTypes::Type )( baseGeomType + 3000 );
+    mWkbType = QgsWKBTypes::addM( QgsWKBTypes::addZ( baseGeomType ) );
   }
   else if ( hasZ )
   {
-    mWkbType = ( QgsWKBTypes::Type )( baseGeomType + 1000 );
+    mWkbType = QgsWKBTypes::addZ( baseGeomType );
   }
   else if ( hasM )
   {
-    mWkbType = ( QgsWKBTypes::Type )( baseGeomType + 2000 );
+    mWkbType =  QgsWKBTypes::addM( baseGeomType );
   }
   else
   {
@@ -131,18 +137,13 @@ QgsRectangle QgsAbstractGeometryV2::calculateBoundingBox() const
 
 int QgsAbstractGeometryV2::nCoordinates() const
 {
-  QList< QList< QList< QgsPointV2 > > > coordinates;
-  coordinateSequence( coordinates );
   int nCoords = 0;
 
-  QList< QList< QList< QgsPointV2 > > >::const_iterator partIt = coordinates.constBegin();
-  for ( ; partIt != coordinates.constEnd(); ++partIt )
+  Q_FOREACH ( const QgsRingSequenceV2 &r, coordinateSequence() )
   {
-    const QList< QList< QgsPointV2 > >& part = *partIt;
-    QList< QList< QgsPointV2 > >::const_iterator ringIt = part.constBegin();
-    for ( ; ringIt != part.constEnd(); ++ringIt )
+    Q_FOREACH ( const QgsPointSequenceV2 &p, r )
     {
-      nCoords += ringIt->size();
+      nCoords += p.size();
     }
   }
 
@@ -157,29 +158,6 @@ QString QgsAbstractGeometryV2::wktTypeStr() const
   if ( isMeasure() )
     wkt += 'M';
   return wkt;
-}
-
-bool QgsAbstractGeometryV2::readWkbHeader( QgsConstWkbPtr& wkbPtr, QgsWKBTypes::Type& wkbType, bool& endianSwap, QgsWKBTypes::Type expectedType )
-{
-  if ( !static_cast<const unsigned char*>( wkbPtr ) )
-  {
-    return false;
-  }
-
-  char wkbEndian;
-  wkbPtr >> wkbEndian;
-  endianSwap = wkbEndian != QgsApplication::endian();
-
-  wkbPtr >> wkbType;
-  if ( endianSwap )
-    QgsApplication::endian_swap( wkbType );
-
-  if ( QgsWKBTypes::flatType( wkbType ) != expectedType )
-  {
-    wkbType = QgsWKBTypes::Unknown;
-    return false;
-  }
-  return true;
 }
 
 QgsPointV2 QgsAbstractGeometryV2::centroid() const
@@ -229,8 +207,40 @@ QgsPointV2 QgsAbstractGeometryV2::centroid() const
   }
 }
 
+bool QgsAbstractGeometryV2::convertTo( QgsWKBTypes::Type type )
+{
+  if ( type == mWkbType )
+    return true;
+
+  if ( QgsWKBTypes::flatType( type ) != QgsWKBTypes::flatType( mWkbType ) )
+    return false;
+
+  bool needZ = QgsWKBTypes::hasZ( type );
+  bool needM = QgsWKBTypes::hasM( type );
+  if ( !needZ )
+  {
+    dropZValue();
+  }
+  else if ( !is3D() )
+  {
+    addZValue();
+  }
+
+  if ( !needM )
+  {
+    dropMValue();
+  }
+  else if ( !isMeasure() )
+  {
+    addMValue();
+  }
+
+  return true;
+}
+
 bool QgsAbstractGeometryV2::isEmpty() const
 {
-  QgsVertexId vId; QgsPointV2 vertex;
+  QgsVertexId vId;
+  QgsPointV2 vertex;
   return !nextVertex( vId, vertex );
 }

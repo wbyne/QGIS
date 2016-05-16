@@ -46,12 +46,12 @@ bool TopolError::fixMove( FeatureLayer fl1, FeatureLayer fl2 )
 
 bool TopolError::fixMoveFirst()
 {
-  return fixMove( mFeaturePairs.first(), mFeaturePairs[1] );
+  return fixMove( mFeaturePairs.at( 0 ), mFeaturePairs.at( 1 ) );
 }
 
 bool TopolError::fixMoveSecond()
 {
-  return fixMove( mFeaturePairs[1], mFeaturePairs.first() );
+  return fixMove( mFeaturePairs.at( 1 ), mFeaturePairs.at( 0 ) );
 }
 
 bool TopolError::fixUnion( FeatureLayer fl1, FeatureLayer fl2 )
@@ -79,7 +79,7 @@ bool TopolError::fixSnap()
 {
   bool ok;
   QgsFeature f1, f2;
-  FeatureLayer fl = mFeaturePairs[1];
+  FeatureLayer fl = mFeaturePairs.at( 1 );
   ok = fl.layer->getFeatures(( QgsFeatureRequest().setFilterFid( fl.feature.id() ) ) ).nextFeature( f2 );
   fl = mFeaturePairs.first();
   ok = ok && fl.layer->getFeatures( QgsFeatureRequest().setFilterFid( fl.feature.id() ) ).nextFeature( f1 );
@@ -90,7 +90,8 @@ bool TopolError::fixSnap()
   const QgsGeometry* ge = f1.constGeometry();
 
   QgsPolyline line = ge->asPolyline();
-  line.last() = mConflict->asPolyline().last();
+  QgsPolyline conflictLine = mConflict->asPolyline();
+  line.last() = conflictLine.last();
 
   QgsGeometry* newG = QgsGeometry::fromPolyline( line );
   bool ret = fl.layer->changeGeometry( f1.id(), newG );
@@ -101,23 +102,23 @@ bool TopolError::fixSnap()
 
 bool TopolError::fixUnionFirst()
 {
-  return fixUnion( mFeaturePairs.first(), mFeaturePairs[1] );
+  return fixUnion( mFeaturePairs.at( 0 ), mFeaturePairs.at( 1 ) );
 }
 
 bool TopolError::fixUnionSecond()
 {
-  return fixUnion( mFeaturePairs[1], mFeaturePairs.first() );
+  return fixUnion( mFeaturePairs.at( 1 ), mFeaturePairs.at( 0 ) );
 }
 
 bool TopolError::fixDeleteFirst()
 {
-  FeatureLayer fl = mFeaturePairs.first();
+  FeatureLayer fl = mFeaturePairs.at( 0 );
   return fl.layer->deleteFeature( fl.feature.id() );
 }
 
 bool TopolError::fixDeleteSecond()
 {
-  FeatureLayer fl = mFeaturePairs[1];
+  FeatureLayer fl = mFeaturePairs.at( 1 );
   return fl.layer->deleteFeature( fl.feature.id() );
 }
 

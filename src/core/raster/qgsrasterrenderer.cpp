@@ -31,7 +31,7 @@ const QRgb QgsRasterRenderer::NODATA_COLOR = qRgba( 0, 0, 0, 0 );
 
 QgsRasterRenderer::QgsRasterRenderer( QgsRasterInterface* input, const QString& type )
     : QgsRasterInterface( input )
-    , mType( type ), mOpacity( 1.0 ), mRasterTransparency( 0 )
+    , mType( type ), mOpacity( 1.0 ), mRasterTransparency( nullptr )
     , mAlphaBand( -1 ) //, mInvertColor( false )
 {
 }
@@ -52,7 +52,7 @@ int QgsRasterRenderer::bandCount() const
 
 QGis::DataType QgsRasterRenderer::dataType( int bandNo ) const
 {
-  QgsDebugMsg( "Entered" );
+  QgsDebugMsgLevel( "Entered", 4 );
 
   if ( mOn ) return QGis::ARGB32_Premultiplied;
 

@@ -47,6 +47,7 @@ struct LayerRenderJob
   QPainter::CompositionMode blendMode;
   bool cached; // if true, img already contains cached image from previous rendering
   QString layerId;
+  int renderingTime; //!< time it took to render the layer in ms (it is -1 if not rendered or still rendering)
 };
 
 typedef QList<LayerRenderJob> LayerRenderJobs;
@@ -104,7 +105,10 @@ class CORE_EXPORT QgsMapRendererJob : public QObject
 
     struct Error
     {
-      Error( const QString& lid, const QString& msg ) : layerID( lid ), message( msg ) {}
+      Error( const QString& lid, const QString& msg )
+          : layerID( lid )
+          , message( msg )
+      {}
 
       QString layerID;
       QString message;
@@ -155,10 +159,14 @@ class CORE_EXPORT QgsMapRendererJob : public QObject
     //! @note not available in python bindings
     void cleanupJobs( LayerRenderJobs& jobs );
 
+    //! @note not available in python bindings
+    void logRenderingTime( const LayerRenderJobs& jobs );
+
     static QImage composeImage( const QgsMapSettings& settings, const LayerRenderJobs& jobs );
 
     bool needTemporaryImage( QgsMapLayer* ml );
 
+    //! @note not available in Python bindings
     static void drawLabeling( const QgsMapSettings& settings, QgsRenderContext& renderContext, QgsPalLabeling* labelingEngine, QgsLabelingEngineV2* labelingEngine2, QPainter* painter );
     static void drawOldLabeling( const QgsMapSettings& settings, QgsRenderContext& renderContext );
     static void drawNewLabeling( const QgsMapSettings& settings, QgsRenderContext& renderContext, QgsPalLabeling* labelingEngine );
@@ -188,6 +196,8 @@ class CORE_EXPORT QgsMapRendererJob : public QObject
  */
 class CORE_EXPORT QgsMapRendererQImageJob : public QgsMapRendererJob
 {
+    Q_OBJECT
+
   public:
     QgsMapRendererQImageJob( const QgsMapSettings& settings );
 

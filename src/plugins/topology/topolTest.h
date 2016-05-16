@@ -59,7 +59,7 @@ class TopologyRule
      * Constructor
      * initializes the test to use both layers and not to use the tolerance
      */
-    explicit TopologyRule( testFunction f0 = 0,
+    explicit TopologyRule( testFunction f0 = nullptr,
                            bool useSecondLayer0 = true,
                            bool useTolerance0 = false,
                            bool useSpatialIndex0 = false,
@@ -146,11 +146,11 @@ class topolTest: public QObject
 #endif
 
     /**
-    * Checks for short segments
-    * @param tolerance tolerance - not used
-    * @param layer1 pointer to the first layer
-    * @param layer2 pointer to the second layer
-    */
+     * Checks for short segments
+     * @param tolerance tolerance - not used
+     * @param layer1 pointer to the first layer
+     * @param layer2 pointer to the second layer
+     */
     ErrorList checkSegmentLength( double tolerance, QgsVectorLayer* layer1, QgsVectorLayer* layer2, bool isExtent );
     /**
      * Checks for dangling lines

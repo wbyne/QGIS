@@ -23,16 +23,17 @@
  * Wraps a value map search widget. This widget will offer a combobox with values from another layer
  * referenced by a foreign key (a constraint may be set but is not required on data level).
  * It will be used as a search widget and produces expression to look for in the layer.
+ * \note not available in Python bindings
  */
 
 class GUI_EXPORT QgsValueMapSearchWidgetWrapper : public QgsSearchWidgetWrapper
 {
     Q_OBJECT
   public:
-    explicit QgsValueMapSearchWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* parent = 0 );
+    explicit QgsValueMapSearchWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* parent = nullptr );
     bool applyDirectly() override;
     QString expression() override;
-    bool valid() override;
+    bool valid() const override;
 
   protected:
     QWidget* createWidget( QWidget* parent ) override;

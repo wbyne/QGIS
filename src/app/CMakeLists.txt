@@ -11,6 +11,7 @@ SET(QGIS_APP_SRCS
   qgsjoindialog.cpp
   qgsannotationwidget.cpp
   qgsattributeactiondialog.cpp
+  qgsattributeactionpropertiesdialog.cpp
   qgsattributetypedialog.cpp
   qgsattributetabledialog.cpp
   qgsbookmarks.cpp
@@ -73,6 +74,8 @@ SET(QGIS_APP_SRCS
   qgsmaptoolmovefeature.cpp
   qgsmaptoolmovelabel.cpp
   qgsmaptooloffsetcurve.cpp
+  qgsmaptooloffsetpointsymbol.cpp
+  qgsmaptoolpointsymbol.cpp
   qgsmaptoolreshape.cpp
   qgsmaptoolrotatefeature.cpp
   qgsmaptoolrotatelabel.cpp
@@ -94,10 +97,12 @@ SET(QGIS_APP_SRCS
   nodetool/qgsvertexentry.cpp
   nodetool/qgsnodeeditor.cpp
 
+  qgsmapstylingwidget.cpp
   qgsmeasuredialog.cpp
   qgsmeasuretool.cpp
   qgsmergeattributesdialog.cpp
   qgsoptions.cpp
+  qgspointmarkeritem.cpp
   qgspointrotationitem.cpp
   qgspluginmetadata.cpp
   qgspluginregistry.cpp
@@ -105,6 +110,8 @@ SET(QGIS_APP_SRCS
   qgsprojectproperties.cpp
   qgsrastercalcdialog.cpp
   qgsrasterlayerproperties.cpp
+  qgsrelationmanagerdialog.cpp
+  qgsrelationadddlg.cpp
   qgsstatisticalsummarydockwidget.cpp
   qgstextannotationdialog.cpp
   qgsshortcutsmanager.cpp
@@ -133,6 +140,8 @@ SET(QGIS_APP_SRCS
   composer/qgscomposermapwidget.cpp
   composer/qgscomposerscalebarwidget.cpp
   composer/qgscomposershapewidget.cpp
+  composer/qgscomposerpolygonwidget.cpp
+  composer/qgscomposerpolylinewidget.cpp
   composer/qgscomposertablewidget.cpp
   composer/qgscomposertablebackgroundcolorsdialog.cpp
   composer/qgscomposerlegenditemdialog.cpp
@@ -179,6 +188,7 @@ SET (QGIS_APP_MOC_HDRS
   qgsannotationwidget.h
   qgsapplayertreeviewmenuprovider.h
   qgsattributeactiondialog.h
+  qgsattributeactionpropertiesdialog.h
   qgsattributetypedialog.h
   qgsattributetabledialog.h
   qgsbookmarks.h
@@ -210,6 +220,7 @@ SET (QGIS_APP_MOC_HDRS
   qgslabeldialog.h
   qgslabelengineconfigdialog.h
   qgslabelinggui.h
+  qgslabelpreview.h
   qgslabelingwidget.h
   qgslabelpropertydialog.h
   qgsloadstylefromdbdialog.h
@@ -223,6 +234,7 @@ SET (QGIS_APP_MOC_HDRS
   qgswelcomepage.h
 
   qgsmaptooladdfeature.h
+  qgsmaptoolannotation.h
   qgsmaptoolcircularstringradius.h
   qgsmaptooladdpart.h
   qgsmaptooladdring.h
@@ -231,13 +243,18 @@ SET (QGIS_APP_MOC_HDRS
   qgsmaptooldeletepart.h
   qgsmaptooldeletering.h
   qgsmaptoolfeatureaction.h
+  qgsmaptoolformannotation.h
+  qgsmaptoolhtmlannotation.h
   qgsmaptoolpinlabels.h
   qgsmaptoolshowhidelabels.h
   qgsmaptoolidentifyaction.h
   qgsmaptoolmeasureangle.h
   qgsmaptoolmovefeature.h
   qgsmaptoolmovelabel.h
+  qgsmaptoollabel.h
   qgsmaptooloffsetcurve.h
+  qgsmaptooloffsetpointsymbol.h
+  qgsmaptoolpointsymbol.h
   qgsmaptoolreshape.h
   qgsmaptoolrotatefeature.h
   qgsmaptoolrotatelabel.h
@@ -250,12 +267,16 @@ SET (QGIS_APP_MOC_HDRS
   qgsmaptoolsimplify.h
   qgsmaptoolsplitfeatures.h
   qgsmaptoolsplitparts.h
+  qgsmaptoolsvgannotation.h
+  qgsmaptooltextannotation.h
   qgsmaptooladdcircularstring.h
+  qgsmaptoolcircularstringcurvepoint.h
 
   nodetool/qgsmaptoolnodetool.h
   nodetool/qgsselectedfeature.h
   nodetool/qgsnodeeditor.h
 
+  qgsmapstylingwidget.h
   qgsmeasuredialog.h
   qgsmeasuretool.h
   qgsmergeattributesdialog.h
@@ -264,6 +285,8 @@ SET (QGIS_APP_MOC_HDRS
   qgsprojectproperties.h
   qgsrastercalcdialog.h
   qgsrasterlayerproperties.h
+  qgsrelationmanagerdialog.h
+  qgsrelationadddlg.h
   qgssnappingdialog.h
   qgssponsors.h
   qgsstatisticalsummarydockwidget.h
@@ -285,6 +308,8 @@ SET (QGIS_APP_MOC_HDRS
   composer/qgscomposeritemwidget.h
   composer/qgscomposerlabelwidget.h
   composer/qgscomposerlegendwidget.h
+  composer/qgscomposerlegenditemdialog.h
+  composer/qgscomposerlegendlayersdialog.h
   composer/qgscomposermanager.h
   composer/qgscomposermapwidget.h
   composer/qgscomposerpicturewidget.h
@@ -292,6 +317,8 @@ SET (QGIS_APP_MOC_HDRS
   composer/qgscomposertablewidget.h
   composer/qgscomposertablebackgroundcolorsdialog.h
   composer/qgscomposershapewidget.h
+  composer/qgscomposerpolygonwidget.h
+  composer/qgscomposerpolylinewidget.h
   composer/qgscompositionwidget.h
   composer/qgsatlascompositionwidget.h
 
@@ -361,11 +388,7 @@ IF (WITH_QWTPOLAR)
       )
 
       SET(QWTPOLAR_INCLUDE_DIR gps/qwtpolar-0.1)
-    ELSE(QWT_VERSION_STR VERSION_LESS "6.0.0")
-      IF(NOT QWT_VERSION_STR VERSION_LESS "6.1.0")
-        MESSAGE(FATAL_ERROR "Internal QwtPolar does not support Qwt 6.1 and above")
-      ENDIF(NOT QWT_VERSION_STR VERSION_LESS "6.1.0")
-
+    ELSEIF(QWT_VERSION_STR VERSION_LESS "6.1.0")
       SET(QGIS_APP_SRCS
         ${QGIS_APP_SRCS}
         gps/qwtpolar-1.0/qwt_polar_canvas.cpp
@@ -395,6 +418,36 @@ IF (WITH_QWTPOLAR)
       )
 
       SET(QWTPOLAR_INCLUDE_DIR gps/qwtpolar-1.0)
+    ELSE(QWT_VERSION_STR VERSION_LESS "6.1.0")
+      SET(QGIS_APP_SRCS
+        ${QGIS_APP_SRCS}
+        gps/qwtpolar-1.1.1/qwt_polar_canvas.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_curve.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_fitter.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_grid.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_item.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_itemdict.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_layout.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_magnifier.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_marker.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_panner.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_picker.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_plot.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_renderer.cpp
+        gps/qwtpolar-1.1.1/qwt_polar_spectrogram.cpp
+      )
+
+      SET (QGIS_APP_MOC_HDRS
+        ${QGIS_APP_MOC_HDRS}
+        gps/qwtpolar-1.1.1/qwt_polar_canvas.h
+        gps/qwtpolar-1.1.1/qwt_polar_magnifier.h
+        gps/qwtpolar-1.1.1/qwt_polar_panner.h
+        gps/qwtpolar-1.1.1/qwt_polar_picker.h
+        gps/qwtpolar-1.1.1/qwt_polar_plot.h
+        gps/qwtpolar-1.1.1/qwt_polar_renderer.h
+      )
+
+      SET(QWTPOLAR_INCLUDE_DIR gps/qwtpolar-1.1.1)
     ENDIF(QWT_VERSION_STR VERSION_LESS "6.0.0")
 
     SET(QWTPOLAR_LIBRARY "")
@@ -515,11 +568,11 @@ IF(ENABLE_MODELTEST)
 ENDIF(ENABLE_MODELTEST)
 
 IF (ANDROID)
-  INCLUDE_DIRECTORIES(${ANDROID_NDK_TOOLCHAIN_ROOT}/sysroot/usr/include)
+  INCLUDE_DIRECTORIES(SYSTEM ${ANDROID_NDK_TOOLCHAIN_ROOT}/sysroot/usr/include)
 ENDIF (ANDROID)
 
 IF (POSTGRES_FOUND)
-  INCLUDE_DIRECTORIES(${POSTGRES_INCLUDE_DIR})
+  INCLUDE_DIRECTORIES(SYSTEM ${POSTGRES_INCLUDE_DIR})
 ENDIF (POSTGRES_FOUND)
 
 #############
@@ -570,18 +623,9 @@ if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 ENDIF(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 
 TARGET_LINK_LIBRARIES(${QGIS_APP_NAME}
-  ${QWT_LIBRARY}
-  ${QT_QTSQL_LIBRARY}
-  ${QT_QTUITOOLS_LIBRARY}
-  ${QT_QTWEBKIT_LIBRARY}
   #should only be needed for win
   ${QT_QTMAIN_LIBRARY}
-  ${QWTPOLAR_LIBRARY}
-  ${GDAL_LIBRARY}
   qgis_app
-  qgis_core
-  qgis_gui
-  qgis_analysis
 )
 
 IF (ANDROID)

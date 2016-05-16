@@ -33,7 +33,7 @@ class APP_EXPORT QgsSimplifyDialog : public QDialog, private Ui::SimplifyLineDia
 
   public:
 
-    QgsSimplifyDialog( QgsMapToolSimplify* tool, QWidget* parent = NULL );
+    QgsSimplifyDialog( QgsMapToolSimplify* tool, QWidget* parent = nullptr );
 
     void updateStatusText();
     void enableOkButton( bool enabled );
@@ -78,7 +78,7 @@ class APP_EXPORT QgsMapToolSimplify: public QgsMapToolEdit
 
   private:
 
-    void selectOneFeature( const QPoint& canvasPoint );
+    void selectOneFeature( QPoint canvasPoint );
     void selectFeaturesInRect();
 
     void updateSimplificationPreview();

@@ -44,7 +44,7 @@ class QgsGeorefDockWidget : public QDockWidget
 {
     Q_OBJECT
   public:
-    QgsGeorefDockWidget( const QString & title, QWidget * parent = 0, Qt::WindowFlags flags = 0 );
+    QgsGeorefDockWidget( const QString & title, QWidget * parent = nullptr, Qt::WindowFlags flags = nullptr );
 };
 
 class QgsGeorefPluginGui : public QMainWindow, private Ui::QgsGeorefPluginGuiBase
@@ -52,7 +52,7 @@ class QgsGeorefPluginGui : public QMainWindow, private Ui::QgsGeorefPluginGuiBas
     Q_OBJECT
 
   public:
-    QgsGeorefPluginGui( QgisInterface* theQgisInterface, QWidget* parent = 0, Qt::WindowFlags fl = 0 );
+    QgsGeorefPluginGui( QgisInterface* theQgisInterface, QWidget* parent = nullptr, Qt::WindowFlags fl = nullptr );
     ~QgsGeorefPluginGui();
 
   protected:
@@ -84,13 +84,13 @@ class QgsGeorefPluginGui : public QMainWindow, private Ui::QgsGeorefPluginGuiBas
     // gcps
     void addPoint( const QgsPoint& pixelCoords, const QgsPoint& mapCoords,
                    bool enable = true, bool refreshCanvas = true/*, bool verbose = true*/ );
-    void deleteDataPoint( const QPoint &pixelCoords );
+    void deleteDataPoint( QPoint pixelCoords );
     void deleteDataPoint( int index );
     void showCoordDialog( const QgsPoint &pixelCoords );
 
-    void selectPoint( const QPoint & );
-    void movePoint( const QPoint & );
-    void releasePoint( const QPoint & );
+    void selectPoint( QPoint );
+    void movePoint( QPoint );
+    void releasePoint( QPoint );
 
     void loadGCPsDialog();
     void saveGCPsDialog();

@@ -43,10 +43,6 @@ QgsGmlFeatureClass::QgsGmlFeatureClass( const QString& name, const QString& path
 {
 }
 
-QgsGmlFeatureClass::~QgsGmlFeatureClass()
-{
-}
-
 int QgsGmlFeatureClass::fieldIndex( const QString & name )
 {
   for ( int i = 0; i < mFields.size(); i++ )
@@ -59,7 +55,7 @@ int QgsGmlFeatureClass::fieldIndex( const QString & name )
 // --------------------------- QgsGmlSchema -------------------------------
 QgsGmlSchema::QgsGmlSchema()
     : QObject()
-    , mCurrentFeature( NULL )
+    , mCurrentFeature( nullptr )
     , mFeatureCount( 0 )
     , mLevel( 0 )
     , mSkipLevel( std::numeric_limits<int>::max() )
@@ -77,7 +73,7 @@ QgsGmlSchema::~QgsGmlSchema()
 QString QgsGmlSchema::readAttribute( const QString& attributeName, const XML_Char** attr ) const
 {
   int i = 0;
-  while ( attr[i] != NULL )
+  while ( attr[i] )
   {
     if ( attributeName.compare( attr[i] ) == 0 )
     {
@@ -279,7 +275,7 @@ QList<QDomElement> QgsGmlSchema::domElements( const QDomElement &element, const 
   QList<QDomElement> list;
 
   QStringList names = path.split( '.' );
-  if ( names.size() == 0 ) return list;
+  if ( names.isEmpty() ) return list;
   QString name = names.value( 0 );
   names.removeFirst();
 
@@ -292,7 +288,7 @@ QList<QDomElement> QgsGmlSchema::domElements( const QDomElement &element, const 
       QString tagName = stripNS( el.tagName() );
       if ( tagName == name )
       {
-        if ( names.size() == 0 )
+        if ( names.isEmpty() )
         {
           list.append( el );
         }
@@ -337,7 +333,7 @@ bool QgsGmlSchema::guessSchema( const QByteArray &data )
   QgsDebugMsg( "Entered" );
   mLevel = 0;
   mSkipLevel = std::numeric_limits<int>::max();
-  XML_Parser p = XML_ParserCreateNS( NULL, NS_SEPARATOR );
+  XML_Parser p = XML_ParserCreateNS( nullptr, NS_SEPARATOR );
   XML_SetUserData( p, this );
   XML_SetElementHandler( p, QgsGmlSchema::start, QgsGmlSchema::end );
   XML_SetCharacterDataHandler( p, QgsGmlSchema::chars );

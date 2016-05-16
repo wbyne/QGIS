@@ -33,7 +33,9 @@
 
 QgsOracleSelectGeoraster::QgsOracleSelectGeoraster( QWidget* parent,
     QgisInterface* iface,
-    Qt::WindowFlags fl ) : QDialog( parent, fl ), mIface( iface )
+    Qt::WindowFlags fl )
+    : QDialog( parent, fl )
+    , mIface( iface )
 {
   setupUi( this );
 
@@ -155,7 +157,6 @@ void QgsOracleSelectGeoraster::connectToServer()
   QSettings settings;
   QString key = "/Oracle/connections/" + cmbConnections->currentText();
   QString username = settings.value( key + "/username" ).toString();
-  QString password = settings.value( key + "/password" ).toString();
   QString savepass = settings.value( key + "/savepass" ).toString();
   QString database = settings.value( key + "/database" ).toString();
   QString subdtset = settings.value( key + "/subdtset" ).toString();
@@ -163,12 +164,12 @@ void QgsOracleSelectGeoraster::connectToServer()
   if ( savepass == "false" )
   {
     makeConnection = false;
-    QString password = QInputDialog::getText( this,
-                       tr( "Password for %1/<password>@%2" ).arg( username, database ),
-                       tr( "Please enter your password:" ),
-                       QLineEdit::Password,
-                       QString::null,
-                       &makeConnection );
+    ( void )QInputDialog::getText( this,
+                                   tr( "Password for %1/<password>@%2" ).arg( username, database ),
+                                   tr( "Please enter your password:" ),
+                                   QLineEdit::Password,
+                                   QString::null,
+                                   &makeConnection );
   }
   if ( makeConnection )
   {
@@ -183,7 +184,7 @@ void QgsOracleSelectGeoraster::showSelection( const QString & line )
 {
   QString identification = line;
 
-  GDALDatasetH hDS = NULL;
+  GDALDatasetH hDS = nullptr;
   GDALAccess eAccess = GA_ReadOnly;
 
   /*
@@ -202,7 +203,7 @@ void QgsOracleSelectGeoraster::showSelection( const QString & line )
   hDS = GDALOpenShared( TO8F( identification ), eAccess );
 
   buttonBox->button( QDialogButtonBox::Ok )->setEnabled( false );
-  if ( hDS == NULL )
+  if ( !hDS )
   {
     QMessageBox::information( this,
                               tr( "Open failed" ),
@@ -216,7 +217,7 @@ void QgsOracleSelectGeoraster::showSelection( const QString & line )
    *  Get subdataset list
    */
 
-  char **papszMetadata = NULL;
+  char **papszMetadata = nullptr;
   papszMetadata = GDALGetMetadata( hDS, "SUBDATASETS" );
   int nSubDatasets = CSLCount( papszMetadata );
 

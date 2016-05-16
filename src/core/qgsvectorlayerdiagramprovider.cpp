@@ -32,9 +32,9 @@ QgsVectorLayerDiagramProvider::QgsVectorLayerDiagramProvider(
   const QgsCoordinateReferenceSystem& crs,
   QgsAbstractFeatureSource* source,
   bool ownsSource )
-    : mSettings( *diagSettings )
+    : QgsAbstractLabelProvider( layerId )
+    , mSettings( *diagSettings )
     , mDiagRenderer( diagRenderer->clone() )
-    , mLayerId( layerId )
     , mFields( fields )
     , mLayerCrs( crs )
     , mSource( source )
@@ -45,12 +45,12 @@ QgsVectorLayerDiagramProvider::QgsVectorLayerDiagramProvider(
 
 
 QgsVectorLayerDiagramProvider::QgsVectorLayerDiagramProvider( QgsVectorLayer* layer, bool ownFeatureLoop )
-    : mSettings( *layer->diagramLayerSettings() )
+    : QgsAbstractLabelProvider( layer->id() )
+    , mSettings( *layer->diagramLayerSettings() )
     , mDiagRenderer( layer->diagramRenderer()->clone() )
-    , mLayerId( layer->id() )
     , mFields( layer->fields() )
     , mLayerCrs( layer->crs() )
-    , mSource( ownFeatureLoop ? new QgsVectorLayerFeatureSource( layer ) : 0 )
+    , mSource( ownFeatureLoop ? new QgsVectorLayerFeatureSource( layer ) : nullptr )
     , mOwnsSource( ownFeatureLoop )
 {
   init();
@@ -60,9 +60,9 @@ QgsVectorLayerDiagramProvider::QgsVectorLayerDiagramProvider( QgsVectorLayer* la
 void QgsVectorLayerDiagramProvider::init()
 {
   mName = mLayerId;
-  mPriority = 1 - mSettings.priority / 10.0; // convert 0..10 --> 1..0
-  mPlacement = QgsPalLayerSettings::Placement( mSettings.placement );
-  mLinePlacementFlags = mSettings.placementFlags;
+  mPriority = 1 - mSettings.getPriority() / 10.0; // convert 0..10 --> 1..0
+  mPlacement = QgsPalLayerSettings::Placement( mSettings.getPlacement() );
+  mLinePlacementFlags = mSettings.linePlacementFlags();
 }
 
 
@@ -91,8 +91,8 @@ QList<QgsLabelFeature*> QgsVectorLayerDiagramProvider::labelFeatures( QgsRenderC
     return QList<QgsLabelFeature*>();
 
   QgsRectangle layerExtent = context.extent();
-  if ( mSettings.ct )
-    layerExtent = mSettings.ct->transformBoundingBox( context.extent(), QgsCoordinateTransform::ReverseTransform );
+  if ( mSettings.coordinateTransform() )
+    layerExtent = mSettings.coordinateTransform()->transformBoundingBox( context.extent(), QgsCoordinateTransform::ReverseTransform );
 
   QgsFeatureRequest request;
   request.setFilterRect( layerExtent );
@@ -126,7 +126,7 @@ void QgsVectorLayerDiagramProvider::drawLabel( QgsRenderContext& context, pal::L
   QgsDiagramLabelFeature* dlf = dynamic_cast<QgsDiagramLabelFeature*>( label->getFeaturePart()->feature() );
 
   QgsFeature feature;
-  feature.setFields( mSettings.fields );
+  feature.setFields( mFields );
   feature.setValid( true );
   feature.setFeatureId( label->getFeaturePart()->featureId() );
   feature.setAttributes( dlf->attributes() );
@@ -146,7 +146,7 @@ void QgsVectorLayerDiagramProvider::drawLabel( QgsRenderContext& context, pal::L
   QgsPoint centerPt = xform.transform( outPt.x() - label->getWidth() / 2,
                                        outPt.y() - label->getHeight() / 2 );
 
-  mSettings.renderer->renderDiagram( feature, context, centerPt.toQPointF() );
+  mSettings.getRenderer()->renderDiagram( feature, context, centerPt.toQPointF() );
 
   //insert into label search tree to manipulate position interactively
   mEngine->results()->mLabelSearchTree->insertLabel( label, label->getFeaturePart()->featureId(), mLayerId, QString(), QFont(), true, false );
@@ -159,100 +159,61 @@ bool QgsVectorLayerDiagramProvider::prepare( const QgsRenderContext& context, QS
   QgsDiagramLayerSettings& s2 = mSettings;
   const QgsMapSettings& mapSettings = mEngine->mapSettings();
 
-  s2.ct = 0;
   if ( mapSettings.hasCrsTransformEnabled() )
   {
     if ( context.coordinateTransform() )
       // this is context for layer rendering - use its CT as it includes correct datum transform
-      s2.ct = context.coordinateTransform()->clone();
+      s2.setCoordinateTransform( context.coordinateTransform()->clone() );
     else
       // otherwise fall back to creating our own CT - this one may not have the correct datum transform!
-      s2.ct = new QgsCoordinateTransform( mLayerCrs, mapSettings.destinationCrs() );
+      s2.setCoordinateTransform( new QgsCoordinateTransform( mLayerCrs, mapSettings.destinationCrs() ) );
+  }
+  else
+  {
+    s2.setCoordinateTransform( nullptr );
   }
 
-  s2.xform = &mapSettings.mapToPixel();
-
-  s2.fields = mFields;
-
-  s2.renderer = mDiagRenderer;
-
-  const QgsDiagramRendererV2* diagRenderer = s2.renderer;
+  s2.setRenderer( mDiagRenderer );
 
   //add attributes needed by the diagram renderer
-  QList<QString> att = diagRenderer->diagramAttributes();
-  QList<QString>::const_iterator attIt = att.constBegin();
-  for ( ; attIt != att.constEnd(); ++attIt )
+  Q_FOREACH ( const QString& field, s2.referencedFields( context.expressionContext(), mFields ) )
   {
-    QgsExpression* expression = diagRenderer->diagram()->getExpression( *attIt, context.expressionContext() );
-    QStringList columns = expression->referencedColumns();
-    QStringList::const_iterator columnsIterator = columns.constBegin();
-    for ( ; columnsIterator != columns.constEnd(); ++columnsIterator )
-    {
-      if ( !attributeNames.contains( *columnsIterator ) )
-        attributeNames << *columnsIterator;
-    }
+    if ( !attributeNames.contains( field ) )
+      attributeNames << field;
   }
-
-  const QgsLinearlyInterpolatedDiagramRenderer* linearlyInterpolatedDiagramRenderer = dynamic_cast<const QgsLinearlyInterpolatedDiagramRenderer*>( diagRenderer );
-  if ( linearlyInterpolatedDiagramRenderer != NULL )
-  {
-    if ( linearlyInterpolatedDiagramRenderer->classificationAttributeIsExpression() )
-    {
-      QgsExpression* expression = diagRenderer->diagram()->getExpression( linearlyInterpolatedDiagramRenderer->classificationAttributeExpression(), context.expressionContext() );
-      QStringList columns = expression->referencedColumns();
-      QStringList::const_iterator columnsIterator = columns.constBegin();
-      for ( ; columnsIterator != columns.constEnd(); ++columnsIterator )
-      {
-        if ( !attributeNames.contains( *columnsIterator ) )
-          attributeNames << *columnsIterator;
-      }
-    }
-    else
-    {
-      QString name = mFields.at( linearlyInterpolatedDiagramRenderer->classificationAttribute() ).name();
-      if ( !attributeNames.contains( name ) )
-        attributeNames << name;
-    }
-  }
-
-  //and the ones needed for data defined diagram positions
-  if ( mSettings.xPosColumn != -1 )
-    attributeNames << mFields.at( mSettings.xPosColumn ).name();
-  if ( mSettings.yPosColumn != -1 )
-    attributeNames << mFields.at( mSettings.yPosColumn ).name();
 
   return true;
 }
 
 
-void QgsVectorLayerDiagramProvider::registerFeature( QgsFeature& feature, QgsRenderContext& context )
+void QgsVectorLayerDiagramProvider::registerFeature( QgsFeature& feature, QgsRenderContext& context, QgsGeometry* obstacleGeometry )
 {
-  QgsLabelFeature* label = registerDiagram( feature, context );
+  QgsLabelFeature* label = registerDiagram( feature, context, obstacleGeometry );
   if ( label )
     mFeatures << label;
 }
 
 
-QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& feat, QgsRenderContext &context )
+QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& feat, QgsRenderContext &context, QgsGeometry* obstacleGeometry )
 {
   const QgsMapSettings& mapSettings = mEngine->mapSettings();
 
-  QgsDiagramRendererV2* dr = mSettings.renderer;
+  const QgsDiagramRendererV2* dr = mSettings.getRenderer();
   if ( dr )
   {
     QList<QgsDiagramSettings> settingList = dr->diagramSettings();
-    if ( settingList.size() > 0 && settingList.at( 0 ).scaleBasedVisibility )
+    if ( !settingList.isEmpty() && settingList.at( 0 ).scaleBasedVisibility )
     {
       double minScale = settingList.at( 0 ).minScaleDenominator;
       if ( minScale > 0 && context.rendererScale() < minScale )
       {
-        return 0;
+        return nullptr;
       }
 
       double maxScale = settingList.at( 0 ).maxScaleDenominator;
       if ( maxScale > 0 && context.rendererScale() > maxScale )
       {
-        return 0;
+        return nullptr;
       }
     }
   }
@@ -266,13 +227,13 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
     extentGeom->rotate( -mapSettings.rotation(), mapSettings.visibleExtent().center() );
   }
 
-  const GEOSGeometry* geos_geom = 0;
+  const GEOSGeometry* geos_geom = nullptr;
   QScopedPointer<QgsGeometry> preparedGeom;
-  if ( QgsPalLabeling::geometryRequiresPreparation( geom, context, mSettings.ct, extentGeom.data() ) )
+  if ( QgsPalLabeling::geometryRequiresPreparation( geom, context, mSettings.coordinateTransform(), extentGeom.data() ) )
   {
-    preparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, mSettings.ct, extentGeom.data() ) );
+    preparedGeom.reset( QgsPalLabeling::prepareGeometry( geom, context, mSettings.coordinateTransform(), extentGeom.data() ) );
     if ( !preparedGeom.data() )
-      return 0;
+      return nullptr;
     geos_geom = preparedGeom.data()->asGeos();
   }
   else
@@ -280,12 +241,28 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
     geos_geom = geom->asGeos();
   }
 
-  if ( geos_geom == 0 )
-  {
-    return 0; // invalid geometry
-  }
+  if ( !geos_geom )
+    return nullptr; // invalid geometry
 
   GEOSGeometry* geomCopy = GEOSGeom_clone_r( QgsGeometry::getGEOSHandler(), geos_geom );
+
+  const GEOSGeometry* geosObstacleGeom = nullptr;
+  QScopedPointer<QgsGeometry> scopedObstacleGeom;
+  if ( mSettings.isObstacle() && obstacleGeometry && QgsPalLabeling::geometryRequiresPreparation( obstacleGeometry, context, mSettings.coordinateTransform(), extentGeom.data() ) )
+  {
+    scopedObstacleGeom.reset( QgsPalLabeling::prepareGeometry( obstacleGeometry, context, mSettings.coordinateTransform(), extentGeom.data() ) );
+    geosObstacleGeom = scopedObstacleGeom.data()->asGeos();
+  }
+  else if ( mSettings.isObstacle() && obstacleGeometry )
+  {
+    geosObstacleGeom = obstacleGeometry->asGeos();
+  }
+  GEOSGeometry* geosObstacleGeomClone = nullptr;
+  if ( geosObstacleGeom )
+  {
+    geosObstacleGeomClone = GEOSGeom_clone_r( QgsGeometry::getGEOSHandler(), geosObstacleGeom );
+  }
+
 
   double diagramWidth = 0;
   double diagramHeight = 0;
@@ -300,13 +277,13 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
   }
 
   //  feature to the layer
-  bool alwaysShow = mSettings.showAll;
+  bool alwaysShow = mSettings.showAllDiagrams();
   int ddColX = mSettings.xPosColumn;
   int ddColY = mSettings.yPosColumn;
   double ddPosX = 0.0;
   double ddPosY = 0.0;
   bool ddPos = ( ddColX >= 0 && ddColY >= 0 );
-  if ( ddPos )
+  if ( ddPos && ! feat.attribute( ddColX ).isNull() && ! feat.attribute( ddColY ).isNull() )
   {
     bool posXOk, posYOk;
     ddPosX = feat.attribute( ddColX ).toDouble( &posXOk );
@@ -317,7 +294,7 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
     }
     else
     {
-      const QgsCoordinateTransform* ct = mSettings.ct;
+      const QgsCoordinateTransform* ct = mSettings.coordinateTransform();
       if ( ct )
       {
         double z = 0;
@@ -328,6 +305,18 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
       ddPosY -= diagramHeight / 2.0;
     }
   }
+  else
+    ddPos = false;
+
+  int ddColShow = mSettings.showColumn;
+  if ( ddColShow >= 0 && ! feat.attribute( ddColShow ).isNull() )
+  {
+    bool showOk;
+    bool ddShow = feat.attribute( ddColShow ).toDouble( &showOk );
+
+    if ( showOk && ! ddShow )
+      return nullptr;
+  }
 
   QgsDiagramLabelFeature* lf = new QgsDiagramLabelFeature( feat.id(), geomCopy, QSizeF( diagramWidth, diagramHeight ) );
   lf->setHasFixedPosition( ddPos );
@@ -335,7 +324,12 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
   lf->setHasFixedAngle( true );
   lf->setFixedAngle( 0 );
   lf->setAlwaysShow( alwaysShow );
-  lf->setIsObstacle( mSettings.obstacle );
+  lf->setIsObstacle( mSettings.isObstacle() );
+  lf->setZIndex( mSettings.getZIndex() );
+  if ( geosObstacleGeomClone )
+  {
+    lf->setObstacleGeometry( geosObstacleGeomClone );
+  }
 
   if ( dr )
   {
@@ -343,8 +337,8 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
     lf->setAttributes( feat.attributes() );
   }
 
-  QgsPoint ptZero = mSettings.xform->toMapCoordinates( 0, 0 );
-  QgsPoint ptOne = mSettings.xform->toMapCoordinates( 1, 0 );
-  lf->setDistLabel( qAbs( ptOne.x() - ptZero.x() ) * mSettings.dist );
+  QgsPoint ptZero = mapSettings.mapToPixel().toMapCoordinates( 0, 0 );
+  QgsPoint ptOne = mapSettings.mapToPixel().toMapCoordinates( 1, 0 );
+  lf->setDistLabel( qAbs( ptOne.x() - ptZero.x() ) * mSettings.distance() );
   return lf;
 }

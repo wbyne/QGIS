@@ -31,7 +31,7 @@
 
 QgsSingleBandPseudoColorRendererWidget::QgsSingleBandPseudoColorRendererWidget( QgsRasterLayer* layer, const QgsRectangle &extent )
     : QgsRasterRendererWidget( layer, extent )
-    , mMinMaxWidget( NULL )
+    , mMinMaxWidget( nullptr )
     , mMinMaxOrigin( 0 )
 {
   QSettings settings;
@@ -240,7 +240,7 @@ void QgsSingleBandPseudoColorRendererWidget::on_mClassifyButton_clicked()
   int numberOfEntries = 0;
 
   QList<double> entryValues;
-  QList<QColor> entryColors;
+  QVector<QColor> entryColors;
 
   double min = lineEditValue( mMinLineEdit );
   double max = lineEditValue( mMaxLineEdit );
@@ -333,7 +333,7 @@ void QgsSingleBandPseudoColorRendererWidget::on_mClassifyButton_clicked()
   mColormapTreeWidget->clear();
 
   QList<double>::const_iterator value_it = entryValues.begin();
-  QList<QColor>::const_iterator color_it = entryColors.begin();
+  QVector<QColor>::const_iterator color_it = entryColors.begin();
 
   for ( ; value_it != entryValues.end(); ++value_it, ++color_it )
   {
@@ -392,7 +392,7 @@ void QgsSingleBandPseudoColorRendererWidget::on_mLoadFromBandButton_clicked()
 
 
   QList<QgsColorRampShader::ColorRampItem> colorRampList = mRasterLayer->dataProvider()->colorTable( bandIndex );
-  if ( colorRampList.size() > 0 )
+  if ( !colorRampList.isEmpty() )
   {
     populateColormapTreeWidget( colorRampList );
     mColorInterpolationComboBox->setCurrentIndex( mColorInterpolationComboBox->findText( tr( "Linear" ) ) );
@@ -409,7 +409,7 @@ void QgsSingleBandPseudoColorRendererWidget::on_mLoadFromFileButton_clicked()
   bool importError = false;
   QString badLines;
   QSettings settings;
-  QString lastDir = settings.value( "lastRasterFileFilterDir", "" ).toString();
+  QString lastDir = settings.value( "lastColorMapDir", QDir::homePath() ).toString();
   QString fileName = QFileDialog::getOpenFileName( this, tr( "Open file" ), lastDir, tr( "Textfile (*.txt)" ) );
   QFile inputFile( fileName );
   if ( inputFile.open( QFile::ReadOnly ) )
@@ -478,6 +478,9 @@ void QgsSingleBandPseudoColorRendererWidget::on_mLoadFromFileButton_clicked()
     }
     populateColormapTreeWidget( colorRampItems );
 
+    QFileInfo fileInfo( fileName );
+    settings.setValue( "lastColorMapDir", fileInfo.absoluteDir().absolutePath() );
+
     if ( importError )
     {
       QMessageBox::warning( this, tr( "Import Error" ), tr( "The following lines contained errors\n\n" ) + badLines );
@@ -492,7 +495,7 @@ void QgsSingleBandPseudoColorRendererWidget::on_mLoadFromFileButton_clicked()
 void QgsSingleBandPseudoColorRendererWidget::on_mExportToFileButton_clicked()
 {
   QSettings settings;
-  QString lastDir = settings.value( "lastRasterFileFilterDir", "" ).toString();
+  QString lastDir = settings.value( "lastColorMapDir", QDir::homePath() ).toString();
   QString fileName = QFileDialog::getSaveFileName( this, tr( "Save file" ), lastDir, tr( "Textfile (*.txt)" ) );
   if ( !fileName.isEmpty() )
   {
@@ -544,6 +547,9 @@ void QgsSingleBandPseudoColorRendererWidget::on_mExportToFileButton_clicked()
       }
       outputStream.flush();
       outputFile.close();
+
+      QFileInfo fileInfo( fileName );
+      settings.setValue( "lastColorMapDir", fileInfo.absoluteDir().absolutePath() );
     }
     else
     {

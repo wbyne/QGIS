@@ -34,8 +34,11 @@ class GUI_EXPORT QgsGroupBoxCollapseButton : public QToolButton
     Q_OBJECT
 
   public:
-    QgsGroupBoxCollapseButton( QWidget *parent = 0 )
-        : QToolButton( parent ), mAltDown( false ), mShiftDown( false ) {}
+    QgsGroupBoxCollapseButton( QWidget *parent = nullptr )
+        : QToolButton( parent )
+        , mAltDown( false )
+        , mShiftDown( false )
+    {}
 
     ~QgsGroupBoxCollapseButton() {}
 
@@ -91,8 +94,8 @@ class GUI_EXPORT QgsCollapsibleGroupBoxBasic : public QGroupBox
     Q_PROPERTY( bool scrollOnExpand READ scrollOnExpand WRITE setScrollOnExpand )
 
   public:
-    QgsCollapsibleGroupBoxBasic( QWidget *parent = 0 );
-    QgsCollapsibleGroupBoxBasic( const QString &title, QWidget *parent = 0 );
+    QgsCollapsibleGroupBoxBasic( QWidget *parent = nullptr );
+    QgsCollapsibleGroupBoxBasic( const QString &title, QWidget *parent = nullptr );
     ~QgsCollapsibleGroupBoxBasic();
 
     /**
@@ -159,8 +162,8 @@ class GUI_EXPORT QgsCollapsibleGroupBoxBasic : public QGroupBox
     bool mShiftDown;
     bool mTitleClicked;
 
-    static QIcon mCollapseIcon;
-    static QIcon mExpandIcon;
+    QIcon mCollapseIcon;
+    QIcon mExpandIcon;
 };
 
 /** \ingroup gui
@@ -189,8 +192,8 @@ class GUI_EXPORT QgsCollapsibleGroupBox : public QgsCollapsibleGroupBoxBasic
     Q_PROPERTY( bool saveCheckedState READ saveCheckedState WRITE setSaveCheckedState )
 
   public:
-    QgsCollapsibleGroupBox( QWidget *parent = 0, QSettings* settings = 0 );
-    QgsCollapsibleGroupBox( const QString &title, QWidget *parent = 0, QSettings* settings = 0 );
+    QgsCollapsibleGroupBox( QWidget *parent = nullptr, QSettings* settings = nullptr );
+    QgsCollapsibleGroupBox( const QString &title, QWidget *parent = nullptr, QSettings* settings = nullptr );
     ~QgsCollapsibleGroupBox();
 
     // set custom QSettings pointer if group box was already created from QtDesigner promotion

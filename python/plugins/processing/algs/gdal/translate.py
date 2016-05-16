@@ -25,6 +25,10 @@ __copyright__ = '(C) 2012, Victor Olaya'
 
 __revision__ = '$Format:%H$'
 
+import os
+
+from qgis.PyQt.QtGui import QIcon
+
 from processing.algs.gdal.GdalAlgorithm import GdalAlgorithm
 from processing.core.parameters import ParameterString
 from processing.core.parameters import ParameterRaster
@@ -36,6 +40,8 @@ from processing.core.parameters import ParameterCrs
 from processing.core.outputs import OutputRaster
 
 from processing.algs.gdal.GdalUtils import GdalUtils
+
+pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 class translate(GdalAlgorithm):
@@ -62,14 +68,16 @@ class translate(GdalAlgorithm):
     COMPRESSTYPE = ['NONE', 'JPEG', 'LZW', 'PACKBITS', 'DEFLATE']
     TFW = 'TFW'
 
+    def getIcon(self):
+        return QIcon(os.path.join(pluginPath, 'images', 'gdaltools', 'translate.png'))
+
     def commandLineName(self):
         return "gdalogr:translate"
 
     def defineCharacteristics(self):
         self.name, self.i18n_name = self.trAlgorithm('Translate (convert format)')
         self.group, self.i18n_group = self.trAlgorithm('[GDAL] Conversion')
-        self.addParameter(ParameterRaster(self.INPUT, self.tr('Input layer'),
-                          False))
+        self.addParameter(ParameterRaster(self.INPUT, self.tr('Input layer'), False))
         self.addParameter(ParameterNumber(self.OUTSIZE,
                                           self.tr('Set the size of the output file (In pixels or %)'),
                                           1, None, 100))
@@ -77,11 +85,11 @@ class translate(GdalAlgorithm):
                                            self.tr('Output size is a percentage of input size'), True))
         self.addParameter(ParameterString(self.NO_DATA,
                                           self.tr("Nodata value, leave blank to take the nodata value from input"),
-                                          ''))
+                                          '', optional=True))
         self.addParameter(ParameterSelection(self.EXPAND,
                                              self.tr('Expand'), ['none', 'gray', 'rgb', 'rgba']))
         self.addParameter(ParameterCrs(self.SRS,
-                                       self.tr('Output projection for output file [leave blank to use input projection]'), None))
+                                       self.tr('Output projection for output file [leave blank to use input projection]'), None, optional=True))
         self.addParameter(ParameterExtent(self.PROJWIN,
                                           self.tr('Subset based on georeferenced coordinates')))
         self.addParameter(ParameterBoolean(self.SDS,
@@ -121,13 +129,17 @@ class translate(GdalAlgorithm):
         out = self.getOutputValue(translate.OUTPUT)
         outsize = unicode(self.getParameterValue(self.OUTSIZE))
         outsizePerc = unicode(self.getParameterValue(self.OUTSIZE_PERC))
-        noData = unicode(self.getParameterValue(self.NO_DATA))
+        noData = self.getParameterValue(self.NO_DATA)
+        if noData is not None:
+            noData = unicode(noData)
         expand = unicode(self.getParameterFromName(
             self.EXPAND).options[self.getParameterValue(self.EXPAND)])
         projwin = unicode(self.getParameterValue(self.PROJWIN))
         crsId = self.getParameterValue(self.SRS)
         sds = self.getParameterValue(self.SDS)
-        extra = unicode(self.getParameterValue(self.EXTRA))
+        extra = self.getParameterValue(self.EXTRA)
+        if extra is not None:
+            extra = unicode(extra)
         jpegcompression = unicode(self.getParameterValue(self.JPEGCOMPRESSION))
         predictor = unicode(self.getParameterValue(self.PREDICTOR))
         zlevel = unicode(self.getParameterValue(self.ZLEVEL))
@@ -149,24 +161,30 @@ class translate(GdalAlgorithm):
             arguments.append('-outsize')
             arguments.append(outsize)
             arguments.append(outsize)
-        if len(noData) > 0:
+        if noData and len(noData) > 0:
             arguments.append('-a_nodata')
             arguments.append(noData)
         if expand != 'none':
             arguments.append('-expand')
             arguments.append(expand)
         regionCoords = projwin.split(',')
-        arguments.append('-projwin')
-        arguments.append(regionCoords[0])
-        arguments.append(regionCoords[3])
-        arguments.append(regionCoords[1])
-        arguments.append(regionCoords[2])
+        try:
+            projwin = []
+            projwin.append('-projwin')
+            projwin.append(regionCoords[0])
+            projwin.append(regionCoords[3])
+            projwin.append(regionCoords[1])
+            projwin.append(regionCoords[2])
+        except IndexError:
+            projwin = []
+        if projwin:
+            arguments.extend(projwin)
         if crsId:
             arguments.append('-a_srs')
             arguments.append(unicode(crsId))
         if sds:
             arguments.append('-sds')
-        if len(extra) > 0:
+        if extra and len(extra) > 0:
             arguments.append(extra)
         if GdalUtils.getFormatShortNameFromFilename(out) == "GTiff":
             arguments.append("-co COMPRESS=" + compress)

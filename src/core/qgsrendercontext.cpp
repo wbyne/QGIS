@@ -19,24 +19,71 @@
 #include "qgsrendercontext.h"
 
 #include "qgsmapsettings.h"
+#include "qgsexpression.h"
+#include "qgsvectorlayer.h"
+#include "qgsfeaturefilterprovider.h"
 
 QgsRenderContext::QgsRenderContext()
     : mFlags( DrawEditingInfo | UseAdvancedEffects | DrawSelection | UseRenderingOptimization )
-    , mPainter( 0 )
-    , mCoordTransform( 0 )
+    , mPainter( nullptr )
+    , mCoordTransform( nullptr )
     , mRenderingStopped( false )
     , mScaleFactor( 1.0 )
     , mRasterScaleFactor( 1.0 )
     , mRendererScale( 1.0 )
-    , mLabelingEngine( NULL )
-    , mLabelingEngine2( 0 )
-    , mGeometry( 0 )
+    , mLabelingEngine( nullptr )
+    , mLabelingEngine2( nullptr )
+    , mGeometry( nullptr )
+    , mFeatureFilterProvider( nullptr )
 {
   mVectorSimplifyMethod.setSimplifyHints( QgsVectorSimplifyMethod::NoSimplification );
 }
 
+QgsRenderContext::QgsRenderContext( const QgsRenderContext& rh )
+    : mFlags( rh.mFlags )
+    , mPainter( rh.mPainter )
+    , mCoordTransform( rh.mCoordTransform )
+    , mExtent( rh.mExtent )
+    , mMapToPixel( rh.mMapToPixel )
+    , mRenderingStopped( rh.mRenderingStopped )
+    , mScaleFactor( rh.mScaleFactor )
+    , mRasterScaleFactor( rh.mRasterScaleFactor )
+    , mRendererScale( rh.mRendererScale )
+    , mLabelingEngine( rh.mLabelingEngine )
+    , mLabelingEngine2( rh.mLabelingEngine2 )
+    , mSelectionColor( rh.mSelectionColor )
+    , mVectorSimplifyMethod( rh.mVectorSimplifyMethod )
+    , mExpressionContext( rh.mExpressionContext )
+    , mGeometry( rh.mGeometry )
+    , mFeatureFilterProvider( rh.mFeatureFilterProvider ? rh.mFeatureFilterProvider->clone() : nullptr )
+{
+}
+
+QgsRenderContext&QgsRenderContext::operator=( const QgsRenderContext & rh )
+{
+  mFlags = rh.mFlags;
+  mPainter = rh.mPainter;
+  mCoordTransform = rh.mCoordTransform;
+  mExtent = rh.mExtent;
+  mMapToPixel = rh.mMapToPixel;
+  mRenderingStopped = rh.mRenderingStopped;
+  mScaleFactor = rh.mScaleFactor;
+  mRasterScaleFactor = rh.mRasterScaleFactor;
+  mRendererScale = rh.mRendererScale;
+  mLabelingEngine = rh.mLabelingEngine;
+  mLabelingEngine2 = rh.mLabelingEngine2;
+  mSelectionColor = rh.mSelectionColor;
+  mVectorSimplifyMethod = rh.mVectorSimplifyMethod;
+  mExpressionContext = rh.mExpressionContext;
+  mGeometry = rh.mGeometry;
+  mFeatureFilterProvider = rh.mFeatureFilterProvider ? rh.mFeatureFilterProvider->clone() : nullptr;
+  return *this;
+}
+
 QgsRenderContext::~QgsRenderContext()
 {
+  delete mFeatureFilterProvider;
+  mFeatureFilterProvider = nullptr;
 }
 
 void QgsRenderContext::setFlags( const QgsRenderContext::Flags& flags )
@@ -71,9 +118,11 @@ QgsRenderContext QgsRenderContext::fromMapSettings( const QgsMapSettings& mapSet
   ctx.setFlag( ForceVectorOutput, mapSettings.testFlag( QgsMapSettings::ForceVectorOutput ) );
   ctx.setFlag( UseAdvancedEffects, mapSettings.testFlag( QgsMapSettings::UseAdvancedEffects ) );
   ctx.setFlag( UseRenderingOptimization, mapSettings.testFlag( QgsMapSettings::UseRenderingOptimization ) );
-  ctx.setCoordinateTransform( 0 );
+  ctx.setCoordinateTransform( nullptr );
   ctx.setSelectionColor( mapSettings.selectionColor() );
   ctx.setFlag( DrawSelection, mapSettings.testFlag( QgsMapSettings::DrawSelection ) );
+  ctx.setFlag( DrawSymbolBounds, mapSettings.testFlag( QgsMapSettings::DrawSymbolBounds ) );
+  ctx.setFlag( RenderMapTile, mapSettings.testFlag( QgsMapSettings::RenderMapTile ) );
   ctx.setRasterScaleFactor( 1.0 );
   ctx.setScaleFactor( mapSettings.outputDpi() / 25.4 ); // = pixels per mm
   ctx.setRendererScale( mapSettings.scale() );
@@ -139,4 +188,15 @@ bool QgsRenderContext::useRenderingOptimization() const
 void QgsRenderContext::setUseRenderingOptimization( bool enabled )
 {
   setFlag( UseRenderingOptimization, enabled );
+}
+
+void QgsRenderContext::setFeatureFilterProvider( const QgsFeatureFilterProvider* ffp )
+{
+  delete mFeatureFilterProvider;
+  mFeatureFilterProvider = nullptr;
+
+  if ( ffp )
+  {
+    mFeatureFilterProvider = ffp->clone();
+  }
 }

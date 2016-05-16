@@ -46,16 +46,6 @@ QgsAuthMethodConfig::QgsAuthMethodConfig( const QString& method, int version )
 {
 }
 
-QgsAuthMethodConfig::QgsAuthMethodConfig( const QgsAuthMethodConfig &methodconfig )
-    : mId( methodconfig.id() )
-    , mName( methodconfig.name() )
-    , mUri( methodconfig.uri() )
-    , mMethod( methodconfig.method() )
-    , mVersion( methodconfig.version() )
-    , mConfigMap( methodconfig.configMap() )
-{
-}
-
 bool QgsAuthMethodConfig::operator==( const QgsAuthMethodConfig &other ) const
 {
   return ( other.id() == id()
@@ -181,10 +171,6 @@ QgsPkiBundle::QgsPkiBundle( const QSslCertificate &clientCert,
 {
   setClientCert( clientCert );
   setClientKey( clientKey );
-}
-
-QgsPkiBundle::~QgsPkiBundle()
-{
 }
 
 static QByteArray fileData_( const QString& path, bool astext = false )
@@ -351,10 +337,6 @@ QgsPkiConfigBundle::QgsPkiConfigBundle( const QgsAuthMethodConfig& config,
 {
 }
 
-QgsPkiConfigBundle::~QgsPkiConfigBundle()
-{
-}
-
 bool QgsPkiConfigBundle::isValid()
 {
   return ( !mCert.isNull() && !mCertKey.isNull() );
@@ -405,16 +387,16 @@ const QString QgsAuthConfigSslServer::configString() const
   QStringList configlist;
   configlist << QString::number( mVersion ) << QString::number( mQtVersion );
 
-  configlist << QString::number(( int )mSslProtocol );
+  configlist << QString::number( static_cast< int >( mSslProtocol ) );
 
   QStringList errs;
   Q_FOREACH ( const QSslError::SslError& err, mSslIgnoredErrors )
   {
-    errs << QString::number(( int )err );
+    errs << QString::number( static_cast< int >( err ) );
   }
   configlist << errs.join( "~~" );
 
-  configlist << QString( "%1~~%2" ).arg(( int )mSslPeerVerifyMode ).arg( mSslPeerVerifyDepth );
+  configlist << QString( "%1~~%2" ).arg( static_cast< int >( mSslPeerVerifyMode ) ).arg( mSslPeerVerifyDepth );
 
   return configlist.join( mConfSep );
 }
@@ -432,17 +414,17 @@ void QgsAuthConfigSslServer::loadConfigString( const QString &config )
 
   // TODO: Conversion between 4.7 -> 4.8 protocol enum differences (and reverse?).
   //       This is necessary for users upgrading from 4.7 to 4.8
-  mSslProtocol = ( QSsl::SslProtocol )configlist.at( 2 ).toInt();
+  mSslProtocol = static_cast< QSsl::SslProtocol >( configlist.at( 2 ).toInt() );
 
   mSslIgnoredErrors.clear();
   QStringList errs( configlist.at( 3 ).split( "~~" ) );
   Q_FOREACH ( const QString& err, errs )
   {
-    mSslIgnoredErrors.append(( QSslError::SslError )err.toInt() );
+    mSslIgnoredErrors.append( static_cast< QSslError::SslError >( err.toInt() ) );
   }
 
   QStringList peerverify( configlist.at( 4 ).split( "~~" ) );
-  mSslPeerVerifyMode = ( QSslSocket::PeerVerifyMode )peerverify.at( 0 ).toInt();
+  mSslPeerVerifyMode = static_cast< QSslSocket::PeerVerifyMode >( peerverify.at( 0 ).toInt() );
   mSslPeerVerifyDepth = peerverify.at( 1 ).toInt();
 }
 

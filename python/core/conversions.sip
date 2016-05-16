@@ -19,12 +19,14 @@ which are not wrapped by PyQt:
 - QList< QPair< QString, QList<QString> > >
 - QVector<TYPE*>
 - QMap<qint64, QgsFeature*>
+- NULL QVariant which is missing in PyQt5 with sip.enableautoconversion
 */
 
 %Feature QSETINT_CONVERSION
 %Feature QSETTYPE_CONVERSION
 %Feature QLISTCONSTPTR_CONVERSION
 %Feature QVECTORINT_CONVERSION
+%Feature CHIMERA_NULL_VARIANT_CONVERSION
 
 %ModuleHeaderCode
 
@@ -680,11 +682,6 @@ template<TYPE>
   PyObject *kobj, *tobj, *kobj2, *tobj2;
   Py_ssize_t i = 0;
 
-  //TODO: it works using SIP
-#if (SIP_VERSION >= 0x041200)
-  const sipMappedType* qmap2 = sipFindMappedType("QMap<int, TYPE>");
-#endif
-
   // Check the type if that is all that is required.
   if (sipIsErr == NULL)
   {
@@ -696,17 +693,12 @@ template<TYPE>
       if (!PyDict_Check(tobj))
         return 0;
 
-#if (SIP_VERSION >= 0x041200)
-      if (!sipCanConvertToMappedType(tobj, qmap2, SIP_NOT_NONE))
-        return 0;
-#else
       Py_ssize_t j = 0;
       while (PyDict_Next(tobj, &j, &kobj2, &tobj2))
       {
         if (!sipCanConvertToType(tobj2, sipType_TYPE, SIP_NOT_NONE))
           return 0;
       }
-#endif
     }
     return 1;
   }
@@ -717,24 +709,6 @@ template<TYPE>
   {
     qint64 k = PyLong_AsLongLong(kobj);
 
-#if (SIP_VERSION >= 0x041200)
-    // TODO: search for the minimum SIP version this code works on, it works
-    // on SIP 4.13.3 (GS). See #else to know why the version check is needed.
-
-    int state;
-
-    TYPE* t = reinterpret_cast<TYPE*>(sipConvertToMappedType(tobj, qmap2, sipTransferObj,SIP_NOT_NONE,&state,sipIsErr));
-
-    if (*sipIsErr)
-    {
-      sipReleaseMappedType(t, qmap2, state);
-      delete qm;
-      return 0;
-    }
-
-    qm.insert(k, *t);
-    sipReleaseMappedType(t, qmap2, state);
-#else
     // using sipConvertToMappedType to convert directly to QMap<int, TYPE> doesn't work
     // and ends with a segfault
 
@@ -759,7 +733,6 @@ template<TYPE>
       sipReleaseType(t2, sipType_TYPE, state);
     }
     qm->insert(k, qm2);
-#endif
   }
 
   *sipCppPtr = qm;
@@ -1433,7 +1406,11 @@ template<int, TYPE2*>
 
       const int t1 = i.key();
       TYPE2 * t2 = i.value();
+#if (PY_VERSION_HEX < 0x03000000)
       PyObject *t1obj = PyInt_FromSize_t(t1);
+#else
+      PyObject *t1obj = PyLong_FromSize_t(t1);
+#endif
       PyObject *t2obj = sipConvertFromType(t2, sipType_TYPE2, sipTransferObj);
       if (PyDict_GetItem(d, t1obj) == NULL)
       {
@@ -1988,4 +1965,18 @@ template <TYPE>
     return sipGetState(sipTransferObj);
 %End
 };
+%End
+
+%If (CHIMERA_NULL_VARIANT_CONVERSION)
+%ModuleHeaderCode
+#include "qgissiphelper.h"
+%End
+
+%PostInitialisationCode
+
+// Import the Chimera helper registration functions.
+void (*register_from_qvariant_convertor)(FromQVariantConvertorFn);
+register_from_qvariant_convertor = (void (*)(FromQVariantConvertorFn))sipImportSymbol("pyqt5_register_from_qvariant_convertor");
+register_from_qvariant_convertor(null_from_qvariant_convertor);
+%End
 %End

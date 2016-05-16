@@ -26,7 +26,9 @@ __copyright__ = '(C) 2012, Victor Olaya'
 __revision__ = '$Format:%H$'
 
 import os
-from PyQt4 import QtGui
+import re
+from qgis.core import QgsExpressionContextUtils, QgsExpressionContext
+from qgis.PyQt.QtGui import QIcon
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.gui.Help2Html import getHtmlFromHelpFile
 from processing.core.parameters import ParameterRaster
@@ -41,6 +43,7 @@ from processing.core.parameters import ParameterSelection
 from processing.core.parameters import ParameterTableField
 from processing.core.parameters import ParameterExtent
 from processing.core.parameters import ParameterFile
+from processing.core.parameters import ParameterPoint
 from processing.core.parameters import getParameterFromString
 from processing.core.outputs import OutputTable
 from processing.core.outputs import OutputVector
@@ -51,14 +54,14 @@ from processing.core.outputs import OutputHTML
 from processing.core.outputs import OutputFile
 from processing.core.outputs import OutputDirectory
 from processing.core.outputs import getOutputFromString
+from processing.core.ProcessingLog import ProcessingLog
 from processing.script.WrongScriptException import WrongScriptException
+from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
 
 pluginPath = os.path.split(os.path.dirname(__file__))[0]
 
 
 class ScriptAlgorithm(GeoAlgorithm):
-
-    _icon = QtGui.QIcon(os.path.join(pluginPath, 'images', 'script.png'))
 
     def __init__(self, descriptionFile, script=None):
         """The script parameter can be used to directly pass the code
@@ -69,8 +72,11 @@ class ScriptAlgorithm(GeoAlgorithm):
         """
 
         GeoAlgorithm.__init__(self)
+        self._icon = QIcon(os.path.join(pluginPath, 'images', 'script.png'))
+
         self.script = script
         self.allowEdit = True
+        self.noCRSWarning = False
         self.descriptionFile = descriptionFile
         if script is not None:
             self.defineCharacteristicsFromScript()
@@ -120,6 +126,12 @@ class ScriptAlgorithm(GeoAlgorithm):
                 except:
                     pass
 
+    def checkInputCRS(self):
+        if self.noCRSWarning:
+            return True
+        else:
+            return GeoAlgorithm.checkInputCRS(self)
+
     def createDescriptiveName(self, s):
         return s.replace('_', ' ')
 
@@ -136,6 +148,9 @@ class ScriptAlgorithm(GeoAlgorithm):
             return
         if line == "nomodeler":
             self.showInModeler = False
+            return
+        if line == "nocrswarning":
+            self.noCRSWarning = True
             return
         tokens = line.split('=', 1)
         desc = self.createDescriptiveName(tokens[0])
@@ -207,16 +222,24 @@ class ScriptAlgorithm(GeoAlgorithm):
             param = ParameterSelection(name, descName, options)
         elif token.lower().strip().startswith('boolean'):
             default = token.strip()[len('boolean') + 1:]
-            param = ParameterBoolean(name, descName, default)
+            if default:
+                param = ParameterBoolean(name, descName, default)
+            else:
+                param = ParameterBoolean(name, descName)
         elif token.lower().strip() == 'extent':
             param = ParameterExtent(name, descName)
+        elif token.lower().strip() == 'point':
+            param = ParameterPoint(name, descName)
         elif token.lower().strip() == 'file':
             param = ParameterFile(name, descName, False)
         elif token.lower().strip() == 'folder':
             param = ParameterFile(name, descName, True)
         elif token.lower().strip().startswith('number'):
             default = token.strip()[len('number') + 1:]
-            param = ParameterNumber(name, descName, default=default)
+            if default:
+                param = ParameterNumber(name, descName, default=default)
+            else:
+                param = ParameterNumber(name, descName)
         elif token.lower().strip().startswith('field'):
             field = token.strip()[len('field') + 1:]
             found = False
@@ -228,15 +251,22 @@ class ScriptAlgorithm(GeoAlgorithm):
                 param = ParameterTableField(name, descName, field)
         elif token.lower().strip().startswith('string'):
             default = token.strip()[len('string') + 1:]
-            param = ParameterString(name, descName, default)
+            if default:
+                param = ParameterString(name, descName, default)
+            else:
+                param = ParameterString(name, descName)
         elif token.lower().strip().startswith('longstring'):
             default = token.strip()[len('longstring') + 1:]
-            param = ParameterString(name, descName, default, multiline=True)
+            if default:
+                param = ParameterString(name, descName, default, multiline=True)
+            else:
+                param = ParameterString(name, descName, multiline=True)
         elif token.lower().strip().startswith('crs'):
             default = token.strip()[len('crs') + 1:]
-            if not default:
-                default = 'EPSG:4326'
-            param = ParameterCrs(name, descName, default)
+            if default:
+                param = ParameterCrs(name, descName, default)
+            else:
+                param = ParameterCrs(name, descName)
 
         return param
 
@@ -281,9 +311,6 @@ class ScriptAlgorithm(GeoAlgorithm):
                         'Problem with line %d', 'ScriptAlgorithm') % (self.descriptionFile or '', line))
 
     def processAlgorithm(self, progress):
-
-        script = 'import processing\n'
-
         ns = {}
         ns['progress'] = progress
         ns['scriptDescriptionFile'] = self.descriptionFile
@@ -294,7 +321,20 @@ class ScriptAlgorithm(GeoAlgorithm):
         for out in self.outputs:
             ns[out.name] = out.value
 
+        variables = re.findall('@[a-zA-Z0-9_]*', self.script)
+        script = 'import processing\n'
         script += self.script
+
+        context = QgsExpressionContext()
+        context.appendScope(QgsExpressionContextUtils.globalScope())
+        context.appendScope(QgsExpressionContextUtils.projectScope())
+        for var in variables:
+            varname = var[1:]
+            if context.hasVariable(varname):
+                script = script.replace(var, context.variable(varname))
+            else:
+                ProcessingLog.addToLog(ProcessingLog.LOG_WARNING, 'Cannot find variable: %s' % varname)
+
         exec((script), ns)
         for out in self.outputs:
             out.setValue(ns[out.name])

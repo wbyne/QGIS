@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlError>
+#include <QProgressDialog>
 
 // ---------------------------------------------------------------------------
 QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, QString name, QString path )
@@ -38,6 +39,7 @@ QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, QString nam
     , mUseGeometryColumns( false )
     , mUseEstimatedMetadata( false )
     , mAllowGeometrylessTables( true )
+    , mColumnTypeThread( nullptr )
 {
   mCapabilities |= Fast;
   mIconName = "mIconConnect.png";
@@ -45,6 +47,7 @@ QgsMssqlConnectionItem::QgsMssqlConnectionItem( QgsDataItem* parent, QString nam
 
 QgsMssqlConnectionItem::~QgsMssqlConnectionItem()
 {
+  stop();
 }
 
 void QgsMssqlConnectionItem::readConnectionSettings()
@@ -75,9 +78,21 @@ void QgsMssqlConnectionItem::readConnectionSettings()
     mConnInfo += " estimatedmetadata=true";
 }
 
+void QgsMssqlConnectionItem::stop()
+{
+  if ( mColumnTypeThread )
+  {
+    mColumnTypeThread->stop();
+    mColumnTypeThread->wait();
+    delete mColumnTypeThread;
+    mColumnTypeThread = nullptr;
+  }
+}
+
 void QgsMssqlConnectionItem::refresh()
 {
   QgsDebugMsg( "mPath = " + mPath );
+  stop();
 
   // read up the schemas and layers from database
   QVector<QgsDataItem*> items = createChildren();
@@ -89,7 +104,7 @@ void QgsMssqlConnectionItem::refresh()
     int index = findItem( mChildren, item );
     if ( index >= 0 )
     {
-      (( QgsMssqlSchemaItem* )mChildren[index] )->addLayers( item );
+      (( QgsMssqlSchemaItem* )mChildren.at( index ) )->addLayers( item );
       delete item;
       continue;
     }
@@ -101,7 +116,13 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
 {
   QgsDebugMsg( "Entered" );
 
+  setState( Populating );
+
+  stop();
+
   QVector<QgsDataItem*> children;
+  if ( deferredDelete() )
+    return children;
 
   readConnectionSettings();
 
@@ -114,8 +135,6 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
   }
 
   QString connectionName = db.connectionName();
-
-  QgsMssqlGeomColumnTypeThread *columnTypeThread = 0;
 
   // build sql statement
   QString query( "select " );
@@ -176,7 +195,7 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
       QString type = layer.type;
       QString srid = layer.srid;
 
-      QgsMssqlSchemaItem* schemaItem = NULL;
+      QgsMssqlSchemaItem* schemaItem = nullptr;
       Q_FOREACH ( QgsDataItem *child, children )
       {
         if ( child->name() == layer.schemaName )
@@ -189,6 +208,7 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
       if ( !schemaItem )
       {
         schemaItem = new QgsMssqlSchemaItem( this, layer.schemaName, mPath + '/' + layer.schemaName );
+        schemaItem->setState( Populating );
         children.append( schemaItem );
       }
 
@@ -196,15 +216,15 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
       {
         if ( type == "GEOMETRY" || type.isNull() || srid.isEmpty() )
         {
-          if ( !columnTypeThread )
+          if ( !mColumnTypeThread )
           {
-            columnTypeThread = new QgsMssqlGeomColumnTypeThread(
+            mColumnTypeThread = new QgsMssqlGeomColumnTypeThread(
               connectionName, true /* use estimated metadata */ );
 
-            connect( columnTypeThread, SIGNAL( setLayerType( QgsMssqlLayerProperty ) ),
+            connect( mColumnTypeThread, SIGNAL( setLayerType( QgsMssqlLayerProperty ) ),
                      this, SLOT( setLayerType( QgsMssqlLayerProperty ) ) );
             connect( this, SIGNAL( addGeometryColumn( QgsMssqlLayerProperty ) ),
-                     columnTypeThread, SLOT( addGeometryColumn( QgsMssqlLayerProperty ) ) );
+                     mColumnTypeThread, SLOT( addGeometryColumn( QgsMssqlLayerProperty ) ) );
           }
 
           emit addGeometryColumn( layer );
@@ -228,16 +248,33 @@ QVector<QgsDataItem*> QgsMssqlConnectionItem::createChildren()
     }
 
     // spawn threads (new layers will be added later on)
-    if ( columnTypeThread )
-      columnTypeThread->start();
+    if ( mColumnTypeThread )
+    {
+      connect( mColumnTypeThread, SIGNAL( finished() ), this, SLOT( setAsPopulated() ) );
+      mColumnTypeThread->start();
+    }
+    else
+    {
+      //set all as populated
+      setAsPopulated();
+    }
   }
 
   return children;
 }
 
+void QgsMssqlConnectionItem::setAsPopulated()
+{
+  Q_FOREACH ( QgsDataItem *child, mChildren )
+  {
+    child->setState( Populated );
+  }
+  setState( Populated );
+}
+
 void QgsMssqlConnectionItem::setLayerType( QgsMssqlLayerProperty layerProperty )
 {
-  QgsMssqlSchemaItem *schemaItem = NULL;
+  QgsMssqlSchemaItem *schemaItem = nullptr;
 
   Q_FOREACH ( QgsDataItem *child, mChildren )
   {
@@ -294,17 +331,17 @@ QList<QAction*> QgsMssqlConnectionItem::actions()
 {
   QList<QAction*> lst;
 
-  QAction* actionShowNoGeom = new QAction( tr( "Show non-spatial tables" ), this );
+  QAction* actionShowNoGeom = new QAction( tr( "Show Non-Spatial Tables" ), this );
   actionShowNoGeom->setCheckable( true );
   actionShowNoGeom->setChecked( mAllowGeometrylessTables );
   connect( actionShowNoGeom, SIGNAL( toggled( bool ) ), this, SLOT( setAllowGeometrylessTables( bool ) ) );
   lst.append( actionShowNoGeom );
 
-  QAction* actionEdit = new QAction( tr( "Edit..." ), this );
+  QAction* actionEdit = new QAction( tr( "Edit Connection..." ), this );
   connect( actionEdit, SIGNAL( triggered() ), this, SLOT( editConnection() ) );
   lst.append( actionEdit );
 
-  QAction* actionDelete = new QAction( tr( "Delete" ), this );
+  QAction* actionDelete = new QAction( tr( "Delete Connection" ), this );
   connect( actionDelete, SIGNAL( triggered() ), this, SLOT( deleteConnection() ) );
   lst.append( actionDelete );
 
@@ -322,7 +359,7 @@ void QgsMssqlConnectionItem::setAllowGeometrylessTables( bool allow )
 
 void QgsMssqlConnectionItem::editConnection()
 {
-  QgsMssqlNewConnection nc( NULL, mName );
+  QgsMssqlNewConnection nc( nullptr, mName );
   if ( nc.exec() )
   {
     // the parent should be updated
@@ -339,15 +376,26 @@ void QgsMssqlConnectionItem::deleteConnection()
 
 bool QgsMssqlConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction )
 {
+  return handleDrop( data, QString() );
+}
+
+bool QgsMssqlConnectionItem::handleDrop( const QMimeData* data, const QString& toSchema )
+{
   if ( !QgsMimeDataUtils::isUriList( data ) )
     return false;
 
   // TODO: probably should show a GUI with settings etc
-
   qApp->setOverrideCursor( Qt::WaitCursor );
+
+  QProgressDialog *progress = new QProgressDialog( tr( "Copying features..." ), tr( "Abort" ), 0, 0, nullptr );
+  progress->setWindowTitle( tr( "Import layer" ) );
+  progress->setWindowModality( Qt::WindowModal );
+  progress->show();
 
   QStringList importResults;
   bool hasError = false;
+  bool cancelled = false;
+
   QgsMimeDataUtils::UriList lst = QgsMimeDataUtils::decodeUriList( data );
   Q_FOREACH ( const QgsMimeDataUtils::Uri& u, lst )
   {
@@ -363,13 +411,27 @@ bool QgsMssqlConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction 
 
     if ( srcLayer->isValid() )
     {
-      QString uri = connInfo() + " table=" + u.name + " (geom)";
+      QString tableName;
+      if ( !toSchema.isEmpty() )
+      {
+        tableName = QString( "\"%1\".\"%2\"" ).arg( toSchema, u.name );
+      }
+      else
+      {
+        tableName = u.name;
+      }
+
+      QString uri = connInfo() + " table=" + tableName;
+      if ( srcLayer->geometryType() != QGis::NoGeometry )
+        uri += " (geom)";
 
       QgsVectorLayerImport::ImportError err;
       QString importError;
-      err = QgsVectorLayerImport::importLayer( srcLayer, uri, "mssql", &srcLayer->crs(), false, &importError );
+      err = QgsVectorLayerImport::importLayer( srcLayer, uri, "mssql", &srcLayer->crs(), false, &importError, false, nullptr, progress );
       if ( err == QgsVectorLayerImport::NoError )
         importResults.append( tr( "%1: OK!" ).arg( u.name ) );
+      else if ( err == QgsVectorLayerImport::ErrUserCancelled )
+        cancelled = true;
       else
       {
         importResults.append( QString( "%1: %2" ).arg( u.name, importError ) );
@@ -385,15 +447,21 @@ bool QgsMssqlConnectionItem::handleDrop( const QMimeData * data, Qt::DropAction 
     delete srcLayer;
   }
 
+  delete progress;
   qApp->restoreOverrideCursor();
 
-  if ( hasError )
+  if ( cancelled )
   {
-    QMessageBox::warning( 0, tr( "Import to MSSQL database" ), tr( "Failed to import some layers!\n\n" ) + importResults.join( "\n" ) );
+    QMessageBox::information( nullptr, tr( "Import to MSSQL database" ), tr( "Import cancelled." ) );
+    refresh();
+  }
+  else if ( hasError )
+  {
+    QMessageBox::warning( nullptr, tr( "Import to MSSQL database" ), tr( "Failed to import some layers!\n\n" ) + importResults.join( "\n" ) );
   }
   else
   {
-    QMessageBox::information( 0, tr( "Import to MSSQL database" ), tr( "Import was successful." ) );
+    QMessageBox::information( nullptr, tr( "Import to MSSQL database" ), tr( "Import was successful." ) );
   }
 
   if ( state() == Populated )
@@ -425,8 +493,8 @@ QgsMssqlLayerItem* QgsMssqlLayerItem::createClone()
 
 QString QgsMssqlLayerItem::createUri()
 {
-  QString pkColName = mLayerProperty.pkCols.size() > 0 ? mLayerProperty.pkCols.at( 0 ) : QString::null;
-  QgsMssqlConnectionItem *connItem = qobject_cast<QgsMssqlConnectionItem *>( parent() ? parent()->parent() : 0 );
+  QString pkColName = !mLayerProperty.pkCols.isEmpty() ? mLayerProperty.pkCols.at( 0 ) : QString::null;
+  QgsMssqlConnectionItem *connItem = qobject_cast<QgsMssqlConnectionItem *>( parent() ? parent()->parent() : nullptr );
 
   if ( !connItem )
   {
@@ -437,7 +505,7 @@ QString QgsMssqlLayerItem::createUri()
   QgsDataSourceURI uri = QgsDataSourceURI( connItem->connInfo() );
   uri.setDataSource( mLayerProperty.schemaName, mLayerProperty.tableName, mLayerProperty.geometryColName, mLayerProperty.sql, pkColName );
   uri.setSrid( mLayerProperty.srid );
-  uri.setWkbType( QgsMssqlTableModel::wkbTypeFromMssql( mLayerProperty.type ) );
+  uri.setWkbType( QGis::fromOldWkbType( QgsMssqlTableModel::wkbTypeFromMssql( mLayerProperty.type ) ) );
   QgsDebugMsg( QString( "layer uri: %1" ).arg( uri.uri() ) );
   return uri.uri();
 }
@@ -447,6 +515,8 @@ QgsMssqlSchemaItem::QgsMssqlSchemaItem( QgsDataItem* parent, QString name, QStri
     : QgsDataCollectionItem( parent, name, path )
 {
   mIconName = "mIconDbSchema.png";
+  //not fertile, since children are created by QgsMssqlConnectionItem
+  mCapabilities &= ~( Fertile );
 }
 
 QVector<QgsDataItem*> QgsMssqlSchemaItem::createChildren()
@@ -474,7 +544,16 @@ void QgsMssqlSchemaItem::addLayers( QgsDataItem* newLayers )
   }
 }
 
-QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( QgsMssqlLayerProperty layerProperty, bool refresh )
+bool QgsMssqlSchemaItem::handleDrop( const QMimeData* data, Qt::DropAction )
+{
+  QgsMssqlConnectionItem *conn = qobject_cast<QgsMssqlConnectionItem *>( parent() );
+  if ( !conn )
+    return 0;
+
+  return conn->handleDrop( data, mName );
+}
+
+QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( const QgsMssqlLayerProperty& layerProperty, bool refresh )
 {
   QGis::WkbType wkbType = QgsMssqlTableModel::wkbTypeFromMssql( layerProperty.type );
   QString tip = tr( "%1 as %2 in %3" ).arg( layerProperty.geometryColName, QgsMssqlTableModel::displayStringForWkbType( wkbType ), layerProperty.srid );
@@ -508,7 +587,7 @@ QgsMssqlLayerItem* QgsMssqlSchemaItem::addLayer( QgsMssqlLayerProperty layerProp
       }
       else
       {
-        return NULL;
+        return nullptr;
       }
   }
 
@@ -559,7 +638,7 @@ QList<QAction*> QgsMssqlRootItem::actions()
 
 QWidget *QgsMssqlRootItem::paramWidget()
 {
-  QgsMssqlSourceSelect *select = new QgsMssqlSourceSelect( 0, 0, true, true );
+  QgsMssqlSourceSelect *select = new QgsMssqlSourceSelect( nullptr, nullptr, true, true );
   connect( select, SIGNAL( connectionsChanged() ), this, SLOT( connectionsChanged() ) );
   return select;
 }
@@ -571,7 +650,7 @@ void QgsMssqlRootItem::connectionsChanged()
 
 void QgsMssqlRootItem::newConnection()
 {
-  QgsMssqlNewConnection nc( NULL );
+  QgsMssqlNewConnection nc( nullptr );
   if ( nc.exec() )
   {
     refresh();

@@ -52,7 +52,8 @@ class QgsGrassToolsTreeFilterProxyModel : public QSortFilterProxyModel
 {
   public:
     explicit QgsGrassToolsTreeFilterProxyModel( QObject *parent )
-        : QSortFilterProxyModel( parent ), mModel( 0 )
+        : QSortFilterProxyModel( parent )
+        , mModel( 0 )
     {
       setDynamicSortFilter( true );
       mRegExp.setPatternSyntax( QRegExp::Wildcard );
@@ -318,17 +319,24 @@ void QgsGrassTools::runModule( QString name, bool direct )
   QString path = QgsGrass::modulesConfigDirPath() + "/" + name;
   QPixmap pixmap = QgsGrassModule::pixmap( path, height );
 
-  // Icon size in QT4 does not seem to be variable
-  // -> reset the width to max icon width
-  if ( mTabWidget->iconSize().width() < pixmap.width() )
+  if ( !pixmap.isNull() )
   {
-    mTabWidget->setIconSize( QSize( pixmap.width(), mTabWidget->iconSize().height() ) );
+    // Icon size in QT4 does not seem to be variable
+    // -> reset the width to max icon width
+    if ( mTabWidget->iconSize().width() < pixmap.width() )
+    {
+      mTabWidget->setIconSize( QSize( pixmap.width(), mTabWidget->iconSize().height() ) );
+    }
+
+
+    QIcon is;
+    is.addPixmap( pixmap );
+    mTabWidget->addTab( m, is, "" );
   }
-
-
-  QIcon is;
-  is.addPixmap( pixmap );
-  mTabWidget->addTab( m, is, "" );
+  else
+  {
+    mTabWidget->addTab( m, name );
+  }
 
 
   mTabWidget->setCurrentIndex( mTabWidget->count() - 1 );
@@ -500,22 +508,32 @@ void QgsGrassTools::addModules( QStandardItem *parent, QDomElement &element, QSt
           item->setData( pixmap, Qt::DecorationRole );
           item->setCheckable( false );
           item->setEditable( false );
-          QStandardItem * listItem = item->clone();
-          listItem->setText( name + "\n" + description.label );
-
           appendItem( treeModel, parent, item );
 
-          // setData in the delegate with a variantised QgsDetailedItemData
-          QgsDetailedItemData myData;
-          myData.setTitle( name );
-          myData.setDetail( label );
-          myData.setIcon( pixmap );
-          myData.setCheckable( false );
-          myData.setRenderAsWidget( false );
-          QVariant myVariant = qVariantFromValue( myData );
-          listItem->setData( myVariant, Qt::UserRole );
-
-          modulesListModel->appendRow( listItem );
+          bool exists = false;
+          for ( int i = 0; i < modulesListModel->rowCount(); i++ )
+          {
+            if ( modulesListModel->item( i )->data( Qt::UserRole + Name ).toString() == name )
+            {
+              exists = true;
+              break;
+            }
+          }
+          if ( !exists )
+          {
+            QStandardItem * listItem = item->clone();
+            listItem->setText( name + "\n" + description.label );
+            // setData in the delegate with a variantised QgsDetailedItemData
+            QgsDetailedItemData myData;
+            myData.setTitle( name );
+            myData.setDetail( label );
+            myData.setIcon( pixmap );
+            myData.setCheckable( false );
+            myData.setRenderAsWidget( false );
+            QVariant myVariant = qVariantFromValue( myData );
+            listItem->setData( myVariant, Qt::UserRole );
+            modulesListModel->appendRow( listItem );
+          }
         }
       }
     }

@@ -41,8 +41,8 @@ QgsCoordinateTransform::QgsCoordinateTransform()
     : QObject()
     , mShortCircuit( false )
     , mInitialisedFlag( false )
-    , mSourceProjection( 0 )
-    , mDestinationProjection( 0 )
+    , mSourceProjection( nullptr )
+    , mDestinationProjection( nullptr )
     , mSourceDatumTransform( -1 )
     , mDestinationDatumTransform( -1 )
 {
@@ -53,8 +53,8 @@ QgsCoordinateTransform::QgsCoordinateTransform( const QgsCoordinateReferenceSyst
     : QObject()
     , mShortCircuit( false )
     , mInitialisedFlag( false )
-    , mSourceProjection( 0 )
-    , mDestinationProjection( 0 )
+    , mSourceProjection( nullptr )
+    , mDestinationProjection( nullptr )
     , mSourceDatumTransform( -1 )
     , mDestinationDatumTransform( -1 )
 {
@@ -69,8 +69,8 @@ QgsCoordinateTransform::QgsCoordinateTransform( long theSourceSrsId, long theDes
     , mInitialisedFlag( false )
     , mSourceCRS( theSourceSrsId, QgsCoordinateReferenceSystem::InternalCrsId )
     , mDestCRS( theDestSrsId, QgsCoordinateReferenceSystem::InternalCrsId )
-    , mSourceProjection( 0 )
-    , mDestinationProjection( 0 )
+    , mSourceProjection( nullptr )
+    , mDestinationProjection( nullptr )
     , mSourceDatumTransform( -1 )
     , mDestinationDatumTransform( -1 )
 {
@@ -80,8 +80,8 @@ QgsCoordinateTransform::QgsCoordinateTransform( long theSourceSrsId, long theDes
 QgsCoordinateTransform::QgsCoordinateTransform( const QString& theSourceCRS, const QString& theDestCRS )
     : QObject()
     , mInitialisedFlag( false )
-    , mSourceProjection( 0 )
-    , mDestinationProjection( 0 )
+    , mSourceProjection( nullptr )
+    , mDestinationProjection( nullptr )
     , mSourceDatumTransform( -1 )
     , mDestinationDatumTransform( -1 )
 {
@@ -91,7 +91,7 @@ QgsCoordinateTransform::QgsCoordinateTransform( const QString& theSourceCRS, con
   // initialize the coordinate system data structures
   //XXX Who spells initialize initialise?
   //XXX A: Its the queen's english....
-  //XXX  : Long live the queen! Lets get on with the initialisation...
+  //XXX  : Long live the queen! Lets get on with the initialization...
   initialise();
 }
 
@@ -100,8 +100,8 @@ QgsCoordinateTransform::QgsCoordinateTransform( long theSourceSrid,
     QgsCoordinateReferenceSystem::CrsType theSourceCRSType )
     : QObject()
     , mInitialisedFlag( false )
-    , mSourceProjection( 0 )
-    , mDestinationProjection( 0 )
+    , mSourceProjection( nullptr )
+    , mDestinationProjection( nullptr )
     , mSourceDatumTransform( -1 )
     , mDestinationDatumTransform( -1 )
 {
@@ -112,7 +112,7 @@ QgsCoordinateTransform::QgsCoordinateTransform( long theSourceSrid,
   // initialize the coordinate system data structures
   //XXX Who spells initialize initialise?
   //XXX A: Its the queen's english....
-  //XXX  : Long live the queen! Lets get on with the initialisation...
+  //XXX  : Long live the queen! Lets get on with the initialization...
   initialise();
 }
 
@@ -372,7 +372,7 @@ void QgsCoordinateTransform::transformInPlace( double& x, double& y, double& z,
 void QgsCoordinateTransform::transformInPlace( float& x, float& y, double& z,
     TransformDirection direction ) const
 {
-  double xd = ( double )x, yd = ( double )y;
+  double xd = static_cast< double >( x ), yd = static_cast< double >( y );
   transformInPlace( xd, yd, z, direction );
   x = xd;
   y = yd;
@@ -539,9 +539,9 @@ QgsRectangle QgsCoordinateTransform::transformBoundingBox( const QgsRectangle &r
   // even with 1000 points it takes < 1ms
   // TODO: how to effectively and precisely reproject bounding box?
   const int nPoints = 1000;
-  double d = sqrt(( rect.width() * rect.height() ) / pow( sqrt(( double ) nPoints ) - 1, 2.0 ) );
-  int nXPoints = ( int ) ceil( rect.width() / d ) + 1;
-  int nYPoints = ( int ) ceil( rect.height() / d ) + 1;
+  double d = sqrt(( rect.width() * rect.height() ) / pow( sqrt( static_cast< double >( nPoints ) ) - 1, 2.0 ) );
+  int nXPoints = static_cast< int >( ceil( rect.width() / d ) ) + 1;
+  int nYPoints = static_cast< int >( ceil( rect.height() / d ) ) + 1;
 
   QgsRectangle bb_rect;
   bb_rect.setMinimal();
@@ -557,8 +557,8 @@ QgsRectangle QgsCoordinateTransform::transformBoundingBox( const QgsRectangle &r
 
   // Populate the vectors
 
-  double dx = rect.width()  / ( double )( nXPoints - 1 );
-  double dy = rect.height() / ( double )( nYPoints - 1 );
+  double dx = rect.width()  / static_cast< double >( nXPoints - 1 );
+  double dy = rect.height() / static_cast< double >( nYPoints - 1 );
 
   double pointY = rect.yMinimum();
 
@@ -632,8 +632,10 @@ QgsRectangle QgsCoordinateTransform::transformBoundingBox( const QgsRectangle &r
   return bb_rect;
 }
 
-void QgsCoordinateTransform::transformCoords( const int& numPoints, double *x, double *y, double *z, TransformDirection direction ) const
+void QgsCoordinateTransform::transformCoords( int numPoints, double *x, double *y, double *z, TransformDirection direction ) const
 {
+  if ( mShortCircuit || !mInitialisedFlag )
+    return;
   // Refuse to transform the points if the srs's are invalid
   if ( !mSourceCRS.isValid() )
   {
@@ -677,8 +679,8 @@ void QgsCoordinateTransform::transformCoords( const int& numPoints, double *x, d
   }
   else
   {
-    Q_ASSERT( mSourceProjection != 0 );
-    Q_ASSERT( mDestinationProjection != 0 );
+    Q_ASSERT( mSourceProjection );
+    Q_ASSERT( mDestinationProjection );
     projResult = pj_transform( mSourceProjection, mDestinationProjection, numPoints, 0, x, y, z );
   }
 
@@ -902,7 +904,7 @@ QString QgsCoordinateTransform::stripDatumTransform( const QString& proj4 )
 void QgsCoordinateTransform::searchDatumTransform( const QString& sql, QList< int >& transforms )
 {
   sqlite3* db;
-  int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
+  int openResult = sqlite3_open_v2( QgsApplication::srsDbFilePath().toUtf8().constData(), &db, SQLITE_OPEN_READONLY, 0 );
   if ( openResult != SQLITE_OK )
   {
     sqlite3_close( db );
@@ -910,20 +912,22 @@ void QgsCoordinateTransform::searchDatumTransform( const QString& sql, QList< in
   }
 
   sqlite3_stmt* stmt;
-  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
+  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, nullptr );
   if ( prepareRes != SQLITE_OK )
   {
-    sqlite3_finalize( stmt ); sqlite3_close( db );
+    sqlite3_finalize( stmt );
+    sqlite3_close( db );
     return;
   }
 
   QString cOpCode;
   while ( sqlite3_step( stmt ) == SQLITE_ROW )
   {
-    cOpCode = ( const char * ) sqlite3_column_text( stmt, 0 );
+    cOpCode = reinterpret_cast< const char * >( sqlite3_column_text( stmt, 0 ) );
     transforms.push_back( cOpCode.toInt() );
   }
-  sqlite3_finalize( stmt ); sqlite3_close( db );
+  sqlite3_finalize( stmt );
+  sqlite3_close( db );
 }
 
 QString QgsCoordinateTransform::datumTransformString( int datumTransform )
@@ -931,7 +935,7 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
   QString transformString;
 
   sqlite3* db;
-  int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
+  int openResult = sqlite3_open_v2( QgsApplication::srsDbFilePath().toUtf8().constData(), &db, SQLITE_OPEN_READONLY, 0 );
   if ( openResult != SQLITE_OK )
   {
     sqlite3_close( db );
@@ -940,10 +944,11 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
 
   sqlite3_stmt* stmt;
   QString sql = QString( "SELECT coord_op_method_code,p1,p2,p3,p4,p5,p6,p7 FROM tbl_datum_transform WHERE coord_op_code=%1" ).arg( datumTransform );
-  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
+  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, nullptr );
   if ( prepareRes != SQLITE_OK )
   {
-    sqlite3_finalize( stmt ); sqlite3_close( db );
+    sqlite3_finalize( stmt );
+    sqlite3_close( db );
     return transformString;
   }
 
@@ -953,7 +958,7 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
     int methodCode = sqlite3_column_int( stmt, 0 );
     if ( methodCode == 9615 ) //ntv2
     {
-      transformString = "+nadgrids=" + QString(( const char * )sqlite3_column_text( stmt, 1 ) );
+      transformString = "+nadgrids=" + QString( reinterpret_cast< const char * >( sqlite3_column_text( stmt, 1 ) ) );
     }
     else if ( methodCode == 9603 || methodCode == 9606 || methodCode == 9607 )
     {
@@ -976,14 +981,15 @@ QString QgsCoordinateTransform::datumTransformString( int datumTransform )
     }
   }
 
-  sqlite3_finalize( stmt ); sqlite3_close( db );
+  sqlite3_finalize( stmt );
+  sqlite3_close( db );
   return transformString;
 }
 
 bool QgsCoordinateTransform::datumTransformCrsInfo( int datumTransform, int& epsgNr, QString& srcProjection, QString& dstProjection, QString &remarks, QString &scope, bool &preferred, bool &deprecated )
 {
   sqlite3* db;
-  int openResult = sqlite3_open( QgsApplication::srsDbFilePath().toUtf8().constData(), &db );
+  int openResult = sqlite3_open_v2( QgsApplication::srsDbFilePath().toUtf8().constData(), &db, SQLITE_OPEN_READONLY, 0 );
   if ( openResult != SQLITE_OK )
   {
     sqlite3_close( db );
@@ -992,10 +998,11 @@ bool QgsCoordinateTransform::datumTransformCrsInfo( int datumTransform, int& eps
 
   sqlite3_stmt* stmt;
   QString sql = QString( "SELECT epsg_nr,source_crs_code,target_crs_code,remarks,scope,preferred,deprecated FROM tbl_datum_transform WHERE coord_op_code=%1" ).arg( datumTransform );
-  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, NULL );
+  int prepareRes = sqlite3_prepare( db, sql.toAscii(), sql.size(), &stmt, nullptr );
   if ( prepareRes != SQLITE_OK )
   {
-    sqlite3_finalize( stmt ); sqlite3_close( db );
+    sqlite3_finalize( stmt );
+    sqlite3_close( db );
     return false;
   }
 
@@ -1010,8 +1017,8 @@ bool QgsCoordinateTransform::datumTransformCrsInfo( int datumTransform, int& eps
   epsgNr = sqlite3_column_int( stmt, 0 );
   srcCrsId = sqlite3_column_int( stmt, 1 );
   destCrsId = sqlite3_column_int( stmt, 2 );
-  remarks = QString::fromUtf8(( const char * ) sqlite3_column_text( stmt, 3 ) );
-  scope = QString::fromUtf8(( const char * ) sqlite3_column_text( stmt, 4 ) );
+  remarks = QString::fromUtf8( reinterpret_cast< const char * >( sqlite3_column_text( stmt, 3 ) ) );
+  scope = QString::fromUtf8( reinterpret_cast< const char * >( sqlite3_column_text( stmt, 4 ) ) );
   preferred = sqlite3_column_int( stmt, 5 ) != 0;
   deprecated = sqlite3_column_int( stmt, 6 ) != 0;
 

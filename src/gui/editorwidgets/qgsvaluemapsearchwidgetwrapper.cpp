@@ -23,8 +23,8 @@
 #include <QSizePolicy>
 
 QgsValueMapSearchWidgetWrapper::QgsValueMapSearchWidgetWrapper( QgsVectorLayer* vl, int fieldIdx, QWidget* parent )
-    : QgsSearchWidgetWrapper( vl, fieldIdx, parent ),
-    mComboBox( NULL )
+    : QgsSearchWidgetWrapper( vl, fieldIdx, parent )
+    , mComboBox( nullptr )
 {
 }
 
@@ -59,7 +59,7 @@ QString QgsValueMapSearchWidgetWrapper::expression()
   return mExpression;
 }
 
-bool QgsValueMapSearchWidgetWrapper::valid()
+bool QgsValueMapSearchWidgetWrapper::valid() const
 {
   return true;
 }

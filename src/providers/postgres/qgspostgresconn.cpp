@@ -45,7 +45,7 @@ QgsPostgresResult::~QgsPostgresResult()
 {
   if ( mRes )
     ::PQclear( mRes );
-  mRes = 0;
+  mRes = nullptr;
 }
 
 QgsPostgresResult &QgsPostgresResult::operator=( PGresult * theRes )
@@ -124,6 +124,12 @@ int QgsPostgresResult::PQftype( int col )
   return ::PQftype( mRes, col );
 }
 
+int QgsPostgresResult::PQfmod( int col )
+{
+  Q_ASSERT( mRes );
+  return ::PQfmod( mRes, col );
+}
+
 Oid QgsPostgresResult::PQoidValue()
 {
   Q_ASSERT( mRes );
@@ -142,6 +148,10 @@ QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bo
 
   if ( shared )
   {
+    // sharing connection between threads is not safe
+    // See http://hub.qgis.org/issues/13141
+    Q_ASSERT( QApplication::instance()->thread() == QThread::currentThread() );
+
     if ( connections.contains( conninfo ) )
     {
       QgsDebugMsg( QString( "Using cached connection for %1" ).arg( conninfo ) );
@@ -155,7 +165,7 @@ QgsPostgresConn *QgsPostgresConn::connectDb( QString conninfo, bool readonly, bo
   if ( conn->mRef == 0 )
   {
     delete conn;
-    return 0;
+    return nullptr;
   }
 
   if ( shared )
@@ -196,11 +206,29 @@ QgsPostgresConn::QgsPostgresConn( const QString& conninfo, bool readOnly, bool s
 {
   QgsDebugMsg( QString( "New PostgreSQL connection for " ) + conninfo );
 
-  mConn = PQconnectdb( conninfo.toLocal8Bit() );  // use what is set based on locale; after connecting, use Utf8
+  // expand connectionInfo
+  QgsDataSourceURI uri( conninfo );
+  QString expandedConnectionInfo = uri.connectionInfo( true );
+
+  mConn = PQconnectdb( expandedConnectionInfo.toLocal8Bit() );  // use what is set based on locale; after connecting, use Utf8
+
+  // remove temporary cert/key/CA if they exist
+  QgsDataSourceURI expandedUri( expandedConnectionInfo );
+  QStringList parameters;
+  parameters << "sslcert" << "sslkey" << "sslrootcert";
+  Q_FOREACH ( const QString& param, parameters )
+  {
+    if ( expandedUri.hasParam( param ) )
+    {
+      QString fileName = expandedUri.param( param );
+      fileName.remove( "'" );
+      QFile::remove( fileName );
+    }
+  }
+
   // check the connection status
   if ( PQstatus() != CONNECTION_OK )
   {
-    QgsDataSourceURI uri( conninfo );
     QString username = uri.username();
     QString password = uri.password();
 
@@ -222,7 +250,7 @@ QgsPostgresConn::QgsPostgresConn( const QString& conninfo, bool readOnly, bool s
       if ( !password.isEmpty() )
         uri.setPassword( password );
 
-      QgsDebugMsg( "Connecting to " + uri.connectionInfo() );
+      QgsDebugMsg( "Connecting to " + uri.connectionInfo( false ) );
       mConn = PQconnectdb( uri.connectionInfo().toLocal8Bit() );
     }
 
@@ -289,7 +317,7 @@ QgsPostgresConn::QgsPostgresConn( const QString& conninfo, bool readOnly, bool s
     QgsDebugMsg( "Topology support available!" );
   }
 
-  PQsetNoticeProcessor( mConn, noticeProcessor, 0 );
+  PQsetNoticeProcessor( mConn, noticeProcessor, nullptr );
 }
 
 QgsPostgresConn::~QgsPostgresConn()
@@ -297,7 +325,7 @@ QgsPostgresConn::~QgsPostgresConn()
   Q_ASSERT( mRef == 0 );
   if ( mConn )
     ::PQfinish( mConn );
-  mConn = 0;
+  mConn = nullptr;
 }
 
 void QgsPostgresConn::unref()
@@ -324,7 +352,7 @@ void QgsPostgresConn::addColumnInfo( QgsPostgresLayerProperty& layerProperty, co
   // TODO: optimize this query when pk candidates aren't needed
   //       could use array_agg() and count()
   //       array output would look like this: "{One,tWo}"
-  QString sql = QString( "SELECT attname, CASE WHEN typname = ANY(ARRAY['geometry','geography','topogeometry']) THEN 1 ELSE null END AS isSpatial FROM pg_attribute JOIN pg_type ON atttypid=pg_type.oid WHERE attrelid=regclass('%1.%2') AND attnum>0" )
+  QString sql = QString( "SELECT attname, CASE WHEN typname = ANY(ARRAY['geometry','geography','topogeometry']) THEN 1 ELSE null END AS isSpatial FROM pg_attribute JOIN pg_type ON atttypid=pg_type.oid WHERE attrelid=regclass('%1.%2') AND attnum>0 ORDER BY attnum" )
                 .arg( quotedIdentifier( schemaName ),
                       quotedIdentifier( viewName ) );
   //QgsDebugMsg( sql );
@@ -495,6 +523,10 @@ bool QgsPostgresConn::getTableInfo( bool searchGeometryColumnsOnly, bool searchP
       layerProperty.tableName = tableName;
       layerProperty.geometryColName = column;
       layerProperty.geometryColType = columnType;
+      if ( dim == 3 && !type.endsWith( 'M' ) )
+        type += "Z";
+      else if ( dim == 4 )
+        type += "ZM";
       layerProperty.types = QList<QGis::WkbType>() << ( QgsPostgresConn::wkbTypeFromPostgis( type ) );
       layerProperty.srids = QList<int>() << srid;
       layerProperty.sql = "";
@@ -943,7 +975,7 @@ PGresult *QgsPostgresConn::PQexec( const QString& query, bool logError )
                    .arg( query ).arg( PQstatus() ).arg( PQerrorMessage() ) );
     }
 
-    return 0;
+    return nullptr;
   }
 
   QgsDebugMsgLevel( QString( "Executing SQL: %1" ).arg( query ), 3 );
@@ -1090,12 +1122,12 @@ PGresult *QgsPostgresConn::PQexecPrepared( const QString& stmtName, const QStrin
     qparam << params[i].toUtf8();
 
     if ( params[i].isNull() )
-      param[i] = 0;
+      param[i] = nullptr;
     else
       param[i] = qparam[i];
   }
 
-  PGresult *res = ::PQexecPrepared( mConn, stmtName.toUtf8(), params.size(), param, NULL, NULL, 0 );
+  PGresult *res = ::PQexecPrepared( mConn, stmtName.toUtf8(), params.size(), param, nullptr, nullptr, 0 );
 
   delete [] param;
 
@@ -1106,7 +1138,7 @@ void QgsPostgresConn::PQfinish()
 {
   Q_ASSERT( mConn );
   ::PQfinish( mConn );
-  mConn = 0;
+  mConn = nullptr;
 }
 
 int QgsPostgresConn::PQstatus()
@@ -1189,6 +1221,9 @@ qint64 QgsPostgresConn::getBinaryInt( QgsPostgresResult &queryResult, int row, i
       oid = *( quint16 * )p;
       if ( mSwapEndian )
         oid = ntohs( oid );
+      /* cast to signed 16bit
+       * See http://hub.qgis.org/issues/14262 */
+      oid = ( qint16 )oid;
       break;
 
     case 6:
@@ -1231,10 +1266,14 @@ qint64 QgsPostgresConn::getBinaryInt( QgsPostgresResult &queryResult, int row, i
     default:
       QgsDebugMsg( QString( "unexpected size %1" ).arg( s ) );
       //intentional fall-through
+      FALLTHROUGH;
     case 4:
       oid = *( quint32 * )p;
       if ( mSwapEndian )
         oid = ntohl( oid );
+      /* cast to signed 32bit
+       * See http://hub.qgis.org/issues/14262 */
+      oid = ( qint32 )oid;
       break;
   }
 
@@ -1410,10 +1449,10 @@ void QgsPostgresConn::retrieveLayerTypes( QgsPostgresLayerProperty &layerPropert
         int j;
         for ( j = 0; j < layerProperty.size(); j++ )
         {
-          if ( layerProperty.srids[j] != srid.toInt() )
+          if ( layerProperty.srids.at( j ) != srid.toInt() )
             continue;
 
-          QGis::WkbType wkbType1 = layerProperty.types[j];
+          QGis::WkbType wkbType1 = layerProperty.types.at( j );
           QGis::WkbType multiType1 = QGis::multiType( wkbType1 );
           if ( multiType0 == multiType1 && wkbType0 != wkbType1 )
           {
@@ -1438,36 +1477,42 @@ void QgsPostgresConn::postgisWkbType( QGis::WkbType wkbType, QString &geometryTy
   {
     case QGis::WKBPoint25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBPoint:
       geometryType = "POINT";
       break;
 
     case QGis::WKBLineString25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBLineString:
       geometryType = "LINESTRING";
       break;
 
     case QGis::WKBPolygon25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBPolygon:
       geometryType = "POLYGON";
       break;
 
     case QGis::WKBMultiPoint25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBMultiPoint:
       geometryType = "MULTIPOINT";
       break;
 
     case QGis::WKBMultiLineString25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBMultiLineString:
       geometryType = "MULTILINESTRING";
       break;
 
     case QGis::WKBMultiPolygon25D:
       dim = 3;
+      FALLTHROUGH;
     case QGis::WKBMultiPolygon:
       geometryType = "MULTIPOLYGON";
       break;

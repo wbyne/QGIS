@@ -17,10 +17,12 @@
 #include "qgsfield.h"
 #include "qgsfield_p.h"
 #include "qgis.h"
+#include "qgsapplication.h"
 
 #include <QSettings>
 #include <QDataStream>
 #include <QtCore/qmath.h>
+#include <QIcon>
 
 /***************************************************************************
  * This class is considered CRITICAL and any change MUST be accompanied with
@@ -240,7 +242,7 @@ bool QgsField::convertCompatible( QVariant& v ) const
 QDataStream& operator<<( QDataStream& out, const QgsField& field )
 {
   out << field.name();
-  out << ( quint32 )field.type();
+  out << static_cast< quint32 >( field.type() );
   out << field.typeName();
   out << field.length();
   out << field.precision();
@@ -254,10 +256,10 @@ QDataStream& operator>>( QDataStream& in, QgsField& field )
   QString name, typeName, comment;
   in >> name >> type >> typeName >> length >> precision >> comment;
   field.setName( name );
-  field.setType(( QVariant::Type )type );
+  field.setType( static_cast< QVariant::Type >( type ) );
   field.setTypeName( typeName );
-  field.setLength(( int )length );
-  field.setPrecision(( int )precision );
+  field.setLength( static_cast< int >( length ) );
+  field.setPrecision( static_cast< int >( precision ) );
   field.setComment( comment );
   return in;
 }
@@ -273,7 +275,7 @@ QDataStream& operator>>( QDataStream& in, QgsField& field )
 
 QgsFields::QgsFields()
 {
-  d = new QgsFieldsPrivate( );
+  d = new QgsFieldsPrivate();
 }
 
 QgsFields::QgsFields( const QgsFields &other )
@@ -337,7 +339,7 @@ void QgsFields::remove( int fieldIdx )
   d->nameToIndex.clear();
   for ( int idx = 0; idx < count(); ++idx )
   {
-    d->nameToIndex.insert( d->fields[idx].field.name(), idx );
+    d->nameToIndex.insert( d->fields.at( idx ).field.name(), idx );
   }
 }
 
@@ -437,6 +439,92 @@ bool QgsFields::operator==( const QgsFields &other ) const
   return d->fields == other.d->fields;
 }
 
+QgsFields::const_iterator QgsFields::constBegin() const noexcept
+{
+  if ( d->fields.isEmpty() )
+    return const_iterator();
+
+  return const_iterator( &d->fields.first() );
+}
+
+QgsFields::const_iterator QgsFields::constEnd() const noexcept
+{
+  if ( d->fields.isEmpty() )
+    return const_iterator();
+
+  return const_iterator( &d->fields.last() + 1 );
+}
+
+QgsFields::const_iterator QgsFields::begin() const noexcept
+{
+  if ( d->fields.isEmpty() )
+    return const_iterator();
+
+  return const_iterator( &d->fields.first() );
+}
+
+QgsFields::const_iterator QgsFields::end() const noexcept
+{
+  if ( d->fields.isEmpty() )
+    return const_iterator();
+
+  return const_iterator( &d->fields.last() + 1 );
+}
+
+QgsFields::iterator QgsFields::begin()
+{
+  if ( d->fields.isEmpty() )
+    return iterator();
+
+  d.detach();
+  return iterator( &d->fields.first() );
+}
+
+QgsFields::iterator QgsFields::end()
+{
+  if ( d->fields.isEmpty() )
+    return iterator();
+
+  d.detach();
+  return iterator( &d->fields.last() + 1 );
+}
+
+QIcon QgsFields::iconForField( int fieldIdx ) const
+{
+  switch ( d->fields.at( fieldIdx ).field.type() )
+  {
+    case QVariant::Int:
+    case QVariant::UInt:
+    case QVariant::LongLong:
+    case QVariant::ULongLong:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldInteger.svg" );
+    }
+    case QVariant::Double:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldFloat.svg" );
+    }
+    case QVariant::String:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldText.svg" );
+    }
+    case QVariant::Date:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldDate.svg" );
+    }
+    case QVariant::DateTime:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldDateTime.svg" );
+    }
+    case QVariant::Time:
+    {
+      return QgsApplication::getThemeIcon( "/mIconFieldTime.svg" );
+    }
+    default:
+      return QIcon();
+  }
+}
+
 /***************************************************************************
  * This class is considered CRITICAL and any change MUST be accompanied with
  * full unit tests in testqgsfields.cpp.
@@ -476,7 +564,7 @@ QgsAttributeList QgsFields::allAttributesList() const
 
 QDataStream& operator<<( QDataStream& out, const QgsFields& fields )
 {
-  out << ( quint32 )fields.size();
+  out << static_cast< quint32 >( fields.size() );
   for ( int i = 0; i < fields.size(); i++ )
   {
     out << fields.field( i );

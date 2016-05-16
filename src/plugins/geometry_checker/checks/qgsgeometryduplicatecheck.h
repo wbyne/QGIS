@@ -14,10 +14,12 @@ class QgsGeometryDuplicateCheckError : public QgsGeometryCheckError
 {
   public:
     QgsGeometryDuplicateCheckError( const QgsGeometryCheck* check,
-                                    const QgsFeatureId& featureId,
+                                    QgsFeatureId featureId,
                                     const QgsPointV2& errorLocation,
                                     const QList<QgsFeatureId>& duplicates )
-        : QgsGeometryCheckError( check, featureId, errorLocation, QgsVertexId(), duplicatesString( duplicates ) ), mDuplicates( duplicates ) { }
+        : QgsGeometryCheckError( check, featureId, errorLocation, QgsVertexId(), duplicatesString( duplicates ) )
+        , mDuplicates( duplicates )
+    { }
     const QList<QgsFeatureId>& duplicates() const { return mDuplicates; }
 
     bool isEqual( QgsGeometryCheckError* other ) const override
@@ -49,7 +51,7 @@ class QgsGeometryDuplicateCheck : public QgsGeometryCheck
   public:
     explicit QgsGeometryDuplicateCheck( QgsFeaturePool* featurePool )
         : QgsGeometryCheck( FeatureCheck, featurePool ) {}
-    void collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter = 0, const QgsFeatureIds& ids = QgsFeatureIds() ) const override;
+    void collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter = nullptr, const QgsFeatureIds& ids = QgsFeatureIds() ) const override;
     void fixError( QgsGeometryCheckError* error, int method, int mergeAttributeIndex, Changes& changes ) const override;
     const QStringList& getResolutionMethods() const override;
     QString errorDescription() const override { return tr( "Duplicate" ); }

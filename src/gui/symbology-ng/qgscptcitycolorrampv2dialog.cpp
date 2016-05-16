@@ -33,37 +33,10 @@
 // - fix Diverging children when first show Selections
 // - fix crash on Diverging?
 
-///@cond
-//not part of public API
-
-class TreeFilterProxyModel : public QSortFilterProxyModel
-{
-    //  Q_OBJECT
-
-  public:
-    TreeFilterProxyModel( QObject *parent, QgsCptCityBrowserModel* model )
-        : QSortFilterProxyModel( parent ), mModel( model )
-    { setSourceModel( mModel ); }
-
-  protected:
-    bool filterAcceptsRow( int sourceRow, const QModelIndex &sourceParent ) const override
-    {
-      QgsCptCityDataItem* item = mModel->dataItem( mModel->index( sourceRow, 0, sourceParent ) );
-      return ( item && !( item->type() == QgsCptCityDataItem::ColorRamp ) );
-    }
-    // bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
-
-  private:
-    QgsCptCityBrowserModel* mModel;
-};
-
-///@endcond
-
-// ----------------------
 
 QgsCptCityColorRampV2Dialog::QgsCptCityColorRampV2Dialog( QgsCptCityColorRampV2* ramp, QWidget* parent )
     : QDialog( parent )
-    , mRamp( 0 )
+    , mRamp( nullptr )
     , mArchiveViewType( QgsCptCityBrowserModel::Selections )
 {
   setupUi( this );
@@ -75,8 +48,8 @@ QgsCptCityColorRampV2Dialog::QgsCptCityColorRampV2Dialog( QgsCptCityColorRampV2*
   mSplitter->setSizes( QList<int>() << 250 << 550 );
   mSplitter->restoreState( settings.value( "/Windows/CptCityColorRampV2Dialog/splitter" ).toByteArray() );
 
-  mModel = mAuthorsModel = mSelectionsModel = 0; //mListModel = 0;
-  mTreeFilter = 0;
+  mModel = mAuthorsModel = mSelectionsModel = nullptr; //mListModel = 0;
+  mTreeFilter = nullptr;
 
   QgsCptCityArchive::initDefaultArchive();
   mArchive = QgsCptCityArchive::defaultArchive();
@@ -86,7 +59,7 @@ QgsCptCityColorRampV2Dialog::QgsCptCityColorRampV2Dialog( QgsCptCityColorRampV2*
   {
     // QgsDialog dlg( this );
     // dlg.setWindowTitle( tr( "cpt-city gradient files not found" ) );
-    QTextEdit *edit = new QTextEdit( 0 );
+    QTextEdit *edit = new QTextEdit( nullptr );
     edit->setReadOnly( true );
     // not sure if we want this long string to be translated
     QString helpText = tr( "Error - cpt-city gradient files not found.\n\n"
@@ -326,7 +299,7 @@ void QgsCptCityColorRampV2Dialog::on_mListWidget_itemClicked( QListWidgetItem * 
 
 void QgsCptCityColorRampV2Dialog::on_mListWidget_itemSelectionChanged()
 {
-  if ( mListWidget->selectedItems().count() == 0 )
+  if ( mListWidget->selectedItems().isEmpty() )
   {
     mRamp->setName( "", "" );
   }
@@ -384,7 +357,7 @@ void QgsCptCityColorRampV2Dialog::on_pbtnLicenseDetails_pressed()
   descFile = mArchive->descFileName( path );
 
   // prepare dialog
-  QgsDialog dlg( this, 0, QDialogButtonBox::Close );
+  QgsDialog dlg( this, nullptr, QDialogButtonBox::Close );
   QVBoxLayout *layout = dlg.layout();
   dlg.setWindowTitle( title );
   QTextEdit *textEdit = new QTextEdit( &dlg );
@@ -638,9 +611,9 @@ bool QgsCptCityColorRampV2Dialog::updateRamp()
   // update listWidget, find appropriate item in mListRamps
   for ( int i = 0; i < mListRamps.count(); i++ )
   {
-    if ( mListRamps[i] == childItem )
+    if ( mListRamps.at( i ) == childItem )
     {
-      QgsDebugMsg( QString( "found matching item %1 target=%2" ).arg( mListRamps[i]->path(), childItem->path() ) );
+      QgsDebugMsg( QString( "found matching item %1 target=%2" ).arg( mListRamps.at( i )->path(), childItem->path() ) );
       QListWidgetItem* listItem = mListWidget->item( i );
       mListWidget->setCurrentItem( listItem );
       // on_mListWidget_itemClicked( listItem );
@@ -714,3 +687,21 @@ void QgsCptCityColorRampV2Dialog::refreshModel( const QModelIndex& index )
   }
 }
 #endif
+
+/// @cond PRIVATE
+
+TreeFilterProxyModel::TreeFilterProxyModel( QObject* parent, QgsCptCityBrowserModel* model )
+    : QSortFilterProxyModel( parent )
+    , mModel( model )
+{
+  setSourceModel( mModel );
+}
+
+bool TreeFilterProxyModel::filterAcceptsRow( int sourceRow, const QModelIndex& sourceParent ) const
+{
+  QgsCptCityDataItem* item = mModel->dataItem( mModel->index( sourceRow, 0, sourceParent ) );
+  return ( item && !( item->type() == QgsCptCityDataItem::ColorRamp ) );
+}
+
+
+///@endcond

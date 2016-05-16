@@ -294,9 +294,9 @@ void QgsGrassPlugin::initGui()
   if ( !QgsRendererV2Registry::instance()->renderersList().contains( "grassEdit" ) )
   {
     QgsRendererV2Registry::instance()->addRenderer( new QgsRendererV2Metadata( "grassEdit",
-        QObject::tr( "GRASS Edit" ),
+        QObject::tr( "GRASS edit" ),
         QgsGrassEditRenderer::create,
-        QIcon(),
+        QIcon( QgsApplication::defaultThemePath() + "rendererGrassSymbol.svg" ),
         QgsGrassEditRendererWidget::create ) );
   }
 
@@ -313,9 +313,10 @@ void QgsGrassPlugin::onGisbaseChanged()
     QString error = tr( "GRASS init error" );
     qGisInterface->messageBar()->pushMessage( error, QgsGrass::initError(), QgsMessageBar::WARNING );
 
-    mOpenToolsAction->setDisabled( false ); // allow to open to see that tools are disabled
+    mOpenToolsAction->setDisabled( false ); // allow opening to see that tools are disabled
     mRegionAction->setDisabled( true );
     mOpenMapsetAction->setDisabled( true );
+    mNewMapsetAction->setDisabled( true );
     mCloseMapsetAction->setDisabled( true );
 
     mTools->setWindowTitle( error + " : " + QgsGrass::initError() );
@@ -401,7 +402,7 @@ void QgsGrassPlugin::onEditingStarted()
     return;
 
   mOldStyles[vectorLayer] = vectorLayer->styleManager()->currentStyle();
-  mFormSuppress[vectorLayer] = vectorLayer->featureFormSuppress();
+  mFormSuppress[vectorLayer] = vectorLayer->editFormConfig()->suppress();
 
   // Because the edit style may be stored to project:
   // - do not translate because it may be loaded in QGIS running with different language
@@ -494,7 +495,7 @@ void QgsGrassPlugin::addFeature()
     QgsDebugMsg( "grassProvider is null" );
     return;
   }
-  QgsVectorLayer::FeatureFormSuppress formSuppress = mFormSuppress.value( vectorLayer );
+  QgsEditFormConfig::FeatureFormSuppress formSuppress = mFormSuppress.value( vectorLayer );
   if ( sender() == mAddPointAction )
   {
     qGisInterface->mapCanvas()->setMapTool( mAddPoint );
@@ -509,7 +510,7 @@ void QgsGrassPlugin::addFeature()
   {
     qGisInterface->mapCanvas()->setMapTool( mAddBoundary );
     grassProvider->setNewFeatureType( GV_BOUNDARY );
-    formSuppress = QgsVectorLayer::SuppressOn;
+    formSuppress = QgsEditFormConfig::SuppressOn;
   }
   else if ( sender() == mAddCentroidAction )
   {
@@ -520,9 +521,9 @@ void QgsGrassPlugin::addFeature()
   {
     qGisInterface->mapCanvas()->setMapTool( mAddArea );
     grassProvider->setNewFeatureType( GV_AREA );
-    formSuppress = QgsVectorLayer::SuppressOn;
+    formSuppress = QgsEditFormConfig::SuppressOn;
   }
-  vectorLayer->setFeatureFormSuppress( formSuppress );
+  vectorLayer->editFormConfig()->setSuppress( formSuppress );
 }
 
 void QgsGrassPlugin::onSplitFeaturesTriggered( bool checked )

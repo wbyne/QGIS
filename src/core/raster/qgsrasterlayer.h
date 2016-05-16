@@ -275,10 +275,12 @@ class CORE_EXPORT QgsRasterLayer : public QgsMapLayer
     /** \brief This is an overloaded version of the draw() function that is called by both draw() and thumbnailAsPixmap */
     void draw( QPainter * theQPainter,
                QgsRasterViewPort * myRasterViewPort,
-               const QgsMapToPixel* theQgsMapToPixel = 0 );
+               const QgsMapToPixel* theQgsMapToPixel = nullptr );
 
     /** Returns a list with classification items (Text and color) */
     QgsLegendColorList legendSymbologyItems() const;
+
+    virtual bool isSpatial() const override { return true; }
 
     /** \brief Obtain GDAL Metadata for this layer */
     QString metadata() override;
@@ -311,7 +313,7 @@ class CORE_EXPORT QgsRasterLayer : public QgsMapLayer
     void setDefaultContrastEnhancement();
 
     /** \brief Overloaded version of the above function for convenience when restoring from xml
-     * @note Deprecated since QGIS 2.10. Use setRendererForDrawingStyle() or directly setRenderer()
+     * @deprecated Deprecated since QGIS 2.10. Use setRendererForDrawingStyle() or directly setRenderer()
      */
     Q_DECL_DEPRECATED void setDrawingStyle( const QString & theDrawingStyleQString );
 
@@ -322,12 +324,12 @@ class CORE_EXPORT QgsRasterLayer : public QgsMapLayer
     virtual QStringList subLayers() const override;
 
     /** \brief Draws a preview of the rasterlayer into a pixmap
-    @note - use previewAsImage() for rendering with QGIS>=2.4 */
-    Q_DECL_DEPRECATED QPixmap previewAsPixmap( const QSize& size, const QColor& bgColor = Qt::white );
+    @deprecated use previewAsImage() for rendering with QGIS>=2.4 */
+    Q_DECL_DEPRECATED QPixmap previewAsPixmap( QSize size, const QColor& bgColor = Qt::white );
 
     /** \brief Draws a preview of the rasterlayer into a QImage
      @note added in 2.4 */
-    QImage previewAsImage( const QSize& size, const QColor& bgColor = Qt::white,
+    QImage previewAsImage( QSize size, const QColor& bgColor = Qt::white,
                            QImage::Format format = QImage::Format_ARGB32_Premultiplied );
 
     /**
@@ -363,11 +365,17 @@ class CORE_EXPORT QgsRasterLayer : public QgsMapLayer
     /** \brief Read the symbology for the current layer from the Dom node supplied */
     bool readSymbology( const QDomNode& node, QString& errorMessage ) override;
 
+    /** \brief Read the style information for the current layer from the Dom node supplied */
+    bool readStyle( const QDomNode &node, QString &errorMessage ) override;
+
     /** \brief Reads layer specific state from project file Dom node */
     bool readXml( const QDomNode& layer_node ) override;
 
     /** \brief Write the symbology for the layer into the docment provided */
     bool writeSymbology( QDomNode&, QDomDocument& doc, QString& errorMessage ) const override;
+
+    /** \brief Write the style for the layer into the docment provided */
+    bool writeStyle( QDomNode &node, QDomDocument &doc, QString &errorMessage ) const override;
 
     /** \brief Write layer specific state to project file Dom node */
     bool writeXml( QDomNode & layer_node, QDomDocument & doc ) override;
@@ -383,7 +391,7 @@ class CORE_EXPORT QgsRasterLayer : public QgsMapLayer
     bool update();
 
     /** Sets corresponding renderer for style*/
-    void setRendererForDrawingStyle( const QgsRaster::DrawingStyle &  theDrawingStyle );
+    void setRendererForDrawingStyle( QgsRaster::DrawingStyle theDrawingStyle );
 
     /** \brief  Constant defining flag for XML and a constant that signals property not used */
     const QString QSTRING_NOT_SET;

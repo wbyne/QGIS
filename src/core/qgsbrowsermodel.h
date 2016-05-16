@@ -24,6 +24,9 @@
 
 #include "qgsdataitem.h"
 
+/** \class QgsBrowserWatcher
+ * \note not available in Python bindings
+*/
 class CORE_EXPORT QgsBrowserWatcher : public QFutureWatcher<QVector <QgsDataItem*> >
 {
     Q_OBJECT
@@ -46,13 +49,13 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
     Q_OBJECT
 
   public:
-    explicit QgsBrowserModel( QObject *parent = 0 );
+    explicit QgsBrowserModel( QObject *parent = nullptr );
     ~QgsBrowserModel();
 
     enum ItemDataRole
     {
-      // item path used to access path in the tree, see QgsDataItem::mPath
-      PathRole = Qt::UserRole
+      PathRole = Qt::UserRole, /*!< Item path used to access path in the tree, see QgsDataItem::mPath */
+      CommentRole = Qt::UserRole + 1, /*!< Item comment */
     };
     // implemented methods from QAbstractItemModel for read-only access
 
@@ -80,7 +83,7 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
     /** Returns the index of the item in the model specified by the given row, column and parent index. */
     virtual QModelIndex index( int row, int column, const QModelIndex & parent = QModelIndex() ) const override;
 
-    QModelIndex findItem( QgsDataItem *item, QgsDataItem *parent = 0 ) const;
+    QModelIndex findItem( QgsDataItem *item, QgsDataItem *parent = nullptr ) const;
 
     /** Returns the parent of the model item with the given index.
      * If the item has no parent, an invalid QModelIndex is returned.
@@ -100,10 +103,10 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
 
     bool hasChildren( const QModelIndex &parent = QModelIndex() ) const override;
 
-    // Refresh item specified by path
+    //! Refresh item specified by path
     void refresh( const QString& path );
 
-    // Refresh item childs
+    //! Refresh item children
     void refresh( const QModelIndex &index = QModelIndex() );
 
     /** Return index of item with given path. It only searches in currently fetched
@@ -113,6 +116,8 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
      *        item with the longest match from start with path (to get as close/deep as possible to deleted item).
      * @return model index, invalid if item not found */
     QModelIndex findPath( const QString& path, Qt::MatchFlag matchFlag = Qt::MatchExactly );
+
+    //! @note not available in python bindings
     static QModelIndex findPath( QAbstractItemModel *model, const QString& path, Qt::MatchFlag matchFlag = Qt::MatchExactly );
 
     void connectItem( QgsDataItem *item );
@@ -125,7 +130,7 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
     void stateChanged( const QModelIndex & index, QgsDataItem::State oldState );
 
   public slots:
-    // Reload the whole model
+    //! Reload the whole model
     void reload();
     void beginInsertItems( QgsDataItem *parent, int first, int last );
     void endInsertItems();
@@ -138,8 +143,11 @@ class CORE_EXPORT QgsBrowserModel : public QAbstractItemModel
     void removeFavourite( const QModelIndex &index );
     void updateProjectHome();
 
+    /** Hide the given path in the browser model */
+    void hidePath( QgsDataItem *item );
+
   protected:
-    // populates the model
+    //! Populates the model
     void addRootItems();
     void removeRootItems();
 

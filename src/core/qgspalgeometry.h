@@ -1,3 +1,17 @@
+/***************************************************************************
+    qgspalgeometry.h
+    ---------------------
+    begin                : May 2009
+    copyright            : (C) 2009 by Marco Hugentobler
+    email                : marco dot hugentobler at sourcepole dot ch
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
 #ifndef QGSPALGEOMETRY_H
 #define QGSPALGEOMETRY_H
 
@@ -11,6 +25,7 @@
  * Class that adds extra information to QgsLabelFeature for text labels
  *
  * @note not part of public API
+ * @note not available in Python bindings
  */
 class QgsTextLabelFeature : public QgsLabelFeature
 {
@@ -18,7 +33,7 @@ class QgsTextLabelFeature : public QgsLabelFeature
     //! Construct text label feature
     QgsTextLabelFeature( QgsFeatureId id, GEOSGeometry* geometry, const QSizeF& size )
         : QgsLabelFeature( id, geometry, size )
-        , mFontMetrics( NULL )
+        , mFontMetrics( nullptr )
     {
       mDefinedFont = QFont();
     }

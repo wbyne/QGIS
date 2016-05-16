@@ -70,6 +70,23 @@ QList<QAction*> QgsGrassItemActions::actions()
     list << openMapsetAction;
   }
 
+  if ( mGrassObject.type() == QgsGrassObject::Mapset && mGrassObject.locationIdentical( QgsGrass::getDefaultLocationObject() )
+       && mGrassObject.mapset() != QgsGrass::getDefaultMapset() )
+  {
+    if ( !QgsGrass::instance()->isMapsetInSearchPath( mGrassObject.mapset() ) )
+    {
+      QAction* openMapsetAction = new QAction( tr( "Add mapset to search path" ), this );
+      connect( openMapsetAction, SIGNAL( triggered() ), SLOT( addMapsetToSearchPath() ) );
+      list << openMapsetAction;
+    }
+    else
+    {
+      QAction* openMapsetAction = new QAction( tr( "Remove mapset from search path" ), this );
+      connect( openMapsetAction, SIGNAL( triggered() ), SLOT( removeMapsetFromSearchPath() ) );
+      list << openMapsetAction;
+    }
+  }
+
   if (( mGrassObject.type() == QgsGrassObject::Raster || mGrassObject.type() == QgsGrassObject::Vector
         ||  mGrassObject.type() == QgsGrassObject::Group ) && isMapsetOwner )
   {
@@ -138,6 +155,30 @@ void QgsGrassItemActions::openMapset()
   QgsGrass::saveMapset();
 }
 
+void QgsGrassItemActions::addMapsetToSearchPath()
+{
+  QgsDebugMsg( "entered" );
+  QString error;
+  QgsGrass::instance()->addMapsetToSearchPath( mGrassObject.mapset(), error );
+  if ( !error.isEmpty() )
+  {
+    QgsGrass::warning( error );
+    return;
+  }
+}
+
+void QgsGrassItemActions::removeMapsetFromSearchPath()
+{
+  QgsDebugMsg( "entered" );
+  QString error;
+  QgsGrass::instance()->removeMapsetFromSearchPath( mGrassObject.mapset(), error );
+  if ( !error.isEmpty() )
+  {
+    QgsGrass::warning( error );
+    return;
+  }
+}
+
 void QgsGrassItemActions::renameGrassObject()
 {
   QgsDebugMsg( "Entered" );
@@ -182,7 +223,7 @@ void QgsGrassItemActions::renameGrassObject()
   }
 }
 
-void QgsGrassItemActions::deleteGrassObject( )
+void QgsGrassItemActions::deleteGrassObject()
 {
   QgsDebugMsg( "Entered" );
 
@@ -353,7 +394,27 @@ QgsGrassMapsetItem::QgsGrassMapsetItem( QgsDataItem* parent, QString dirPath, QS
   mGrassObject = QgsGrassObject( gisdbase, location, mName, "", QgsGrassObject::Mapset );
   mActions = new QgsGrassItemActions( mGrassObject, true, this );
 
+  // emit data changed to possibly change icon
+  connect( QgsGrass::instance(), SIGNAL( mapsetChanged() ), this, SLOT( emitDataChanged() ) );
+  connect( QgsGrass::instance(), SIGNAL( mapsetSearchPathChanged() ), this, SLOT( emitDataChanged() ) );
+
   mIconName = "grass_mapset.png";
+}
+
+QIcon QgsGrassMapsetItem::icon()
+{
+  if ( mGrassObject == QgsGrass::getDefaultMapsetObject() )
+  {
+    return QgsApplication::getThemeIcon( "/grass_mapset_open.png" );
+  }
+  else if ( mGrassObject.locationIdentical( QgsGrass::getDefaultLocationObject() ) )
+  {
+    if ( QgsGrass::instance()->isMapsetInSearchPath( mGrassObject.mapset() ) )
+    {
+      return QgsApplication::getThemeIcon( "/grass_mapset_search.png" );
+    }
+  }
+  return QgsDataItem::icon();
 }
 
 void QgsGrassMapsetItem::setState( State state )
@@ -424,7 +485,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
     vectorObject.setType( QgsGrassObject::Vector );
 
     // Skip temporary import maps. If Vect_open_old during refresh fails due to missing topo, hist file remains open
-    // and Windows do no allow to delete temporary map to qgis.v.in. In any case we don't want to show temporary import maps.
+    // and Windows does not allow deleting the temporary map to qgis.v.in. In any case we don't want to show temporary import maps.
     // TODO: add some auto cleaning mechanism to remove temporary maps left after import fail
     // keep excluded tmp name in sync with qgis.v.in
     QgsDebugMsg( "name = " + name );
@@ -448,7 +509,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
     // if topo version does not match GRASS lib version
     int topoMajor = 0;
     int topoMinor = 0;
-    bool gotTopoVersion = QgsGrass::topoVersion( mGrassObject.gisdbase(), mGrassObject.location(), mName, name, topoMajor, topoMinor );
+    bool gotTopoVersion = QgsGrass::topoVersion( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), name, topoMajor, topoMinor );
     QgsDebugMsg( QString( "name = %1 topoMajor = %2 topoMinor = %3" ).arg( name ).arg( topoMajor ).arg( topoMinor ) );
     QString topoError;
     if ( !gotTopoVersion )
@@ -479,7 +540,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
 
     try
     {
-      layerNames = QgsGrass::vectorLayers( mGrassObject.gisdbase(), mGrassObject.location(), mName, name );
+      layerNames = QgsGrass::vectorLayers( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), name );
     }
     catch ( QgsGrass::Exception &e )
     {
@@ -550,7 +611,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
     QString uri = mDirPath + "/" + "cellhd" + "/" + name;
     QgsDebugMsg( "uri = " + uri );
 
-    QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mName, name, QgsGrassObject::Raster );
+    QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), name, QgsGrassObject::Raster );
     if ( objectInImports( rasterObject ) )
     {
       QgsDebugMsg( "skip currently being imported raster " + name );
@@ -573,7 +634,7 @@ QVector<QgsDataItem*> QgsGrassMapsetItem::createChildren()
     QString uri = mDirPath + "/" + "group" + "/" + name;
     QgsDebugMsg( "uri = " + uri );
 
-    QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mName, name, QgsGrassObject::Group );
+    QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), name, QgsGrassObject::Group );
     QgsGrassGroupItem *layer = new QgsGrassGroupItem( this, rasterObject, path, uri );
     items.append( layer );
   }
@@ -771,7 +832,7 @@ bool QgsGrassMapsetItem::handleDrop( const QMimeData * data, Qt::DropAction )
       QgsDebugMsg( "mapsetCrs = " + mapsetCrs.toWkt() );
 
       bool settingsExternal = settings.value( "/GRASS/browser/import/external", true ).toBool();
-      QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mName, destName, QgsGrassObject::Raster );
+      QgsGrassObject rasterObject( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), destName, QgsGrassObject::Raster );
       if ( providerCrs.isValid() && mapsetCrs.isValid() && providerCrs == mapsetCrs
            && rasterProvider->name() == "gdal" && settingsExternal )
       {
@@ -806,7 +867,7 @@ bool QgsGrassMapsetItem::handleDrop( const QMimeData * data, Qt::DropAction )
     else if ( u.layerType == "vector" )
     {
       QString path = mPath + "/" + "raster" + "/" + u.name;
-      QgsGrassObject vectorObject( mGrassObject.gisdbase(), mGrassObject.location(), mName, destName, QgsGrassObject::Vector );
+      QgsGrassObject vectorObject( mGrassObject.gisdbase(), mGrassObject.location(), mGrassObject.mapset(), destName, QgsGrassObject::Vector );
       import = new QgsGrassVectorImport( vectorProvider, vectorObject ); // takes provider ownership
     }
 
@@ -927,8 +988,8 @@ bool QgsGrassObjectItem::equal( const QgsDataItem *other )
 
 //----------------------- QgsGrassVectorItem ------------------------------
 
-QgsGrassVectorItem::QgsGrassVectorItem( QgsDataItem* parent, QgsGrassObject grassObject, QString path, QString labelName, bool valid ) :
-    QgsDataCollectionItem( parent, labelName.isEmpty() ? grassObject.name() : labelName, path )
+QgsGrassVectorItem::QgsGrassVectorItem( QgsDataItem* parent, QgsGrassObject grassObject, QString path, QString labelName, bool valid )
+    : QgsDataCollectionItem( parent, labelName.isEmpty() ? grassObject.name() : labelName, path )
     , QgsGrassObjectItemBase( grassObject )
     , mValid( valid )
     , mActions( 0 )

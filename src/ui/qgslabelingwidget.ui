@@ -25,6 +25,10 @@
         <property name="text">
          <string>No labels</string>
         </property>
+        <property name="icon">
+         <iconset resource="../../images/images.qrc">
+          <normaloff>:/images/themes/default/labelingNone.svg</normaloff>:/images/themes/default/labelingNone.svg</iconset>
+        </property>
        </item>
        <item>
         <property name="text">
@@ -32,12 +36,7 @@
         </property>
         <property name="icon">
          <iconset resource="../../images/images.qrc">
-          <normaloff>:/images/themes/default/propertyicons/labels.svg</normaloff>:/images/themes/default/propertyicons/labels.svg</iconset>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Discourage other labels from covering features in this layer</string>
+          <normaloff>:/images/themes/default/labelingSingle.svg</normaloff>:/images/themes/default/labelingSingle.svg</iconset>
         </property>
        </item>
        <item>
@@ -46,7 +45,16 @@
         </property>
         <property name="icon">
          <iconset resource="../../images/images.qrc">
-          <normaloff>:/images/themes/default/propertyicons/labels.svg</normaloff>:/images/themes/default/propertyicons/labels.svg</iconset>
+          <normaloff>:/images/themes/default/labelingRuleBased.svg</normaloff>:/images/themes/default/labelingRuleBased.svg</iconset>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Blocking</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../../images/images.qrc">
+          <normaloff>:/images/themes/default/labelingObstacle.svg</normaloff>:/images/themes/default/labelingObstacle.svg</iconset>
         </property>
        </item>
       </widget>
@@ -88,6 +96,16 @@
    </item>
    <item>
     <widget class="QStackedWidget" name="mStackedWidget"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <property name="spacing">
+      <number>12</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+    </layout>
    </item>
   </layout>
  </widget>

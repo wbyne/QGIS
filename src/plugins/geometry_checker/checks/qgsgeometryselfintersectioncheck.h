@@ -15,11 +15,13 @@ class QgsGeometrySelfIntersectionCheckError : public QgsGeometryCheckError
 {
   public:
     QgsGeometrySelfIntersectionCheckError( const QgsGeometryCheck* check,
-                                           const QgsFeatureId& featureId,
+                                           QgsFeatureId featureId,
                                            const QgsPointV2& errorLocation,
-                                           const QgsVertexId& vidx,
+                                           QgsVertexId vidx,
                                            const QgsGeometryUtils::SelfIntersection& inter )
-        : QgsGeometryCheckError( check, featureId, errorLocation, vidx ), mInter( inter ) { }
+        : QgsGeometryCheckError( check, featureId, errorLocation, vidx )
+        , mInter( inter )
+    { }
     const QgsGeometryUtils::SelfIntersection& intersection() const { return mInter; }
     bool isEqual( QgsGeometryCheckError* other ) const override;
     bool handleChanges( const QgsGeometryCheck::Changes& changes ) override;
@@ -42,7 +44,7 @@ class QgsGeometrySelfIntersectionCheck : public QgsGeometryCheck
   public:
     explicit QgsGeometrySelfIntersectionCheck( QgsFeaturePool* featurePool )
         : QgsGeometryCheck( FeatureNodeCheck, featurePool ) {}
-    void collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter = 0, const QgsFeatureIds& ids = QgsFeatureIds() ) const override;
+    void collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &messages, QAtomicInt* progressCounter = nullptr, const QgsFeatureIds& ids = QgsFeatureIds() ) const override;
     void fixError( QgsGeometryCheckError* error, int method, int mergeAttributeIndex, Changes& changes ) const override;
     const QStringList& getResolutionMethods() const override;
     QString errorDescription() const override { return tr( "Self intersection" ); }

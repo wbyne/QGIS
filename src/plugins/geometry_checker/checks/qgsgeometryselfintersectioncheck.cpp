@@ -57,7 +57,7 @@ bool QgsGeometrySelfIntersectionCheckError::handleChanges( const QgsGeometryChec
 void QgsGeometrySelfIntersectionCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
 {
   const QgsFeatureIds& featureIds = ids.isEmpty() ? mFeaturePool->getFeatureIds() : ids;
-  Q_FOREACH ( const QgsFeatureId& featureid, featureIds )
+  Q_FOREACH ( QgsFeatureId featureid, featureIds )
   {
     if ( progressCounter ) progressCounter->fetchAndAddRelaxed( 1 );
     QgsFeature feature;
@@ -89,7 +89,7 @@ void QgsGeometrySelfIntersectionCheck::fixError( QgsGeometryCheckError* error, i
     return;
   }
   QgsAbstractGeometryV2* geom = feature.geometry()->geometry();
-  const QgsVertexId& vidx = error->vidx();
+  QgsVertexId vidx = error->vidx();
 
   // Check if ring still exists
   if ( !vidx.isValid( geom ) )
@@ -126,7 +126,7 @@ void QgsGeometrySelfIntersectionCheck::fixError( QgsGeometryCheckError* error, i
   else if ( method == ToMultiObject || method == ToSingleObjects )
   {
     // Extract rings
-    QList<QgsPointV2> ring1, ring2;
+    QgsPointSequenceV2 ring1, ring2;
     bool ring1EndsWithS = false;
     bool ring2EndsWithS = false;
     for ( int i = 0; i < nVerts; ++i )

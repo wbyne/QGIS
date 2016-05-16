@@ -20,7 +20,9 @@
 #include "qgsmapcanvas.h"
 
 QgsGeometryCheckerFixSummaryDialog::QgsGeometryCheckerFixSummaryDialog( QgisInterface* iface, QgsVectorLayer* layer, const Statistics& stats, const QStringList &messages, QWidget *parent )
-    : QDialog( parent ), mIface( iface ), mLayer( layer )
+    : QDialog( parent )
+    , mIface( iface )
+    , mLayer( layer )
 {
   ui.setupUi( this );
 
@@ -53,10 +55,10 @@ QgsGeometryCheckerFixSummaryDialog::QgsGeometryCheckerFixSummaryDialog( QgisInte
 
   ui.plainTextEditMessages->setPlainText( messages.join( "\n" ) );
 
-  ui.groupBoxFixedErrors->setVisible( stats.fixedErrors.size() > 0 );
-  ui.groupBoxNewErrors->setVisible( stats.newErrors.size() > 0 );
-  ui.groupBoxNotFixed->setVisible( stats.failedErrors.size() > 0 );
-  ui.groupBoxObsoleteErrors->setVisible( stats.obsoleteErrors.size() > 0 );
+  ui.groupBoxFixedErrors->setVisible( !stats.fixedErrors.isEmpty() );
+  ui.groupBoxNewErrors->setVisible( !stats.newErrors.isEmpty() );
+  ui.groupBoxNotFixed->setVisible( !stats.failedErrors.isEmpty() );
+  ui.groupBoxObsoleteErrors->setVisible( !stats.obsoleteErrors.isEmpty() );
   ui.groupBoxMessages->setVisible( !messages.isEmpty() );
 }
 

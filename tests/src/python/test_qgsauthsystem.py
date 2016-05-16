@@ -16,33 +16,31 @@ __revision__ = '$Format:%H$'
 
 import os
 import tempfile
-import time
 
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsAuthManager, QgsAuthCertUtils, QgsPkiBundle, QgsAuthMethodConfig, QgsAuthMethod, QgsAuthConfigSslServer
+from qgis.gui import QgsAuthEditorWidgets
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtNetwork import *
-from PyQt4.QtTest import *
 
-from utilities import (
-    TestCase,
-    getQgisTestApp,
+from qgis.PyQt.QtCore import QFileInfo, qDebug
+from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox
+from qgis.PyQt.QtTest import QTest
+from qgis.PyQt.QtNetwork import QSsl, QSslError, QSslSocket
+
+from qgis.testing import (
+    start_app,
     unittest,
-    expectedFailure,
     unitTestDataPath,
 )
 
 AUTHDBDIR = tempfile.mkdtemp()
 os.environ['QGIS_AUTH_DB_DIR_PATH'] = AUTHDBDIR
-QGISAPP, CANVAS, IFACE, PARENT = getQgisTestApp()
+start_app()
 
 TESTDATA = os.path.join(unitTestDataPath(), 'auth_system')
 PKIDATA = os.path.join(TESTDATA, 'certs_keys')
 
 
-class TestQgsAuthManager(TestCase):
+class TestQgsAuthManager(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):

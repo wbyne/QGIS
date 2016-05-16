@@ -67,7 +67,7 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
 
     struct IdentifyResult
     {
-      IdentifyResult() : mLayer( NULL ) {}
+      IdentifyResult() : mLayer( nullptr ) {}
 
       IdentifyResult( QgsMapLayer * layer, const QgsFeature& feature, const QMap< QString, QString >& derivedAttributes ):
           mLayer( layer ), mFeature( feature ), mDerivedAttributes( derivedAttributes ) {}
@@ -158,12 +158,47 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
   private:
 
     //! Private helper
-    virtual void convertMeasurement( QgsDistanceArea &calc, double &measure, QGis::UnitType &u, bool isArea );
+    //! @deprecated use displayDistanceUnits() and displayAreaUnits() instead
+    Q_DECL_DEPRECATED virtual void convertMeasurement( QgsDistanceArea &calc, double &measure, QGis::UnitType &u, bool isArea );
 
-    /** Transforms the measurements of derived attributes in the desired units*/
-    virtual QGis::UnitType displayUnits();
+    /** Transforms the measurements of derived attributes in the desired units
+     * @deprecated use displayDistanceUnits() and displayAreaUnits() instead
+    */
+    Q_DECL_DEPRECATED virtual QGis::UnitType displayUnits();
 
-    QMap< QString, QString > featureDerivedAttributes( QgsFeature *feature, QgsMapLayer *layer );
+    /** Desired units for distance display.
+     * @note added in QGIS 2.14
+     * @see displayAreaUnits()
+     */
+    virtual QGis::UnitType displayDistanceUnits() const;
+
+    /** Desired units for area display.
+     * @note added in QGIS 2.14
+     * @see displayDistanceUnits()
+     */
+    virtual QgsUnitTypes::AreaUnit displayAreaUnits() const;
+
+    /** Format a distance into a suitable string for display to the user
+     * @note added in QGIS 2.14
+     * @see formatArea()
+     */
+    QString formatDistance( double distance ) const;
+
+    /** Format a distance into a suitable string for display to the user
+     * @note added in QGIS 2.14
+     * @see formatDistance()
+     */
+    QString formatArea( double area ) const;
+
+    QMap< QString, QString > featureDerivedAttributes( QgsFeature *feature, QgsMapLayer *layer, const QgsPoint& layerPoint = QgsPoint() );
+
+    /** Adds details of the closest vertex to derived attributes
+     */
+    void closestVertexAttributes( const QgsAbstractGeometryV2& geometry, QgsVertexId vId, QgsMapLayer *layer, QMap< QString, QString >& derivedAttributes );
+
+    QString formatCoordinate( const QgsPoint& canvasPoint ) const;
+    QString formatXCoordinate( const QgsPoint& canvasPoint ) const;
+    QString formatYCoordinate( const QgsPoint& canvasPoint ) const;
 
     // Last point in canvas CRS
     QgsPoint mLastPoint;
@@ -171,6 +206,8 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
     double mLastMapUnitsPerPixel;
 
     QgsRectangle mLastExtent;
+
+    int mCoordinatePrecision;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS( QgsMapToolIdentify::LayerType )

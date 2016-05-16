@@ -69,7 +69,7 @@ void QgsDoubleSpinBox::paintEvent( QPaintEvent *event )
   QDoubleSpinBox::paintEvent( event );
 }
 
-void QgsDoubleSpinBox::changed( const double& value )
+void QgsDoubleSpinBox::changed( double value )
 {
   mClearButton->setVisible( shouldShowClearForValue( value ) );
 }
@@ -122,18 +122,18 @@ QString QgsDoubleSpinBox::stripped( const QString &originalText ) const
   //adapted from QAbstractSpinBoxPrivate::stripped
   //trims whitespace, prefix and suffix from spin box text
   QString text = originalText;
-  if ( specialValueText().size() == 0 || text != specialValueText() )
+  if ( specialValueText().isEmpty() || text != specialValueText() )
   {
     int from = 0;
     int size = text.size();
     bool changed = false;
-    if ( prefix().size() && text.startsWith( prefix() ) )
+    if ( !prefix().isEmpty() && text.startsWith( prefix() ) )
     {
       from += prefix().size();
       size -= from;
       changed = true;
     }
-    if ( suffix().size() && text.endsWith( suffix() ) )
+    if ( !suffix().isEmpty() && text.endsWith( suffix() ) )
     {
       size -= suffix().size();
       changed = true;

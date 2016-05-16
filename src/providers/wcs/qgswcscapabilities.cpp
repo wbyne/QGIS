@@ -17,9 +17,6 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#include <typeinfo>
-
-#define WCS_THRESHOLD 200  // time to wait for an answer without emitting dataChanged()
 #include "qgslogger.h"
 #include "qgswcscapabilities.h"
 #include "qgsowsconnection.h"
@@ -33,25 +30,13 @@
 #include "qgsrectangle.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsnetworkaccessmanager.h"
-#include <qgsmessageoutput.h>
-#include <qgsmessagelog.h>
+#include "qgsmessageoutput.h"
+#include "qgsmessagelog.h"
 
 #include <QNetworkRequest>
 #include <QNetworkReply>
-#include <QNetworkProxy>
-#include <QNetworkDiskCache>
-
-#include <QUrl>
-#include <QIcon>
-#include <QImage>
-#include <QImageReader>
-#include <QPainter>
-#include <QPixmap>
 #include <QSet>
-#include <QSettings>
 #include <QEventLoop>
-#include <QCoreApplication>
-#include <QTime>
 
 #ifdef _MSC_VER
 #include <float.h>
@@ -65,7 +50,7 @@
 
 QgsWcsCapabilities::QgsWcsCapabilities( QgsDataSourceURI const &theUri )
     : mUri( theUri )
-    , mCapabilitiesReply( NULL )
+    , mCapabilitiesReply( nullptr )
     , mCoverageCount( 0 )
     , mCacheLoadControl( QNetworkRequest::PreferNetwork )
 {
@@ -78,7 +63,7 @@ QgsWcsCapabilities::QgsWcsCapabilities( QgsDataSourceURI const &theUri )
 
 QgsWcsCapabilities::QgsWcsCapabilities()
     : mCapabilities()
-    , mCapabilitiesReply( NULL )
+    , mCapabilitiesReply( nullptr )
     , mCoverageCount( 0 )
     , mCacheLoadControl( QNetworkRequest::PreferNetwork )
 {
@@ -176,10 +161,9 @@ bool QgsWcsCapabilities::sendRequest( QString const & url )
   connect( mCapabilitiesReply, SIGNAL( finished() ), this, SLOT( capabilitiesReplyFinished() ) );
   connect( mCapabilitiesReply, SIGNAL( downloadProgress( qint64, qint64 ) ), this, SLOT( capabilitiesReplyProgress( qint64, qint64 ) ) );
 
-  while ( mCapabilitiesReply )
-  {
-    QCoreApplication::processEvents( QEventLoop::ExcludeUserInputEvents );
-  }
+  QEventLoop loop;
+  connect( this, SIGNAL( downloadFinished() ), &loop, SLOT( quit() ) );
+  loop.exec( QEventLoop::ExcludeUserInputEvents );
 
   if ( mCapabilitiesResponse.isEmpty() )
   {
@@ -272,7 +256,10 @@ bool QgsWcsCapabilities::retrieveServerCapabilities( const QString& preferredVer
 
   QString url = getCapabilitiesUrl( preferredVersion );
 
-  if ( ! sendRequest( url ) ) { return false; }
+  if ( !sendRequest( url ) )
+  {
+    return false;
+  }
 
   QgsDebugMsg( "Converting to Dom." );
 
@@ -326,7 +313,10 @@ bool QgsWcsCapabilities::describeCoverage( QString const &identifier, bool force
 
   QString url = getDescribeCoverageUrl( coverage->identifier );
 
-  if ( ! sendRequest( url ) ) { return false; }
+  if ( !sendRequest( url ) )
+  {
+    return false;
+  }
 
   QgsDebugMsg( "Converting to Dom." );
 
@@ -416,7 +406,9 @@ void QgsWcsCapabilities::capabilitiesReplyFinished()
   }
 
   mCapabilitiesReply->deleteLater();
-  mCapabilitiesReply = 0;
+  mCapabilitiesReply = nullptr;
+
+  emit downloadFinished();
 }
 
 void QgsWcsCapabilities::capabilitiesReplyProgress( qint64 bytesReceived, qint64 bytesTotal )
@@ -557,7 +549,7 @@ QList<QDomElement> QgsWcsCapabilities::domElements( const QDomElement &element, 
   QList<QDomElement> list;
 
   QStringList names = path.split( '.' );
-  if ( names.size() == 0 ) return list;
+  if ( names.isEmpty() ) return list;
   QString name = names.value( 0 );
   names.removeFirst();
 
@@ -570,7 +562,7 @@ QList<QDomElement> QgsWcsCapabilities::domElements( const QDomElement &element, 
       QString tagName = stripNS( el.tagName() );
       if ( tagName == name )
       {
-        if ( names.size() == 0 )
+        if ( names.isEmpty() )
         {
           list.append( el );
         }
@@ -601,7 +593,7 @@ QStringList QgsWcsCapabilities::domElementsTexts( const QDomElement &element, co
 QDomElement QgsWcsCapabilities::domElement( const QDomElement &element, const QString & path )
 {
   QStringList names = path.split( '.' );
-  if ( names.size() == 0 ) return QDomElement();
+  if ( names.isEmpty() ) return QDomElement();
 
   QDomElement el = firstChild( element, names.value( 0 ) );
   if ( names.size() == 1 || el.isNull() )
@@ -1027,7 +1019,7 @@ bool QgsWcsCapabilities::parseDescribeCoverageDom11( QByteArray const &xml, QgsW
 
   QStringList formats = domElementsTexts( docElem, "CoverageDescription.SupportedFormat" );
   // There could be formats from GetCapabilities
-  if ( formats.size() > 0 )
+  if ( !formats.isEmpty() )
   {
     coverage->supportedFormat = formats;
   }
@@ -1039,7 +1031,7 @@ bool QgsWcsCapabilities::parseDescribeCoverageDom11( QByteArray const &xml, QgsW
   {
     authids.insert( crsUrnToAuthId( crs ) );
   }
-  if ( authids.size() > 0 )
+  if ( !authids.isEmpty() )
   {
     coverage->supportedCrs = authids.toList();
   }
@@ -1231,7 +1223,7 @@ QgsWcsCoverageSummary* QgsWcsCapabilities::coverageSummary( QString const & theI
       }
     }
   }
-  return 0;
+  return nullptr;
 }
 
 QList<QgsWcsCoverageSummary> QgsWcsCapabilities::coverages()

@@ -30,7 +30,7 @@ QgsDataSourceURI::QgsDataSourceURI()
     , mKeyColumn( "" )
     , mUseEstimatedMetadata( false )
     , mSelectAtIdDisabled( false )
-    , mWkbType( QGis::WKBUnknown )
+    , mWkbType( QgsWKBTypes::Unknown )
 {
   // do nothing
 }
@@ -40,7 +40,7 @@ QgsDataSourceURI::QgsDataSourceURI( QString uri )
     , mKeyColumn( "" )
     , mUseEstimatedMetadata( false )
     , mSelectAtIdDisabled( false )
-    , mWkbType( QGis::WKBUnknown )
+    , mWkbType( QgsWKBTypes::Unknown )
 {
   int i = 0;
   while ( i < uri.length() )
@@ -139,7 +139,7 @@ QgsDataSourceURI::QgsDataSourceURI( QString uri )
       }
       else if ( pname == "type" )
       {
-        mWkbType = QGis::fromNewWkbType( QgsWKBTypes::parseType( pval ) );
+        mWkbType = QgsWKBTypes::parseType( pval );
       }
       else if ( pname == "selectatid" )
       {
@@ -181,6 +181,10 @@ QgsDataSourceURI::QgsDataSourceURI( QString uri )
       {
         mPort = pval;
       }
+      else if ( pname == "driver" )
+      {
+        mDriver = pval;
+      }
       else if ( pname == "tty" )
       {
         QgsDebugMsg( "backend debug tty ignored" );
@@ -199,6 +203,10 @@ QgsDataSourceURI::QgsDataSourceURI( QString uri )
           mSSLmode = SSLprefer;
         else if ( pval == "require" )
           mSSLmode = SSLrequire;
+        else if ( pval == "verify-ca" )
+          mSSLmode = SSLverifyCA;
+        else if ( pval == "verify-full" )
+          mSSLmode = SSLverifyFull;
       }
       else if ( pname == "requiressl" )
       {
@@ -303,6 +311,11 @@ QString QgsDataSourceURI::port() const
   return mPort;
 }
 
+QString QgsDataSourceURI::driver() const
+{
+  return mDriver;
+}
+
 QgsDataSourceURI::SSLmode QgsDataSourceURI::sslMode() const
 {
   return mSSLmode;
@@ -332,6 +345,13 @@ QString QgsDataSourceURI::keyColumn() const
 {
   return mKeyColumn;
 }
+
+
+void QgsDataSourceURI::setDriver( const QString& driver )
+{
+  mDriver = driver;
+}
+
 
 void QgsDataSourceURI::setKeyColumn( const QString& column )
 {
@@ -482,6 +502,11 @@ QString QgsDataSourceURI::connectionInfo( bool expandAuthConfig ) const
       connectionItems << "port=" + mPort;
   }
 
+  if ( mDriver != "" )
+  {
+    connectionItems << "driver='" + escape( mDriver ) + '\'';
+  }
+
   if ( mUsername != "" )
   {
     connectionItems << "user='" + escape( mUsername ) + '\'';
@@ -499,9 +524,13 @@ QString QgsDataSourceURI::connectionInfo( bool expandAuthConfig ) const
   else if ( mSSLmode == SSLrequire )
     connectionItems << "sslmode=require";
 #if 0
-  else if ( mSSLmode == SSLprefer )
+  else if ( mSSLmode == SSLprefer ) // no need to output the default
     connectionItems << "sslmode=prefer";
 #endif
+  else if ( mSSLmode == SSLverifyCA )
+    connectionItems << "sslmode=verify-ca";
+  else if ( mSSLmode == SSLverifyFull )
+    connectionItems << "sslmode=verify-full";
 
   if ( !mAuthConfigId.isEmpty() )
   {
@@ -540,10 +569,10 @@ QString QgsDataSourceURI::uri( bool expandAuthConfig ) const
     theUri += QString( " srid=%1" ).arg( mSrid );
   }
 
-  if ( mWkbType != QGis::WKBUnknown && mWkbType != QGis::WKBNoGeometry )
+  if ( mWkbType != QgsWKBTypes::Unknown && mWkbType != QgsWKBTypes::NoGeometry )
   {
     theUri += " type=";
-    theUri += QgsWKBTypes::displayString( QgsWKBTypes::flatType(( QgsWKBTypes::Type( mWkbType ) ) ) );
+    theUri += QgsWKBTypes::displayString( mWkbType );
   }
 
   if ( mSelectAtIdDisabled )
@@ -672,10 +701,20 @@ void QgsDataSourceURI::setDatabase( const QString &database )
 
 QGis::WkbType QgsDataSourceURI::wkbType() const
 {
+  return QGis::fromNewWkbType( mWkbType );
+}
+
+QgsWKBTypes::Type QgsDataSourceURI::newWkbType() const
+{
   return mWkbType;
 }
 
 void QgsDataSourceURI::setWkbType( QGis::WkbType wkbType )
+{
+  mWkbType = QGis::fromOldWkbType( wkbType );
+}
+
+void QgsDataSourceURI::setWkbType( QgsWKBTypes::Type wkbType )
 {
   mWkbType = wkbType;
 }

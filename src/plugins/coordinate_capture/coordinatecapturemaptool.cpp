@@ -40,8 +40,7 @@ CoordinateCaptureMapTool::CoordinateCaptureMapTool( QgsMapCanvas* thepCanvas )
 
 CoordinateCaptureMapTool::~CoordinateCaptureMapTool()
 {
-  if ( mpRubberBand != 0 )
-    delete mpRubberBand;
+  delete mpRubberBand;
 }
 
 void CoordinateCaptureMapTool::canvasMoveEvent( QgsMapMouseEvent * thepEvent )

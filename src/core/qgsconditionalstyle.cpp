@@ -1,3 +1,17 @@
+/***************************************************************************
+    qgsconditionalstyle.cpp
+    ---------------------
+    begin                : August 2015
+    copyright            : (C) 2015 by Nathan Woodrow
+    email                : woodrow dot nathan at gmail dot com
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
 #include <QPainter>
 
 #include "qgsconditionalstyle.h"
@@ -46,11 +60,12 @@ bool QgsConditionalLayerStyles::writeXml( QDomNode &node, QDomDocument &doc ) co
   stylesel.appendChild( rowel );
 
   QDomElement fieldsel = doc.createElement( "fieldstyles" );
-  Q_FOREACH ( const QString field, mFieldStyles.keys() )
+  QHash<QString, QgsConditionalStyles>::const_iterator it = mFieldStyles.constBegin();
+  for ( ; it != mFieldStyles.constEnd(); ++it )
   {
     QDomElement fieldel = doc.createElement( "fieldstyle" );
-    fieldel.setAttribute( "fieldname", field );
-    QgsConditionalStyles styles = mFieldStyles[field];
+    fieldel.setAttribute( "fieldname", it.key() );
+    QgsConditionalStyles styles = it.value();
     Q_FOREACH ( const QgsConditionalStyle& style, styles )
     {
       style.writeXml( fieldel, doc );
@@ -104,14 +119,14 @@ bool QgsConditionalLayerStyles::readXml( const QDomNode &node )
 
 QgsConditionalStyle::QgsConditionalStyle()
     : mValid( false )
-    , mSymbol( 0 )
+    , mSymbol( nullptr )
     , mBackColor( QColor( 0, 0, 0, 0 ) )
     , mTextColor( QColor( 0, 0, 0, 0 ) )
 {}
 
 QgsConditionalStyle::QgsConditionalStyle( const QString& rule )
     : mValid( false )
-    , mSymbol( 0 )
+    , mSymbol( nullptr )
     , mBackColor( QColor( 0, 0, 0, 0 ) )
     , mTextColor( QColor( 0, 0, 0, 0 ) )
 {

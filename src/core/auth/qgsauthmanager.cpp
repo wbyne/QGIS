@@ -46,7 +46,7 @@
 #include "qgscredentials.h"
 #include "qgslogger.h"
 
-QgsAuthManager *QgsAuthManager::smInstance = 0;
+QgsAuthManager *QgsAuthManager::smInstance = nullptr;
 
 const QString QgsAuthManager::smAuthConfigTable = "auth_configs";
 const QString QgsAuthManager::smAuthPassTable = "auth_pass";
@@ -774,7 +774,7 @@ const QString QgsAuthManager::uniqueConfigId() const
   QTimer::singleShot( 3, &loop, SLOT( quit() ) );
   loop.exec();
 
-  uint seed = ( uint ) QTime::currentTime().msec();
+  uint seed = static_cast< uint >( QTime::currentTime().msec() );
   qsrand( seed );
 
   while ( true )
@@ -898,12 +898,12 @@ void QgsAuthManager::updateConfigAuthMethods()
 QgsAuthMethod *QgsAuthManager::configAuthMethod( const QString &authcfg )
 {
   if ( isDisabled() )
-    return 0;
+    return nullptr;
 
   if ( !mConfigAuthMethods.contains( authcfg ) )
   {
     QgsDebugMsg( QString( "No config auth method found in database for authcfg: %1" ).arg( authcfg ) );
-    return 0;
+    return nullptr;
   }
 
   QString authMethodKey = mConfigAuthMethods.value( authcfg );
@@ -930,7 +930,7 @@ QgsAuthMethod *QgsAuthManager::authMethod( const QString &authMethodKey )
   if ( !mAuthMethods.contains( authMethodKey ) )
   {
     QgsDebugMsg( QString( "No auth method registered for auth method key: %1" ).arg( authMethodKey ) );
-    return 0;
+    return nullptr;
   }
 
   return mAuthMethods.value( authMethodKey );
@@ -966,14 +966,14 @@ QWidget *QgsAuthManager::authMethodEditWidget( const QString &authMethodKey, QWi
 QgsAuthMethod::Expansions QgsAuthManager::supportedAuthMethodExpansions( const QString &authcfg )
 {
   if ( isDisabled() )
-    return QgsAuthMethod::Expansions( 0 );
+    return QgsAuthMethod::Expansions( nullptr );
 
   QgsAuthMethod* authmethod = configAuthMethod( authcfg );
   if ( authmethod )
   {
     return authmethod->supportedExpansions();
   }
-  return QgsAuthMethod::Expansions( 0 );
+  return QgsAuthMethod::Expansions( nullptr );
 }
 
 bool QgsAuthManager::storeAuthenticationConfig( QgsAuthMethodConfig &mconfig )
@@ -2360,8 +2360,12 @@ bool QgsAuthManager::removeCertAuthority( const QSslCertificate& cert )
 
 const QList<QSslCertificate> QgsAuthManager::getSystemRootCAs()
 {
+#ifndef Q_OS_MAC
+  return QSslSocket::systemCaCertificates();
+#else
   QNetworkRequest req;
   return req.sslConfiguration().caCertificates();
+#endif
 }
 
 const QList<QSslCertificate> QgsAuthManager::getExtraFileCAs()
@@ -2459,7 +2463,7 @@ bool QgsAuthManager::storeCertTrustPolicy( const QSslCertificate &cert, QgsAuthC
                           "VALUES (:id, :policy)" ).arg( authDbTrustTable() ) );
 
   query.bindValue( ":id", id );
-  query.bindValue( ":policy", ( int )policy );
+  query.bindValue( ":policy", static_cast< int >( policy ) );
 
   if ( !authDbStartTransaction() )
     return false;
@@ -2498,7 +2502,7 @@ QgsAuthCertUtils::CertTrustPolicy QgsAuthManager::getCertTrustPolicy( const QSsl
   {
     if ( query.first() )
     {
-      policy = ( QgsAuthCertUtils::CertTrustPolicy )query.value( 0 ).toInt();
+      policy = static_cast< QgsAuthCertUtils::CertTrustPolicy >( query.value( 0 ).toInt() );
       QgsDebugMsg( QString( "Authentication cert trust policy retrieved for id: %1" ).arg( id ) );
     }
     if ( query.next() )
@@ -2587,7 +2591,7 @@ bool QgsAuthManager::setDefaultCertTrustPolicy( QgsAuthCertUtils::CertTrustPolic
     // set default trust policy to Trusted by removing setting
     return removeAuthSetting( "certdefaulttrust" );
   }
-  return storeAuthSetting( "certdefaulttrust", ( int )policy );
+  return storeAuthSetting( "certdefaulttrust", static_cast< int >( policy ) );
 }
 
 QgsAuthCertUtils::CertTrustPolicy QgsAuthManager::defaultCertTrustPolicy()
@@ -2597,7 +2601,7 @@ QgsAuthCertUtils::CertTrustPolicy QgsAuthManager::defaultCertTrustPolicy()
   {
     return QgsAuthCertUtils::Trusted;
   }
-  return ( QgsAuthCertUtils::CertTrustPolicy )policy.toInt();
+  return static_cast< QgsAuthCertUtils::CertTrustPolicy >( policy.toInt() );
 }
 
 bool QgsAuthManager::rebuildCertTrustCache()
@@ -2618,7 +2622,7 @@ bool QgsAuthManager::rebuildCertTrustCache()
     while ( query.next() )
     {
       QString id = query.value( 0 ).toString();
-      QgsAuthCertUtils::CertTrustPolicy policy = ( QgsAuthCertUtils::CertTrustPolicy )query.value( 1 ).toInt();
+      QgsAuthCertUtils::CertTrustPolicy policy = static_cast< QgsAuthCertUtils::CertTrustPolicy >( query.value( 1 ).toInt() );
 
       QStringList ids;
       if ( mCertTrustCache.contains( policy ) )
@@ -2806,16 +2810,16 @@ QgsAuthManager::QgsAuthManager()
     : QObject()
     , mAuthInit( false )
     , mAuthDbPath( QString() )
-    , mQcaInitializer( 0 )
+    , mQcaInitializer( nullptr )
     , mMasterPass( QString() )
     , mPassTries( 0 )
     , mAuthDisabled( false )
-    , mScheduledDbEraseTimer( 0 )
+    , mScheduledDbEraseTimer( nullptr )
     , mScheduledDbErase( false )
     , mScheduledDbEraseRequestWait( 3 )
     , mScheduledDbEraseRequestEmitted( false )
     , mScheduledDbEraseRequestCount( 0 )
-    , mMutex( 0 )
+    , mMutex( nullptr )
     , mIgnoredSslErrorsCache( QHash<QString, QSet<QSslError::SslError> >() )
 {
   mMutex = new QMutex( QMutex::Recursive );
@@ -2835,11 +2839,11 @@ QgsAuthManager::~QgsAuthManager()
       authConn.close();
   }
   delete mMutex;
-  mMutex = 0;
+  mMutex = nullptr;
   delete mScheduledDbEraseTimer;
-  mScheduledDbEraseTimer = 0;
+  mScheduledDbEraseTimer = nullptr;
   delete mQcaInitializer;
-  mQcaInitializer = 0;
+  mQcaInitializer = nullptr;
   QSqlDatabase::removeDatabase( "authentication.configs" );
 }
 
