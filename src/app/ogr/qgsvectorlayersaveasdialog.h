@@ -21,7 +21,10 @@
 #include <ui_qgsvectorlayersaveasdialogbase.h>
 #include <QDialog>
 #include "qgscontexthelp.h"
+#include "qgsfield.h"
 #include "qgsvectorfilewriter.h"
+
+class QgsVectorLayer;
 
 /**
  *  Class to select destination file, type and CRS for ogr layers
@@ -38,8 +41,8 @@ class APP_EXPORT QgsVectorLayerSaveAsDialog : public QDialog, private Ui::QgsVec
       AllOptions = ~0
     };
 
-    QgsVectorLayerSaveAsDialog( long srsid, QWidget* parent = nullptr, Qt::WindowFlags fl = nullptr );
-    QgsVectorLayerSaveAsDialog( QgsVectorLayer *layer, int options = AllOptions, QWidget* parent = nullptr, Qt::WindowFlags fl = nullptr );
+    QgsVectorLayerSaveAsDialog( long srsid, QWidget* parent = nullptr, Qt::WindowFlags fl = 0 );
+    QgsVectorLayerSaveAsDialog( QgsVectorLayer *layer, int options = AllOptions, QWidget* parent = nullptr, Qt::WindowFlags fl = 0 );
     ~QgsVectorLayerSaveAsDialog();
 
     QString format() const;
@@ -48,6 +51,7 @@ class APP_EXPORT QgsVectorLayerSaveAsDialog : public QDialog, private Ui::QgsVec
     QStringList datasourceOptions() const;
     QStringList layerOptions() const;
     long crs() const;
+    /** @deprecated since 2.16. Now always return true since there is no longer any checkbox */
     bool attributeSelection() const;
     QgsAttributeList selectedAttributes() const;
     /** Return selected attributes that must be exported with their displayed values instead of their raw values. Added in QGIS 2.16 */

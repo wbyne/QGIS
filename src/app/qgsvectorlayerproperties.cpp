@@ -20,6 +20,7 @@
 #include <limits>
 
 #include "qgisapp.h"
+#include "qgsactionmanager.h"
 #include "qgsjoindialog.h"
 #include "qgsapplication.h"
 #include "qgsattributeactiondialog.h"
@@ -28,13 +29,14 @@
 #include "qgscoordinatetransform.h"
 #include "qgsdiagramproperties.h"
 #include "qgsdiagramrendererv2.h"
+#include "qgsexpressionbuilderdialog.h"
 #include "qgsfieldcalculator.h"
 #include "qgsfieldsproperties.h"
-#include "qgslabeldialog.h"
 #include "qgslabelingwidget.h"
-#include "qgslabel.h"
 #include "qgsgenericprojectionselector.h"
 #include "qgslogger.h"
+#include "qgsmapcanvas.h"
+#include "qgsmaplayerconfigwidgetfactory.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsmaplayerstyleguiutils.h"
 #include "qgspluginmetadata.h"
@@ -80,7 +82,6 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
     , mLoadStyleMenu( nullptr )
     , mRendererDialog( nullptr )
     , labelingDialog( nullptr )
-    , labelDialog( nullptr )
     , mActionDialog( nullptr )
     , diagramPropertiesDialog( nullptr )
     , mFieldsPropertiesDialog( nullptr )
@@ -136,22 +137,11 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
     labelingDialog->layout()->setContentsMargins( -1, 0, -1, 0 );
     layout->addWidget( labelingDialog );
     labelingFrame->setLayout( layout );
-
-    // Create the Labeling (deprecated) dialog tab
-    layout = new QVBoxLayout( labelOptionsFrame );
-    layout->setMargin( 0 );
-    labelDialog = new QgsLabelDialog( mLayer->label(), labelOptionsFrame );
-    labelDialog->layout()->setMargin( 0 );
-    layout->addWidget( labelDialog );
-    labelOptionsFrame->setLayout( layout );
-    connect( labelDialog, SIGNAL( labelSourceSet() ), this, SLOT( setLabelCheckBox() ) );
   }
   else
   {
     labelingDialog = nullptr;
-    labelDialog = nullptr;
     mOptsPage_Labels->setEnabled( false ); // disable labeling item
-    mOptsPage_LabelsOld->setEnabled( false ); // disable labeling (deprecated) item
   }
 
   // Create the Actions dialog tab
@@ -249,6 +239,9 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
   diagLayout->addWidget( diagramPropertiesDialog );
   mDiagramFrame->setLayout( diagLayout );
 
+  // Legend tab
+  mLegendConfigEmbeddedWidget->setLayer( mLayer );
+
   // WMS Name as layer short name
   mLayerShortNameLineEdit->setText( mLayer->shortName() );
   // WMS Name validator
@@ -302,10 +295,6 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
 QgsVectorLayerProperties::~QgsVectorLayerProperties()
 {
-  if ( mOptsPage_LabelsOld && labelDialog && mLayer->hasGeometryType() )
-  {
-    disconnect( labelDialog, SIGNAL( labelSourceSet() ), this, SLOT( setLabelCheckBox() ) );
-  }
 }
 
 void QgsVectorLayerProperties::toggleEditing()
@@ -318,9 +307,23 @@ void QgsVectorLayerProperties::toggleEditing()
   setPbnQueryBuilderEnabled();
 }
 
-void QgsVectorLayerProperties::setLabelCheckBox()
+void QgsVectorLayerProperties::addPropertiesPageFactory( QgsMapLayerConfigWidgetFactory* factory )
 {
-  labelCheckBox->setCheckState( Qt::Checked );
+  if ( !factory->supportLayerPropertiesDialog() )
+  {
+    return;
+  }
+
+  QListWidgetItem* item = new QListWidgetItem();
+  item->setIcon( factory->icon() );
+  item->setText( factory->title() );
+  item->setToolTip( factory->title() );
+
+  mOptionsListWidget->addItem( item );
+
+  QgsMapLayerConfigWidget* page = factory->createWidget( mLayer, nullptr, false, this );
+  mLayerPropertiesPages << page;
+  mOptionsStackedWidget->addWidget( page );
 }
 
 void QgsVectorLayerProperties::insertField()
@@ -433,11 +436,17 @@ void QgsVectorLayerProperties::syncToLayer()
   }
 
   // disable simplification for point layers, now it is not implemented
-  if ( mLayer->geometryType() == QGis::Point )
+  if ( mLayer->geometryType() == Qgis::Point )
   {
     mSimplifyDrawingGroupBox->setChecked( false );
     mSimplifyDrawingGroupBox->setEnabled( false );
   }
+
+  // Default local simplification algorithm
+  mSimplifyAlgorithmComboBox->addItem( tr( "Distance" ), ( int )QgsVectorSimplifyMethod::Distance );
+  mSimplifyAlgorithmComboBox->addItem( tr( "SnapToGrid" ), ( int )QgsVectorSimplifyMethod::SnapToGrid );
+  mSimplifyAlgorithmComboBox->addItem( tr( "Visvalingam" ), ( int )QgsVectorSimplifyMethod::Visvalingam );
+  mSimplifyAlgorithmComboBox->setCurrentIndex( mSimplifyAlgorithmComboBox->findData(( int )simplifyMethod.simplifyAlgorithm() ) );
 
   QStringList myScalesList = PROJECT_SCALES.split( ',' );
   myScalesList.append( "1:1" );
@@ -454,48 +463,7 @@ void QgsVectorLayerProperties::syncToLayer()
   if ( labelingDialog )
     labelingDialog->adaptToLayer();
 
-  // reset fields in label dialog
-  mLayer->label()->setFields( mLayer->fields() );
-
-  Q_NOWARN_DEPRECATED_PUSH
-  if ( mOptsPage_LabelsOld )
-  {
-    if ( labelDialog && mLayer->hasGeometryType() )
-    {
-      labelDialog->init();
-    }
-    labelCheckBox->setChecked( mLayer->hasLabelsEnabled() );
-    labelOptionsFrame->setEnabled( mLayer->hasLabelsEnabled() );
-    QObject::connect( labelCheckBox, SIGNAL( clicked( bool ) ), this, SLOT( enableLabelOptions( bool ) ) );
-  }
-
   mFieldsPropertiesDialog->init();
-
-  if ( mLayer->hasLabelsEnabled() )
-  {
-    // though checked on projectRead, can reoccur after applying a style with enabled deprecated labels
-    // otherwise, the deprecated labels will render, but the tab to disable them will not show up
-    QgsProject::instance()->writeEntry( "DeprecatedLabels", "/Enabled", true );
-    // (this also overrides any '/Enabled, false' project property the user may have manually set)
-  }
-  Q_NOWARN_DEPRECATED_POP
-
-  // delete deprecated labels tab if not already used by project
-  // NOTE: this is not ideal, but a quick fix for QGIS 2.0 release
-  bool ok;
-  bool dl = QgsProject::instance()->readBoolEntry( "DeprecatedLabels", "/Enabled", false, &ok );
-  if ( !ok || !dl ) // project not flagged or set to use deprecated labels
-  {
-    if ( mOptsPage_LabelsOld )
-    {
-      if ( labelDialog )
-      {
-        disconnect( labelDialog, SIGNAL( labelSourceSet() ), this, SLOT( setLabelCheckBox() ) );
-      }
-      delete mOptsPage_LabelsOld;
-      mOptsPage_LabelsOld = nullptr;
-    }
-  }
 
   // set initial state for variable editor
   updateVariableEditor();
@@ -513,6 +481,9 @@ void QgsVectorLayerProperties::apply()
   {
     labelingDialog->writeSettingsToLayer();
   }
+
+  // apply legend settings
+  mLegendConfigEmbeddedWidget->applyToLayer();
 
   //
   // Set up sql subset query if applicable
@@ -565,9 +536,9 @@ void QgsVectorLayerProperties::apply()
 
   for ( int i = 0; i < columns.size(); ++i )
   {
-    if ( columns.at( i ).mType == QgsAttributeTableConfig::Action )
+    if ( columns.at( i ).type == QgsAttributeTableConfig::Action )
     {
-      columns[i].mHidden = !mActionDialog->showWidgetInAttributeTable();
+      columns[i].hidden = !mActionDialog->showWidgetInAttributeTable();
     }
   }
 
@@ -575,18 +546,7 @@ void QgsVectorLayerProperties::apply()
 
   mLayer->setAttributeTableConfig( attributeTableConfig );
 
-  Q_NOWARN_DEPRECATED_PUSH
-  if ( mOptsPage_LabelsOld )
-  {
-    if ( labelDialog )
-    {
-      labelDialog->apply();
-    }
-    mLayer->enableLabels( labelCheckBox->isChecked() );
-  }
-  Q_NOWARN_DEPRECATED_POP
-
-  mLayer->setLayerName( mLayerOrigNameLineEdit->text() );
+  mLayer->setName( mLayerOrigNameLineEdit->text() );
 
   // Apply fields settings
   mFieldsPropertiesDialog->apply();
@@ -599,6 +559,12 @@ void QgsVectorLayerProperties::apply()
 
   //apply diagram settings
   diagramPropertiesDialog->apply();
+
+  // apply all plugin dialogs
+  Q_FOREACH ( QgsMapLayerConfigWidget* page, mLayerPropertiesPages )
+  {
+    page->apply();
+  }
 
   //layer title and abstract
   mLayer->setShortName( mLayerShortNameLineEdit->text() );
@@ -625,6 +591,7 @@ void QgsVectorLayerProperties::apply()
   }
   QgsVectorSimplifyMethod simplifyMethod = mLayer->simplifyMethod();
   simplifyMethod.setSimplifyHints( simplifyHints );
+  simplifyMethod.setSimplifyAlgorithm( static_cast< QgsVectorSimplifyMethod::SimplifyAlgorithm >( mSimplifyAlgorithmComboBox->itemData( mSimplifyAlgorithmComboBox->currentIndex() ).toInt() ) );
   simplifyMethod.setThreshold( mSimplifyDrawingSpinBox->value() );
   simplifyMethod.setForceLocalOptimization( !mSimplifyDrawingAtProvider->isChecked() );
   simplifyMethod.setMaximumScale( 1.0 / mSimplifyMaximumScaleComboBox->scale() );
@@ -1122,13 +1089,18 @@ void QgsVectorLayerProperties::on_mButtonAddJoin_clicked()
 void QgsVectorLayerProperties::on_mButtonEditJoin_clicked()
 {
   QTreeWidgetItem* currentJoinItem = mJoinTreeWidget->currentItem();
-  if ( !mLayer || !currentJoinItem )
+  on_mJoinTreeWidget_itemDoubleClicked( currentJoinItem, 0 );
+}
+
+void QgsVectorLayerProperties::on_mJoinTreeWidget_itemDoubleClicked( QTreeWidgetItem* item, int )
+{
+  if ( !mLayer || !item )
   {
     return;
   }
 
   QList<QgsMapLayer*> joinedLayers;
-  QString joinLayerId = currentJoinItem->data( 0, Qt::UserRole ).toString();
+  QString joinLayerId = item->data( 0, Qt::UserRole ).toString();
   const QList< QgsVectorJoinInfo >& joins = mLayer->vectorJoins();
   int j = -1;
   for ( int i = 0; i < joins.size(); ++i )
@@ -1157,7 +1129,7 @@ void QgsVectorLayerProperties::on_mButtonEditJoin_clicked()
 
     // remove old join
     mLayer->removeJoin( joinLayerId );
-    int idx = mJoinTreeWidget->indexOfTopLevelItem( currentJoinItem );
+    int idx = mJoinTreeWidget->indexOfTopLevelItem( item );
     mJoinTreeWidget->takeTopLevelItem( idx );
 
     // add the new edited
@@ -1242,6 +1214,23 @@ void QgsVectorLayerProperties::addJoinToTreeWidget( const QgsVectorJoinInfo& joi
   mJoinTreeWidget->setCurrentItem( joinItem );
 }
 
+void QgsVectorLayerProperties::openPanel( QgsPanelWidget *panel )
+{
+  QDialog* dlg = new QDialog();
+  QString key =  QString( "/UI/paneldialog/%1" ).arg( panel->panelTitle() );
+  QSettings settings;
+  dlg->restoreGeometry( settings.value( key ).toByteArray() );
+  dlg->setWindowTitle( panel->panelTitle() );
+  dlg->setLayout( new QVBoxLayout() );
+  dlg->layout()->addWidget( panel );
+  QDialogButtonBox* buttonBox = new QDialogButtonBox( QDialogButtonBox::Ok );
+  connect( buttonBox, SIGNAL( accepted() ), dlg, SLOT( accept() ) );
+  dlg->layout()->addWidget( buttonBox );
+  dlg->exec();
+  settings.setValue( key, dlg->saveGeometry() );
+  panel->acceptPanel();
+}
+
 void QgsVectorLayerProperties::on_mButtonRemoveJoin_clicked()
 {
   QTreeWidgetItem* currentJoinItem = mJoinTreeWidget->currentItem();
@@ -1266,9 +1255,10 @@ void QgsVectorLayerProperties::updateSymbologyPage()
 
   if ( mLayer->rendererV2() )
   {
-    mRendererDialog = new QgsRendererV2PropertiesDialog( mLayer, QgsStyleV2::defaultStyle(), true );
+    mRendererDialog = new QgsRendererV2PropertiesDialog( mLayer, QgsStyleV2::defaultStyle(), true, this );
+    mRendererDialog->setDockMode( false );
     mRendererDialog->setMapCanvas( QgisApp::instance()->mapCanvas() );
-
+    connect( mRendererDialog, SIGNAL( showPanel( QgsPanelWidget* ) ), this, SLOT( openPanel( QgsPanelWidget* ) ) );
     connect( mRendererDialog, SIGNAL( layerVariablesChanged() ), this, SLOT( updateVariableEditor() ) );
 
     // display the menu to choose the output format (fix #5136)
@@ -1321,11 +1311,6 @@ void QgsVectorLayerProperties::mOptionsStackedWidget_CurrentChanged( int indx )
   teMetadata->document()->setDefaultStyleSheet( myStyle );
   teMetadata->setHtml( metadata() );
   mMetadataFilled = true;
-}
-
-void QgsVectorLayerProperties::enableLabelOptions( bool theFlag )
-{
-  labelOptionsFrame->setEnabled( theFlag );
 }
 
 void QgsVectorLayerProperties::on_mSimplifyDrawingGroupBox_toggled( bool checked )

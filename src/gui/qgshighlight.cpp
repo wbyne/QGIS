@@ -24,13 +24,13 @@
 #include "qgshighlight.h"
 #include "qgsmapcanvas.h"
 #include "qgsmaplayer.h"
-#include "qgsmaprenderer.h"
 #include "qgsrendercontext.h"
 #include "qgssymbollayerv2.h"
 #include "qgssymbolv2.h"
 #include "qgsvectorlayer.h"
+#include "qgsrendererv2.h"
 
-/* Few notes about highligting (RB):
+/* Few notes about highlighting (RB):
  - The highlight fill must always be partially transparent because above highlighted layer
    may be another layer which must remain partially visible.
  - Because single highlight color does not work well with layers using similar layer color
@@ -85,16 +85,16 @@ void QgsHighlight::init()
 {
   if ( mMapCanvas->mapSettings().hasCrsTransformEnabled() )
   {
-    const QgsCoordinateTransform* ct = mMapCanvas->mapSettings().layerTransform( mLayer );
-    if ( ct )
+    QgsCoordinateTransform ct = mMapCanvas->mapSettings().layerTransform( mLayer );
+    if ( ct.isValid() )
     {
       if ( mGeometry )
       {
-        mGeometry->transform( *ct );
+        mGeometry->transform( ct );
       }
       else if ( mFeature.constGeometry() )
       {
-        mFeature.geometry()->transform( *ct );
+        mFeature.geometry()->transform( ct );
       }
     }
   }
@@ -186,13 +186,13 @@ void QgsHighlight::setSymbol( QgsSymbolV2* symbol, const QgsRenderContext & cont
   }
 }
 
-double QgsHighlight::getSymbolWidth( const QgsRenderContext & context, double width, QgsSymbolV2::OutputUnit unit )
+double QgsHighlight::getSymbolWidth( const QgsRenderContext & context, double width, QgsUnitTypes::RenderUnit unit )
 {
   // if necessary scale mm to map units
   double scale = 1.;
-  if ( unit == QgsSymbolV2::MapUnit )
+  if ( unit == QgsUnitTypes::RenderMapUnits )
   {
-    scale = QgsSymbolLayerV2Utils::lineWidthScaleFactor( context, QgsSymbolV2::MM ) / QgsSymbolLayerV2Utils::lineWidthScaleFactor( context, QgsSymbolV2::MapUnit );
+    scale = QgsSymbolLayerV2Utils::lineWidthScaleFactor( context, QgsUnitTypes::RenderMillimeters ) / QgsSymbolLayerV2Utils::lineWidthScaleFactor( context, QgsUnitTypes::RenderMapUnits );
   }
   width =  qMax( width + 2 * mBuffer * scale, mMinWidth * scale );
   return width;
@@ -282,15 +282,15 @@ void QgsHighlight::paint( QPainter* p )
 
     switch ( mGeometry->wkbType() )
     {
-      case QGis::WKBPoint:
-      case QGis::WKBPoint25D:
+      case Qgis::WKBPoint:
+      case Qgis::WKBPoint25D:
       {
         paintPoint( p, mGeometry->asPoint() );
       }
       break;
 
-      case QGis::WKBMultiPoint:
-      case QGis::WKBMultiPoint25D:
+      case Qgis::WKBMultiPoint:
+      case Qgis::WKBMultiPoint25D:
       {
         QgsMultiPoint m = mGeometry->asMultiPoint();
         for ( int i = 0; i < m.size(); i++ )
@@ -300,15 +300,15 @@ void QgsHighlight::paint( QPainter* p )
       }
       break;
 
-      case QGis::WKBLineString:
-      case QGis::WKBLineString25D:
+      case Qgis::WKBLineString:
+      case Qgis::WKBLineString25D:
       {
         paintLine( p, mGeometry->asPolyline() );
       }
       break;
 
-      case QGis::WKBMultiLineString:
-      case QGis::WKBMultiLineString25D:
+      case Qgis::WKBMultiLineString:
+      case Qgis::WKBMultiLineString25D:
       {
         QgsMultiPolyline m = mGeometry->asMultiPolyline();
 
@@ -319,15 +319,15 @@ void QgsHighlight::paint( QPainter* p )
       }
       break;
 
-      case QGis::WKBPolygon:
-      case QGis::WKBPolygon25D:
+      case Qgis::WKBPolygon:
+      case Qgis::WKBPolygon25D:
       {
         paintPolygon( p, mGeometry->asPolygon() );
       }
       break;
 
-      case QGis::WKBMultiPolygon:
-      case QGis::WKBMultiPolygon25D:
+      case Qgis::WKBMultiPolygon:
+      case Qgis::WKBMultiPolygon25D:
       {
         QgsMultiPolygon m = mGeometry->asMultiPolygon();
         for ( int i = 0; i < m.size(); i++ )
@@ -337,7 +337,7 @@ void QgsHighlight::paint( QPainter* p )
       }
       break;
 
-      case QGis::WKBUnknown:
+      case Qgis::WKBUnknown:
       default:
         return;
     }

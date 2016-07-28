@@ -32,7 +32,7 @@ class QgsRelation
      *
      * @return A relation
      */
-    static QgsRelation createFromXML( const QDomNode& node );
+    static QgsRelation createFromXml( const QDomNode& node );
 
     /**
      * Writes a relation to an XML structure. Used for saving .qgs projects
@@ -40,7 +40,7 @@ class QgsRelation
      * @param node The parent node in which the relation will be created
      * @param doc  The document in which the relation will be saved
      */
-    void writeXML( QDomNode& node, QDomDocument& doc ) const;
+    void writeXml( QDomNode& node, QDomDocument& doc ) const;
 
     /**
      * Set a name for this relation
@@ -97,6 +97,8 @@ class QgsRelation
      * @param feature A feature from the referenced (parent) layer
      *
      * @return An iterator with all the referenced features
+     * @see getRelatedFeaturesRequest()
+     * @see getRelatedFeaturesFilter()
      */
     QgsFeatureIterator getRelatedFeatures( const QgsFeature& feature ) const;
 
@@ -107,8 +109,20 @@ class QgsRelation
      * @param feature A feature from the referenced (parent) layer
      *
      * @return A request for all the referencing features
+     * @see getRelatedFeatures()
+     * @see getRelatedFeaturesFilter()
      */
     QgsFeatureRequest getRelatedFeaturesRequest( const QgsFeature& feature ) const;
+
+    /** Returns a filter expression which returns all the features on the referencing (child) layer
+     * which have a foreign key pointing to the provided feature.
+     * @param feature A feature from the referenced (parent) layer
+     * @return expression filter string for all the referencing features
+     * @note added in QGIS 2.16
+     * @see getRelatedFeatures()
+     * @see getRelatedFeaturesRequest()
+     */
+    QString getRelatedFeaturesFilter( const QgsFeature& feature ) const;
 
     /**
      * Creates a request to return the feature on the referenced (parent) layer

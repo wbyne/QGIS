@@ -62,8 +62,8 @@ QgsNewGeoPackageLayerDialog::QgsNewGeoPackageLayerDialog( QWidget *parent, Qt::W
   QSettings settings;
   restoreGeometry( settings.value( "/Windows/NewGeoPackageLayer/geometry" ).toByteArray() );
 
-  mAddAttributeButton->setIcon( QgsApplication::getThemeIcon( "/mActionNewAttribute.png" ) );
-  mRemoveAttributeButton->setIcon( QgsApplication::getThemeIcon( "/mActionDeleteAttribute.png" ) );
+  mAddAttributeButton->setIcon( QgsApplication::getThemeIcon( "/mActionNewAttribute.svg" ) );
+  mRemoveAttributeButton->setIcon( QgsApplication::getThemeIcon( "/mActionDeleteAttribute.svg" ) );
 
 #ifdef SUPPORT_GEOMETRY_LESS
   mGeometryTypeBox->addItem( tr( "Non spatial" ), wkbNone );
@@ -104,8 +104,7 @@ QgsNewGeoPackageLayerDialog::QgsNewGeoPackageLayerDialog( QWidget *parent, Qt::W
   mOkButton->setEnabled( false );
 
   // Set the SRID box to a default of WGS84
-  QgsCoordinateReferenceSystem defaultCrs;
-  defaultCrs.createFromOgcWmsCrs( settings.value( "/Projections/layerDefaultCrs", GEO_EPSG_CRS_AUTHID ).toString() );
+  QgsCoordinateReferenceSystem defaultCrs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( settings.value( "/Projections/layerDefaultCrs", GEO_EPSG_CRS_AUTHID ).toString() );
   defaultCrs.validate();
   mCrsSelector->setCrs( defaultCrs );
 
@@ -277,7 +276,7 @@ bool QgsNewGeoPackageLayerDialog::apply()
     QMessageBox msgBox;
     msgBox.setIcon( QMessageBox::Question );
     msgBox.setWindowTitle( tr( "The file already exists." ) );
-    msgBox.setText( tr( "Do you want to overwrite the existing file with a new database or add a new layer to it ?" ) );
+    msgBox.setText( tr( "Do you want to overwrite the existing file with a new database or add a new layer to it?" ) );
     QPushButton *overwriteButton = msgBox.addButton( tr( "Overwrite" ), QMessageBox::ActionRole );
     QPushButton *addNewLayerButton = msgBox.addButton( tr( "Add new layer" ), QMessageBox::ActionRole );
     msgBox.setStandardButtons( QMessageBox::Cancel );
@@ -365,7 +364,7 @@ bool QgsNewGeoPackageLayerDialog::apply()
       overwriteTable = property( "question_existing_layer_answer_overwrite" ).toBool();
     }
     else if ( QMessageBox::question( this, tr( "Existing layer" ),
-                                     tr( "A table with the same name already exists. Do you want to overwrite it ?" ),
+                                     tr( "A table with the same name already exists. Do you want to overwrite it?" ),
                                      QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) == QMessageBox::Yes )
     {
       overwriteTable = true;
@@ -389,7 +388,7 @@ bool QgsNewGeoPackageLayerDialog::apply()
   int crsId = mCrsSelector->crs().srsid();
   if ( wkbType != wkbNone && crsId > 0 )
   {
-    QgsCoordinateReferenceSystem srs( crsId, QgsCoordinateReferenceSystem::InternalCrsId );
+    QgsCoordinateReferenceSystem srs = QgsCoordinateReferenceSystem::fromSrsId( crsId );
     QString srsWkt = srs.toWkt();
     hSRS = OSRNewSpatialReference( srsWkt.toLocal8Bit().data() );
   }

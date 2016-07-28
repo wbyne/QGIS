@@ -40,6 +40,8 @@
 
 #cmakedefine USING_NMAKE
 
+#cmakedefine USING_NINJA
+
 #cmakedefine HAVE_POSTGRESQL
 
 #cmakedefine HAVE_ORACLE
@@ -53,6 +55,8 @@
 #cmakedefine HAVE_SERVER_PYTHON_PLUGINS
 
 #cmakedefine ENABLE_MODELTEST
+
+#cmakedefine WITH_ARCGIS
 
 #endif
 

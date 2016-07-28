@@ -18,12 +18,12 @@
 
 #include <QList>
 #include "qgscoordinatetransform.h"
-#include "qgswkbptr.h"
 #include "qgsunittypes.h"
 
 class QgsGeometry;
 class QgsAbstractGeometryV2;
 class QgsCurveV2;
+class QgsConstWkbPtr;
 
 /** \ingroup core
 General purpose distance and area calculator.
@@ -87,16 +87,16 @@ class CORE_EXPORT QgsDistanceArea
     //! returns source spatial reference system
     //! @deprecated use sourceCrsId() instead
     // TODO QGIS 3.0 - make sourceCrs() return QgsCoordinateReferenceSystem
-    Q_DECL_DEPRECATED long sourceCrs() const { return mCoordTransform->sourceCrs().srsid(); }
+    Q_DECL_DEPRECATED long sourceCrs() const { return mCoordTransform.sourceCrs().srsid(); }
 
     /** Returns the QgsCoordinateReferenceSystem::srsid() for the CRS used during calculations.
      * @see setSourceCrs()
      * @note added in QGIS 2.14
      */
-    long sourceCrsId() const { return mCoordTransform->sourceCrs().srsid(); }
+    long sourceCrsId() const { return mCoordTransform.sourceCrs().srsid(); }
 
     //! What sort of coordinate system is being used?
-    bool geographic() const { return mCoordTransform->sourceCrs().geographicFlag(); }
+    bool geographic() const { return mCoordTransform.sourceCrs().isGeographic(); }
 
     /** Sets ellipsoid by its acronym. Calculations will only use the ellipsoid if
      * both the ellipsoid has been set and ellipsoidalEnabled() is true.
@@ -193,13 +193,13 @@ class CORE_EXPORT QgsDistanceArea
      * @returns calculated distance between points. Distance units are stored in units parameter.
      * @note added in QGIS 2.12
      */
-    double measureLine( const QgsPoint& p1, const QgsPoint& p2, QGis::UnitType& units ) const;
+    double measureLine( const QgsPoint& p1, const QgsPoint& p2, QgsUnitTypes::DistanceUnit& units ) const;
 
     /** Returns the units of distance for length calculations made by this object.
      * @note added in QGIS 2.14
      * @see areaUnits()
      */
-    QGis::UnitType lengthUnits() const;
+    QgsUnitTypes::DistanceUnit lengthUnits() const;
 
     /** Returns the units of area for areal calculations made by this object.
      * @note added in QGIS 2.14
@@ -223,7 +223,7 @@ class CORE_EXPORT QgsDistanceArea
      * @return formatted measurement string
      * @deprecated use formatDistance() or formatArea() instead
      */
-    Q_DECL_DEPRECATED static QString textUnit( double value, int decimals, QGis::UnitType u, bool isArea, bool keepBaseUnit = false );
+    Q_DECL_DEPRECATED static QString textUnit( double value, int decimals, QgsUnitTypes::DistanceUnit u, bool isArea, bool keepBaseUnit = false );
 
     /** Returns an distance formatted as a friendly string.
      * @param distance distance to format
@@ -235,7 +235,7 @@ class CORE_EXPORT QgsDistanceArea
      * @note added in QGIS 2.16
      * @see formatArea()
      */
-    static QString formatDistance( double distance, int decimals, QGis::UnitType unit, bool keepBaseUnit = false );
+    static QString formatDistance( double distance, int decimals, QgsUnitTypes::DistanceUnit unit, bool keepBaseUnit = false );
 
     /** Returns an area formatted as a friendly string.
      * @param area area to format
@@ -251,7 +251,7 @@ class CORE_EXPORT QgsDistanceArea
 
     //! Helper for conversion between physical units
     // TODO QGIS 3.0 - remove this method, as its behaviour is non-intuitive.
-    void convertMeasurement( double &measure, QGis::UnitType &measureUnits, QGis::UnitType displayUnits, bool isArea ) const;
+    void convertMeasurement( double &measure, QgsUnitTypes::DistanceUnit &measureUnits, QgsUnitTypes::DistanceUnit displayUnits, bool isArea ) const;
 
     /** Takes a length measurement calculated by this QgsDistanceArea object and converts it to a
      * different distance unit.
@@ -262,7 +262,7 @@ class CORE_EXPORT QgsDistanceArea
      * @see convertAreaMeasurement()
      * @note added in QGIS 2.14
      */
-    double convertLengthMeasurement( double length, QGis::UnitType toUnits ) const;
+    double convertLengthMeasurement( double length, QgsUnitTypes::DistanceUnit toUnits ) const;
 
     /** Takes an area measurement calculated by this QgsDistanceArea object and converts it to a
      * different areal unit.
@@ -326,7 +326,7 @@ class CORE_EXPORT QgsDistanceArea
     void _copy( const QgsDistanceArea & origDA );
 
     //! used for transforming coordinates from source CRS to ellipsoid's coordinates
-    QgsCoordinateTransform* mCoordTransform;
+    QgsCoordinateTransform mCoordTransform;
 
     //! indicates whether we will transform coordinates
     bool mEllipsoidalMode;

@@ -52,7 +52,8 @@ void QgsRelationManager::addRelation( const QgsRelation& relation )
 
   mRelations.insert( relation.id(), relation );
 
-  mProject->setDirty( true );
+  if ( mProject )
+    mProject->setDirty( true );
   emit changed();
 }
 
@@ -73,13 +74,26 @@ QgsRelation QgsRelationManager::relation( const QString& id ) const
   return mRelations.value( id );
 }
 
+QList<QgsRelation> QgsRelationManager::relationsByName( const QString& name ) const
+{
+  QList<QgsRelation> relations;
+
+  Q_FOREACH ( const QgsRelation& rel, mRelations )
+  {
+    if ( QString::compare( rel.name(), name, Qt::CaseInsensitive ) == 0 )
+      relations << rel;
+  }
+
+  return relations;
+}
+
 void QgsRelationManager::clear()
 {
   mRelations.clear();
   emit changed();
 }
 
-QList<QgsRelation> QgsRelationManager::referencingRelations( QgsVectorLayer* layer, int fieldIdx ) const
+QList<QgsRelation> QgsRelationManager::referencingRelations( const QgsVectorLayer* layer, int fieldIdx ) const
 {
   if ( !layer )
   {
@@ -148,7 +162,7 @@ void QgsRelationManager::readProject( const QDomDocument & doc )
     int relCount = relationNodes.count();
     for ( int i = 0; i < relCount; ++i )
     {
-      addRelation( QgsRelation::createFromXML( relationNodes.at( i ) ) );
+      addRelation( QgsRelation::createFromXml( relationNodes.at( i ) ) );
     }
   }
   else
@@ -175,7 +189,7 @@ void QgsRelationManager::writeProject( QDomDocument & doc )
 
   Q_FOREACH ( const QgsRelation& relation, mRelations )
   {
-    relation.writeXML( relationsNode, doc );
+    relation.writeXml( relationsNode, doc );
   }
 }
 

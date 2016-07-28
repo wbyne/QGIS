@@ -18,16 +18,21 @@
 #include "qgsgraphbuilderintr.h"
 
 // Qgis includes
+#include "qgsfeatureiterator.h"
 #include <qgsvectorlayer.h>
 #include <qgsvectordataprovider.h>
 #include <qgspoint.h>
 #include <qgsgeometry.h>
 #include <qgsdistancearea.h>
+#include <qgswkbtypes.h>
 
 // QT includes
 #include <QString>
 #include <QtAlgorithms>
 
+/** \ingroup analysis
+ * \class QgsPointCompare
+ */
 class QgsPointCompare
 {
   public:
@@ -136,11 +141,11 @@ void QgsLineVectorLayerDirector::makeGraph( QgsGraphBuilderInterface *builder, c
   ct.setSourceCrs( vl->crs() );
   if ( builder->coordinateTransformationEnabled() )
   {
-    ct.setDestCRS( builder->destinationCrs() );
+    ct.setDestinationCrs( builder->destinationCrs() );
   }
   else
   {
-    ct.setDestCRS( vl->crs() );
+    ct.setDestinationCrs( vl->crs() );
   }
 
   tiedPoint = QVector< QgsPoint >( additionalPoints.size(), QgsPoint( 0.0, 0.0 ) );
@@ -162,9 +167,9 @@ void QgsLineVectorLayerDirector::makeGraph( QgsGraphBuilderInterface *builder, c
   while ( fit.nextFeature( feature ) )
   {
     QgsMultiPolyline mpl;
-    if ( feature.constGeometry()->wkbType() == QGis::WKBMultiLineString )
+    if ( QgsWKBTypes::flatType( feature.constGeometry()->geometry()->wkbType() ) == QgsWKBTypes::MultiLineString )
       mpl = feature.constGeometry()->asMultiPolyline();
-    else if ( feature.constGeometry()->wkbType() == QGis::WKBLineString )
+    else if ( QgsWKBTypes::flatType( feature.constGeometry()->geometry()->wkbType() ) == QgsWKBTypes::LineString )
       mpl.push_back( feature.constGeometry()->asPolyline() );
 
     QgsMultiPolyline::iterator mplIt;
@@ -296,9 +301,9 @@ void QgsLineVectorLayerDirector::makeGraph( QgsGraphBuilderInterface *builder, c
 
     // begin features segments and add arc to the Graph;
     QgsMultiPolyline mpl;
-    if ( feature.constGeometry()->wkbType() == QGis::WKBMultiLineString )
+    if ( QgsWKBTypes::flatType( feature.constGeometry()->geometry()->wkbType() ) == QgsWKBTypes::MultiLineString )
       mpl = feature.constGeometry()->asMultiPolyline();
-    else if ( feature.constGeometry()->wkbType() == QGis::WKBLineString )
+    else if ( QgsWKBTypes::flatType( feature.constGeometry()->geometry()->wkbType() ) == QgsWKBTypes::LineString )
       mpl.push_back( feature.constGeometry()->asPolyline() );
 
     QgsMultiPolyline::iterator mplIt;

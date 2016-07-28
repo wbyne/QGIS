@@ -21,7 +21,8 @@ class QgsRenderContext
       UseRenderingOptimization, //!< Enable vector simplification and other rendering optimizations
       DrawSelection,            //!< Whether vector selections should be shown in the rendered map
       DrawSymbolBounds,         //!< Draw bounds of symbols (for debugging/testing)
-      RenderMapTile
+      RenderMapTile,            //!< Draw map such that there are no problems between adjacent tiles
+      Antialiasing,             //!< Use antialiasing while drawing
     };
     typedef QFlags<QgsRenderContext::Flag> Flags;
 
@@ -54,7 +55,10 @@ class QgsRenderContext
     QPainter* painter();
     const QPainter* constPainter() const;
 
-    const QgsCoordinateTransform* coordinateTransform() const;
+    /** Returns the current coordinate transform for the context, or an invalid
+     * transform is no coordinate transformation is required.
+     */
+    QgsCoordinateTransform coordinateTransform() const;
 
     const QgsRectangle& extent() const;
 
@@ -98,8 +102,9 @@ class QgsRenderContext
 
     //setters
 
-    /** Sets coordinate transformation. QgsRenderContext does not take ownership*/
-    void setCoordinateTransform( const QgsCoordinateTransform* t );
+    /** Sets coordinate transformation.*/
+    void setCoordinateTransform( const QgsCoordinateTransform& t );
+
     void setMapToPixel( const QgsMapToPixel& mtp );
     void setExtent( const QgsRectangle& extent );
 
@@ -177,4 +182,16 @@ class QgsRenderContext
      * @see setFeatureFilterProvider()
      */
     const QgsFeatureFilterProvider* featureFilterProvider() const;
+
+    /** Sets the segmentation tolerance applied when rendering curved geometries
+    @param tolerance the segmentation tolerance*/
+    void setSegmentationTolerance( double tolerance );
+    /** Gets the segmentation tolerance applied when rendering curved geometries*/
+    double segmentationTolerance() const;
+
+    /** Sets segmentation tolerance type (maximum angle or maximum difference between curve and approximation)
+    @param type the segmentation tolerance typename*/
+    void setSegmentationToleranceType( QgsAbstractGeometryV2::SegmentationToleranceType type );
+    /** Gets segmentation tolerance type (maximum angle or maximum difference between curve and approximation)*/
+    QgsAbstractGeometryV2::SegmentationToleranceType segmentationToleranceType() const;
 };

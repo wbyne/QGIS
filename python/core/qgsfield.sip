@@ -165,8 +165,12 @@ class QgsField
     /* Raise an exception if the arguments couldn't be parsed. */
     sipNoMethod(sipParseErr, sipName_QgsField, sipName_convertCompatible, doc_QgsField_convertCompatible);
 
-    return NULL;
+    return nullptr;
 %End
+
+    //! Allows direct construction of QVariants from fields.
+    operator QVariant() const;
+
 }; // class QgsField
 
 
@@ -363,6 +367,9 @@ class QgsFields
         sipRes = new QIcon( sipCpp->iconForField( a0 ) );
       }
     %End
+
+    //! Allows direct construction of QVariants from fields.
+    operator QVariant() const;
 
 /*  SIP_PYOBJECT __getitem__(int key);
 %MethodCode

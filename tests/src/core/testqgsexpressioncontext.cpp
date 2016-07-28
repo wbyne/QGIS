@@ -37,6 +37,7 @@ class TestQgsExpressionContext : public QObject
     void contextScopeCopy();
     void contextScopeFunctions();
     void contextStack();
+    void scopeByName();
     void contextCopy();
     void contextStackFunctions();
     void evaluate();
@@ -47,6 +48,8 @@ class TestQgsExpressionContext : public QObject
     void projectScope();
     void layerScope();
     void featureBasedContext();
+
+    void cache();
 
   private:
 
@@ -300,6 +303,17 @@ void TestQgsExpressionContext::contextStack()
   QCOMPARE( scopes.at( 0 ), scope1 );
 }
 
+void TestQgsExpressionContext::scopeByName()
+{
+  QgsExpressionContext context;
+  QCOMPARE( context.indexOfScope( "test1" ), -1 );
+  context << new QgsExpressionContextScope( "test1" );
+  context << new QgsExpressionContextScope( "test2" );
+  QCOMPARE( context.indexOfScope( "test1" ), 0 );
+  QCOMPARE( context.indexOfScope( "test2" ), 1 );
+  QCOMPARE( context.indexOfScope( "not in context" ), -1 );
+}
+
 void TestQgsExpressionContext::contextCopy()
 {
   QgsExpressionContext context;
@@ -493,9 +507,9 @@ void TestQgsExpressionContext::globalScope()
   QgsExpression expOsName( "var('qgis_os_name')" );
   QgsExpression expPlatform( "var('qgis_platform')" );
 
-  QCOMPARE( expVersion.evaluate( &context ).toString(), QString( QGis::QGIS_VERSION ) );
-  QCOMPARE( expVersionNo.evaluate( &context ).toInt(), QGis::QGIS_VERSION_INT );
-  QCOMPARE( expReleaseName.evaluate( &context ).toString(), QString( QGis::QGIS_RELEASE_NAME ) );
+  QCOMPARE( expVersion.evaluate( &context ).toString(), Qgis::QGIS_VERSION );
+  QCOMPARE( expVersionNo.evaluate( &context ).toInt(), Qgis::QGIS_VERSION_INT );
+  QCOMPARE( expReleaseName.evaluate( &context ).toString(), Qgis::QGIS_RELEASE_NAME );
   QCOMPARE( expAccountName.evaluate( &context ).toString(), QgsApplication::userLoginName() );
   QCOMPARE( expUserFullName.evaluate( &context ).toString(), QgsApplication::userFullName() );
   QCOMPARE( expOsName.evaluate( &context ).toString(), QgsApplication::osName() );
@@ -639,6 +653,38 @@ void TestQgsExpressionContext::featureBasedContext()
   QgsFields evalFields = qvariant_cast<QgsFields>( context.variable( "_fields_" ) );
   QCOMPARE( evalFeature.attributes(), f.attributes() );
   QCOMPARE( evalFields, fields );
+}
+
+void TestQgsExpressionContext::cache()
+{
+  //test setting and retrieving cached values
+  QgsExpressionContext context;
+
+  //use a const reference to ensure that cache is usable from const QgsExpressionContexts
+  const QgsExpressionContext& c = context;
+
+  QVERIFY( !c.hasCachedValue( "test" ) );
+  QVERIFY( !c.cachedValue( "test" ).isValid() );
+
+  c.setCachedValue( "test", "my value" );
+  QVERIFY( c.hasCachedValue( "test" ) );
+  QCOMPARE( c.cachedValue( "test" ), QVariant( "my value" ) );
+
+  // copy should copy cache
+  QgsExpressionContext context2( c );
+  QVERIFY( context2.hasCachedValue( "test" ) );
+  QCOMPARE( context2.cachedValue( "test" ), QVariant( "my value" ) );
+
+  // assignment should copy cache
+  QgsExpressionContext context3;
+  context3 = c;
+  QVERIFY( context3.hasCachedValue( "test" ) );
+  QCOMPARE( context3.cachedValue( "test" ), QVariant( "my value" ) );
+
+  // clear cache
+  c.clearCachedValues();
+  QVERIFY( !c.hasCachedValue( "test" ) );
+  QVERIFY( !c.cachedValue( "test" ).isValid() );
 }
 
 QTEST_MAIN( TestQgsExpressionContext )

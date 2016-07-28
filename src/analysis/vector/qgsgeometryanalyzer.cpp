@@ -20,12 +20,14 @@
 #include "qgsapplication.h"
 #include "qgsfield.h"
 #include "qgsfeature.h"
+#include "qgsfeatureiterator.h"
 #include "qgslogger.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsvectorfilewriter.h"
 #include "qgsvectordataprovider.h"
 #include "qgsdistancearea.h"
 #include "qgis.h"
+#include "qgsvectorlayer.h"
 
 #include <QProgressDialog>
 
@@ -46,10 +48,10 @@ bool QgsGeometryAnalyzer::simplify( QgsVectorLayer* layer,
     return false;
   }
 
-  QGis::WkbType outputType = dp->geometryType();
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  Qgis::WkbType outputType = dp->geometryType();
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, crs );
   QgsFeature currentFeature;
 
   //take only selection
@@ -162,10 +164,10 @@ bool QgsGeometryAnalyzer::centroids( QgsVectorLayer* layer, const QString& shape
     return false;
   }
 
-  QGis::WkbType outputType = QGis::WKBPoint;
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  Qgis::WkbType outputType = Qgis::WKBPoint;
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, crs );
   QgsFeature currentFeature;
 
   //take only selection
@@ -278,8 +280,8 @@ bool QgsGeometryAnalyzer::extent( QgsVectorLayer* layer,
     return false;
   }
 
-  QGis::WkbType outputType = QGis::WKBPolygon;
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  Qgis::WkbType outputType = Qgis::WKBPolygon;
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
   QgsFields fields;
   fields.append( QgsField( QString( "MINX" ), QVariant::Double ) );
@@ -293,7 +295,7 @@ bool QgsGeometryAnalyzer::extent( QgsVectorLayer* layer,
   fields.append( QgsField( QString( "HEIGHT" ), QVariant::Double ) );
   fields.append( QgsField( QString( "WIDTH" ), QVariant::Double ) );
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), fields, outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), fields, outputType, crs );
 
   QgsRectangle rect;
   if ( onlySelectedFeatures )  // take only selection
@@ -338,7 +340,7 @@ QList<double> QgsGeometryAnalyzer::simpleMeasure( QgsGeometry* mpGeometry )
 {
   QList<double> list;
   double perim;
-  if ( mpGeometry->wkbType() == QGis::WKBPoint )
+  if ( mpGeometry->wkbType() == Qgis::WKBPoint )
   {
     QgsPoint pt = mpGeometry->asPoint();
     list.append( pt.x() );
@@ -348,7 +350,7 @@ QList<double> QgsGeometryAnalyzer::simpleMeasure( QgsGeometry* mpGeometry )
   {
     QgsDistanceArea measure;
     list.append( measure.measureArea( mpGeometry ) );
-    if ( mpGeometry->type() == QGis::Polygon )
+    if ( mpGeometry->type() == Qgis::Polygon )
     {
       perim = perimeterMeasure( mpGeometry, measure );
       list.append( perim );
@@ -388,10 +390,10 @@ bool QgsGeometryAnalyzer::convexHull( QgsVectorLayer* layer, const QString& shap
   fields.append( QgsField( QString( "AREA" ), QVariant::Double ) );
   fields.append( QgsField( QString( "PERIM" ), QVariant::Double ) );
 
-  QGis::WkbType outputType = QGis::WKBPolygon;
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  Qgis::WkbType outputType = Qgis::WKBPolygon;
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), fields, outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), fields, outputType, crs );
   QgsFeature currentFeature;
   QgsGeometry* dissolveGeometry = nullptr; //dissolve geometry
   QMultiMap<QString, QgsFeatureId> map;
@@ -594,10 +596,10 @@ bool QgsGeometryAnalyzer::dissolve( QgsVectorLayer* layer, const QString& shapef
     useField = true;
   }
 
-  QGis::WkbType outputType = dp->geometryType();
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  Qgis::WkbType outputType = dp->geometryType();
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, crs );
   QgsFeature currentFeature;
   QMultiMap<QString, QgsFeatureId> map;
 
@@ -743,14 +745,14 @@ bool QgsGeometryAnalyzer::buffer( QgsVectorLayer* layer, const QString& shapefil
     return false;
   }
 
-  QGis::WkbType outputType = QGis::WKBPolygon;
+  Qgis::WkbType outputType = Qgis::WKBPolygon;
   if ( dissolve )
   {
-    outputType = QGis::WKBMultiPolygon;
+    outputType = Qgis::WKBMultiPolygon;
   }
-  const QgsCoordinateReferenceSystem crs = layer->crs();
+  QgsCoordinateReferenceSystem crs = layer->crs();
 
-  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, &crs );
+  QgsVectorFileWriter vWriter( shapefileName, dp->encoding(), layer->fields(), outputType, crs );
   QgsFeature currentFeature;
   QgsGeometry *dissolveGeometry = nullptr; //dissolve geometry (if dissolve enabled)
 
@@ -910,20 +912,20 @@ bool QgsGeometryAnalyzer::eventLayer( QgsVectorLayer* lineLayer, QgsVectorLayer*
   QgsFeatureList memoryProviderFeatures;
   if ( !memoryProvider )
   {
-    QGis::WkbType memoryProviderType = QGis::WKBMultiLineString;
+    Qgis::WkbType memoryProviderType = Qgis::WKBMultiLineString;
     if ( locationField2 == -1 )
     {
-      memoryProviderType = forceSingleGeometry ? QGis::WKBPoint : QGis::WKBMultiPoint;
+      memoryProviderType = forceSingleGeometry ? Qgis::WKBPoint : Qgis::WKBMultiPoint;
     }
     else
     {
-      memoryProviderType = forceSingleGeometry ? QGis::WKBLineString : QGis::WKBMultiLineString;
+      memoryProviderType = forceSingleGeometry ? Qgis::WKBLineString : Qgis::WKBMultiLineString;
     }
     fileWriter = new QgsVectorFileWriter( outputLayer,
                                           eventLayer->dataProvider()->encoding(),
                                           eventLayer->fields(),
                                           memoryProviderType,
-                                          &( lineLayer->crs() ),
+                                          lineLayer->crs(),
                                           outputFormat );
   }
   else
@@ -1083,7 +1085,7 @@ bool QgsGeometryAnalyzer::createOffsetGeometry( QgsGeometry* geom, QgsGeometry* 
   GEOSContextHandle_t geosctxt = QgsGeometry::getGEOSHandler();
   for ( ; inputGeomIt != inputGeomList.constEnd(); ++inputGeomIt )
   {
-    if ( geom->type() == QGis::Line )
+    if ( geom->type() == Qgis::Line )
     {
       //geos 3.3 needed for line offsets
 #if defined(GEOS_VERSION_MAJOR) && defined(GEOS_VERSION_MINOR) && \
@@ -1103,7 +1105,7 @@ bool QgsGeometryAnalyzer::createOffsetGeometry( QgsGeometry* geom, QgsGeometry* 
       outputGeomList.push_back( GEOSGeom_clone_r( geosctxt, ( *inputGeomIt )->asGeos() ) );
 #endif
     }
-    else if ( geom->type() == QGis::Point )
+    else if ( geom->type() == Qgis::Point )
     {
       QgsPoint p = ( *inputGeomIt )->asPoint();
       p = createPointOffset( p.x(), p.y(), offset, lineGeom );
@@ -1131,11 +1133,11 @@ bool QgsGeometryAnalyzer::createOffsetGeometry( QgsGeometry* geom, QgsGeometry* 
       geomArray[i] = outputGeomList.at( i );
     }
     GEOSGeometry* collection = nullptr;
-    if ( geom->type() == QGis::Point )
+    if ( geom->type() == Qgis::Point )
     {
       collection = GEOSGeom_createCollection_r( geosctxt, GEOS_MULTIPOINT, geomArray, outputGeomList.size() );
     }
-    else if ( geom->type() == QGis::Line )
+    else if ( geom->type() == Qgis::Line )
     {
       collection = GEOSGeom_createCollection_r( geosctxt, GEOS_MULTILINESTRING, geomArray, outputGeomList.size() );
     }
@@ -1183,17 +1185,17 @@ QgsGeometry* QgsGeometryAnalyzer::locateBetweenMeasures( double fromMeasure, dou
   QgsConstWkbPtr wkbPtr( lineGeom->asWkb(), lineGeom->wkbSize() );
   wkbPtr.readHeader();
 
-  QGis::WkbType wkbType = lineGeom->wkbType();
-  if ( wkbType != QGis::WKBLineString25D && wkbType != QGis::WKBMultiLineString25D )
+  Qgis::WkbType wkbType = lineGeom->wkbType();
+  if ( wkbType != Qgis::WKBLineString25D && wkbType != Qgis::WKBMultiLineString25D )
   {
     return nullptr;
   }
 
-  if ( wkbType == QGis::WKBLineString25D )
+  if ( wkbType == Qgis::WKBLineString25D )
   {
     locateBetweenWkbString( wkbPtr, resultGeom, fromMeasure, toMeasure );
   }
-  else if ( wkbType == QGis::WKBMultiLineString25D )
+  else if ( wkbType == Qgis::WKBMultiLineString25D )
   {
     int nLines;
     wkbPtr >> nLines;
@@ -1222,18 +1224,18 @@ QgsGeometry* QgsGeometryAnalyzer::locateAlongMeasure( double measure, const QgsG
 
   //need to go with WKB and z coordinate until QgsGeometry supports M values
   QgsConstWkbPtr wkbPtr( lineGeom->asWkb(), lineGeom->wkbSize() );
-  QGis::WkbType wkbType = lineGeom->wkbType();
+  Qgis::WkbType wkbType = lineGeom->wkbType();
 
-  if ( wkbType != QGis::WKBLineString25D && wkbType != QGis::WKBMultiLineString25D )
+  if ( wkbType != Qgis::WKBLineString25D && wkbType != Qgis::WKBMultiLineString25D )
   {
     return nullptr;
   }
 
-  if ( wkbType == QGis::WKBLineString25D )
+  if ( wkbType == Qgis::WKBLineString25D )
   {
     locateAlongWkbString( wkbPtr, resultGeom, measure );
   }
-  else if ( wkbType == QGis::WKBMultiLineString25D )
+  else if ( wkbType == Qgis::WKBMultiLineString25D )
   {
     int nLines;
     wkbPtr >> nLines;

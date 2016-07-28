@@ -38,10 +38,11 @@ from qgis.core import (QgsGeometry,
                        QgsLineSymbolV2,
                        QgsRenderContext,
                        QgsFeature,
-                       QGis,
+                       Qgis,
                        QgsMapSettings,
                        QgsRenderChecker,
-                       QgsSimpleMarkerSymbolLayerV2
+                       QgsSimpleMarkerSymbolLayerV2,
+                       QgsUnitTypes
                        )
 
 from qgis.testing import unittest, start_app
@@ -104,7 +105,7 @@ class TestQgsSymbolV2(unittest.TestCase):
 
         for test in tests:
             geom = QgsGeometry.fromWkt(test['wkt'])
-            assert geom and not geom.isEmpty(), 'Could not create geometry'
+            assert geom and not geom.isEmpty(), 'Could not create geometry {}'.format(test['wkt'])
             rendered_image = self.renderGeometry(geom)
             assert self.imageCheck(test['name'], test['reference_image'], rendered_image)
 
@@ -152,17 +153,17 @@ class TestQgsSymbolV2(unittest.TestCase):
         painter.begin(image)
         image.fill(QColor(0, 0, 0))
 
-        if geom.type() == QGis.Polygon:
+        if geom.type() == Qgis.Polygon:
             self.fill_symbol.startRender(context)
             self.fill_symbol.renderFeature(f, context)
             self.fill_symbol.stopRender(context)
 
-        elif geom.type() == QGis.Line:
+        elif geom.type() == Qgis.Line:
             self.line_symbol.startRender(context)
             self.line_symbol.renderFeature(f, context)
             self.line_symbol.stopRender(context)
 
-        elif geom.type() == QGis.Point:
+        elif geom.type() == Qgis.Point:
             self.marker_symbol.startRender(context)
             self.marker_symbol.renderFeature(f, context)
             self.marker_symbol.stopRender(context)
@@ -250,22 +251,22 @@ class TestQgsMarkerSymbolV2(unittest.TestCase):
         markerSymbol = QgsMarkerSymbolV2()
         markerSymbol.deleteSymbolLayer(0)
         markerSymbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayerV2('star', QColor(255, 0, 0), QColor(0, 255, 0), 10))
-        self.assertEqual(markerSymbol.sizeUnit(), QgsSymbolV2.MM)
-        markerSymbol.setSizeUnit(QgsSymbolV2.MapUnit)
-        self.assertEqual(markerSymbol.sizeUnit(), QgsSymbolV2.MapUnit)
-        self.assertEqual(markerSymbol.symbolLayer(0).sizeUnit(), QgsSymbolV2.MapUnit)
+        self.assertEqual(markerSymbol.sizeUnit(), QgsUnitTypes.RenderMillimeters)
+        markerSymbol.setSizeUnit(QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(markerSymbol.sizeUnit(), QgsUnitTypes.RenderMapUnits)
+        self.assertEqual(markerSymbol.symbolLayer(0).sizeUnit(), QgsUnitTypes.RenderMapUnits)
 
         # add additional layers
         markerSymbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayerV2('star', QColor(255, 0, 0), QColor(0, 255, 0), 10))
         markerSymbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayerV2('star', QColor(255, 0, 0), QColor(0, 255, 0), 30))
         # should now be mixed size units
-        self.assertEqual(markerSymbol.sizeUnit(), QgsSymbolV2.Mixed)
-        markerSymbol.setSizeUnit(QgsSymbolV2.Pixel)
-        self.assertEqual(markerSymbol.sizeUnit(), QgsSymbolV2.Pixel)
+        self.assertEqual(markerSymbol.sizeUnit(), QgsUnitTypes.RenderUnknownUnit)
+        markerSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
+        self.assertEqual(markerSymbol.sizeUnit(), QgsUnitTypes.RenderPixels)
         # all layers should have size unit set
-        self.assertEqual(markerSymbol.symbolLayer(0).sizeUnit(), QgsSymbolV2.Pixel)
-        self.assertEqual(markerSymbol.symbolLayer(1).sizeUnit(), QgsSymbolV2.Pixel)
-        self.assertEqual(markerSymbol.symbolLayer(2).sizeUnit(), QgsSymbolV2.Pixel)
+        self.assertEqual(markerSymbol.symbolLayer(0).sizeUnit(), QgsUnitTypes.RenderPixels)
+        self.assertEqual(markerSymbol.symbolLayer(1).sizeUnit(), QgsUnitTypes.RenderPixels)
+        self.assertEqual(markerSymbol.symbolLayer(2).sizeUnit(), QgsUnitTypes.RenderPixels)
 
     def testSizeMapUnitScale(self):
         # test sizeMapUnitScale and setSizeMapUnitScale

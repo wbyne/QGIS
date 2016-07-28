@@ -19,6 +19,7 @@
 #include "qgspainteffect.h"
 #include "qgseffectstack.h"
 #include "qgsgloweffect.h"
+#include "qgsdatadefined.h"
 
 #define ROOF_EXPRESSION \
   "translate(" \
@@ -86,13 +87,13 @@ Qgs25DRenderer::Qgs25DRenderer()
   QgsEffectStack* effectStack = new QgsEffectStack();
   QgsOuterGlowEffect* glowEffect = new QgsOuterGlowEffect();
   glowEffect->setBlurLevel( 5 );
-  glowEffect->setSpreadUnit( QgsSymbolV2::MapUnit );
+  glowEffect->setSpreadUnit( QgsUnitTypes::RenderMapUnits );
   effectStack->appendEffect( glowEffect );
   floor->setPaintEffect( effectStack );
 
   // These methods must only be used after the above initialization!
 
-  setRoofColor( QColor( "#fdbf6f" ) );
+  setRoofColor( QColor( "#b1a97c" ) );
   setWallColor( QColor( "#777777" ) );
 
   wallLayer()->setDataDefinedProperty( "color", new QgsDataDefined( QString( WALL_SHADING_EXPRESSION ) ) );

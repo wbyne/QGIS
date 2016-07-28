@@ -349,6 +349,7 @@ class CORE_EXPORT QgsApplication : public QApplication
     /** Get maximum concurrent thread count
      * @note added in 2.4 */
     static int maxThreads() { return ABISYM( mMaxThreads ); }
+
     /** Set maximum concurrent thread count
      * @note must be between 1 and \#cores, -1 means use all available cores
      * @note added in 2.4 */
@@ -363,9 +364,25 @@ class CORE_EXPORT QgsApplication : public QApplication
     }
 #endif
 
+  public slots:
+
+    /** Causes the application instance to emit the settingsChanged() signal. This should
+     * be called whenever global, application-wide settings are altered to advise listeners
+     * that they may need to update their state.
+     * @see settingsChanged()
+     * @note added in QGIS 3.0
+     */
+    void emitSettingsChanged();
+
   signals:
     //! @note not available in python bindings
     void preNotify( QObject * receiver, QEvent * event, bool * done );
+
+    /** Emitted whenever any global, application-wide settings are changed.
+     * @note added in QGIS 3.0
+     * @see emitSettingsChanged()
+     */
+    void settingsChanged();
 
   private:
     static void copyPath( const QString& src, const QString& dst );

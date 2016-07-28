@@ -22,10 +22,11 @@
 #include "qgis.h"
 #include "qgspoint.h"
 #include "qgsrectangle.h"
-#include "qgswkbptr.h"
 
 #include <QVector>
 #include <QPolygonF>
+
+class QgsConstWkbPtr;
 
 /** \ingroup core
  * A class to trim lines and polygons to within a rectangular region.
@@ -87,7 +88,7 @@ class CORE_EXPORT QgsClipper
       @param wkb pointer to the start of the line wkb
       @param clipExtent clipping bounds
       @param line out: clipped line coordinates*/
-    static QgsConstWkbPtr clippedLineWKB( QgsConstWkbPtr wkb, const QgsRectangle& clipExtent, QPolygonF& line );
+    static QgsConstWkbPtr clippedLineWKB( QgsConstWkbPtr& wkb, const QgsRectangle& clipExtent, QPolygonF& line );
 
   private:
 

@@ -27,6 +27,7 @@ __revision__ = '$Format:%H$'
 
 import os
 import re
+import json
 from qgis.core import QgsExpressionContextUtils, QgsExpressionContext
 from qgis.PyQt.QtGui import QIcon
 from processing.core.GeoAlgorithm import GeoAlgorithm
@@ -41,6 +42,7 @@ from processing.core.parameters import ParameterNumber
 from processing.core.parameters import ParameterBoolean
 from processing.core.parameters import ParameterSelection
 from processing.core.parameters import ParameterTableField
+from processing.core.parameters import ParameterTableMultipleField
 from processing.core.parameters import ParameterExtent
 from processing.core.parameters import ParameterFile
 from processing.core.parameters import ParameterPoint
@@ -92,8 +94,8 @@ class ScriptAlgorithm(GeoAlgorithm):
         return self._icon
 
     def defineCharacteristicsFromFile(self):
+        self.error = None
         self.script = ''
-        self.silentOutputs = []
         filename = os.path.basename(self.descriptionFile)
         self.name = filename[:filename.rfind('.')].replace('_', ' ')
         self.group = self.tr('User scripts', 'ScriptAlgorithm')
@@ -104,9 +106,8 @@ class ScriptAlgorithm(GeoAlgorithm):
                 try:
                     self.processParameterLine(line.strip('\n'))
                 except:
-                    raise WrongScriptException(
-                        self.tr('Could not load script: %s\n'
-                                'Problem with line: %s', 'ScriptAlgorithm') % (self.descriptionFile, line))
+                    self.error = self.tr('This script has a syntax errors.\n'
+                                         'Problem with line: %s', 'ScriptAlgorithm') % line
             self.script += line
             line = lines.readline()
         lines.close()
@@ -116,7 +117,6 @@ class ScriptAlgorithm(GeoAlgorithm):
 
     def defineCharacteristicsFromScript(self):
         lines = self.script.split('\n')
-        self.silentOutputs = []
         self.name, self.i18n_name = self.trAlgorithm('[Unnamed algorithm]', 'ScriptAlgorithm')
         self.group, self.i18n_group = self.trAlgorithm('User scripts', 'ScriptAlgorithm')
         for line in lines:
@@ -125,6 +125,9 @@ class ScriptAlgorithm(GeoAlgorithm):
                     self.processParameterLine(line.strip('\n'))
                 except:
                     pass
+
+    def checkBeforeOpeningParametersDialog(self):
+        return self.error
 
     def checkInputCRS(self):
         if self.noCRSWarning:
@@ -241,14 +244,49 @@ class ScriptAlgorithm(GeoAlgorithm):
             else:
                 param = ParameterNumber(name, descName)
         elif token.lower().strip().startswith('field'):
-            field = token.strip()[len('field') + 1:]
+            if token.lower().strip().startswith('field number'):
+                field = token.strip()[len('field number') + 1:]
+                datatype = ParameterTableField.DATA_TYPE_NUMBER
+            elif token.lower().strip().startswith('field string'):
+                field = token.strip()[len('field string') + 1:]
+                datatype = ParameterTableField.DATA_TYPE_STRING
+            else:
+                field = token.strip()[len('field') + 1:]
+                datatype = ParameterTableField.DATA_TYPE_ANY
             found = False
             for p in self.parameters:
                 if p.name == field:
                     found = True
                     break
             if found:
-                param = ParameterTableField(name, descName, field)
+                param = ParameterTableField(
+                    name=name,
+                    description=descName,
+                    parent=field,
+                    datatype=datatype
+                )
+        elif token.lower().strip().startswith('multiple field'):
+            if token.lower().strip().startswith('multiple field number'):
+                field = token.strip()[len('multiple field number') + 1:]
+                datatype = ParameterTableMultipleField.DATA_TYPE_NUMBER
+            elif token.lower().strip().startswith('multiple field string'):
+                field = token.strip()[len('multiple field string') + 1:]
+                datatype = ParameterTableMultipleField.DATA_TYPE_STRING
+            else:
+                field = token.strip()[len('multiple field') + 1:]
+                datatype = ParameterTableMultipleField.DATA_TYPE_ANY
+            found = False
+            for p in self.parameters:
+                if p.name == field:
+                    found = True
+                    break
+            if found:
+                param = ParameterTableMultipleField(
+                    name=name,
+                    description=descName,
+                    parent=field,
+                    datatype=datatype
+                )
         elif token.lower().strip().startswith('string'):
             default = token.strip()[len('string') + 1:]
             if default:
@@ -292,6 +330,8 @@ class ScriptAlgorithm(GeoAlgorithm):
             out = OutputNumber()
         elif token.lower().strip().startswith('string'):
             out = OutputString()
+        elif token.lower().strip().startswith('extent'):
+            out = OutputExtent()
 
         return out
 
@@ -347,3 +387,33 @@ class ScriptAlgorithm(GeoAlgorithm):
             return True, getHtmlFromHelpFile(self, helpfile)
         else:
             return False, None
+
+    def shortHelp(self):
+        if self.descriptionFile is None:
+            return None
+        helpFile = unicode(self.descriptionFile) + '.help'
+        if os.path.exists(helpFile):
+            with open(helpFile) as f:
+                try:
+                    descriptions = json.load(f)
+                    if 'ALG_DESC' in descriptions:
+                        return self._formatHelp(unicode(descriptions['ALG_DESC']))
+                except:
+                    return None
+        return None
+
+    def getParameterDescriptions(self):
+        descs = {}
+        if self.descriptionFile is None:
+            return descs
+        helpFile = unicode(self.descriptionFile) + '.help'
+        if os.path.exists(helpFile):
+            with open(helpFile) as f:
+                try:
+                    descriptions = json.load(f)
+                    for param in self.parameters:
+                        if param.name in descriptions:
+                            descs[param.name] = unicode(descriptions[param.name])
+                except:
+                    return descs
+        return descs

@@ -15,7 +15,6 @@
 
 #include "qgsapplication.h"
 #include "qgsauthmanager.h"
-#include "qgscrscache.h"
 #include "qgsdataitemproviderregistry.h"
 #include "qgsexception.h"
 #include "qgsgeometry.h"
@@ -117,7 +116,7 @@ void QgsApplication::init( QString customConfigPath )
     }
     else
     {
-      customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( QGis::QGIS_VERSION_INT / 10000 );
+      customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( Qgis::QGIS_VERSION_INT / 10000 );
     }
   }
 
@@ -153,14 +152,14 @@ void QgsApplication::init( QString customConfigPath )
   {
     // we run from source directory - not installed to destination (specified prefix)
     ABISYM( mPrefixPath ) = QString(); // set invalid path
-#if defined(_MSC_VER) && !defined(USING_NMAKE)
+#if defined(_MSC_VER) && !defined(USING_NMAKE) && !defined(USING_NINJA)
     setPluginPath( ABISYM( mBuildOutputPath ) + '/' + QString( QGIS_PLUGIN_SUBDIR ) + '/' + ABISYM( mCfgIntDir ) );
 #else
     setPluginPath( ABISYM( mBuildOutputPath ) + '/' + QString( QGIS_PLUGIN_SUBDIR ) );
 #endif
     setPkgDataPath( ABISYM( mBuildSourcePath ) ); // directly source path - used for: doc, resources, svg
     ABISYM( mLibraryPath ) = ABISYM( mBuildOutputPath ) + '/' + QGIS_LIB_SUBDIR + '/';
-#if defined(_MSC_VER) && !defined(USING_NMAKE)
+#if defined(_MSC_VER) && !defined(USING_NMAKE) && !defined(USING_NINJA)
     ABISYM( mLibexecPath ) = ABISYM( mBuildOutputPath ) + '/' + QGIS_LIBEXEC_SUBDIR + '/' + ABISYM( mCfgIntDir ) + '/';
 #else
     ABISYM( mLibexecPath ) = ABISYM( mBuildOutputPath ) + '/' + QGIS_LIBEXEC_SUBDIR + '/';
@@ -706,7 +705,7 @@ QStringList QgsApplication::svgPaths()
   //defined by user in options dialog
   QSettings settings;
   QStringList myPathList;
-  QString myPaths = settings.value( "svg/searchPathsForSVG", QDir::homePath() ).toString();
+  QString myPaths = settings.value( "svg/searchPathsForSVG", QString() ).toString();
   if ( !myPaths.isEmpty() )
   {
     myPathList = myPaths.split( '|' );
@@ -725,7 +724,7 @@ QStringList QgsApplication::composerTemplatePaths()
   //defined by user in options dialog
   QSettings settings;
   QStringList myPathList;
-  QString myPaths = settings.value( "composer/searchPathsForTemplates", QDir::homePath() ).toString();
+  QString myPaths = settings.value( "composer/searchPathsForTemplates", QString() ).toString();
   if ( !myPaths.isEmpty() )
   {
     myPathList = myPaths.split( '|' );
@@ -1369,5 +1368,10 @@ void QgsApplication::setMaxThreads( int maxThreads )
   // set max thread count in QThreadPool
   QThreadPool::globalInstance()->setMaxThreadCount( maxThreads );
   QgsDebugMsg( QString( "set QThreadPool max thread count to %1" ).arg( QThreadPool::globalInstance()->maxThreadCount() ) );
+}
+
+void QgsApplication::emitSettingsChanged()
+{
+  emit settingsChanged();
 }
 

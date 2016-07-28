@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgszonalstatistics.h"
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgsvectordataprovider.h"
 #include "qgsvectorlayer.h"
@@ -53,7 +54,7 @@ QgsZonalStatistics::QgsZonalStatistics()
 
 int QgsZonalStatistics::calculateStatistics( QProgressDialog* p )
 {
-  if ( !mPolygonLayer || mPolygonLayer->geometryType() != QGis::Polygon )
+  if ( !mPolygonLayer || mPolygonLayer->geometryType() != Qgis::Polygon )
   {
     return 1;
   }
@@ -533,13 +534,13 @@ QString QgsZonalStatistics::getUniqueFieldName( const QString& fieldName )
     return fieldName;
   }
 
-  const QgsFields& providerFields = dp->fields();
+  QgsFields providerFields = dp->fields();
   QString shortName = fieldName.mid( 0, 10 );
 
   bool found = false;
   for ( int idx = 0; idx < providerFields.count(); ++idx )
   {
-    if ( shortName == providerFields[idx].name() )
+    if ( shortName == providerFields.at( idx ).name() )
     {
       found = true;
       break;
@@ -559,7 +560,7 @@ QString QgsZonalStatistics::getUniqueFieldName( const QString& fieldName )
     found = false;
     for ( int idx = 0; idx < providerFields.count(); ++idx )
     {
-      if ( shortName == providerFields[idx].name() )
+      if ( shortName == providerFields.at( idx ).name() )
       {
         n += 1;
         if ( n < 9 )

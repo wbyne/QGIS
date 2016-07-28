@@ -32,8 +32,11 @@ class TestQgsOgcUtils : public QObject
 
     void initTestCase()
     {
+#if QT_VERSION >= 0x050000
       // Needed on Qt 5 so that the serialization of XML is consistant among all executions
-      qputenv( "QT_HASH_SEED", "1" );
+      extern Q_CORE_EXPORT QBasicAtomicInt qt_qhash_seed;
+      qt_qhash_seed.store( 0 );
+#endif
 
       //
       // Runs once before any tests are run
@@ -73,24 +76,24 @@ void TestQgsOgcUtils::testGeometryFromGML()
   // Test GML2
   QSharedPointer<QgsGeometry> geom( QgsOgcUtils::geometryFromGML( "<Point><coordinates>123,456</coordinates></Point>" ) );
   QVERIFY( geom );
-  QVERIFY( geom->wkbType() == QGis::WKBPoint );
+  QVERIFY( geom->wkbType() == Qgis::WKBPoint );
   QVERIFY( geom->asPoint() == QgsPoint( 123, 456 ) );
   geom.clear();
 
   QSharedPointer<QgsGeometry> geomBox( QgsOgcUtils::geometryFromGML( "<gml:Box srsName=\"foo\"><gml:coordinates>135.2239,34.4879 135.8578,34.8471</gml:coordinates></gml:Box>" ) );
   QVERIFY( geomBox );
-  QVERIFY( geomBox->wkbType() == QGis::WKBPolygon );
+  QVERIFY( geomBox->wkbType() == Qgis::WKBPolygon );
 
 
   // Test GML3
   geom = QSharedPointer<QgsGeometry>( QgsOgcUtils::geometryFromGML( "<Point><pos>123 456</pos></Point>" ) );
   QVERIFY( geom );
-  QVERIFY( geom->wkbType() == QGis::WKBPoint );
+  QVERIFY( geom->wkbType() == Qgis::WKBPoint );
   QVERIFY( geom->asPoint() == QgsPoint( 123, 456 ) );
 
   geomBox = QSharedPointer<QgsGeometry>( QgsOgcUtils::geometryFromGML( "<gml:Envelope srsName=\"foo\"><gml:lowerCorner>135.2239 34.4879</gml:lowerCorner><gml:upperCorner>135.8578 34.8471</gml:upperCorner></gml:Envelope>" ) );
   QVERIFY( geomBox );
-  QVERIFY( geomBox->wkbType() == QGis::WKBPolygon );
+  QVERIFY( geomBox->wkbType() == Qgis::WKBPolygon );
 }
 
 void TestQgsOgcUtils::testGeometryToGML()
@@ -274,7 +277,7 @@ void TestQgsOgcUtils::testExpressionToOgcFilter_data()
     "<ogc:Literal>New York</ogc:Literal>"
     "</ogc:PropertyIsEqualTo></ogc:Filter>" );
 
-  QTest::newRow( ">" ) << QString( "COUNT > 3" ) << QString(
+  QTest::newRow( ">" ) << QString( "\"COUNT\" > 3" ) << QString(
     "<ogc:Filter xmlns:ogc=\"http://www.opengis.net/ogc\">"
     "<ogc:PropertyIsGreaterThan>"
     "<ogc:PropertyName>COUNT</ogc:PropertyName>"
@@ -432,7 +435,8 @@ void TestQgsOgcUtils::testExpressionToOgcFilterWFS11_data()
 static QString normalizeXML( const QString& xmlText )
 {
   QDomDocument doc;
-  doc.setContent( xmlText, true );
+  if ( !doc.setContent( xmlText, true ) )
+    return QString();
   return doc.toString( -1 );
 }
 
@@ -461,7 +465,15 @@ void TestQgsOgcUtils::testExpressionToOgcFilterWFS20()
   qDebug( "SRSNAME: %s", srsName.toAscii().data() );
   qDebug( "OGC : %s", doc.toString( -1 ).toAscii().data() );
 
-  QCOMPARE( normalizeXML( xmlText ), normalizeXML( doc.toString( -1 ) ) );
+  QString normalizedExpected( normalizeXML( xmlText ) );
+  QString normalizedGot( normalizeXML( doc.toString( -1 ) ) );
+
+  if ( normalizedExpected != normalizedGot )
+  {
+    qDebug( "Normalized expected: %s", normalizedExpected.toAscii().data() );
+    qDebug( "Normalized got: %s", normalizedGot.toAscii().data() );
+  }
+  QCOMPARE( normalizedExpected, normalizedGot );
 }
 
 void TestQgsOgcUtils::testExpressionToOgcFilterWFS20_data()
@@ -561,7 +573,15 @@ void TestQgsOgcUtils::testSQLStatementToOgcFilter()
           filterVersion == QgsOgcUtils::FILTER_FES_2_0 ? "FES 2.0" : "unknown" );
   qDebug( "OGC :   %s", doc.toString( -1 ).toAscii().data() );
 
-  QCOMPARE( normalizeXML( xmlText ), normalizeXML( doc.toString( -1 ) ) );
+  QString normalizedExpected( normalizeXML( xmlText ) );
+  QString normalizedGot( normalizeXML( doc.toString( -1 ) ) );
+
+  if ( normalizedExpected != normalizedGot )
+  {
+    qDebug( "Normalized expected: %s", normalizedExpected.toAscii().data() );
+    qDebug( "Normalized got: %s", normalizedGot.toAscii().data() );
+  }
+  QCOMPARE( normalizedExpected, normalizedGot );
 }
 
 void TestQgsOgcUtils::testSQLStatementToOgcFilter_data()

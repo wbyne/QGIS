@@ -138,8 +138,8 @@ void TestQgsVectorFileWriter::createPoint()
   QgsVectorFileWriter myWriter( myFileName,
                                 mEncoding,
                                 mFields,
-                                QGis::WKBPoint,
-                                &mCRS );
+                                Qgis::WKBPoint,
+                                mCRS );
   //
   // Create a feature
   //
@@ -184,8 +184,8 @@ void TestQgsVectorFileWriter::createLine()
   QgsVectorFileWriter myWriter( myFileName,
                                 mEncoding,
                                 mFields,
-                                QGis::WKBLineString,
-                                &mCRS );
+                                Qgis::WKBLineString,
+                                mCRS );
   //
   // Create a feature
   //
@@ -233,8 +233,8 @@ void TestQgsVectorFileWriter::createPolygon()
   QgsVectorFileWriter myWriter( myFileName,
                                 mEncoding,
                                 mFields,
-                                QGis::WKBPolygon,
-                                &mCRS );
+                                Qgis::WKBPolygon,
+                                mCRS );
   //
   // Create a polygon feature
   //
@@ -284,8 +284,8 @@ void TestQgsVectorFileWriter::polygonGridTest()
   QgsVectorFileWriter myWriter( myFileName,
                                 mEncoding,
                                 mFields,
-                                QGis::WKBPolygon,
-                                &mCRS );
+                                Qgis::WKBPolygon,
+                                mCRS );
   double myInterval = 5.0;
   for ( double i = -180.0; i <= 180.0; i += myInterval )
   {
@@ -357,8 +357,8 @@ void TestQgsVectorFileWriter::projectedPlygonGridTest()
   QgsVectorFileWriter myWriter( myFileName,
                                 mEncoding,
                                 mFields,
-                                QGis::WKBPolygon,
-                                &mCRS );
+                                Qgis::WKBPolygon,
+                                mCRS );
   double myInterval = 1000.0; //1km2
   for ( double i = 0.0; i <= 10000.0; i += myInterval ) //10km
   {
@@ -439,8 +439,8 @@ void TestQgsVectorFileWriter::regression1141()
     QgsVectorFileWriter myWriter( fileName,
                                   encoding,
                                   fields,
-                                  QGis::WKBPoint,
-                                  &crs );
+                                  Qgis::WKBPoint,
+                                  crs );
 
     QgsPoint myPoint = QgsPoint( 10.0, 10.0 );
     // NOTE: don't delete this pointer again -

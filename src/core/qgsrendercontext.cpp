@@ -26,7 +26,6 @@
 QgsRenderContext::QgsRenderContext()
     : mFlags( DrawEditingInfo | UseAdvancedEffects | DrawSelection | UseRenderingOptimization )
     , mPainter( nullptr )
-    , mCoordTransform( nullptr )
     , mRenderingStopped( false )
     , mScaleFactor( 1.0 )
     , mRasterScaleFactor( 1.0 )
@@ -35,6 +34,8 @@ QgsRenderContext::QgsRenderContext()
     , mLabelingEngine2( nullptr )
     , mGeometry( nullptr )
     , mFeatureFilterProvider( nullptr )
+    , mSegmentationTolerance( M_PI_2 / 90 )
+    , mSegmentationToleranceType( QgsAbstractGeometryV2::MaximumAngle )
 {
   mVectorSimplifyMethod.setSimplifyHints( QgsVectorSimplifyMethod::NoSimplification );
 }
@@ -56,6 +57,8 @@ QgsRenderContext::QgsRenderContext( const QgsRenderContext& rh )
     , mExpressionContext( rh.mExpressionContext )
     , mGeometry( rh.mGeometry )
     , mFeatureFilterProvider( rh.mFeatureFilterProvider ? rh.mFeatureFilterProvider->clone() : nullptr )
+    , mSegmentationTolerance( rh.mSegmentationTolerance )
+    , mSegmentationToleranceType( rh.mSegmentationToleranceType )
 {
 }
 
@@ -77,6 +80,8 @@ QgsRenderContext&QgsRenderContext::operator=( const QgsRenderContext & rh )
   mExpressionContext = rh.mExpressionContext;
   mGeometry = rh.mGeometry;
   mFeatureFilterProvider = rh.mFeatureFilterProvider ? rh.mFeatureFilterProvider->clone() : nullptr;
+  mSegmentationTolerance = rh.mSegmentationTolerance;
+  mSegmentationToleranceType = rh.mSegmentationToleranceType;
   return *this;
 }
 
@@ -118,15 +123,18 @@ QgsRenderContext QgsRenderContext::fromMapSettings( const QgsMapSettings& mapSet
   ctx.setFlag( ForceVectorOutput, mapSettings.testFlag( QgsMapSettings::ForceVectorOutput ) );
   ctx.setFlag( UseAdvancedEffects, mapSettings.testFlag( QgsMapSettings::UseAdvancedEffects ) );
   ctx.setFlag( UseRenderingOptimization, mapSettings.testFlag( QgsMapSettings::UseRenderingOptimization ) );
-  ctx.setCoordinateTransform( nullptr );
+  ctx.setCoordinateTransform( QgsCoordinateTransform() );
   ctx.setSelectionColor( mapSettings.selectionColor() );
   ctx.setFlag( DrawSelection, mapSettings.testFlag( QgsMapSettings::DrawSelection ) );
   ctx.setFlag( DrawSymbolBounds, mapSettings.testFlag( QgsMapSettings::DrawSymbolBounds ) );
   ctx.setFlag( RenderMapTile, mapSettings.testFlag( QgsMapSettings::RenderMapTile ) );
+  ctx.setFlag( Antialiasing, mapSettings.testFlag( QgsMapSettings::Antialiasing ) );
   ctx.setRasterScaleFactor( 1.0 );
   ctx.setScaleFactor( mapSettings.outputDpi() / 25.4 ); // = pixels per mm
   ctx.setRendererScale( mapSettings.scale() );
   ctx.setExpressionContext( mapSettings.expressionContext() );
+  ctx.setSegmentationTolerance( mapSettings.segmentationTolerance() );
+  ctx.setSegmentationToleranceType( mapSettings.segmentationToleranceType() );
 
   //this flag is only for stopping during the current rendering progress,
   //so must be false at every new render operation
@@ -160,7 +168,7 @@ bool QgsRenderContext::showSelection() const
   return mFlags.testFlag( DrawSelection );
 }
 
-void QgsRenderContext::setCoordinateTransform( const QgsCoordinateTransform* t )
+void QgsRenderContext::setCoordinateTransform( const QgsCoordinateTransform& t )
 {
   mCoordTransform = t;
 }

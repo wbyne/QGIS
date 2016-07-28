@@ -65,12 +65,12 @@ class GUI_EXPORT QgsRubberBand: public QgsMapCanvasItem
     /**
      * Creates a new RubberBand.
      *  @param mapCanvas The map canvas to draw onto. It's CRS will be used map points onto screen coordinates.
-     *  @param geometryType Defines how the data should be drawn onto the screen. (Use QGis::Line, QGis::Polygon or QGis::Point)
+     *  @param geometryType Defines how the data should be drawn onto the screen. (Use Qgis::Line, Qgis::Polygon or Qgis::Point)
      */
-    QgsRubberBand( QgsMapCanvas* mapCanvas, QGis::GeometryType geometryType = QGis::Line );
+    QgsRubberBand( QgsMapCanvas* mapCanvas, Qgis::GeometryType geometryType = Qgis::Line );
     /**
      * Creates a new RubberBand.
-     *  @deprecated Use the constructor which takes QGis::GeometryType as second argument instead
+     *  @deprecated Use the constructor which takes Qgis::GeometryType as second argument instead
      *  @param mapCanvas The map canvas to draw onto. It's CRS will be used map points onto screen coordinates.
      *  @param isPolygon true: draw as (multi-)polygon, false draw as (multi-)linestring
      */
@@ -127,12 +127,12 @@ class GUI_EXPORT QgsRubberBand: public QgsMapCanvasItem
     /**
      * Clears all the geometries in this rubberband.
      * Sets the representation type according to geometryType.
-     *  @param geometryType Defines how the data should be drawn onto the screen. (Use QGis::Line, QGis::Polygon or QGis::Point)
+     *  @param geometryType Defines how the data should be drawn onto the screen. (Use Qgis::Line, Qgis::Polygon or Qgis::Point)
      */
-    void reset( QGis::GeometryType geometryType = QGis::Line );
+    void reset( Qgis::GeometryType geometryType = Qgis::Line );
 
     /**
-     * @deprecated Use the reset method which takes QGis::GeometryType as second argument instead
+     * @deprecated Use the reset method which takes Qgis::GeometryType as second argument instead
      * Clears all the geometries in this rubberband.
      * Sets the representation type according to isPolygon.
      *  @param isPolygon true: draw as (multi-)polygon, false draw as (multi-)linestring
@@ -148,6 +148,14 @@ class GUI_EXPORT QgsRubberBand: public QgsMapCanvasItem
      *  @param geometryIndex The index of the feature part (in case of multipart geometries)
      */
     void addPoint( const QgsPoint & p, bool doUpdate = true, int geometryIndex = 0 );
+
+    /** Ensures that a polygon geometry is closed and that the last vertex equals the
+     * first vertex.
+     * @param doUpdate set to true to update the map canvas immediately
+     * @param geometryIndex index of the feature part (in case of multipart geometries)
+     * @note added in QGIS 2.16
+     */
+    void closePoints( bool doUpdate = true, int geometryIndex = 0 );
 
     /**
      * Remove a vertex from the rubberband and (optionally) update canvas.
@@ -264,7 +272,7 @@ class GUI_EXPORT QgsRubberBand: public QgsMapCanvasItem
      * Nested lists used for multitypes
      */
     QList< QList <QgsPoint> > mPoints;
-    QGis::GeometryType mGeometryType;
+    Qgis::GeometryType mGeometryType;
     double mTranslationOffsetX;
     double mTranslationOffsetY;
 

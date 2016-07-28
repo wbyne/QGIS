@@ -19,6 +19,7 @@
 #include "qgscomposertablecolumn.h"
 #include "qgscomposermap.h"
 #include "qgscomposerutils.h"
+#include "qgsfeatureiterator.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsvectorlayer.h"
 #include "qgscomposerframe.h"
@@ -26,6 +27,8 @@
 #include "qgsproject.h"
 #include "qgsrelationmanager.h"
 #include "qgsgeometry.h"
+#include "qgscsexception.h"
+#include "qgsmapsettings.h"
 
 //QgsComposerAttributeTableCompareV2
 
@@ -361,6 +364,56 @@ void QgsComposerAttributeTableV2::setDisplayAttributes( const QSet<int>& attr, b
   }
 }
 
+void QgsComposerAttributeTableV2::setDisplayedFields( const QStringList& fields, bool refresh )
+{
+  QgsVectorLayer* source = sourceLayer();
+  if ( !source )
+  {
+    return;
+  }
+
+  //rebuild columns list, taking only fields contained in supplied list
+  qDeleteAll( mColumns );
+  mColumns.clear();
+
+  QgsFields layerFields = source->fields();
+
+  if ( !fields.isEmpty() )
+  {
+    Q_FOREACH ( const QString& field, fields )
+    {
+      int attrIdx = layerFields.fieldNameIndex( field );
+      if ( attrIdx < 0 )
+        continue;
+
+      QString currentAlias = source->attributeDisplayName( attrIdx );
+      QgsComposerTableColumn* col = new QgsComposerTableColumn;
+      col->setAttribute( layerFields.at( attrIdx ).name() );
+      col->setHeading( currentAlias );
+      mColumns.append( col );
+    }
+  }
+  else
+  {
+    //resetting, so add all attributes to columns
+    int idx = 0;
+    Q_FOREACH ( const QgsField& field, layerFields )
+    {
+      QString currentAlias = source->attributeDisplayName( idx );
+      QgsComposerTableColumn* col = new QgsComposerTableColumn;
+      col->setAttribute( field.name() );
+      col->setHeading( currentAlias );
+      mColumns.append( col );
+      idx++;
+    }
+  }
+
+  if ( refresh )
+  {
+    refreshAttributes();
+  }
+}
+
 void QgsComposerAttributeTableV2::restoreFieldAliasMap( const QMap<int, QString>& map )
 {
   QgsVectorLayer* source = sourceLayer();
@@ -636,7 +689,7 @@ void QgsComposerAttributeTableV2::setWrapString( const QString &wrapString )
   emit changed();
 }
 
-bool QgsComposerAttributeTableV2::writeXML( QDomElement& elem, QDomDocument & doc, bool ignoreFrames ) const
+bool QgsComposerAttributeTableV2::writeXml( QDomElement& elem, QDomDocument & doc, bool ignoreFrames ) const
 {
   QDomElement composerTableElem = doc.createElement( "ComposerAttributeTableV2" );
   composerTableElem.setAttribute( "source", QString::number( static_cast< int >( mSource ) ) );
@@ -662,14 +715,14 @@ bool QgsComposerAttributeTableV2::writeXML( QDomElement& elem, QDomDocument & do
     composerTableElem.setAttribute( "vectorLayer", mVectorLayer->id() );
   }
 
-  bool ok = QgsComposerTableV2::writeXML( composerTableElem, doc, ignoreFrames );
+  bool ok = QgsComposerTableV2::writeXml( composerTableElem, doc, ignoreFrames );
 
   elem.appendChild( composerTableElem );
 
   return ok;
 }
 
-bool QgsComposerAttributeTableV2::readXML( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames )
+bool QgsComposerAttributeTableV2::readXml( const QDomElement& itemElem, const QDomDocument& doc, bool ignoreFrames )
 {
   if ( itemElem.isNull() )
   {
@@ -677,7 +730,7 @@ bool QgsComposerAttributeTableV2::readXML( const QDomElement& itemElem, const QD
   }
 
   //read general table properties
-  if ( !QgsComposerTableV2::readXML( itemElem, doc, ignoreFrames ) )
+  if ( !QgsComposerTableV2::readXml( itemElem, doc, ignoreFrames ) )
   {
     return false;
   }

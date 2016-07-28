@@ -27,6 +27,7 @@
 
 QgsDelimitedTextFeatureIterator::QgsDelimitedTextFeatureIterator( QgsDelimitedTextFeatureSource* source, bool ownSource, const QgsFeatureRequest& request )
     : QgsAbstractFeatureIteratorFromSource<QgsDelimitedTextFeatureSource>( source, ownSource, request )
+    , mNextId( 0 )
     , mTestGeometryExact( false )
 {
 
@@ -128,6 +129,7 @@ QgsDelimitedTextFeatureIterator::QgsDelimitedTextFeatureIterator( QgsDelimitedTe
          !( mRequest.flags() & QgsFeatureRequest::NoGeometry )
          || mTestGeometry
          || ( mTestSubset && mSource->mSubsetExpression->needsGeometry() )
+         || ( request.filterType() == QgsFeatureRequest::FilterExpression && request.filterExpression()->needsGeometry() )
        )
      )
   {
@@ -340,7 +342,7 @@ bool QgsDelimitedTextFeatureIterator::nextFeatureInternal( QgsFeature& feature )
 
     if ( ! mTestSubset && ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes ) )
     {
-      const QgsAttributeList& attrs = mRequest.subsetOfAttributes();
+      QgsAttributeList attrs = mRequest.subsetOfAttributes();
       for ( QgsAttributeList::const_iterator i = attrs.begin(); i != attrs.end(); ++i )
       {
         int fieldIdx = *i;

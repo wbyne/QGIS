@@ -17,6 +17,7 @@
 #include "qgsdatetimeeditfactory.h"
 #include "qgsmessagelog.h"
 #include "qgslogger.h"
+#include "qgsdatetimeedit.h"
 
 #include <QDateTimeEdit>
 #include <QDateEdit>
@@ -99,6 +100,12 @@ void QgsDateTimeEditWrapper::initWidget( QWidget *editor )
 bool QgsDateTimeEditWrapper::valid() const
 {
   return mQgsDateTimeEdit || mQDateTimeEdit;
+}
+
+void QgsDateTimeEditWrapper::showIndeterminateState()
+{
+  if ( mQgsDateTimeEdit )
+    mQgsDateTimeEdit->setEmpty();
 }
 
 void QgsDateTimeEditWrapper::dateTimeChanged( const QDateTime& dateTime )

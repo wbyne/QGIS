@@ -95,6 +95,10 @@ QgsSpatiaLiteFeatureIterator::QgsSpatiaLiteFeatureIterator( QgsSpatiaLiteFeature
       }
       mRequest.setSubsetOfAttributes( attrs );
     }
+    if ( request.filterExpression()->needsGeometry() )
+    {
+      mFetchGeometry = true;
+    }
 
     if ( QSettings().value( "/qgis/compileExpressions", true ).toBool() )
     {
@@ -288,7 +292,7 @@ bool QgsSpatiaLiteFeatureIterator::prepareStatement( const QString& whereClause,
 
     if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
     {
-      const QgsAttributeList& fetchAttributes = mRequest.subsetOfAttributes();
+      QgsAttributeList fetchAttributes = mRequest.subsetOfAttributes();
       for ( QgsAttributeList::const_iterator it = fetchAttributes.constBegin(); it != fetchAttributes.constEnd(); ++it )
       {
         sql += ',' + fieldName( mSource->mFields.field( *it ) );

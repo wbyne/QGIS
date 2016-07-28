@@ -17,21 +17,20 @@
 #ifndef QGSATTRIBUTEDIALOG_H
 #define QGSATTRIBUTEDIALOG_H
 
-#include "qgsfeature.h"
 #include "qgsattributeeditorcontext.h"
 #include "qgsattributeform.h"
+#include "qgstrackedvectorlayertools.h"
 
 #include <QDialog>
 #include <QMenuBar>
 #include <QGridLayout>
 
 class QgsDistanceArea;
-class QgsFeature;
-class QgsField;
 class QgsHighlight;
-class QgsVectorLayer;
-class QgsVectorLayerTools;
 
+/** \ingroup gui
+ * \class QgsAttributeDialog
+ */
 class GUI_EXPORT QgsAttributeDialog : public QDialog
 {
     Q_OBJECT
@@ -137,13 +136,14 @@ class GUI_EXPORT QgsAttributeDialog : public QDialog
 
   public slots:
     void accept() override;
+    void reject() override;
 
     //! Show the dialog non-blocking. Reparents this dialog to be a child of the dialog form and is deleted when
     //! closed.
     void show( bool autoDelete = true );
 
   private:
-    void init( QgsVectorLayer* layer, QgsFeature* feature, const QgsAttributeEditorContext& context );
+    void init( QgsVectorLayer* layer, QgsFeature* feature, const QgsAttributeEditorContext& context, bool showDialogButtons );
 
     QString mSettingsPath;
     // Used to sync multiple widgets for the same field
@@ -154,11 +154,14 @@ class GUI_EXPORT QgsAttributeDialog : public QDialog
     QgsAttributeForm* mAttributeForm;
     QgsFeature *mOwnedFeature;
 
+    QgsTrackedVectorLayerTools mTrackedVectorLayerTools;
+
     // true if this dialog is editable
     bool mEditable;
 
     static int sFormCounter;
     static QString sSettingsPath;
+
 };
 
 #endif

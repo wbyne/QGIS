@@ -19,6 +19,7 @@
 #include <QWidget>
 #include <QString>
 #include <QFont>
+#include <QLabel>
 #include <Qsci/qscilexersql.h>
 
 
@@ -45,12 +46,13 @@ QgsCodeEditorSQL::~QgsCodeEditorSQL()
    a lexer, since its caseSensitive() method is actually used, and defaults
    to true.
    @note not available in Python bindings
+   @ingroup gui
 */
 class QgsCaseInsensitiveLexerSQL: public QsciLexerSQL
 {
   public:
     //! constructor
-    QgsCaseInsensitiveLexerSQL( QObject *parent = 0 ) : QsciLexerSQL( parent ) {}
+    explicit QgsCaseInsensitiveLexerSQL( QObject *parent = 0 ) : QsciLexerSQL( parent ) {}
 
     bool caseSensitive() const override { return false; }
 };
@@ -58,7 +60,10 @@ class QgsCaseInsensitiveLexerSQL: public QsciLexerSQL
 void QgsCodeEditorSQL::setSciLexerSQL()
 {
   QFont font = getMonospaceFont();
-
+#ifdef Q_OS_MAC
+  // The font size gotten from getMonospaceFont() is too small on Mac
+  font.setPointSize( QLabel().font().pointSize() );
+#endif
   QsciLexerSQL* sqlLexer = new QgsCaseInsensitiveLexerSQL( this );
   sqlLexer->setDefaultFont( font );
   sqlLexer->setFont( font, -1 );

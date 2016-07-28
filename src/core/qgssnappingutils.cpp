@@ -49,7 +49,7 @@ QgsPointLocator* QgsSnappingUtils::locatorForLayer( QgsVectorLayer* vl )
 
   if ( !mLocators.contains( vl ) )
   {
-    QgsPointLocator* vlpl = new QgsPointLocator( vl, destCRS() );
+    QgsPointLocator* vlpl = new QgsPointLocator( vl, destinationCrs() );
     mLocators.insert( vl, vlpl );
   }
   return mLocators.value( vl );
@@ -84,14 +84,14 @@ QgsPointLocator* QgsSnappingUtils::temporaryLocatorForLayer( QgsVectorLayer* vl,
 
   QgsRectangle rect( pointMap.x() - tolerance, pointMap.y() - tolerance,
                      pointMap.x() + tolerance, pointMap.y() + tolerance );
-  QgsPointLocator* vlpl = new QgsPointLocator( vl, destCRS(), &rect );
+  QgsPointLocator* vlpl = new QgsPointLocator( vl, destinationCrs(), &rect );
   mTemporaryLocators.insert( vl, vlpl );
   return mTemporaryLocators.value( vl );
 }
 
 bool QgsSnappingUtils::isIndexPrepared( QgsVectorLayer* vl, const QgsRectangle& areaOfInterest )
 {
-  if ( vl->geometryType() == QGis::NoGeometry || mStrategy == IndexNeverFull )
+  if ( vl->geometryType() == Qgis::NoGeometry || mStrategy == IndexNeverFull )
     return false;
 
   QgsPointLocator* loc = locatorForLayer( vl );
@@ -131,7 +131,7 @@ static QgsPointLocator::Match _findClosestSegmentIntersection( const QgsPoint& p
 
   // get intersection points
   QList<QgsPoint> newPoints;
-  if ( g->wkbType() == QGis::WKBLineString )
+  if ( g->wkbType() == Qgis::WKBLineString )
   {
     Q_FOREACH ( const QgsPoint& p, g->asPolyline() )
     {
@@ -139,7 +139,7 @@ static QgsPointLocator::Match _findClosestSegmentIntersection( const QgsPoint& p
         newPoints << p;
     }
   }
-  if ( g->wkbType() == QGis::WKBMultiLineString )
+  if ( g->wkbType() == Qgis::WKBMultiLineString )
   {
     Q_FOREACH ( const QgsPolyline& pl, g->asMultiPolyline() )
     {
@@ -330,7 +330,7 @@ void QgsSnappingUtils::prepareIndex( const QList<LayerAndAreaOfInterest>& layers
   Q_FOREACH ( const LayerAndAreaOfInterest& entry, layers )
   {
     QgsVectorLayer* vl = entry.first;
-    if ( vl->geometryType() == QGis::NoGeometry || mStrategy == IndexNeverFull )
+    if ( vl->geometryType() == Qgis::NoGeometry || mStrategy == IndexNeverFull )
       continue;
 
     if ( !isIndexPrepared( vl, entry.second ) )
@@ -572,9 +572,9 @@ QString QgsSnappingUtils::dump()
   return msg;
 }
 
-const QgsCoordinateReferenceSystem* QgsSnappingUtils::destCRS()
+QgsCoordinateReferenceSystem QgsSnappingUtils::destinationCrs() const
 {
-  return mMapSettings.hasCrsTransformEnabled() ? &mMapSettings.destinationCrs() : nullptr;
+  return mMapSettings.hasCrsTransformEnabled() ? mMapSettings.destinationCrs() : QgsCoordinateReferenceSystem();
 }
 
 

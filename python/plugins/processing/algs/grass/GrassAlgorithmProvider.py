@@ -53,9 +53,10 @@ class GrassAlgorithmProvider(AlgorithmProvider):
             ProcessingConfig.addSetting(Setting(self.getDescription(),
                                                 GrassUtils.GRASS_FOLDER, self.tr('GRASS folder'),
                                                 GrassUtils.grassPath(), valuetype=Setting.FOLDER))
-            ProcessingConfig.addSetting(Setting(self.getDescription(),
-                                                GrassUtils.GRASS_WIN_SHELL, self.tr('Msys folder'),
-                                                GrassUtils.grassWinShell(), valuetype=Setting.FOLDER))
+            if isWindows():
+                ProcessingConfig.addSetting(Setting(self.getDescription(),
+                                                    GrassUtils.GRASS_WIN_SHELL, self.tr('Msys folder'),
+                                                    GrassUtils.grassWinShell(), valuetype=Setting.FOLDER))
         ProcessingConfig.addSetting(Setting(self.getDescription(),
                                             GrassUtils.GRASS_LOG_COMMANDS,
                                             self.tr('Log execution commands'), False))

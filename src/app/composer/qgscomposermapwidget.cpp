@@ -18,13 +18,13 @@
 #include "qgisapp.h"
 #include "qgsapplication.h"
 #include "qgsmapcanvas.h"
+#include "qgscomposermap.h"
 #include "qgscomposermapgrid.h"
 #include "qgscomposermapoverview.h"
 #include "qgscomposermapwidget.h"
 #include "qgscomposeritemwidget.h"
 #include "qgscomposition.h"
 #include "qgsmaplayerstylemanager.h"
-#include "qgsmaprenderer.h"
 #include "qgsstylev2.h"
 #include "qgssymbolv2.h"
 #include "qgssymbolv2selectordialog.h"
@@ -125,12 +125,19 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap )
   //set initial state of frame style controls
   toggleFrameControls( false, false, false );
 
-  QMenu* m = new QMenu( this );
-  mLayerListFromPresetButton->setMenu( m );
+  // follow preset combo
+  mFollowVisibilityPresetCombo->setModel( new QStringListModel( mFollowVisibilityPresetCombo ) );
+  connect( mFollowVisibilityPresetCombo, SIGNAL( currentIndexChanged( int ) ), this, SLOT( followVisibilityPresetSelected( int ) ) );
+  connect( QgsProject::instance()->visibilityPresetCollection(), SIGNAL( presetsChanged() ),
+           this, SLOT( onPresetsChanged() ) );
+  onPresetsChanged();
+
+  // keep layers from preset button
+  QMenu* menuKeepLayers = new QMenu( this );
+  mLayerListFromPresetButton->setMenu( menuKeepLayers );
   mLayerListFromPresetButton->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
   mLayerListFromPresetButton->setToolTip( tr( "Set layer list from a visibility preset" ) );
-
-  connect( m, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowVisibilityPresetsMenu() ) );
+  connect( menuKeepLayers, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowKeepLayersVisibilityPresetsMenu() ) );
 
   if ( composerMap )
   {
@@ -290,7 +297,7 @@ void QgsComposerMapWidget::compositionAtlasToggled( bool atlasEnabled )
 {
   if ( atlasEnabled &&
        mComposerMap && mComposerMap->composition() && mComposerMap->composition()->atlasComposition().coverageLayer()
-       && mComposerMap->composition()->atlasComposition().coverageLayer()->wkbType() != QGis::WKBNoGeometry )
+       && mComposerMap->composition()->atlasComposition().coverageLayer()->wkbType() != Qgis::WKBNoGeometry )
   {
     mAtlasCheckBox->setEnabled( true );
   }
@@ -301,8 +308,11 @@ void QgsComposerMapWidget::compositionAtlasToggled( bool atlasEnabled )
   }
 }
 
-void QgsComposerMapWidget::aboutToShowVisibilityPresetsMenu()
+void QgsComposerMapWidget::aboutToShowKeepLayersVisibilityPresetsMenu()
 {
+  // this menu is for the case when setting "keep layers" and "keep layer styles"
+  // and the preset configuration is copied. The preset is not followed further.
+
   QMenu* menu = qobject_cast<QMenu*>( sender() );
   if ( !menu )
     return;
@@ -310,19 +320,38 @@ void QgsComposerMapWidget::aboutToShowVisibilityPresetsMenu()
   menu->clear();
   Q_FOREACH ( const QString& presetName, QgsProject::instance()->visibilityPresetCollection()->presets() )
   {
-    QAction* a = menu->addAction( presetName, this, SLOT( visibilityPresetSelected() ) );
-    a->setCheckable( true );
-    QStringList layers = QgsVisibilityPresets::instance()->orderedPresetVisibleLayers( presetName );
-    QMap<QString, QString> styles = QgsProject::instance()->visibilityPresetCollection()->presetStyleOverrides( presetName );
-    if ( layers == mComposerMap->layerSet() && styles == mComposerMap->layerStyleOverrides() )
-      a->setChecked( true );
+    menu->addAction( presetName, this, SLOT( keepLayersVisibilityPresetSelected() ) );
   }
 
   if ( menu->actions().isEmpty() )
     menu->addAction( tr( "No presets defined" ) )->setEnabled( false );
 }
 
-void QgsComposerMapWidget::visibilityPresetSelected()
+void QgsComposerMapWidget::followVisibilityPresetSelected( int currentIndex )
+{
+  if ( !mComposerMap )
+    return;
+
+  if ( currentIndex == -1 )
+    return;  // doing combo box model reset
+
+  QString presetName;
+  if ( currentIndex != 0 )
+  {
+    presetName = mFollowVisibilityPresetCombo->currentText();
+  }
+
+  if ( presetName == mComposerMap->followVisibilityPresetName() )
+    return;
+
+  mFollowVisibilityPresetCheckBox->setChecked( true );
+  mComposerMap->setFollowVisibilityPresetName( presetName );
+
+  mComposerMap->cache();
+  mComposerMap->update();
+}
+
+void QgsComposerMapWidget::keepLayersVisibilityPresetSelected()
 {
   QAction* action = qobject_cast<QAction*>( sender() );
   if ( !action )
@@ -341,6 +370,23 @@ void QgsComposerMapWidget::visibilityPresetSelected()
 
     mComposerMap->cache();
     mComposerMap->update();
+  }
+}
+
+void QgsComposerMapWidget::onPresetsChanged()
+{
+  if ( QStringListModel* model = qobject_cast<QStringListModel*>( mFollowVisibilityPresetCombo->model() ) )
+  {
+    QStringList lst;
+    lst.append( tr( "(none)" ) );
+    lst += QgsProject::instance()->visibilityPresetCollection()->presets();
+    model->setStringList( lst );
+
+    // select the previously selected item again
+    int presetModelIndex = mFollowVisibilityPresetCombo->findText( mComposerMap->followVisibilityPresetName() );
+    mFollowVisibilityPresetCombo->blockSignals( true );
+    mFollowVisibilityPresetCombo->setCurrentIndex( presetModelIndex != -1 ? presetModelIndex : 0 ); // 0 == none
+    mFollowVisibilityPresetCombo->blockSignals( false );
   }
 }
 
@@ -668,6 +714,12 @@ void QgsComposerMapWidget::updateGuiElements()
 
   mMapRotationSpinBox->setValue( mComposerMap->mapRotation( QgsComposerObject::OriginalValue ) );
 
+  // follow preset check box
+  mFollowVisibilityPresetCheckBox->setCheckState(
+    mComposerMap->followVisibilityPreset() ? Qt::Checked : Qt::Unchecked );
+  int presetModelIndex = mFollowVisibilityPresetCombo->findText( mComposerMap->followVisibilityPresetName() );
+  mFollowVisibilityPresetCombo->setCurrentIndex( presetModelIndex != -1 ? presetModelIndex : 0 ); // 0 == none
+
   //keep layer list check box
   if ( mComposerMap->keepLayerSet() )
   {
@@ -735,10 +787,10 @@ void QgsComposerMapWidget::toggleAtlasScalingOptionsByLayerType()
 
   switch ( coverageLayer->wkbType() )
   {
-    case QGis::WKBPoint:
-    case QGis::WKBPoint25D:
-    case QGis::WKBMultiPoint:
-    case QGis::WKBMultiPoint25D:
+    case Qgis::WKBPoint:
+    case Qgis::WKBPoint25D:
+    case Qgis::WKBMultiPoint:
+    case Qgis::WKBMultiPoint25D:
       //For point layers buffer setting makes no sense, so set "fixed scale" on and disable margin control
       mAtlasFixedScaleRadio->setChecked( true );
       mAtlasMarginRadio->setEnabled( false );
@@ -797,6 +849,8 @@ void QgsComposerMapWidget::blockAllSignals( bool b )
   mAtlasMarginSpinBox->blockSignals( b );
   mAtlasFixedScaleRadio->blockSignals( b );
   mAtlasMarginRadio->blockSignals( b );
+  mFollowVisibilityPresetCheckBox->blockSignals( b );
+  mFollowVisibilityPresetCombo->blockSignals( b );
   mKeepLayerListCheckBox->blockSignals( b );
   mKeepLayerStylesCheckBox->blockSignals( b );
   mSetToMapCanvasExtentButton->blockSignals( b );
@@ -897,6 +951,30 @@ void QgsComposerMapWidget::on_mUpdatePreviewButton_clicked()
   mUpdatePreviewButton->setEnabled( true );
 }
 
+void QgsComposerMapWidget::on_mFollowVisibilityPresetCheckBox_stateChanged( int state )
+{
+  if ( !mComposerMap )
+  {
+    return;
+  }
+
+  if ( state == Qt::Checked )
+  {
+    mComposerMap->setFollowVisibilityPreset( true );
+
+    // mutually exclusive with keeping custom layer list
+    mKeepLayerListCheckBox->setCheckState( Qt::Unchecked );
+    mKeepLayerStylesCheckBox->setCheckState( Qt::Unchecked );
+
+    mComposerMap->cache();
+    mComposerMap->update();
+  }
+  else
+  {
+    mComposerMap->setFollowVisibilityPreset( false );
+  }
+}
+
 void QgsComposerMapWidget::on_mKeepLayerListCheckBox_stateChanged( int state )
 {
   if ( !mComposerMap )
@@ -908,6 +986,9 @@ void QgsComposerMapWidget::on_mKeepLayerListCheckBox_stateChanged( int state )
   {
     mComposerMap->storeCurrentLayerSet();
     mComposerMap->setKeepLayerSet( true );
+
+    // mutually exclusive with following a preset
+    mFollowVisibilityPresetCheckBox->setCheckState( Qt::Unchecked );
   }
   else
   {
@@ -1096,7 +1177,7 @@ void QgsComposerMapWidget::initAnnotationDirectionBox( QComboBox* c, QgsComposer
 
 void QgsComposerMapWidget::atlasLayerChanged( QgsVectorLayer* layer )
 {
-  if ( !layer || layer->wkbType() == QGis::WKBNoGeometry )
+  if ( !layer || layer->wkbType() == Qgis::WKBNoGeometry )
   {
     //geometryless layer, disable atlas control
     mAtlasCheckBox->setChecked( false );

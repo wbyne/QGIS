@@ -61,13 +61,17 @@ QgsOracleFeatureIterator::QgsOracleFeatureIterator( QgsOracleFeatureSource* sour
   else
     mAttributeList = mSource->mFields.allAttributesList();
 
-
+  bool limitAtProvider = ( mRequest.limit() >= 0 );
   QString whereClause;
 
   if ( !mSource->mGeometryColumn.isNull() )
   {
     // fetch geometry if requested
     mFetchGeometry = ( mRequest.flags() & QgsFeatureRequest::NoGeometry ) == 0;
+    if ( mRequest.filterType() == QgsFeatureRequest::FilterExpression && mRequest.filterExpression()->needsGeometry() )
+    {
+      mFetchGeometry = true;
+    }
 
     if ( !mRequest.filterRect().isNull() )
     {
@@ -135,15 +139,7 @@ QgsOracleFeatureIterator::QgsOracleFeatureIterator( QgsOracleFeatureSource* sour
       break;
 
     case QgsFeatureRequest::FilterExpression:
-      if ( QSettings().value( "/qgis/compileExpressions", true ).toBool() )
-      {
-        QgsOracleExpressionCompiler compiler( mSource );
-        if ( compiler.compile( mRequest.filterExpression() ) == QgsSqlExpressionCompiler::Complete )
-        {
-          whereClause = QgsOracleUtils::andWhereClauses( whereClause, compiler.result() );
-          mExpressionCompiled = true;
-        }
-      }
+      //handled below
       break;
 
     case QgsFeatureRequest::FilterRect:
@@ -151,20 +147,12 @@ QgsOracleFeatureIterator::QgsOracleFeatureIterator( QgsOracleFeatureSource* sour
       break;
   }
 
-  if ( mSource->mRequestedGeomType != QGis::WKBUnknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
+  if ( mSource->mRequestedGeomType != Qgis::WKBUnknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
   {
     if ( !whereClause.isEmpty() )
       whereClause += " AND ";
 
     whereClause += QgsOracleConn::databaseTypeFilter( "FEATUREREQUEST", mSource->mGeometryColumn, mSource->mRequestedGeomType );
-  }
-
-  if ( mRequest.limit() >= 0 )
-  {
-    if ( !whereClause.isEmpty() )
-      whereClause += " AND ";
-
-    whereClause += QString( "rownum<=%1" ).arg( mRequest.limit() );
   }
 
   if ( !mSource->mSqlWhereClause.isEmpty() )
@@ -174,7 +162,63 @@ QgsOracleFeatureIterator::QgsOracleFeatureIterator( QgsOracleFeatureSource* sour
     whereClause += "(" + mSource->mSqlWhereClause + ")";
   }
 
-  openQuery( whereClause );
+  //NOTE - must be last added!
+  mExpressionCompiled = false;
+  mCompileStatus = NoCompilation;
+  QString fallbackStatement;
+  bool useFallback = false;
+  if ( request.filterType() == QgsFeatureRequest::FilterExpression )
+  {
+    if ( QSettings().value( "/qgis/compileExpressions", true ).toBool() )
+    {
+      QgsOracleExpressionCompiler compiler( mSource );
+      QgsSqlExpressionCompiler::Result result = compiler.compile( mRequest.filterExpression() );
+      if ( result == QgsSqlExpressionCompiler::Complete || result == QgsSqlExpressionCompiler::Partial )
+      {
+        fallbackStatement = whereClause;
+        useFallback = true;
+        whereClause = QgsOracleUtils::andWhereClauses( whereClause, compiler.result() );
+
+        //if only partial success when compiling expression, we need to double-check results using QGIS' expressions
+        mExpressionCompiled = ( result == QgsSqlExpressionCompiler::Complete );
+        mCompileStatus = ( mExpressionCompiled ? Compiled : PartiallyCompiled );
+        limitAtProvider = mExpressionCompiled;
+      }
+      else
+      {
+        limitAtProvider = false;
+      }
+    }
+    else
+    {
+      limitAtProvider = false;
+    }
+  }
+
+  if ( !mRequest.orderBy().isEmpty() )
+  {
+    limitAtProvider = false;
+  }
+
+  if ( mRequest.limit() >= 0 && limitAtProvider )
+  {
+    if ( !whereClause.isEmpty() )
+      whereClause += " AND ";
+
+    whereClause += QString( "rownum<=%1" ).arg( mRequest.limit() );
+    fallbackStatement += QString( "rownum<=%1" ).arg( mRequest.limit() );
+  }
+
+  bool result = openQuery( whereClause, !useFallback );
+  if ( !result && useFallback )
+  {
+    result = openQuery( fallbackStatement );
+    if ( result )
+    {
+      mExpressionCompiled = false;
+      mCompileStatus = NoCompilation;
+    }
+  }
 }
 
 QgsOracleFeatureIterator::~QgsOracleFeatureIterator()
@@ -205,10 +249,16 @@ bool QgsOracleFeatureIterator::fetchFeature( QgsFeature& feature )
     if ( mRewind )
     {
       mRewind = false;
-      if ( !mQry.first() )
-        return true;
+      if ( !QgsOracleProvider::exec( mQry, mSql ) )
+      {
+        QgsMessageLog::logMessage( QObject::tr( "Fetching features failed.\nSQL:%1\nError: %2" )
+                                   .arg( mQry.lastQuery() )
+                                   .arg( mQry.lastError().text() ),
+                                   QObject::tr( "Oracle" ) );
+        return false;
+      }
     }
-    else if ( !mQry.next() )
+    if ( !mQry.next() )
     {
       return false;
     }
@@ -264,12 +314,6 @@ bool QgsOracleFeatureIterator::fetchFeature( QgsFeature& feature )
             continue;
           }
         }
-      }
-
-      if (( mRequest.flags() & QgsFeatureRequest::NoGeometry ) != 0 )
-      {
-        // clear not requested geometry
-        feature.setGeometry( 0 );
       }
     }
 
@@ -388,7 +432,7 @@ bool QgsOracleFeatureIterator::close()
   return true;
 }
 
-bool QgsOracleFeatureIterator::openQuery( QString whereClause )
+bool QgsOracleFeatureIterator::openQuery( QString whereClause, bool showLog )
 {
   try
   {
@@ -440,12 +484,16 @@ bool QgsOracleFeatureIterator::openQuery( QString whereClause )
       query += QString( " WHERE %1" ).arg( whereClause );
 
     QgsDebugMsg( QString( "Fetch features: %1" ).arg( query ) );
+    mSql = query;
     if ( !QgsOracleProvider::exec( mQry, query ) )
     {
-      QgsMessageLog::logMessage( QObject::tr( "Fetching features failed.\nSQL:%1\nError: %2" )
-                                 .arg( mQry.lastQuery() )
-                                 .arg( mQry.lastError().text() ),
-                                 QObject::tr( "Oracle" ) );
+      if ( showLog )
+      {
+        QgsMessageLog::logMessage( QObject::tr( "Fetching features failed.\nSQL:%1\nError: %2" )
+                                   .arg( mQry.lastQuery() )
+                                   .arg( mQry.lastError().text() ),
+                                   QObject::tr( "Oracle" ) );
+      }
       return false;
     }
   }

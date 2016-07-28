@@ -20,6 +20,7 @@
 
 #include <QColor>
 
+#include "qgsabstractgeometryv2.h"
 #include "qgscoordinatetransform.h"
 #include "qgsmaptopixel.h"
 #include "qgsrectangle.h"
@@ -63,6 +64,7 @@ class CORE_EXPORT QgsRenderContext
       DrawSelection            = 0x10,  //!< Whether vector selections should be shown in the rendered map
       DrawSymbolBounds         = 0x20,  //!< Draw bounds of symbols (for debugging/testing)
       RenderMapTile            = 0x40,  //!< Draw map such that there are no problems between adjacent tiles
+      Antialiasing             = 0x80,  //!< Use antialiasing while drawing
     };
     Q_DECLARE_FLAGS( Flags, Flag )
 
@@ -95,7 +97,10 @@ class CORE_EXPORT QgsRenderContext
     QPainter* painter() {return mPainter;}
     const QPainter* constPainter() const { return mPainter; }
 
-    const QgsCoordinateTransform* coordinateTransform() const {return mCoordTransform;}
+    /** Returns the current coordinate transform for the context, or an invalid
+     * transform is no coordinate transformation is required.
+     */
+    QgsCoordinateTransform coordinateTransform() const {return mCoordTransform;}
 
     const QgsRectangle& extent() const {return mExtent;}
 
@@ -139,8 +144,8 @@ class CORE_EXPORT QgsRenderContext
 
     //setters
 
-    /** Sets coordinate transformation. QgsRenderContext does not take ownership*/
-    void setCoordinateTransform( const QgsCoordinateTransform* t );
+    /** Sets coordinate transformation.*/
+    void setCoordinateTransform( const QgsCoordinateTransform& t );
     void setMapToPixel( const QgsMapToPixel& mtp ) {mMapToPixel = mtp;}
     void setExtent( const QgsRectangle& extent ) {mExtent = extent;}
 
@@ -219,6 +224,18 @@ class CORE_EXPORT QgsRenderContext
      */
     const QgsFeatureFilterProvider* featureFilterProvider() const { return mFeatureFilterProvider; }
 
+    /** Sets the segmentation tolerance applied when rendering curved geometries
+    @param tolerance the segmentation tolerance*/
+    void setSegmentationTolerance( double tolerance ) { mSegmentationTolerance = tolerance; }
+    /** Gets the segmentation tolerance applied when rendering curved geometries*/
+    double segmentationTolerance() const { return mSegmentationTolerance; }
+
+    /** Sets segmentation tolerance type (maximum angle or maximum difference between curve and approximation)
+    @param type the segmentation tolerance typename*/
+    void setSegmentationToleranceType( QgsAbstractGeometryV2::SegmentationToleranceType type ) { mSegmentationToleranceType = type; }
+    /** Gets segmentation tolerance type (maximum angle or maximum difference between curve and approximation)*/
+    QgsAbstractGeometryV2::SegmentationToleranceType segmentationToleranceType() const { return mSegmentationToleranceType; }
+
   private:
 
     Flags mFlags;
@@ -226,8 +243,8 @@ class CORE_EXPORT QgsRenderContext
     /** Painter for rendering operations*/
     QPainter* mPainter;
 
-    /** For transformation between coordinate systems. Can be 0 if on-the-fly reprojection is not used*/
-    const QgsCoordinateTransform* mCoordTransform;
+    /** For transformation between coordinate systems. Can be invalid if on-the-fly reprojection is not used*/
+    QgsCoordinateTransform mCoordTransform;
 
     QgsRectangle mExtent;
 
@@ -266,6 +283,9 @@ class CORE_EXPORT QgsRenderContext
     /** The feature filter provider */
     const QgsFeatureFilterProvider* mFeatureFilterProvider;
 
+    double mSegmentationTolerance;
+
+    QgsAbstractGeometryV2::SegmentationToleranceType mSegmentationToleranceType;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS( QgsRenderContext::Flags )

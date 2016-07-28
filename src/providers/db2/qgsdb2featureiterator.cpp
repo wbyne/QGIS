@@ -102,7 +102,11 @@ void QgsDb2FeatureIterator::BuildStatement( const QgsFeatureRequest& request )
   }
 
   // get geometry col if requested and table has spatial column
-  if ( !( request.flags() & QgsFeatureRequest::NoGeometry ) && mSource->isSpatial() )
+  if ((
+        !( request.flags() & QgsFeatureRequest::NoGeometry )
+        || ( request.filterType() == QgsFeatureRequest::FilterExpression && request.filterExpression()->needsGeometry() )
+      )
+      && mSource->isSpatial() )
   {
     mStatement += QString( delim + "DB2GSE.ST_ASBINARY(%1) AS %1 " ).arg( mSource->mGeometryColName );
     mAttributesToFetch.append( 2 );  // dummy - won't store geometry as an attribute
@@ -196,7 +200,6 @@ void QgsDb2FeatureIterator::BuildStatement( const QgsFeatureRequest& request )
           mStatement += " WHERE (" + compiler.result() + ')';
         else
           mStatement += " AND (" + compiler.result() + ')';
-        filterAdded = true;
 
         //if only partial success when compiling expression, we need to double-check results using QGIS' expressions
         mExpressionCompiled = ( result == QgsSqlExpressionCompiler::Complete );

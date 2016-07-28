@@ -99,7 +99,7 @@ class SpatiaLiteDBPlugin(DBPlugin):
         uri = QgsDataSourceURI()
         uri.setDatabase(filename)
         self.addConnection(conn_name, uri)
-        index.internalPointer().itemChanged.emit(index.internalPointer())
+        index.internalPointer().itemChanged.emit()
 
 
 class SLDatabase(Database):
@@ -222,7 +222,7 @@ class SLVectorTable(SLTable, VectorTable):
         SLTable.__init__(self, row[:-5], db, schema)
         VectorTable.__init__(self, db, schema)
         # SpatiaLite does case-insensitive checks for table names, but the
-        # SL provider didn't do the same in QGis < 1.9, so self.geomTableName
+        # SL provider didn't do the same in Qgis < 1.9, so self.geomTableName
         # stores the table name like stored in the geometry_columns table
         self.geomTableName, self.geomColumn, self.geomType, self.geomDim, self.srid = row[-5:]
 

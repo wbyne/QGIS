@@ -51,6 +51,9 @@ typedef QList< QPair<QString, QgsSymbolV2*> > QgsLegendSymbolList;
 ////////
 // symbol levels
 
+/** \ingroup core
+ * \class QgsSymbolV2LevelItem
+ */
 class CORE_EXPORT QgsSymbolV2LevelItem
 {
   public:
@@ -75,13 +78,16 @@ typedef QList< QgsSymbolV2Level > QgsSymbolV2LevelOrder;
 //////////////
 // renderers
 
+/** \ingroup core
+ * \class QgsFeatureRendererV2
+ */
 class CORE_EXPORT QgsFeatureRendererV2
 {
   public:
     // renderer takes ownership of its symbols!
 
     //! return a new renderer - used by default in vector layers
-    static QgsFeatureRendererV2* defaultRenderer( QGis::GeometryType geomType );
+    static QgsFeatureRendererV2* defaultRenderer( Qgis::GeometryType geomType );
 
     QString type() const { return mType; }
 
@@ -169,6 +175,11 @@ class CORE_EXPORT QgsFeatureRendererV2
      */
     virtual QList<QString> usedAttributes() = 0;
 
+    /**
+     * Returns true if this renderer requires the geometry to apply the filter.
+     */
+    virtual bool filterNeedsGeometry() const;
+
     virtual ~QgsFeatureRendererV2();
 
     virtual QgsFeatureRendererV2* clone() const = 0;
@@ -190,11 +201,11 @@ class CORE_EXPORT QgsFeatureRendererV2
 
     enum Capabilities
     {
-      SymbolLevels = 1,               // rendering with symbol levels (i.e. implements symbols(), symbolForFeature())
-      RotationField = 1 <<  1,        // rotate symbols by attribute value
-      MoreSymbolsPerFeature = 1 << 2, // may use more than one symbol to render a feature: symbolsForFeature() will return them
-      Filter         = 1 << 3,        // features may be filtered, i.e. some features may not be rendered (categorized, rule based ...)
-      ScaleDependent = 1 << 4         // depends on scale if feature will be rendered (rule based )
+      SymbolLevels = 1,               //!< rendering with symbol levels (i.e. implements symbols(), symbolForFeature())
+      RotationField = 1 <<  1,        //!< rotate symbols by attribute value
+      MoreSymbolsPerFeature = 1 << 2, //!< may use more than one symbol to render a feature: symbolsForFeature() will return them
+      Filter         = 1 << 3,        //!< features may be filtered, i.e. some features may not be rendered (categorized, rule based ...)
+      ScaleDependent = 1 << 4         //!< depends on scale if feature will be rendered (rule based )
     };
 
     //! returns bitwise OR-ed capabilities of the renderer
@@ -239,7 +250,7 @@ class CORE_EXPORT QgsFeatureRendererV2
      * went wrong
      * @return the renderer
      */
-    static QgsFeatureRendererV2* loadSld( const QDomNode &node, QGis::GeometryType geomType, QString &errorMessage );
+    static QgsFeatureRendererV2* loadSld( const QDomNode &node, Qgis::GeometryType geomType, QString &errorMessage );
 
     //! used from subclasses to create SLD Rule elements following SLD v1.1 specs
     virtual void toSld( QDomDocument& doc, QDomElement &element ) const
@@ -408,6 +419,21 @@ class CORE_EXPORT QgsFeatureRendererV2
      */
     void setOrderByEnabled( bool enabled );
 
+    /** Sets an embedded renderer (subrenderer) for this feature renderer. The base class implementation
+     * does nothing with subrenderers, but individual derived classes can use these to modify their behaviour.
+     * @param subRenderer the embedded renderer. Ownership will be transferred.
+     * @see embeddedRenderer()
+     * @note added in QGIS 2.16
+     */
+    virtual void setEmbeddedRenderer( QgsFeatureRendererV2* subRenderer ) { delete subRenderer; }
+
+    /** Returns the current embedded renderer (subrenderer) for this feature renderer. The base class
+     * implementation does not use subrenderers and will always return null.
+     * @see setEmbeddedRenderer()
+     * @note added in QGIS 2.16
+     */
+    virtual const QgsFeatureRendererV2* embeddedRenderer() const { return nullptr; }
+
   protected:
     QgsFeatureRendererV2( const QString& type );
 
@@ -425,9 +451,23 @@ class CORE_EXPORT QgsFeatureRendererV2
     //! render editing vertex marker for a polygon
     void renderVertexMarkerPolygon( QPolygonF& pts, QList<QPolygonF>* rings, QgsRenderContext& context );
 
-    static QgsConstWkbPtr _getPoint( QPointF& pt, QgsRenderContext& context, QgsConstWkbPtr wkb );
-    static QgsConstWkbPtr _getLineString( QPolygonF& pts, QgsRenderContext& context, QgsConstWkbPtr wkb, bool clipToExtent = true );
-    static QgsConstWkbPtr _getPolygon( QPolygonF& pts, QList<QPolygonF>& holes, QgsRenderContext& context, QgsConstWkbPtr wkb, bool clipToExtent = true );
+    /**
+     * Creates a point in screen coordinates from a wkb string in map
+     * coordinates
+     */
+    static QgsConstWkbPtr _getPoint( QPointF& pt, QgsRenderContext& context, QgsConstWkbPtr& wkb );
+
+    /**
+     * Creates a line string in screen coordinates from a wkb string in map
+     * coordinates
+     */
+    static QgsConstWkbPtr _getLineString( QPolygonF& pts, QgsRenderContext& context, QgsConstWkbPtr& wkb, bool clipToExtent = true );
+
+    /**
+     * Creates a polygon in screen coordinates from a wkb string in map
+     * coordinates
+     */
+    static QgsConstWkbPtr _getPolygon( QPolygonF& pts, QList<QPolygonF>& holes, QgsRenderContext& context, QgsConstWkbPtr& wkb, bool clipToExtent = true );
 
     void setScaleMethodToSymbol( QgsSymbolV2* symbol, int scaleMethod );
 

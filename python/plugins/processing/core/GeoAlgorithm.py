@@ -68,9 +68,9 @@ class GeoAlgorithm:
         # appear in the toolbox or modeler
         self.showInToolbox = True
         self.showInModeler = True
-        #if true, will show only loaded layers in parameters dialog.
-        #Also, if True, the algorithm does not run on the modeler
-        #or batch ptocessing interface
+        # if true, will show only loaded layers in parameters dialog.
+        # Also, if True, the algorithm does not run on the modeler
+        # or batch ptocessing interface
         self.allowOnlyOpenedLayers = False
 
         # False if it should not be run a a batch process
@@ -255,7 +255,9 @@ class GeoAlgorithm:
             for line in lines:
                 script += line
             exec(script, ns)
-        except:
+        except Exception, e:
+            ProcessingLog.addToLog(ProcessingLog.LOG_WARNING,
+                                   "Error in hook script: " + str(e))
             # A wrong script should not cause problems, so we swallow
             # all exceptions
             pass
@@ -354,7 +356,7 @@ class GeoAlgorithm:
                     out.value = out.value + '.' + exts[0]
                 else:
                     ext = out.value[idx + 1:]
-                    if ext not in exts:
+                    if ext not in exts + ['dbf']:
                         out.value = out.value + '.' + exts[0]
 
     def resolveTemporaryOutputs(self):
@@ -538,6 +540,12 @@ class GeoAlgorithm:
                 s += out.getValueAsCommandLineParameter() + ','
         s = s[:-1] + ')'
         return s
+
+    def displayName(self):
+        return self.i18n_name or self.name
+
+    def displayNames(self):
+        return self.name, self.i18n_name
 
     def tr(self, string, context=''):
         if context == '':

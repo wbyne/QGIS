@@ -20,6 +20,7 @@
 #include <QGridLayout>
 #include <QFileDialog>
 #include <QSettings>
+#include <QUrl>
 
 #include "qgsfilterlineedit.h"
 
@@ -264,4 +265,17 @@ void QgsPhotoWidgetWrapper::setEnabled( bool enabled )
 
   if ( mButton )
     mButton->setEnabled( enabled );
+}
+
+void QgsPhotoWidgetWrapper::updateConstraintWidgetStatus( bool constraintValid )
+{
+  if ( mLineEdit )
+  {
+    if ( constraintValid )
+      mLineEdit->setStyleSheet( QString() );
+    else
+    {
+      mLineEdit->setStyleSheet( "QgsFilterLineEdit { background-color: #dd7777; }" );
+    }
+  }
 }

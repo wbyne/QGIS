@@ -34,6 +34,7 @@ from processing.gui.ToolboxAction import ToolboxAction
 from processing.modeler.ModelerAlgorithm import ModelerAlgorithm
 from processing.modeler.WrongModelException import WrongModelException
 from processing.modeler.ModelerUtils import ModelerUtils
+from processing.core.alglist import algList
 
 pluginPath = os.path.split(os.path.dirname(__file__))[0]
 
@@ -70,6 +71,6 @@ class AddModelFromFileAction(ToolboxAction):
                                     self.tr('Error reading model', 'AddModelFromFileAction'),
                                     self.tr('Cannot read file', 'AddModelFromFileAction'))
                 return
-            destFilename = os.path.join(ModelerUtils.modelsFolder(), os.path.basename(filename))
+            destFilename = os.path.join(ModelerUtils.modelsFolders()[0], os.path.basename(filename))
             shutil.copyfile(filename, destFilename)
-            self.toolbox.updateProvider('model')
+            algList.reloadProvider('model')

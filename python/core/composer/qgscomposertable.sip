@@ -1,4 +1,6 @@
-/** A class to display feature attributes in the print composer*/
+/** A class to display feature attributes in the print composer
+ * @deprecated use QgsComposerTableV2 instead
+*/
 class QgsComposerTable: QgsComposerItem
 {
 %TypeHeaderCode
@@ -17,7 +19,7 @@ class QgsComposerTable: QgsComposerItem
       HeaderRight /*!< align headers right */
     };
 
-    QgsComposerTable( QgsComposition* composition /TransferThis/ );
+    QgsComposerTable( QgsComposition* composition /TransferThis/ ) /Deprecated/;
     virtual ~QgsComposerTable();
 
     /** Return correct graphics item type. */
@@ -26,8 +28,8 @@ class QgsComposerTable: QgsComposerItem
     /** \brief Reimplementation of QCanvasItem::paint*/
     virtual void paint( QPainter* painter, const QStyleOptionGraphicsItem* itemStyle, QWidget* pWidget );
 
-    virtual bool writeXML( QDomElement& elem, QDomDocument & doc ) const = 0;
-    virtual bool readXML( const QDomElement& itemElem, const QDomDocument& doc ) = 0;
+    virtual bool writeXml( QDomElement& elem, QDomDocument & doc ) const = 0;
+    virtual bool readXml( const QDomElement& itemElem, const QDomDocument& doc ) = 0;
 
     /** Sets the margin distance between cell borders and their contents.
      * @param d margin for cell contents
@@ -260,7 +262,7 @@ class QgsComposerTable: QgsComposerItem
      * @see tableReadXML
      * @see writeXML
      */
-    bool tableWriteXML( QDomElement& itemElem, QDomDocument& doc ) const;
+    bool tableWriteXml( QDomElement& itemElem, QDomDocument& doc ) const;
 
     /** Reads the table's common properties from xml.
      * @param itemElem a QDomElement holding the table's desired properties.
@@ -268,5 +270,5 @@ class QgsComposerTable: QgsComposerItem
      * @see tableWriteXML
      * @see readXML
      */
-    bool tableReadXML( const QDomElement& itemElem, const QDomDocument& doc );
+    bool tableReadXml( const QDomElement& itemElem, const QDomDocument& doc );
 };

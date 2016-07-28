@@ -65,7 +65,7 @@ class QgsGdalProvider : public QgsRasterDataProvider, QgsGdalProviderBase
      *                otherwise we contact the host directly.
      *
      */
-    QgsGdalProvider( QString const & uri = nullptr, bool update = false );
+    QgsGdalProvider( QString const & uri = QString(), bool update = false );
 
     /** Create invalid provider with error */
     QgsGdalProvider( QString const & uri, QgsError error );
@@ -109,22 +109,13 @@ class QgsGdalProvider : public QgsRasterDataProvider, QgsGdalProviderBase
      */
     QString description() const override;
 
-    /** Get the QgsCoordinateReferenceSystem for this layer
-     * @note Must be reimplemented by each provider.
-     * If the provider isn't capable of returning
-     * its projection an empty srs will be return, ti will return 0
-     */
-    virtual QgsCoordinateReferenceSystem crs() override;
+    virtual QgsCoordinateReferenceSystem crs() const override;
 
-    /** Return the extent for this data layer
-     */
-    virtual QgsRectangle extent() override;
+    virtual QgsRectangle extent() const override;
 
-    /** Returns true if layer is valid
-     */
-    bool isValid() override;
+    bool isValid() const override;
 
-    QgsRasterIdentifyResult identify( const QgsPoint & thePoint, QgsRaster::IdentifyFormat theFormat, const QgsRectangle &theExtent = QgsRectangle(), int theWidth = 0, int theHeight = 0 ) override;
+    QgsRasterIdentifyResult identify( const QgsPoint & thePoint, QgsRaster::IdentifyFormat theFormat, const QgsRectangle &theExtent = QgsRectangle(), int theWidth = 0, int theHeight = 0, int theDpi = 96 ) override;
 
     /**
      * \brief   Returns the caption error text for the last error in this provider
@@ -154,8 +145,8 @@ class QgsGdalProvider : public QgsRasterDataProvider, QgsGdalProviderBase
       */
     int capabilities() const override;
 
-    QGis::DataType dataType( int bandNo ) const override;
-    QGis::DataType srcDataType( int bandNo ) const override;
+    Qgis::DataType dataType( int bandNo ) const override;
+    Qgis::DataType sourceDataType( int bandNo ) const override;
 
     int bandCount() const override;
 
@@ -244,8 +235,8 @@ class QgsGdalProvider : public QgsRasterDataProvider, QgsGdalProviderBase
     bool remove() override;
 
     QString validateCreationOptions( const QStringList& createOptions, const QString& format ) override;
-    QString validatePyramidsCreationOptions( QgsRaster::RasterPyramidsFormat pyramidsFormat,
-        const QStringList & theConfigOptions, const QString & fileFormat );
+    QString validatePyramidsConfigOptions( QgsRaster::RasterPyramidsFormat pyramidsFormat,
+                                           const QStringList & theConfigOptions, const QString & fileFormat ) override;
 
   private:
     // update mode

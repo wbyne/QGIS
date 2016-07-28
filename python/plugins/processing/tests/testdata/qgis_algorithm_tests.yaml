@@ -23,7 +23,93 @@ tests:
       OUTPUT:
         name: expected/polys_deleteholes.gml
         type: vector
-
+        
+  - algorithm: qgis:clip
+    name: Clip lines by polygons
+    params:
+      INPUT:
+        name: custom/lines2.gml
+        type: vector
+      OVERLAY:
+        name: polys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_lines_by_polygon.gml
+        type: vector
+          
+        
+  - algorithm: qgis:clip
+    name: Clip lines by multipolygon
+    params:
+      INPUT:
+        name: lines.gml
+        type: vector
+      OVERLAY:
+        name: multipolys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_lines_by_multipolygon.gml
+        type: vector
+          
+  - algorithm: qgis:clip
+    name: Clip polygons by multipolygons
+    params:
+      INPUT:
+        name: polys.gml
+        type: vector
+      OVERLAY:
+        name: multipolys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_polys_by_multipolygon.gml
+        type: vector
+        
+  - algorithm: qgis:clip
+    name: Clip multipolygons by polygons
+    params:
+      INPUT:
+        name: multipolys.gml
+        type: vector
+      OVERLAY:
+        name: polys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_multipolygons_by_polygons.gml
+        type: vector
+          
+  - algorithm: qgis:clip
+    name: Clip points by polygons
+    params:
+      INPUT:
+        name: points.gml
+        type: vector
+      OVERLAY:
+        name: polys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_points_by_polygons.gml
+        type: vector
+    
+  - algorithm: qgis:clip
+    name: Clip points by multipolygons
+    params:
+      INPUT:
+        name: points.gml
+        type: vector
+      OVERLAY:
+        name: multipolys.gml
+        type: vector
+    results:
+      OUTPUT:
+        name: expected/clip_points_by_multipolygons.gml
+        type: vector
+  
+            
   # These datasets should produce a geometry collection and not a polygon only
   # dataset. If the algorithm is fixed, a new test should be introduced to
   # check this behavior.
@@ -72,8 +158,27 @@ tests:
     - 'Bfloatval'
     results:
       OUTPUT_HTML_FILE:
-        name: expected/basic_statistics_numeric_float.html
-        type: file
+        name: basic_statistics_numeric_float.html
+        type: regex
+        rules:
+          - 'Analyzed layer: multipolys.gml'
+          - 'Analyzed field: Bfloatval'
+          - 'Count: 3'
+          - 'Unique values: 3'
+          - 'Minimum value: -0.123'
+          - 'Maximum value: 0.123'
+          - 'Range: 0.246'
+          - 'Sum: 0.0'
+          - 'Mean value: 0.0'
+          - 'Median value: 0.0'
+          - 'Standard deviation: 0.100429079454'
+          - 'Coefficient of Variation: 0'
+          - 'Minority \(rarest occurring value\): -0.123'
+          - 'Majority \(most frequently occurring value\): -0.123'
+          - 'First quartile: -0.0615'
+          - 'Third quartile: 0.0615'
+          - 'NULL \(missing\) values: 1'
+          - 'Interquartile Range \(IQR\): 0.123'
 
   - algorithm: qgis:basicstatisticsfortextfields
     name: Test (qgis:basicstatisticsfortextfields)

@@ -101,7 +101,10 @@ void QgsMssqlFeatureIterator::BuildStatement( const QgsFeatureRequest& request )
   }
 
   // get geometry col
-  if ( !( request.flags() & QgsFeatureRequest::NoGeometry ) && mSource->isSpatial() )
+  if (( !( request.flags() & QgsFeatureRequest::NoGeometry )
+        || ( request.filterType() == QgsFeatureRequest::FilterExpression && request.filterExpression()->needsGeometry() )
+      )
+      && mSource->isSpatial() )
   {
     mStatement += QString( ",[%1]" ).arg( mSource->mGeometryColName );
   }
@@ -124,7 +127,7 @@ void QgsMssqlFeatureIterator::BuildStatement( const QgsFeatureRequest& request )
     <<  qgsDoubleToString( request.filterRect().xMinimum() ) << ' ' <<  qgsDoubleToString( request.filterRect().yMaximum() ) << ", "
     <<  qgsDoubleToString( request.filterRect().xMinimum() ) << ' ' <<  qgsDoubleToString( request.filterRect().yMinimum() );
 
-    mStatement += QString( " where [%1].STIntersects([%2]::STGeomFromText('POLYGON((%3))',%4)) = 1" ).arg(
+    mStatement += QString( " where [%1].STIsValid() = 1 AND [%1].STIntersects([%2]::STGeomFromText('POLYGON((%3))',%4)) = 1" ).arg(
                     mSource->mGeometryColName, mSource->mGeometryColType, r, QString::number( mSource->mSRId ) );
     filterAdded = true;
   }
@@ -188,7 +191,6 @@ void QgsMssqlFeatureIterator::BuildStatement( const QgsFeatureRequest& request )
           mStatement += " WHERE (" + compiler.result() + ')';
         else
           mStatement += " AND (" + compiler.result() + ')';
-        filterAdded = true;
 
         //if only partial success when compiling expression, we need to double-check results using QGIS' expressions
         mExpressionCompiled = ( result == QgsSqlExpressionCompiler::Complete );

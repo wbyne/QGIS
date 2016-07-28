@@ -19,13 +19,13 @@
 #define QGSCOMPOSERMAPWIDGET_H
 
 #include "ui_qgscomposermapwidgetbase.h"
-#include "qgscomposermap.h"
-#include "qgscomposermapgrid.h"
 #include "qgscomposeritemwidget.h"
+#include "qgscomposermapgrid.h"
 
 class QgsMapLayer;
+class QgsComposerMapOverview;
 
-/** \ingroup MapComposer
+/** \ingroup app
  * Input widget for the configuration of QgsComposerMap
  * */
 class QgsComposerMapWidget: public QgsComposerItemBaseWidget, private Ui::QgsComposerMapWidgetBase
@@ -43,6 +43,7 @@ class QgsComposerMapWidget: public QgsComposerItemBaseWidget, private Ui::QgsCom
     void on_mSetToMapCanvasExtentButton_clicked();
     void on_mViewExtentInCanvasButton_clicked();
     void on_mUpdatePreviewButton_clicked();
+    void on_mFollowVisibilityPresetCheckBox_stateChanged( int state );
     void on_mKeepLayerListCheckBox_stateChanged( int state );
     void on_mKeepLayerStylesCheckBox_stateChanged( int state );
     void on_mDrawCanvasItemsCheckBox_stateChanged( int state );
@@ -168,9 +169,12 @@ class QgsComposerMapWidget: public QgsComposerItemBaseWidget, private Ui::QgsCom
     /** Enables or disables the atlas controls when composer atlas is toggled on/off*/
     void compositionAtlasToggled( bool atlasEnabled );
 
-    void aboutToShowVisibilityPresetsMenu();
+    void aboutToShowKeepLayersVisibilityPresetsMenu();
 
-    void visibilityPresetSelected();
+    void followVisibilityPresetSelected( int currentIndex );
+    void keepLayersVisibilityPresetSelected();
+
+    void onPresetsChanged();
 
   private:
     QgsComposerMap* mComposerMap;

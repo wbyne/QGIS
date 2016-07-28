@@ -16,8 +16,6 @@
 *                                                                         *
 ***************************************************************************
 """
-from processing.algs.qgis import postgis_utils
-from processing.algs.qgis import spatialite_utils
 
 __author__ = 'Victor Olaya'
 __date__ = 'February 2013'
@@ -37,22 +35,24 @@ import cStringIO
 import psycopg2
 
 from qgis.PyQt.QtCore import QVariant, QSettings
-from qgis.core import (QGis, QgsFields, QgsField, QgsGeometry, QgsRectangle,
+from qgis.core import (Qgis, QgsFields, QgsField, QgsGeometry, QgsRectangle,
                        QgsSpatialIndex, QgsMapLayerRegistry, QgsMapLayer, QgsVectorLayer,
-                       QgsVectorFileWriter, QgsDistanceArea, QgsDataSourceURI, QgsCredentials)
+                       QgsVectorFileWriter, QgsDistanceArea, QgsDataSourceURI, QgsCredentials,
+                       QgsFeatureRequest)
 
 from processing.core.ProcessingConfig import ProcessingConfig
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
-from processing.tools import dataobjects
+from processing.tools import dataobjects, spatialite, postgis
 
 
 GEOM_TYPE_MAP = {
-    QGis.WKBPoint: 'Point',
-    QGis.WKBLineString: 'LineString',
-    QGis.WKBPolygon: 'Polygon',
-    QGis.WKBMultiPoint: 'MultiPoint',
-    QGis.WKBMultiLineString: 'MultiLineString',
-    QGis.WKBMultiPolygon: 'MultiPolygon',
+    Qgis.WKBNoGeometry: 'none',
+    Qgis.WKBPoint: 'Point',
+    Qgis.WKBLineString: 'LineString',
+    Qgis.WKBPolygon: 'Polygon',
+    Qgis.WKBMultiPoint: 'MultiPoint',
+    Qgis.WKBMultiLineString: 'MultiLineString',
+    Qgis.WKBMultiPolygon: 'MultiPolygon',
 }
 
 
@@ -87,26 +87,26 @@ TYPE_MAP_SPATIALITE_LAYER = {
 }
 
 
-def features(layer):
+def features(layer, request=QgsFeatureRequest()):
     """This returns an iterator over features in a vector layer,
     considering the selection that might exist in the layer, and the
     configuration that indicates whether to use only selected feature
     or all of them.
 
-    This should be used by algorithms instead of calling the QGis API
+    This should be used by algorithms instead of calling the Qgis API
     directly, to ensure a consistent behaviour across algorithms.
     """
     class Features:
 
-        def __init__(self, layer):
+        def __init__(self, layer, request):
             self.layer = layer
             self.selection = False
-            self.iter = layer.getFeatures()
-            if ProcessingConfig.getSetting(ProcessingConfig.USE_SELECTED):
-                selected = layer.selectedFeatures()
-                if len(selected) > 0:
-                    self.selection = True
-                    self.iter = iter(selected)
+            if ProcessingConfig.getSetting(ProcessingConfig.USE_SELECTED)\
+                    and layer.selectedFeatureCount() > 0:
+                self.iter = layer.selectedFeaturesIterator(request)
+                self.selection = True
+            else:
+                self.iter = layer.getFeatures(request)
 
         def __iter__(self):
             return self.iter
@@ -117,7 +117,7 @@ def features(layer):
             else:
                 return int(self.layer.featureCount())
 
-    return Features(layer)
+    return Features(layer, request)
 
 
 def uniqueValues(layer, attribute):
@@ -200,10 +200,7 @@ def testForUniqueness(fieldList1, fieldList2):
 def spatialindex(layer):
     """Creates a spatial index for the passed vector layer.
     """
-    idx = QgsSpatialIndex()
-    feats = features(layer)
-    for ft in feats:
-        idx.insertFeature(ft)
+    idx = QgsSpatialIndex(layer.getFeatures())
     return idx
 
 
@@ -244,19 +241,19 @@ def findOrCreateField(layer, fieldList, fieldName, fieldLen=24, fieldPrec=15):
 
 def extractPoints(geom):
     points = []
-    if geom.type() == QGis.Point:
+    if geom.type() == Qgis.Point:
         if geom.isMultipart():
             points = geom.asMultiPoint()
         else:
             points.append(geom.asPoint())
-    elif geom.type() == QGis.Line:
+    elif geom.type() == Qgis.Line:
         if geom.isMultipart():
             lines = geom.asMultiPolyline()
             for line in lines:
                 points.extend(line)
         else:
             points = geom.asPolyline()
-    elif geom.type() == QGis.Polygon:
+    elif geom.type() == Qgis.Polygon:
         if geom.isMultipart():
             polygons = geom.asMultiPolygon()
             for poly in polygons:
@@ -276,11 +273,11 @@ def simpleMeasure(geom, method=0, ellips=None, crs=None):
     # 1 - project CRS
     # 2 - ellipsoidal
 
-    if geom.wkbType() in [QGis.WKBPoint, QGis.WKBPoint25D]:
+    if geom.wkbType() in [Qgis.WKBPoint, Qgis.WKBPoint25D]:
         pt = geom.asPoint()
         attr1 = pt.x()
         attr2 = pt.y()
-    elif geom.wkbType() in [QGis.WKBMultiPoint, QGis.WKBMultiPoint25D]:
+    elif geom.wkbType() in [Qgis.WKBMultiPoint, Qgis.WKBMultiPoint25D]:
         pt = geom.asMultiPoint()
         attr1 = pt[0].x()
         attr2 = pt[0].y()
@@ -293,7 +290,7 @@ def simpleMeasure(geom, method=0, ellips=None, crs=None):
             measure.setEllipsoidalMode(True)
 
         attr1 = measure.measure(geom)
-        if geom.type() == QGis.Polygon:
+        if geom.type() == Qgis.Polygon:
             attr2 = measure.measurePerimeter(geom)
         else:
             attr2 = None
@@ -350,11 +347,11 @@ def duplicateInMemory(layer, newName='', addToRegistry=False):
 
     if layer.type() == QgsMapLayer.VectorLayer:
         geomType = layer.geometryType()
-        if geomType == QGis.Point:
+        if geomType == Qgis.Point:
             strType = 'Point'
-        elif geomType == QGis.Line:
+        elif geomType == Qgis.Line:
             strType = 'Line'
-        elif geomType == QGis.Polygon:
+        elif geomType == Qgis.Polygon:
             strType = 'Polygon'
         else:
             raise RuntimeError('Layer is whether Point nor Line nor Polygon')
@@ -535,6 +532,13 @@ class VectorWriter:
     POSTGIS_LAYER_PREFIX = 'postgis:'
     SPATIALITE_LAYER_PREFIX = 'spatialite:'
 
+    nogeometry_extensions = [
+        u'csv',
+        u'dbf',
+        u'ods',
+        u'xlsx',
+    ]
+
     def __init__(self, destination, encoding, fields, geometryType,
                  crs, options=None):
         self.destination = destination
@@ -573,16 +577,16 @@ class VectorWriter:
                 raise GeoAlgorithmExecutionException("Couldn't connect to database")
             print uri.uri()
             try:
-                db = postgis_utils.GeoDB(host=uri.host(), port=int(uri.port()),
-                                         dbname=uri.database(), user=user, passwd=passwd)
-            except postgis_utils.DbError as e:
+                db = postgis.GeoDB(host=uri.host(), port=int(uri.port()),
+                                   dbname=uri.database(), user=user, passwd=passwd)
+            except postgis.DbError as e:
                 raise GeoAlgorithmExecutionException(
                     "Couldn't connect to database:\n%s" % e.message)
 
             def _runSQL(sql):
                 try:
                     db._exec_sql_and_commit(unicode(sql))
-                except postgis_utils.DbError as e:
+                except postgis.DbError as e:
                     raise GeoAlgorithmExecutionException(
                         'Error creating output PostGIS table:\n%s' % e.message)
 
@@ -592,9 +596,10 @@ class VectorWriter:
                                   for f in fields)
 
             _runSQL("CREATE TABLE %s.%s (%s)" % (uri.schema(), uri.table().lower(), fieldsdesc))
-            _runSQL("SELECT AddGeometryColumn('{schema}', '{table}', 'the_geom', {srid}, '{typmod}', 2)".format(
-                table=uri.table().lower(), schema=uri.schema(), srid=crs.authid().split(":")[-1],
-                typmod=GEOM_TYPE_MAP[geometryType].upper()))
+            if geometryType != Qgis.WKBNoGeometry:
+                _runSQL("SELECT AddGeometryColumn('{schema}', '{table}', 'the_geom', {srid}, '{typmod}', 2)".format(
+                    table=uri.table().lower(), schema=uri.schema(), srid=crs.authid().split(":")[-1],
+                    typmod=GEOM_TYPE_MAP[geometryType].upper()))
 
             self.layer = QgsVectorLayer(uri.uri(), uri.table(), "postgres")
             self.writer = self.layer.dataProvider()
@@ -603,15 +608,15 @@ class VectorWriter:
             uri = QgsDataSourceURI(self.destination[len(self.SPATIALITE_LAYER_PREFIX):])
             print uri.uri()
             try:
-                db = spatialite_utils.GeoDB(uri=uri)
-            except spatialite_utils.DbError as e:
+                db = spatialite.GeoDB(uri=uri)
+            except spatialite.DbError as e:
                 raise GeoAlgorithmExecutionException(
                     "Couldn't connect to database:\n%s" % e.message)
 
             def _runSQL(sql):
                 try:
                     db._exec_sql_and_commit(unicode(sql))
-                except spatialite_utils.DbError as e:
+                except spatialite.DbError as e:
                     raise GeoAlgorithmExecutionException(
                         'Error creating output Spatialite table:\n%s' % unicode(e))
 
@@ -622,9 +627,10 @@ class VectorWriter:
 
             _runSQL("DROP TABLE IF EXISTS %s" % uri.table().lower())
             _runSQL("CREATE TABLE %s (%s)" % (uri.table().lower(), fieldsdesc))
-            _runSQL("SELECT AddGeometryColumn('{table}', 'the_geom', {srid}, '{typmod}', 2)".format(
-                table=uri.table().lower(), srid=crs.authid().split(":")[-1],
-                typmod=GEOM_TYPE_MAP[geometryType].upper()))
+            if geometryType != Qgis.WKBNoGeometry:
+                _runSQL("SELECT AddGeometryColumn('{table}', 'the_geom', {srid}, '{typmod}', 2)".format(
+                    table=uri.table().lower(), srid=crs.authid().split(":")[-1],
+                    typmod=GEOM_TYPE_MAP[geometryType].upper()))
 
             self.layer = QgsVectorLayer(uri.uri(), uri.table(), "spatialite")
             self.writer = self.layer.dataProvider()
@@ -636,11 +642,21 @@ class VectorWriter:
                 extension = extension[extension.find('*.') + 2:]
                 extension = extension[:extension.find(' ')]
                 OGRCodes[extension] = value
+            OGRCodes['dbf'] = "DBF file"
 
             extension = self.destination[self.destination.rfind('.') + 1:]
+
             if extension not in OGRCodes:
                 extension = 'shp'
                 self.destination = self.destination + '.shp'
+
+            if geometryType == Qgis.WKBNoGeometry:
+                if extension == 'shp':
+                    extension = 'dbf'
+                    self.destination = self.destination[:self.destination.rfind('.')] + '.dbf'
+                if extension not in self.nogeometry_extensions:
+                    raise GeoAlgorithmExecutionException(
+                        "Unsupported format for tables with no geometry")
 
             qgsfields = QgsFields()
             for field in fields:

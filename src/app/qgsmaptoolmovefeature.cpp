@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgsmaptoolmovefeature.h"
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsmapcanvas.h"
@@ -142,7 +143,6 @@ void QgsMapToolMoveFeature::canvasPressEvent( QgsMapMouseEvent* e )
 
 void QgsMapToolMoveFeature::canvasReleaseEvent( QgsMapMouseEvent* e )
 {
-  //QgsDebugMsg("entering.");
   if ( !mRubberBand )
   {
     return;
@@ -166,8 +166,8 @@ void QgsMapToolMoveFeature::canvasReleaseEvent( QgsMapMouseEvent* e )
   }
   delete mRubberBand;
   mRubberBand = nullptr;
-  mCanvas->refresh();
   vlayer->endEditCommand();
+  vlayer->triggerRepaint();
 }
 
 //! called when map tool is being deactivated

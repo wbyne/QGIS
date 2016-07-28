@@ -17,6 +17,7 @@
 
 #include "qgsmaptoollabel.h"
 #include "qgsdatadefined.h"
+#include "qgsfeatureiterator.h"
 #include "qgslogger.h"
 #include "qgsmapcanvas.h"
 #include "qgsmaplayerregistry.h"
@@ -66,7 +67,7 @@ void QgsMapToolLabel::createRubberBands()
 
   //label rubber band
   QgsRectangle rect = mCurrentLabel.pos.labelRect;
-  mLabelRubberBand = new QgsRubberBand( mCanvas, QGis::Line );
+  mLabelRubberBand = new QgsRubberBand( mCanvas, Qgis::Line );
   mLabelRubberBand->addPoint( QgsPoint( rect.xMinimum(), rect.yMinimum() ) );
   mLabelRubberBand->addPoint( QgsPoint( rect.xMinimum(), rect.yMaximum() ) );
   mLabelRubberBand->addPoint( QgsPoint( rect.xMaximum(), rect.yMaximum() ) );
@@ -112,7 +113,7 @@ void QgsMapToolLabel::createRubberBands()
       }
 
       QgsGeometry* pointGeom = QgsGeometry::fromPoint( fixPoint );
-      mFixPointRubberBand = new QgsRubberBand( mCanvas, QGis::Line );
+      mFixPointRubberBand = new QgsRubberBand( mCanvas, Qgis::Line );
       mFixPointRubberBand->setColor( QColor( 0, 0, 255, 65 ) );
       mFixPointRubberBand->setToGeometry( pointGeom, vlayer );
       mFixPointRubberBand->show();
@@ -620,7 +621,6 @@ bool QgsMapToolLabel::layerCanPin( QgsVectorLayer* vlayer, int& xCol, int& yCol 
 
 bool QgsMapToolLabel::labelCanShowHide( QgsVectorLayer* vlayer, int& showCol ) const
 {
-  //QgsDebugMsg( "entered" );
   if ( !vlayer || !vlayer->isEditable() )
   {
     return false;
@@ -689,7 +689,11 @@ QgsMapToolLabel::LabelDetails::LabelDetails( const QgsLabelPosition& p )
   if ( layer && layer->labeling() )
   {
     settings = layer->labeling()->settings( layer, pos.providerID );
-    valid = settings.enabled;
+
+    if ( p.isDiagram )
+      valid = layer->diagramsEnabled();
+    else
+      valid = settings.enabled;
   }
 
   if ( !valid )

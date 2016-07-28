@@ -19,6 +19,7 @@
 #include <qgsapplication.h>
 #include <qgsgeometry.h>
 #include <qgsfeaturerequest.h>
+#include "qgsfeatureiterator.h"
 #include <qgsvectordataprovider.h>
 #include <qgsvectorlayer.h>
 
@@ -115,7 +116,7 @@ static void checkFid4( QgsFeature& f, bool hasGeometry, bool hasAttrs, int onlyO
   if ( hasGeometry )
   {
     QVERIFY( f.constGeometry() );
-    QVERIFY( f.constGeometry()->wkbType() == QGis::WKBPoint );
+    QVERIFY( f.constGeometry()->wkbType() == Qgis::WKBPoint );
     QCOMPARE( keep6digits( f.constGeometry()->asPoint().x() ), -88.302277 );
     QCOMPARE( keep6digits( f.constGeometry()->asPoint().y() ),  33.731884 );
   }

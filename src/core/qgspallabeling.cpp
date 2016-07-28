@@ -18,6 +18,7 @@
 #include "qgspallabeling.h"
 #include "qgstextlabelfeature.h"
 #include "qgsunittypes.h"
+#include "qgscsexception.h"
 
 #include <list>
 
@@ -53,11 +54,11 @@
 #include <qgsvectorlayerdiagramprovider.h>
 #include <qgsvectorlayerlabelprovider.h>
 #include <qgsgeometry.h>
-#include <qgsmaprenderer.h>
 #include <qgsmarkersymbollayerv2.h>
+#include <qgspainting.h>
 #include <qgsproject.h>
-#include "qgssymbolv2.h"
 #include "qgssymbollayerv2utils.h"
+#include "qgsmaptopixelgeometrysimplifier.h"
 #include <QMessageBox>
 
 
@@ -106,7 +107,6 @@ QgsPalLayerSettings::QgsPalLayerSettings()
     : upsidedownLabels( Upright )
     , mCurFeat( nullptr )
     , xform( nullptr )
-    , ct( nullptr )
     , extentGeom( nullptr )
     , mFeaturesToLabel( 0 )
     , mFeatsSendingToPal( 0 )
@@ -353,7 +353,6 @@ QgsPalLayerSettings::QgsPalLayerSettings( const QgsPalLayerSettings& s )
     : mCurFeat( nullptr )
     , fieldIndex( 0 )
     , xform( nullptr )
-    , ct( nullptr )
     , extentGeom( nullptr )
     , mFeaturesToLabel( 0 )
     , mFeatsSendingToPal( 0 )
@@ -520,7 +519,6 @@ QgsPalLayerSettings::~QgsPalLayerSettings()
 {
   // pal layer is deleted internally in PAL
 
-  delete ct;
   delete expression;
   delete extentGeom;
 
@@ -790,7 +788,7 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   {
     // for polygons the "over point" (over centroid) placement is better than the default
     // "around point" (around centroid) which is more suitable for points
-    if ( layer->geometryType() == QGis::Polygon )
+    if ( layer->geometryType() == Qgis::Polygon )
       placement = OverPoint;
 
     return; // there's no information available
@@ -844,8 +842,8 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   textFont.setWordSpacing( layer->customProperty( "labeling/fontWordSpacing", QVariant( 0.0 ) ).toDouble() );
   textColor = _readColor( layer, "labeling/textColor", Qt::black, false );
   textTransp = layer->customProperty( "labeling/textTransp" ).toInt();
-  blendMode = QgsMapRenderer::getCompositionMode(
-                static_cast< QgsMapRenderer::BlendMode >( layer->customProperty( "labeling/blendMode", QVariant( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  blendMode = QgsPainting::getCompositionMode(
+                static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/blendMode", QVariant( QgsPainting::BlendNormal ) ).toUInt() ) );
   previewBkgrdColor = QColor( layer->customProperty( "labeling/previewBkgrdColor", QVariant( "#ffffff" ) ).toString() );
 
 
@@ -896,8 +894,8 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   }
   bufferColor = _readColor( layer, "labeling/bufferColor", Qt::white, false );
   bufferTransp = layer->customProperty( "labeling/bufferTransp" ).toInt();
-  bufferBlendMode = QgsMapRenderer::getCompositionMode(
-                      static_cast< QgsMapRenderer::BlendMode >( layer->customProperty( "labeling/bufferBlendMode", QVariant( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  bufferBlendMode = QgsPainting::getCompositionMode(
+                      static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/bufferBlendMode", QVariant( QgsPainting::BlendNormal ) ).toUInt() ) );
   bufferJoinStyle = static_cast< Qt::PenJoinStyle >( layer->customProperty( "labeling/bufferJoinStyle", QVariant( Qt::BevelJoin ) ).toUInt() );
   bufferNoFill = layer->customProperty( "labeling/bufferNoFill", QVariant( false ) ).toBool();
 
@@ -963,8 +961,8 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   }
   shapeJoinStyle = static_cast< Qt::PenJoinStyle >( layer->customProperty( "labeling/shapeJoinStyle", QVariant( Qt::BevelJoin ) ).toUInt() );
   shapeTransparency = layer->customProperty( "labeling/shapeTransparency", QVariant( 0 ) ).toInt();
-  shapeBlendMode = QgsMapRenderer::getCompositionMode(
-                     static_cast< QgsMapRenderer::BlendMode >( layer->customProperty( "labeling/shapeBlendMode", QVariant( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  shapeBlendMode = QgsPainting::getCompositionMode(
+                     static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/shapeBlendMode", QVariant( QgsPainting::BlendNormal ) ).toUInt() ) );
 
   // drop shadow
   shadowDraw = layer->customProperty( "labeling/shadowDraw", QVariant( false ) ).toBool();
@@ -999,8 +997,8 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   shadowTransparency = layer->customProperty( "labeling/shadowTransparency", QVariant( 30 ) ).toInt();
   shadowScale = layer->customProperty( "labeling/shadowScale", QVariant( 100 ) ).toInt();
   shadowColor = _readColor( layer, "labeling/shadowColor", Qt::black, false );
-  shadowBlendMode = QgsMapRenderer::getCompositionMode(
-                      static_cast< QgsMapRenderer::BlendMode >( layer->customProperty( "labeling/shadowBlendMode", QVariant( QgsMapRenderer::BlendMultiply ) ).toUInt() ) );
+  shadowBlendMode = QgsPainting::getCompositionMode(
+                      static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/shadowBlendMode", QVariant( QgsPainting::BlendMultiply ) ).toUInt() ) );
 
   // placement
   placement = static_cast< Placement >( layer->customProperty( "labeling/placement" ).toInt() );
@@ -1125,7 +1123,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/fontLetterSpacing", textFont.letterSpacing() );
   layer->setCustomProperty( "labeling/fontWordSpacing", textFont.wordSpacing() );
   layer->setCustomProperty( "labeling/textTransp", textTransp );
-  layer->setCustomProperty( "labeling/blendMode", QgsMapRenderer::getBlendModeEnum( blendMode ) );
+  layer->setCustomProperty( "labeling/blendMode", QgsPainting::getBlendModeEnum( blendMode ) );
   layer->setCustomProperty( "labeling/previewBkgrdColor", previewBkgrdColor.name() );
 
   // text formatting
@@ -1150,7 +1148,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/bufferNoFill", bufferNoFill );
   layer->setCustomProperty( "labeling/bufferTransp", bufferTransp );
   layer->setCustomProperty( "labeling/bufferJoinStyle", static_cast< unsigned int >( bufferJoinStyle ) );
-  layer->setCustomProperty( "labeling/bufferBlendMode", QgsMapRenderer::getBlendModeEnum( bufferBlendMode ) );
+  layer->setCustomProperty( "labeling/bufferBlendMode", QgsPainting::getBlendModeEnum( bufferBlendMode ) );
 
   // background
   layer->setCustomProperty( "labeling/shapeDraw", shapeDraw );
@@ -1178,7 +1176,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/shapeBorderWidthMapUnitScale", QgsSymbolLayerV2Utils::encodeMapUnitScale( shapeBorderWidthMapUnitScale ) );
   layer->setCustomProperty( "labeling/shapeJoinStyle", static_cast< unsigned int >( shapeJoinStyle ) );
   layer->setCustomProperty( "labeling/shapeTransparency", shapeTransparency );
-  layer->setCustomProperty( "labeling/shapeBlendMode", QgsMapRenderer::getBlendModeEnum( shapeBlendMode ) );
+  layer->setCustomProperty( "labeling/shapeBlendMode", QgsPainting::getBlendModeEnum( shapeBlendMode ) );
 
   // drop shadow
   layer->setCustomProperty( "labeling/shadowDraw", shadowDraw );
@@ -1195,7 +1193,7 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/shadowTransparency", shadowTransparency );
   layer->setCustomProperty( "labeling/shadowScale", shadowScale );
   _writeColor( layer, "labeling/shadowColor", shadowColor, false );
-  layer->setCustomProperty( "labeling/shadowBlendMode", QgsMapRenderer::getBlendModeEnum( shadowBlendMode ) );
+  layer->setCustomProperty( "labeling/shadowBlendMode", QgsPainting::getBlendModeEnum( shadowBlendMode ) );
 
   // placement
   layer->setCustomProperty( "labeling/placement", placement );
@@ -1243,9 +1241,8 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/zIndex", zIndex );
 
   writeDataDefinedPropertyMap( layer, nullptr, dataDefinedProperties );
+  layer->emitStyleChanged();
 }
-
-
 
 void QgsPalLayerSettings::readXml( QDomElement& elem )
 {
@@ -1296,8 +1293,8 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   textFont.setWordSpacing( textStyleElem.attribute( "fontWordSpacing", "0" ).toDouble() );
   textColor = QgsSymbolLayerV2Utils::decodeColor( textStyleElem.attribute( "textColor", QgsSymbolLayerV2Utils::encodeColor( Qt::black ) ) );
   textTransp = textStyleElem.attribute( "textTransp" ).toInt();
-  blendMode = QgsMapRenderer::getCompositionMode(
-                static_cast< QgsMapRenderer::BlendMode >( textStyleElem.attribute( "blendMode", QString::number( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  blendMode = QgsPainting::getCompositionMode(
+                static_cast< QgsPainting::BlendMode >( textStyleElem.attribute( "blendMode", QString::number( QgsPainting::BlendNormal ) ).toUInt() ) );
   previewBkgrdColor = QColor( textStyleElem.attribute( "previewBkgrdColor", "#ffffff" ) );
 
 
@@ -1350,8 +1347,8 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   }
   bufferColor = QgsSymbolLayerV2Utils::decodeColor( textBufferElem.attribute( "bufferColor", QgsSymbolLayerV2Utils::encodeColor( Qt::white ) ) );
   bufferTransp = textBufferElem.attribute( "bufferTransp" ).toInt();
-  bufferBlendMode = QgsMapRenderer::getCompositionMode(
-                      static_cast< QgsMapRenderer::BlendMode >( textBufferElem.attribute( "bufferBlendMode", QString::number( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  bufferBlendMode = QgsPainting::getCompositionMode(
+                      static_cast< QgsPainting::BlendMode >( textBufferElem.attribute( "bufferBlendMode", QString::number( QgsPainting::BlendNormal ) ).toUInt() ) );
   bufferJoinStyle = static_cast< Qt::PenJoinStyle >( textBufferElem.attribute( "bufferJoinStyle", QString::number( Qt::BevelJoin ) ).toUInt() );
   bufferNoFill = textBufferElem.attribute( "bufferNoFill", "0" ).toInt();
 
@@ -1418,8 +1415,8 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   }
   shapeJoinStyle = static_cast< Qt::PenJoinStyle >( backgroundElem.attribute( "shapeJoinStyle", QString::number( Qt::BevelJoin ) ).toUInt() );
   shapeTransparency = backgroundElem.attribute( "shapeTransparency", "0" ).toInt();
-  shapeBlendMode = QgsMapRenderer::getCompositionMode(
-                     static_cast< QgsMapRenderer::BlendMode >( backgroundElem.attribute( "shapeBlendMode", QString::number( QgsMapRenderer::BlendNormal ) ).toUInt() ) );
+  shapeBlendMode = QgsPainting::getCompositionMode(
+                     static_cast< QgsPainting::BlendMode >( backgroundElem.attribute( "shapeBlendMode", QString::number( QgsPainting::BlendNormal ) ).toUInt() ) );
 
   // drop shadow
   QDomElement shadowElem = elem.firstChildElement( "shadow" );
@@ -1455,8 +1452,8 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   shadowTransparency = shadowElem.attribute( "shadowTransparency", "30" ).toInt();
   shadowScale = shadowElem.attribute( "shadowScale", "100" ).toInt();
   shadowColor = QgsSymbolLayerV2Utils::decodeColor( shadowElem.attribute( "shadowColor", QgsSymbolLayerV2Utils::encodeColor( Qt::black ) ) );
-  shadowBlendMode = QgsMapRenderer::getCompositionMode(
-                      static_cast< QgsMapRenderer::BlendMode >( shadowElem.attribute( "shadowBlendMode", QString::number( QgsMapRenderer::BlendMultiply ) ).toUInt() ) );
+  shadowBlendMode = QgsPainting::getCompositionMode(
+                      static_cast< QgsPainting::BlendMode >( shadowElem.attribute( "shadowBlendMode", QString::number( QgsPainting::BlendMultiply ) ).toUInt() ) );
 
   // placement
   QDomElement placementElem = elem.firstChildElement( "placement" );
@@ -1563,7 +1560,7 @@ QDomElement QgsPalLayerSettings::writeXml( QDomDocument& doc )
   textStyleElem.setAttribute( "fontLetterSpacing", textFont.letterSpacing() );
   textStyleElem.setAttribute( "fontWordSpacing", textFont.wordSpacing() );
   textStyleElem.setAttribute( "textTransp", textTransp );
-  textStyleElem.setAttribute( "blendMode", QgsMapRenderer::getBlendModeEnum( blendMode ) );
+  textStyleElem.setAttribute( "blendMode", QgsPainting::getBlendModeEnum( blendMode ) );
   textStyleElem.setAttribute( "previewBkgrdColor", previewBkgrdColor.name() );
 
   // text formatting
@@ -1590,7 +1587,7 @@ QDomElement QgsPalLayerSettings::writeXml( QDomDocument& doc )
   textBufferElem.setAttribute( "bufferNoFill", bufferNoFill );
   textBufferElem.setAttribute( "bufferTransp", bufferTransp );
   textBufferElem.setAttribute( "bufferJoinStyle", static_cast< unsigned int >( bufferJoinStyle ) );
-  textBufferElem.setAttribute( "bufferBlendMode", QgsMapRenderer::getBlendModeEnum( bufferBlendMode ) );
+  textBufferElem.setAttribute( "bufferBlendMode", QgsPainting::getBlendModeEnum( bufferBlendMode ) );
 
   // background
   QDomElement backgroundElem = doc.createElement( "background" );
@@ -1619,7 +1616,7 @@ QDomElement QgsPalLayerSettings::writeXml( QDomDocument& doc )
   backgroundElem.setAttribute( "shapeBorderWidthMapUnitScale", QgsSymbolLayerV2Utils::encodeMapUnitScale( shapeBorderWidthMapUnitScale ) );
   backgroundElem.setAttribute( "shapeJoinStyle", static_cast< unsigned int >( shapeJoinStyle ) );
   backgroundElem.setAttribute( "shapeTransparency", shapeTransparency );
-  backgroundElem.setAttribute( "shapeBlendMode", QgsMapRenderer::getBlendModeEnum( shapeBlendMode ) );
+  backgroundElem.setAttribute( "shapeBlendMode", QgsPainting::getBlendModeEnum( shapeBlendMode ) );
 
   // drop shadow
   QDomElement shadowElem = doc.createElement( "shadow" );
@@ -1637,7 +1634,7 @@ QDomElement QgsPalLayerSettings::writeXml( QDomDocument& doc )
   shadowElem.setAttribute( "shadowTransparency", shadowTransparency );
   shadowElem.setAttribute( "shadowScale", shadowScale );
   shadowElem.setAttribute( "shadowColor", QgsSymbolLayerV2Utils::encodeColor( shadowColor ) );
-  shadowElem.setAttribute( "shadowBlendMode", QgsMapRenderer::getBlendModeEnum( shadowBlendMode ) );
+  shadowElem.setAttribute( "shadowBlendMode", QgsPainting::getBlendModeEnum( shadowBlendMode ) );
 
   // placement
   QDomElement placementElem = doc.createElement( "placement" );
@@ -2374,7 +2371,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
   double maxcharanglein = 20.0; // range 20.0-60.0
   double maxcharangleout = -20.0; // range 20.0-95.0
 
-  if ( placement == QgsPalLayerSettings::Curved )
+  if ( placement == QgsPalLayerSettings::Curved || placement == QgsPalLayerSettings::PerimeterCurved )
   {
     maxcharanglein = maxCurvedCharAngleIn;
     maxcharangleout = maxCurvedCharAngleOut;
@@ -2422,10 +2419,30 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
     return;
   }
 
+  // simplify?
+  const QgsVectorSimplifyMethod &simplifyMethod = context.vectorSimplifyMethod();
+  QScopedPointer<QgsGeometry> scopedClonedGeom;
+  if ( simplifyMethod.simplifyHints() != QgsVectorSimplifyMethod::NoSimplification && simplifyMethod.forceLocalOptimization() )
+  {
+    int simplifyHints = simplifyMethod.simplifyHints() | QgsMapToPixelSimplifier::SimplifyEnvelope;
+    QgsMapToPixelSimplifier::SimplifyAlgorithm simplifyAlgorithm = static_cast< QgsMapToPixelSimplifier::SimplifyAlgorithm >( simplifyMethod.simplifyAlgorithm() );
+    QgsGeometry* g = new QgsGeometry( *geom );
+
+    if ( QgsMapToPixelSimplifier::simplifyGeometry( g, simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm ) )
+    {
+      geom = g;
+      scopedClonedGeom.reset( g );
+    }
+    else
+    {
+      delete g;
+    }
+  }
+
   // whether we're going to create a centroid for polygon
   bool centroidPoly = (( placement == QgsPalLayerSettings::AroundPoint
                          || placement == QgsPalLayerSettings::OverPoint )
-                       && geom->type() == QGis::Polygon );
+                       && geom->type() == Qgis::Polygon );
 
   // CLIP the geometry if it is bigger than the extent
   // don't clip if centroid is requested for whole feature
@@ -2497,7 +2514,8 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
   }
 
   GEOSGeometry* geos_geom_clone;
-  if ( GEOSGeomTypeId_r( QgsGeometry::getGEOSHandler(), geos_geom ) == GEOS_POLYGON && repeatDistance > 0 && placement == Line )
+  GEOSGeomTypes geomType = ( GEOSGeomTypes ) GEOSGeomTypeId_r( QgsGeometry::getGEOSHandler(), geos_geom );
+  if (( geomType == GEOS_POLYGON || geomType == GEOS_MULTIPOLYGON ) && repeatDistance > 0 && ( placement == Line || placement == PerimeterCurved ) )
   {
     geos_geom_clone = GEOSBoundary_r( QgsGeometry::getGEOSHandler(), geos_geom );
   }
@@ -2733,11 +2751,11 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
 
         //project xPos and yPos from layer to map CRS
         double z = 0;
-        if ( ct )
+        if ( ct.isValid() && !ct.isShortCircuited() )
         {
           try
           {
-            ct->transformInPlace( xPos, yPos, z );
+            ct.transformInPlace( xPos, yPos, z );
           }
           catch ( QgsCsException &e )
           {
@@ -2836,7 +2854,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
   {
     ( *labelFeature )->setObstacleGeometry( geosObstacleGeomClone );
 
-    if ( geom->type() == QGis::Point )
+    if ( geom->type() == Qgis::Point )
     {
       //register symbol size
       ( *labelFeature )->setSymbolSize( QSizeF( obstacleGeometry->boundingBox().width(),
@@ -2858,7 +2876,8 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
 
   // TODO: only for placement which needs character info
   // account for any data defined font metrics adjustments
-  lf->calculateInfo( placement == QgsPalLayerSettings::Curved, labelFontMetrics.data(), xform, rasterCompressFactor, maxcharanglein, maxcharangleout );
+  lf->calculateInfo( placement == QgsPalLayerSettings::Curved || placement == QgsPalLayerSettings::PerimeterCurved,
+                     labelFontMetrics.data(), xform, rasterCompressFactor, maxcharanglein, maxcharangleout );
   // for labelFeature the LabelInfo is passed to feat when it is registered
 
   // TODO: allow layer-wide feature dist in PAL...?
@@ -2897,7 +2916,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
     {
       distance *= vectorScaleFactor;
     }
-    double d = qAbs( ptOne.x() - ptZero.x() ) * distance;
+    double d = ptOne.distance( ptZero ) * distance;
     ( *labelFeature )->setDistLabel( d );
   }
 
@@ -2980,6 +2999,26 @@ void QgsPalLayerSettings::registerObstacleFeature( QgsFeature& f, QgsRenderConte
   if ( !geom )
   {
     return;
+  }
+
+  // simplify?
+  const QgsVectorSimplifyMethod &simplifyMethod = context.vectorSimplifyMethod();
+  QScopedPointer<QgsGeometry> scopedClonedGeom;
+  if ( simplifyMethod.simplifyHints() != QgsVectorSimplifyMethod::NoSimplification && simplifyMethod.forceLocalOptimization() )
+  {
+    int simplifyHints = simplifyMethod.simplifyHints() | QgsMapToPixelSimplifier::SimplifyEnvelope;
+    QgsMapToPixelSimplifier::SimplifyAlgorithm simplifyAlgorithm = static_cast< QgsMapToPixelSimplifier::SimplifyAlgorithm >( simplifyMethod.simplifyAlgorithm() );
+    QgsGeometry* g = new QgsGeometry( *geom );
+
+    if ( QgsMapToPixelSimplifier::simplifyGeometry( g, simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm ) )
+    {
+      geom = g;
+      scopedClonedGeom.reset( g );
+    }
+    else
+    {
+      delete g;
+    }
   }
 
   const GEOSGeometry* geos_geom = nullptr;
@@ -3321,7 +3360,7 @@ void QgsPalLayerSettings::parseTextStyle( QFont& labelFont,
       wordspace = wspacing;
     }
   }
-  labelFont.setWordSpacing( sizeToPixel( wordspace, context, fontunits, false, fontSizeMapUnitScale ) );
+  labelFont.setWordSpacing( scaleToPixelContext( wordspace, context, fontunits, false, fontSizeMapUnitScale ) );
 
   // data defined letter spacing?
   double letterspace = labelFont.letterSpacing();
@@ -3335,7 +3374,7 @@ void QgsPalLayerSettings::parseTextStyle( QFont& labelFont,
       letterspace = lspacing;
     }
   }
-  labelFont.setLetterSpacing( QFont::AbsoluteSpacing, sizeToPixel( letterspace, context, fontunits, false, fontSizeMapUnitScale ) );
+  labelFont.setLetterSpacing( QFont::AbsoluteSpacing, scaleToPixelContext( letterspace, context, fontunits, false, fontSizeMapUnitScale ) );
 
   // data defined font capitalization?
   QFont::Capitalization fontcaps = labelFont.capitalization();
@@ -3966,7 +4005,7 @@ void QgsPalLabeling::registerFeature( const QString& layerID, QgsFeature& f, Qgs
     provider->registerFeature( f, context );
 }
 
-bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, QgsRenderContext &context, const QgsCoordinateTransform* ct, QgsGeometry* clipGeometry )
+bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry* clipGeometry )
 {
   if ( !geometry )
   {
@@ -3974,7 +4013,7 @@ bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, Q
   }
 
   //requires reprojection
-  if ( ct )
+  if ( ct.isValid() && !ct.isShortCircuited() )
     return true;
 
   //requires rotation
@@ -3987,7 +4026,7 @@ bool QgsPalLabeling::geometryRequiresPreparation( const QgsGeometry* geometry, Q
     return true;
 
   //requires fixing
-  if ( geometry->type() == QGis::Polygon && !geometry->isGeosValid() )
+  if ( geometry->type() == Qgis::Polygon && !geometry->isGeosValid() )
     return true;
 
   return false;
@@ -4026,7 +4065,7 @@ QStringList QgsPalLabeling::splitToGraphemes( const QString &text )
   return graphemes;
 }
 
-QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, QgsRenderContext &context, const QgsCoordinateTransform* ct, QgsGeometry* clipGeometry )
+QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry* clipGeometry )
 {
   if ( !geometry )
   {
@@ -4038,11 +4077,11 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, QgsRe
   QScopedPointer<QgsGeometry> clonedGeometry( geom );
 
   //reproject the geometry if necessary
-  if ( ct )
+  if ( ct.isValid() && !ct.isShortCircuited() )
   {
     try
     {
-      geom->transform( *ct );
+      geom->transform( ct );
     }
     catch ( QgsCsException &cse )
     {
@@ -4058,11 +4097,11 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, QgsRe
   {
     QgsPoint center = context.extent().center();
 
-    if ( ct )
+    if ( ct.isValid() && !ct.isShortCircuited() )
     {
       try
       {
-        center = ct->transform( center );
+        center = ct.transform( center );
       }
       catch ( QgsCsException &cse )
       {
@@ -4083,7 +4122,7 @@ QgsGeometry* QgsPalLabeling::prepareGeometry( const QgsGeometry* geometry, QgsRe
     return nullptr;  // there is something really wrong with the geometry
 
   // fix invalid polygons
-  if ( geom->type() == QGis::Polygon && !geom->isGeosValid() )
+  if ( geom->type() == Qgis::Polygon && !geom->isGeosValid() )
   {
     QgsGeometry* bufferGeom = geom->buffer( 0, 0 );
     if ( !bufferGeom )
@@ -4122,14 +4161,14 @@ bool QgsPalLabeling::checkMinimumSizeMM( const QgsRenderContext& context, const 
     return false;
   }
 
-  QGis::GeometryType featureType = geom->type();
-  if ( featureType == QGis::Point ) //minimum size does not apply to point features
+  Qgis::GeometryType featureType = geom->type();
+  if ( featureType == Qgis::Point ) //minimum size does not apply to point features
   {
     return true;
   }
 
   double mapUnitsPerMM = context.mapToPixel().mapUnitsPerPixel() * context.scaleFactor();
-  if ( featureType == QGis::Line )
+  if ( featureType == Qgis::Line )
   {
     double length = geom->length();
     if ( length >= 0.0 )
@@ -4137,7 +4176,7 @@ bool QgsPalLabeling::checkMinimumSizeMM( const QgsRenderContext& context, const 
       return ( length >= ( minSize * mapUnitsPerMM ) );
     }
   }
-  else if ( featureType == QGis::Polygon )
+  else if ( featureType == Qgis::Polygon )
   {
     double area = geom->area();
     if ( area >= 0.0 )
@@ -4152,12 +4191,6 @@ void QgsPalLabeling::registerDiagramFeature( const QString& layerID, QgsFeature&
 {
   if ( QgsVectorLayerDiagramProvider* provider = mDiagramProviders.value( layerID, nullptr ) )
     provider->registerFeature( feat, context );
-}
-
-
-void QgsPalLabeling::init( QgsMapRenderer* mr )
-{
-  init( mr->mapSettings() );
 }
 
 
@@ -4758,7 +4791,7 @@ void QgsPalLabeling::drawLabelBackground( QgsRenderContext& context,
       // add buffer to greatest dimension of label
       if ( labelWidth >= labelHeight )
         sizeOut = labelWidth;
-      else if ( labelHeight > labelWidth )
+      else
         sizeOut = labelHeight;
 
       // label size in map units, convert to shapeSizeUnits, if different
@@ -4779,15 +4812,15 @@ void QgsPalLabeling::drawLabelBackground( QgsRenderContext& context,
     QgsStringMap map; // for SVG symbology marker
     map["name"] = QgsSymbolLayerV2Utils::symbolNameToPath( tmpLyr.shapeSVGFile.trimmed() );
     map["size"] = QString::number( sizeOut );
-    map["size_unit"] = QgsSymbolLayerV2Utils::encodeOutputUnit(
-                         tmpLyr.shapeSizeUnits == QgsPalLayerSettings::MapUnits ? QgsSymbolV2::MapUnit : QgsSymbolV2::MM );
+    map["size_unit"] = QgsUnitTypes::encodeUnit(
+                         tmpLyr.shapeSizeUnits == QgsPalLayerSettings::MapUnits ? QgsUnitTypes::RenderMapUnits : QgsUnitTypes::RenderMillimeters );
     map["angle"] = QString::number( 0.0 ); // angle is handled by this local painter
 
     // offset is handled by this local painter
     // TODO: see why the marker renderer doesn't seem to translate offset *after* applying rotation
     //map["offset"] = QgsSymbolLayerV2Utils::encodePoint( tmpLyr.shapeOffset );
     //map["offset_unit"] = QgsUnitTypes::encodeUnit(
-    //                       tmpLyr.shapeOffsetUnits == QgsPalLayerSettings::MapUnits ? QgsSymbolV2::MapUnit : QgsSymbolV2::MM );
+    //                       tmpLyr.shapeOffsetUnits == QgsPalLayerSettings::MapUnits ? QgsUnitTypes::MapUnit : QgsUnitTypes::MM );
 
     map["fill"] = tmpLyr.shapeFillColor.name();
     map["outline"] = tmpLyr.shapeBorderColor.name();
@@ -4796,7 +4829,7 @@ void QgsPalLabeling::drawLabelBackground( QgsRenderContext& context,
     // TODO: fix overriding SVG symbol's border width/units in QgsSvgCache
     // currently broken, fall back to symbol's
     //map["outline_width_unit"] = QgsUnitTypes::encodeUnit(
-    //                              tmpLyr.shapeBorderWidthUnits == QgsPalLayerSettings::MapUnits ? QgsSymbolV2::MapUnit : QgsSymbolV2::MM );
+    //                              tmpLyr.shapeBorderWidthUnits == QgsPalLayerSettings::MapUnits ? QgsUnitTypes::MapUnit : QgsUnitTypes::MM );
 
     if ( tmpLyr.shadowDraw && tmpLyr.shadowUnder == QgsPalLayerSettings::ShadowShape )
     {
@@ -4824,7 +4857,7 @@ void QgsPalLabeling::drawLabelBackground( QgsRenderContext& context,
 
       QgsSymbolLayerV2* symShdwL = QgsSvgMarkerSymbolLayerV2::create( shdwmap );
       QgsSvgMarkerSymbolLayerV2* svgShdwM = static_cast<QgsSvgMarkerSymbolLayerV2*>( symShdwL );
-      QgsSymbolV2RenderContext svgShdwContext( shdwContext, QgsSymbolV2::Mixed,
+      QgsSymbolV2RenderContext svgShdwContext( shdwContext, QgsUnitTypes::RenderUnknownUnit,
           ( 100.0 - static_cast< double >( tmpLyr.shapeTransparency ) ) / 100.0 );
 
       double svgSize = tmpLyr.scaleToPixelContext( sizeOut, context, tmpLyr.shapeSizeUnits, true, tmpLyr.shapeSizeMapUnitScale );
@@ -4859,7 +4892,7 @@ void QgsPalLabeling::drawLabelBackground( QgsRenderContext& context,
     // draw the actual symbol
     QgsSymbolLayerV2* symL = QgsSvgMarkerSymbolLayerV2::create( map );
     QgsSvgMarkerSymbolLayerV2* svgM = static_cast<QgsSvgMarkerSymbolLayerV2*>( symL );
-    QgsSymbolV2RenderContext svgContext( context, QgsSymbolV2::Mixed,
+    QgsSymbolV2RenderContext svgContext( context, QgsUnitTypes::RenderUnknownUnit,
                                          ( 100.0 - static_cast< double >( tmpLyr.shapeTransparency ) ) / 100.0 );
 
     p->save();

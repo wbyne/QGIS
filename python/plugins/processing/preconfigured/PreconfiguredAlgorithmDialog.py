@@ -28,11 +28,14 @@ __revision__ = '$Format:%H$'
 
 import os
 import json
+
 from processing.preconfigured.PreconfiguredUtils import algAsDict
 from processing.preconfigured.PreconfiguredUtils import preconfiguredAlgorithmsFolder
 from processing.gui.AlgorithmDialogBase import AlgorithmDialogBase
 from processing.gui.AlgorithmDialog import AlgorithmDialog
-from PyQt4.QtGui import QMessageBox, QPalette, QColor, QVBoxLayout, QLabel,\
+from processing.core.alglist import algList
+
+from PyQt4.QtGui import QMessageBox, QPalette, QColor, QVBoxLayout, QLabel, \
     QLineEdit, QWidget
 
 
@@ -59,14 +62,14 @@ class PreconfiguredAlgorithmDialog(AlgorithmDialog):
             description["name"] = self.settingsPanel.txtName.text().strip()
             description["group"] = self.settingsPanel.txtGroup.text().strip()
             if not (description["name"] and description["group"]):
-                self.tabWidget.setCurrentIndex(1)
+                self.tabWidget.setCurrentIndex(self.tabWidget.count() - 1)
                 return
             validChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:'
             filename = ''.join(c for c in description["name"] if c in validChars).lower() + ".json"
             filepath = os.path.join(preconfiguredAlgorithmsFolder(), filename)
             with open(filepath, "w") as f:
                 json.dump(description, f)
-            self.toolbox.updateProvider('preconfigured')
+            algList.reloadProvider('preconfigured')
         except AlgorithmDialogBase.InvalidParameterValue as e:
             try:
                 self.buttonBox.accepted.connect(lambda:

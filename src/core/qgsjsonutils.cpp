@@ -14,6 +14,7 @@
  ***************************************************************************/
 
 #include "qgsjsonutils.h"
+#include "qgsfeatureiterator.h"
 #include "qgsogrutils.h"
 #include "qgsgeometry.h"
 #include "qgsvectorlayer.h"
@@ -21,6 +22,7 @@
 #include "qgsrelation.h"
 #include "qgsrelationmanager.h"
 #include "qgsproject.h"
+#include "qgscsexception.h"
 
 QgsJSONExporter::QgsJSONExporter( const QgsVectorLayer* vectorLayer, int precision )
     : mPrecision( precision )
@@ -34,7 +36,7 @@ QgsJSONExporter::QgsJSONExporter( const QgsVectorLayer* vectorLayer, int precisi
     mCrs = vectorLayer->crs();
     mTransform.setSourceCrs( mCrs );
   }
-  mTransform.setDestCRS( QgsCoordinateReferenceSystem( 4326, QgsCoordinateReferenceSystem::EpsgCrsId ) );
+  mTransform.setDestinationCrs( QgsCoordinateReferenceSystem( 4326, QgsCoordinateReferenceSystem::EpsgCrsId ) );
 }
 
 void QgsJSONExporter::setVectorLayer( const QgsVectorLayer* vectorLayer )
@@ -58,7 +60,7 @@ void QgsJSONExporter::setSourceCrs( const QgsCoordinateReferenceSystem& crs )
   mTransform.setSourceCrs( mCrs );
 }
 
-const QgsCoordinateReferenceSystem& QgsJSONExporter::sourceCrs() const
+QgsCoordinateReferenceSystem QgsJSONExporter::sourceCrs() const
 {
   return mCrs;
 }

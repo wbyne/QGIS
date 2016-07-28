@@ -76,6 +76,7 @@ int QgsGrassVectorMap::userCount() const
   {
     count += layer->userCount();
   }
+  QgsDebugMsg( QString( "count = %1" ).arg( count ) );
   return count;
 }
 
@@ -415,7 +416,6 @@ QgsGrassVectorMapLayer * QgsGrassVectorMap::openLayer( int field )
 
 void QgsGrassVectorMap::reloadLayers()
 {
-  QgsDebugMsg( "entered" );
   Q_FOREACH ( QgsGrassVectorMapLayer *l, mLayers )
   {
     l->load();
@@ -443,9 +443,9 @@ void QgsGrassVectorMap::closeLayer( QgsGrassVectorMapLayer * layer )
   QgsDebugMsg( QString( "%1 map users" ).arg( userCount() ) );
   if ( userCount() == 0 )
   {
-    // TODO: attention about dead lock, probably move to QgsGrassVectorMapStore
-    //QgsDebugMsg( "No more map users -> close" );
-    //close();
+    QgsDebugMsg( "No more map users -> close" );
+    // Once was probably causing dead lock; move to QgsGrassVectorMapStore?
+    close();
   }
 
   QgsDebugMsg( "layer closed" );
@@ -496,7 +496,6 @@ void QgsGrassVectorMap::update()
 
 bool QgsGrassVectorMap::mapOutdated()
 {
-  QgsDebugMsg( "entered" );
 
   QString dp = mGrassObject.mapsetPath() + "/vector/" + mGrassObject.name();
   QFileInfo di( dp );
@@ -518,7 +517,6 @@ bool QgsGrassVectorMap::mapOutdated()
 
 bool QgsGrassVectorMap::attributesOutdated()
 {
-  QgsDebugMsg( "entered" );
 
   QString dp = mGrassObject.mapsetPath() + "/vector/" + mGrassObject.name() + "/dbln";
   QFileInfo di( dp );
@@ -534,14 +532,12 @@ bool QgsGrassVectorMap::attributesOutdated()
 
 int QgsGrassVectorMap::numLines()
 {
-  QgsDebugMsg( "entered" );
 
   return ( Vect_get_num_lines( mMap ) );
 }
 
 int QgsGrassVectorMap::numAreas()
 {
-  QgsDebugMsg( "entered" );
 
   return ( Vect_get_num_areas( mMap ) );
 }
@@ -553,7 +549,6 @@ QString QgsGrassVectorMap::toString()
 
 void QgsGrassVectorMap::printDebug()
 {
-  QgsDebugMsg( "entered" );
   if ( !mValid || !mMap )
   {
     QgsDebugMsg( "map not valid" );
@@ -744,7 +739,6 @@ QgsGrassVectorMapStore::QgsGrassVectorMapStore()
 
 QgsGrassVectorMapStore::~QgsGrassVectorMapStore()
 {
-  QgsDebugMsg( "entered" );
 }
 
 QgsGrassVectorMapStore *QgsGrassVectorMapStore::instance()

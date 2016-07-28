@@ -17,6 +17,7 @@
 
 #include "qgspalettedrendererwidget.h"
 #include "qgspalettedrasterrenderer.h"
+#include "qgsrasterdataprovider.h"
 #include "qgsrasterlayer.h"
 #include "qgscolordialog.h"
 #include <QColorDialog>
@@ -41,6 +42,7 @@ QgsPalettedRendererWidget::QgsPalettedRendererWidget( QgsRasterLayer* layer, con
     }
 
     setFromRenderer( mRasterLayer->renderer() );
+    connect( mBandComboBox, SIGNAL( currentIndexChanged( int ) ), this, SIGNAL( widgetChanged() ) );
   }
 }
 
@@ -77,6 +79,7 @@ void QgsPalettedRendererWidget::on_mTreeWidget_itemDoubleClicked( QTreeWidgetIte
     if ( c.isValid() )
     {
       item->setBackground( column, QBrush( c ) );
+      emit widgetChanged();
     }
   }
   else if ( column == 2 && item )

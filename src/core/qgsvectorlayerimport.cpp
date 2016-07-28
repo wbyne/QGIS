@@ -18,6 +18,7 @@
 
 #include "qgsfield.h"
 #include "qgsfeature.h"
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsmessagelog.h"
@@ -25,6 +26,9 @@
 #include "qgsvectorlayerimport.h"
 #include "qgsproviderregistry.h"
 #include "qgsdatasourceuri.h"
+#include "qgscsexception.h"
+#include "qgsvectordataprovider.h"
+#include "qgsvectorlayer.h"
 
 #include <QProgressDialog>
 
@@ -33,8 +37,8 @@
 typedef QgsVectorLayerImport::ImportError createEmptyLayer_t(
   const QString &uri,
   const QgsFields &fields,
-  QGis::WkbType geometryType,
-  const QgsCoordinateReferenceSystem *destCRS,
+  Qgis::WkbType geometryType,
+  const QgsCoordinateReferenceSystem &destCRS,
   bool overwrite,
   QMap<int, int> *oldToNewAttrIdx,
   QString *errorMessage,
@@ -45,8 +49,8 @@ typedef QgsVectorLayerImport::ImportError createEmptyLayer_t(
 QgsVectorLayerImport::QgsVectorLayerImport( const QString &uri,
     const QString &providerKey,
     const QgsFields& fields,
-    QGis::WkbType geometryType,
-    const QgsCoordinateReferenceSystem* crs,
+    Qgis::WkbType geometryType,
+    const QgsCoordinateReferenceSystem& crs,
     bool overwrite,
     const QMap<QString, QVariant> *options,
     QProgressDialog *progress )
@@ -206,21 +210,21 @@ QgsVectorLayerImport::ImportError
 QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
                                    const QString& uri,
                                    const QString& providerKey,
-                                   const QgsCoordinateReferenceSystem *destCRS,
+                                   const QgsCoordinateReferenceSystem& destCRS,
                                    bool onlySelected,
                                    QString *errorMessage,
                                    bool skipAttributeCreation,
                                    QMap<QString, QVariant> *options,
                                    QProgressDialog *progress )
 {
-  const QgsCoordinateReferenceSystem* outputCRS;
-  QgsCoordinateTransform* ct = nullptr;
+  QgsCoordinateReferenceSystem outputCRS;
+  QgsCoordinateTransform ct;
   bool shallTransform = false;
 
   if ( !layer )
     return ErrInvalidLayer;
 
-  if ( destCRS && destCRS->isValid() )
+  if ( destCRS.isValid() )
   {
     // This means we should transform
     outputCRS = destCRS;
@@ -229,7 +233,7 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
   else
   {
     // This means we shouldn't transform, use source CRS as output (if defined)
-    outputCRS = &layer->crs();
+    outputCRS = layer->crs();
   }
 
 
@@ -242,7 +246,7 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
   }
 
   QgsFields fields = skipAttributeCreation ? QgsFields() : layer->fields();
-  QGis::WkbType wkbType = layer->wkbType();
+  Qgis::WkbType wkbType = layer->wkbType();
 
   // Special handling for Shapefiles
   if ( layer->providerType() == "ogr" && layer->storageType() == "ESRI Shapefile" )
@@ -258,23 +262,23 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
       // convert wkbtype to multipart (see #5547)
       switch ( wkbType )
       {
-        case QGis::WKBPoint:
-          wkbType = QGis::WKBMultiPoint;
+        case Qgis::WKBPoint:
+          wkbType = Qgis::WKBMultiPoint;
           break;
-        case QGis::WKBLineString:
-          wkbType = QGis::WKBMultiLineString;
+        case Qgis::WKBLineString:
+          wkbType = Qgis::WKBMultiLineString;
           break;
-        case QGis::WKBPolygon:
-          wkbType = QGis::WKBMultiPolygon;
+        case Qgis::WKBPolygon:
+          wkbType = Qgis::WKBMultiPolygon;
           break;
-        case QGis::WKBPoint25D:
-          wkbType = QGis::WKBMultiPoint25D;
+        case Qgis::WKBPoint25D:
+          wkbType = Qgis::WKBMultiPoint25D;
           break;
-        case QGis::WKBLineString25D:
-          wkbType = QGis::WKBMultiLineString25D;
+        case Qgis::WKBLineString25D:
+          wkbType = Qgis::WKBMultiLineString25D;
           break;
-        case QGis::WKBPolygon25D:
-          wkbType = QGis::WKBMultiPolygon25D;
+        case Qgis::WKBPolygon25D:
+          wkbType = Qgis::WKBMultiPolygon25D;
           break;
         default:
           break;
@@ -304,7 +308,7 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
   QgsFeature fet;
 
   QgsFeatureRequest req;
-  if ( wkbType == QGis::WKBNoGeometry )
+  if ( wkbType == Qgis::WKBNoGeometry )
     req.setFlags( QgsFeatureRequest::NoGeometry );
   if ( skipAttributeCreation )
     req.setSubsetOfAttributes( QgsAttributeList() );
@@ -314,11 +318,11 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
   const QgsFeatureIds& ids = layer->selectedFeaturesIds();
 
   // Create our transform
-  if ( destCRS )
-    ct = new QgsCoordinateTransform( layer->crs(), *destCRS );
+  if ( destCRS.isValid() )
+    ct = QgsCoordinateTransform( layer->crs(), destCRS );
 
   // Check for failure
-  if ( !ct )
+  if ( !ct.isValid() )
     shallTransform = false;
 
   int n = 0;
@@ -366,12 +370,11 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
       {
         if ( fet.constGeometry() )
         {
-          fet.geometry()->transform( *ct );
+          fet.geometry()->transform( ct );
         }
       }
       catch ( QgsCsException &e )
       {
-        delete ct;
         delete writer;
 
         QString msg = QObject::tr( "Failed to transform a point while drawing a feature with ID '%1'. Writing stopped. (Exception: %2)" )
@@ -421,11 +424,6 @@ QgsVectorLayerImport::importLayer( QgsVectorLayer* layer,
   }
 
   delete writer;
-
-  if ( shallTransform )
-  {
-    delete ct;
-  }
 
   if ( errorMessage )
   {

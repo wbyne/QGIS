@@ -25,16 +25,15 @@
 #include <QMap>
 
 #include "qgsvectorlayer.h" // QgsAttributeList
-#include "qgsvectorlayercache.h"
 #include "qgsconditionalstyle.h"
 #include "qgsattributeeditorcontext.h"
+#include "qgsvectorlayercache.h"
 
 class QgsMapCanvas;
 class QgsMapLayerAction;
 class QgsEditorWidgetFactory;
 
-
-/**
+/** \ingroup gui
  * A model backed by a {@link QgsVectorLayerCache} which is able to provide
  * feature/attribute information to a QAbstractItemView.
  *
@@ -194,6 +193,19 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     void prefetchColumnData( int column );
 
     /**
+     * Prefetches the entire data for one expression. Based on this cached information
+     * the sorting can later be done in a performant way.
+     *
+     * @param expression The expression to cache
+     */
+    void prefetchSortData( const QString& expression );
+
+    /**
+     * The expression which was used to fill the sorting cache
+     */
+    QString sortCacheExpression() const;
+
+    /**
      * Set a request that will be used to fill this attribute table model.
      * In contrast to a filter, the request will constrain the data shown without the possibility
      * to dynamically adjust it.
@@ -205,6 +217,7 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     /**
      * Get the the feature request
      */
+    // TODO QGIS 3: return copy instead of reference
     const QgsFeatureRequest& request() const;
 
     /**
@@ -335,9 +348,12 @@ class GUI_EXPORT QgsAttributeTableModel: public QAbstractTableModel
     QgsFeatureRequest mFeatureRequest;
 
     /** The currently cached column */
-    int mCachedField;
-    /** Allows caching of one specific column (used for sorting) */
-    QHash<QgsFeatureId, QVariant> mFieldCache;
+    QgsExpression mSortCacheExpression;
+    QgsAttributeList mSortCacheAttributes;
+    /** If it is set, a simple field is used for sorting, if it's -1 it's the mSortCacheExpression*/
+    int mSortFieldIndex;
+    /** Allows caching of one value per column (used for sorting) */
+    QHash<QgsFeatureId, QVariant> mSortCache;
 
     /**
      * Holds the bounds of changed cells while an update operation is running

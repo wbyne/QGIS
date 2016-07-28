@@ -22,14 +22,17 @@
 //header for class being tested
 #include <qgsexpression.h>
 #include <qgsfeature.h>
+#include "qgsfeatureiterator.h"
 #include <qgsfeaturerequest.h>
 #include <qgsgeometry.h>
 #include <qgsrenderchecker.h>
 #include "qgsexpressioncontext.h"
+#include "qgsrelationmanager.h"
 #include "qgsvectorlayer.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsvectordataprovider.h"
 #include "qgsdistancearea.h"
+#include "qgsproject.h"
 
 static void _parseAndEvalExpr( int arg )
 {
@@ -48,14 +51,18 @@ class TestQgsExpression: public QObject
   public:
 
     TestQgsExpression()
-        : mPointsLayer( 0 )
-        , mMemoryLayer( 0 )
+        : mPointsLayer( nullptr )
+        , mMemoryLayer( nullptr )
+        , mAggregatesLayer( nullptr )
+        , mChildLayer( nullptr )
     {}
 
   private:
 
     QgsVectorLayer* mPointsLayer;
     QgsVectorLayer* mMemoryLayer;
+    QgsVectorLayer* mAggregatesLayer;
+    QgsVectorLayer* mChildLayer;
 
   private slots:
 
@@ -104,6 +111,70 @@ class TestQgsExpression: public QObject
       f4.setAttribute( "col2", "test4" );
       mMemoryLayer->dataProvider()->addFeatures( QgsFeatureList() << f1 << f2 << f3 << f4 );
       QgsMapLayerRegistry::instance()->addMapLayer( mMemoryLayer );
+
+      // test layer for aggregates
+      mAggregatesLayer = new QgsVectorLayer( "Point?field=col1:integer&field=col2:string&field=col3:integer", "aggregate_layer", "memory" );
+      QVERIFY( mAggregatesLayer->isValid() );
+      QgsFeature af1( mAggregatesLayer->dataProvider()->fields(), 1 );
+      af1.setAttribute( "col1", 4 );
+      af1.setAttribute( "col2", "test" );
+      af1.setAttribute( "col3", 2 );
+      QgsFeature af2( mAggregatesLayer->dataProvider()->fields(), 2 );
+      af2.setAttribute( "col1", 2 );
+      af2.setAttribute( "col2", QVariant( QVariant::String ) );
+      af2.setAttribute( "col3", 1 );
+      QgsFeature af3( mAggregatesLayer->dataProvider()->fields(), 3 );
+      af3.setAttribute( "col1", 3 );
+      af3.setAttribute( "col2", "test333" );
+      af3.setAttribute( "col3", 2 );
+      QgsFeature af4( mAggregatesLayer->dataProvider()->fields(), 4 );
+      af4.setAttribute( "col1", 2 );
+      af4.setAttribute( "col2", "test4" );
+      af4.setAttribute( "col3", 2 );
+      QgsFeature af5( mAggregatesLayer->dataProvider()->fields(), 5 );
+      af5.setAttribute( "col1", 5 );
+      af5.setAttribute( "col2", QVariant( QVariant::String ) );
+      af5.setAttribute( "col3", 3 );
+      QgsFeature af6( mAggregatesLayer->dataProvider()->fields(), 6 );
+      af6.setAttribute( "col1", 8 );
+      af6.setAttribute( "col2", "test4" );
+      af6.setAttribute( "col3", 3 );
+      mAggregatesLayer->dataProvider()->addFeatures( QgsFeatureList() << af1 << af2 << af3 << af4 << af5 << af6 );
+      QgsMapLayerRegistry::instance()->addMapLayer( mAggregatesLayer );
+
+      mChildLayer = new QgsVectorLayer( "Point?field=parent:integer&field=col2:string&field=col3:integer", "child_layer", "memory" );
+      QVERIFY( mChildLayer->isValid() );
+      QgsFeature cf1( mChildLayer->dataProvider()->fields(), 1 );
+      cf1.setAttribute( "parent", 4 );
+      cf1.setAttribute( "col2", "test" );
+      cf1.setAttribute( "col3", 2 );
+      QgsFeature cf2( mChildLayer->dataProvider()->fields(), 2 );
+      cf2.setAttribute( "parent", 4 );
+      cf2.setAttribute( "col2", QVariant( QVariant::String ) );
+      cf2.setAttribute( "col3", 1 );
+      QgsFeature cf3( mChildLayer->dataProvider()->fields(), 3 );
+      cf3.setAttribute( "parent", 4 );
+      cf3.setAttribute( "col2", "test333" );
+      cf3.setAttribute( "col3", 2 );
+      QgsFeature cf4( mChildLayer->dataProvider()->fields(), 4 );
+      cf4.setAttribute( "parent", 3 );
+      cf4.setAttribute( "col2", "test4" );
+      cf4.setAttribute( "col3", 2 );
+      QgsFeature cf5( mChildLayer->dataProvider()->fields(), 5 );
+      cf5.setAttribute( "parent", 3 );
+      cf5.setAttribute( "col2", QVariant( QVariant::String ) );
+      cf5.setAttribute( "col3", 7 );
+      mChildLayer->dataProvider()->addFeatures( QgsFeatureList() << cf1 << cf2 << cf3 << cf4 << cf5 );
+      QgsMapLayerRegistry::instance()->addMapLayer( mChildLayer );
+
+      QgsRelation rel;
+      rel.setRelationId( "my_rel" );
+      rel.setRelationName( "relation name" );
+      rel.setReferencedLayer( mAggregatesLayer->id() );
+      rel.setReferencingLayer( mChildLayer->id() );
+      rel.addFieldPair( "parent", "col1" );
+      QVERIFY( rel.isValid() );
+      QgsProject::instance()->relationManager()->addRelation( rel );
     }
 
     void cleanupTestCase()
@@ -358,6 +429,20 @@ class TestQgsExpression: public QObject
       QTest::newRow( "'nan'='x'" ) << "'nan'='x'" << false << QVariant( 0 );
       QTest::newRow( "'inf'='inf'" ) << "'inf'='inf'" << false << QVariant( 1 );
       QTest::newRow( "'inf'='x'" ) << "'inf'='x'" << false << QVariant( 0 );
+      QTest::newRow( "'1.1'='1.1'" ) << "'1.1'='1.1'" << false << QVariant( 1 );
+      QTest::newRow( "'1.1'!='1.1'" ) << "'1.1'!='1.1'" << false << QVariant( 0 );
+      QTest::newRow( "'1.1'='1.10'" ) << "'1.1'='1.10'" << false << QVariant( 0 );
+      QTest::newRow( "'1.1'!='1.10'" ) << "'1.1'!='1.10'" << false << QVariant( 1 );
+      QTest::newRow( "1.1=1.10" ) << "1.1=1.10" << false << QVariant( 1 );
+      QTest::newRow( "1.1 != 1.10" ) << "1.1 != 1.10" << false << QVariant( 0 );
+      QTest::newRow( "'1.1'=1.1" ) << "'1.1'=1.1" << false << QVariant( 1 );
+      QTest::newRow( "'1.10'=1.1" ) << "'1.10'=1.1" << false << QVariant( 1 );
+      QTest::newRow( "1.1='1.10'" ) << "1.1='1.10'" << false << QVariant( 1 );
+      QTest::newRow( "'1.1'='1.10000'" ) << "'1.1'='1.10000'" << false << QVariant( 0 );
+      QTest::newRow( "'1E-23'='1E-23'" ) << "'1E-23'='1E-23'" << false << QVariant( 1 );
+      QTest::newRow( "'1E-23'!='1E-23'" ) << "'1E-23'!='1E-23'" << false << QVariant( 0 );
+      QTest::newRow( "'1E-23'='2E-23'" ) << "'1E-23'='2E-23'" << false << QVariant( 0 );
+      QTest::newRow( "'1E-23'!='2E-23'" ) << "'1E-23'!='2E-23'" << false << QVariant( 1 );
 
       // is, is not
       QTest::newRow( "is null,null" ) << "null is null" << false << QVariant( 1 );
@@ -368,6 +453,10 @@ class TestQgsExpression: public QObject
       QTest::newRow( "is not int" ) << "1 is not 1" << false << QVariant( 0 );
       QTest::newRow( "is text" ) << "'x' is 'y'" << false << QVariant( 0 );
       QTest::newRow( "is not text" ) << "'x' is not 'y'" << false << QVariant( 1 );
+      QTest::newRow( "'1.1' is '1.10'" ) << "'1.1' is '1.10'" << false << QVariant( 0 );
+      QTest::newRow( "'1.1' is '1.10000'" ) << "'1.1' is '1.10000'" << false << QVariant( 0 );
+      QTest::newRow( "1.1 is '1.10'" ) << "1.1 is '1.10'" << false << QVariant( 1 );
+      QTest::newRow( "'1.10' is 1.1" ) << "'1.10' is 1.1" << false << QVariant( 1 );
 
       //  logical
       QTest::newRow( "T or F" ) << "1=1 or 2=3" << false << QVariant( 1 );
@@ -578,6 +667,11 @@ class TestQgsExpression: public QObject
       QTest::newRow( "geometry_n collection" ) << "geom_to_wkt(geometry_n(geom_from_wkt('GEOMETRYCOLLECTION(POINT(0 1), POINT(0 0), POINT(1 0), POINT(1 1))'),3))" << false << QVariant( QString( "Point (1 0)" ) );
       QTest::newRow( "geometry_n collection bad index 1" ) << "geometry_n(geom_from_wkt('GEOMETRYCOLLECTION(POINT(0 1), POINT(0 0), POINT(1 0), POINT(1 1))'),0)" << false << QVariant();
       QTest::newRow( "geometry_n collection bad index 2" ) << "geometry_n(geom_from_wkt('GEOMETRYCOLLECTION(POINT(0 1), POINT(0 0), POINT(1 0), POINT(1 1))'),5)" << false << QVariant();
+      QTest::newRow( "boundary not geom" ) << "boundary('g')" << true << QVariant();
+      QTest::newRow( "boundary null" ) << "boundary(NULL)" << false << QVariant();
+      QTest::newRow( "boundary point" ) << "boundary(geom_from_wkt('POINT(1 2)'))" << false << QVariant();
+      QTest::newRow( "boundary polygon" ) << "geom_to_wkt(boundary(geometry:=geom_from_wkt('POLYGON((-1 -1, 4 0, 4 2, 0 2, -1 -1))')))" << false << QVariant( "LineString (-1 -1, 4 0, 4 2, 0 2, -1 -1)" );
+      QTest::newRow( "boundary line" ) << "geom_to_wkt(boundary(geom_from_wkt('LINESTRING(0 0, 1 1, 2 2)')))" << false << QVariant( "MultiPoint ((0 0),(2 2))" );
       QTest::newRow( "start_point point" ) << "geom_to_wkt(start_point(geom_from_wkt('POINT(2 0)')))" << false << QVariant( "Point (2 0)" );
       QTest::newRow( "start_point multipoint" ) << "geom_to_wkt(start_point(geom_from_wkt('MULTIPOINT((3 3), (1 1), (2 2))')))" << false << QVariant( "Point (3 3)" );
       QTest::newRow( "start_point line" ) << "geom_to_wkt(start_point(geom_from_wkt('LINESTRING(4 1, 1 1, 2 2)')))" << false << QVariant( "Point (4 1)" );
@@ -685,6 +779,7 @@ class TestQgsExpression: public QObject
       QTest::newRow( "title" ) << "title(' HeLlO   WORLD ')" << false << QVariant( " Hello   World " );
       QTest::newRow( "trim" ) << "trim('   Test String ')" << false << QVariant( "Test String" );
       QTest::newRow( "trim empty string" ) << "trim('')" << false << QVariant( "" );
+      QTest::newRow( "char" ) << "char(81)" << false << QVariant( "Q" );
       QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',13)" << false << QVariant( "university of\nqgis" );
       QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',13,' ')" << false << QVariant( "university of\nqgis" );
       QTest::newRow( "wordwrap" ) << "wordwrap('university of qgis',-3)" << false << QVariant( "university\nof qgis" );
@@ -763,6 +858,11 @@ class TestQgsExpression: public QObject
       QTest::newRow( "age time" ) << "second(age(to_time('08:30:22'),to_time('07:12:10')))" << false << QVariant( 4692.0 );
       QTest::newRow( "age date" ) << "day(age(to_date('2004-03-22'),to_date('2004-03-12')))" << false << QVariant( 10.0 );
       QTest::newRow( "age datetime" ) << "hour(age(to_datetime('2004-03-22 08:30:22'),to_datetime('2004-03-12 07:30:22')))" << false << QVariant( 241.0 );
+      QTest::newRow( "date + time" ) << "to_date('2013-03-04') + to_time('13:14:15')" << false << QVariant( QDateTime( QDate( 2013, 3, 4 ), QTime( 13, 14, 15 ) ) );
+      QTest::newRow( "time + date" ) << "to_time('13:14:15') + to_date('2013-03-04')" << false << QVariant( QDateTime( QDate( 2013, 3, 4 ), QTime( 13, 14, 15 ) ) );
+      QTest::newRow( "date - date" ) << "to_date('2013-03-04') - to_date('2013-03-01')" << false << QVariant( QgsInterval( 3*24*60*60 ) );
+      QTest::newRow( "datetime - datetime" ) << "to_datetime('2013-03-04 08:30:00') - to_datetime('2013-03-01 05:15:00')" << false << QVariant( QgsInterval( 3*24*60*60 + 3 * 60*60 + 15*60 ) );
+      QTest::newRow( "time - time" ) << "to_time('08:30:00') - to_time('05:15:00')" << false << QVariant( QgsInterval( 3 * 60*60 + 15*60 ) );
 
       // Color functions
       QTest::newRow( "ramp color" ) << "ramp_color('Spectral',0.3)" << false << QVariant( "254,190,116,255" );
@@ -1117,6 +1217,209 @@ class TestQgsExpression: public QObject
       }
     }
 
+    void aggregate_data()
+    {
+      QTest::addColumn<QString>( "string" );
+      QTest::addColumn<bool>( "evalError" );
+      QTest::addColumn<QVariant>( "result" );
+
+      QTest::newRow( "bad layer" ) << "aggregate('xxxtest','sum',\"col1\")" << true << QVariant();
+      QTest::newRow( "bad aggregate" ) << "aggregate('test','xxsum',\"col1\")" << true << QVariant();
+      QTest::newRow( "bad expression" ) << "aggregate('test','sum',\"xcvxcvcol1\")" << true << QVariant();
+
+      QTest::newRow( "int aggregate 1" ) << "aggregate('test','sum',\"col1\")" << false << QVariant( 65 );
+      QTest::newRow( "int aggregate 2" ) << "aggregate('test','max',\"col1\")" << false << QVariant( 41 );
+      QTest::newRow( "int aggregate named" ) << "aggregate(layer:='test',aggregate:='sum',expression:=\"col1\")" << false << QVariant( 65 );
+      QTest::newRow( "string aggregate on int" ) << "aggregate('test','max_length',\"col1\")" << true << QVariant();
+      QTest::newRow( "string aggregate 1" ) << "aggregate('test','min',\"col2\")" << false << QVariant( "test1" );
+      QTest::newRow( "string aggregate 2" ) << "aggregate('test','min_length',\"col2\")" << false << QVariant( 5 );
+      QTest::newRow( "string concatenate" ) << "aggregate('test','concatenate',\"col2\",concatenator:=' , ')" << false << QVariant( "test1 , test2 , test3 , test4" );
+
+      QTest::newRow( "sub expression" ) << "aggregate('test','sum',\"col1\" * 2)" << false << QVariant( 65 * 2 );
+      QTest::newRow( "bad sub expression" ) << "aggregate('test','sum',\"xcvxcv\" * 2)" << true << QVariant();
+
+      QTest::newRow( "filter" ) << "aggregate('test','sum',\"col1\", \"col1\" <= 10)" << false << QVariant( 13 );
+      QTest::newRow( "filter context" ) << "aggregate('test','sum',\"col1\", \"col1\" <= @test_var)" << false << QVariant( 13 );
+      QTest::newRow( "filter named" ) << "aggregate(layer:='test',aggregate:='sum',expression:=\"col1\", filter:=\"col1\" <= 10)" << false << QVariant( 13 );
+      QTest::newRow( "filter no matching" ) << "aggregate('test','sum',\"col1\", \"col1\" <= -10)" << false << QVariant( 0 );
+    }
+
+    void aggregate()
+    {
+      QgsExpressionContext context;
+      QgsExpressionContextScope* scope = new QgsExpressionContextScope();
+      scope->setVariable( "test_var", 10 );
+      context << scope;
+
+      QFETCH( QString, string );
+      QFETCH( bool, evalError );
+      QFETCH( QVariant, result );
+
+      QgsExpression exp( string );
+      QCOMPARE( exp.hasParserError(), false );
+      if ( exp.hasParserError() )
+        qDebug() << exp.parserErrorString();
+
+      QVariant res;
+
+      //try evaluating once without context (only if variables aren't required)
+      if ( !string.contains( "@" ) )
+      {
+        res = exp.evaluate();
+        if ( exp.hasEvalError() )
+          qDebug() << exp.evalErrorString();
+
+        QCOMPARE( exp.hasEvalError(), evalError );
+        QCOMPARE( res, result );
+      }
+
+      //try evaluating with context
+      res = exp.evaluate( &context );
+      if ( exp.hasEvalError() )
+        qDebug() << exp.evalErrorString();
+
+      QCOMPARE( exp.hasEvalError(), evalError );
+      QCOMPARE( res, result );
+
+      // check again - make sure value was correctly cached
+      res = exp.evaluate( &context );
+      QCOMPARE( res, result );
+    }
+
+    void layerAggregates_data()
+    {
+      QTest::addColumn<QString>( "string" );
+      QTest::addColumn<bool>( "evalError" );
+      QTest::addColumn<QVariant>( "result" );
+
+      QTest::newRow( "count" ) << "count(\"col1\")" << false << QVariant( 6.0 );
+      QTest::newRow( "count_distinct" ) << "count_distinct(\"col1\")" << false << QVariant( 5.0 );
+      QTest::newRow( "count_missing" ) << "count_missing(\"col2\")" << false << QVariant( 2 );
+      QTest::newRow( "sum" ) << "sum(\"col1\")" << false << QVariant( 24.0 );
+      QTest::newRow( "minimum" ) << "minimum(\"col1\")" << false << QVariant( 2.0 );
+      QTest::newRow( "maximum" ) << "maximum(\"col1\")" << false << QVariant( 8.0 );
+      QTest::newRow( "mean" ) << "mean(\"col1\")" << false << QVariant( 4.0 );
+      QTest::newRow( "median" ) << "median(\"col1\")" << false << QVariant( 3.5 );
+      QTest::newRow( "stdev" ) << "round(stdev(\"col1\")*10000)" << false << QVariant( 22804 );
+      QTest::newRow( "range" ) << "range(\"col1\")" << false << QVariant( 6.0 );
+      QTest::newRow( "minority" ) << "minority(\"col3\")" << false << QVariant( 1 );
+      QTest::newRow( "majority" ) << "majority(\"col3\")" << false << QVariant( 2 );
+      QTest::newRow( "q1" ) << "q1(\"col1\")" << false << QVariant( 2 );
+      QTest::newRow( "q3" ) << "q3(\"col1\")" << false << QVariant( 5 );
+      QTest::newRow( "iqr" ) << "iqr(\"col1\")" << false << QVariant( 3 );
+      QTest::newRow( "min_length" ) << "min_length(\"col2\")" << false << QVariant( 0 );
+      QTest::newRow( "max_length" ) << "max_length(\"col2\")" << false << QVariant( 7 );
+      QTest::newRow( "concatenate" ) << "concatenate(\"col2\",concatenator:=',')" << false << QVariant( "test,,test333,test4,,test4" );
+
+      QTest::newRow( "bad expression" ) << "sum(\"xcvxcvcol1\")" << true << QVariant();
+      QTest::newRow( "aggregate named" ) << "sum(expression:=\"col1\")" << false << QVariant( 24.0 );
+      QTest::newRow( "string aggregate on int" ) << "max_length(\"col1\")" << true << QVariant();
+
+      QTest::newRow( "sub expression" ) << "sum(\"col1\" * 2)" << false << QVariant( 48 );
+      QTest::newRow( "bad sub expression" ) << "sum(\"xcvxcv\" * 2)" << true << QVariant();
+
+      QTest::newRow( "filter" ) << "sum(\"col1\", NULL, \"col1\" >= 5)" << false << QVariant( 13 );
+      QTest::newRow( "filter named" ) << "sum(expression:=\"col1\", filter:=\"col1\" >= 5)" << false << QVariant( 13 );
+      QTest::newRow( "filter no matching" ) << "sum(expression:=\"col1\", filter:=\"col1\" <= -5)" << false << QVariant( 0 );
+
+      QTest::newRow( "group by" ) << "sum(\"col1\", \"col3\")" << false << QVariant( 9 );
+      QTest::newRow( "group by and filter" ) << "sum(\"col1\", \"col3\", \"col1\">=3)" << false << QVariant( 7 );
+      QTest::newRow( "group by and filter named" ) << "sum(expression:=\"col1\", group_by:=\"col3\", filter:=\"col1\">=3)" << false << QVariant( 7 );
+      QTest::newRow( "group by expression" ) << "sum(\"col1\", \"col1\" % 2)" << false << QVariant( 16 );
+    }
+
+    void layerAggregates()
+    {
+      QgsExpressionContext context;
+      context.appendScope( QgsExpressionContextUtils::layerScope( mAggregatesLayer ) );
+
+      QgsFeature af1( mAggregatesLayer->dataProvider()->fields(), 1 );
+      af1.setAttribute( "col1", 4 );
+      af1.setAttribute( "col2", "test" );
+      af1.setAttribute( "col3", 2 );
+      context.setFeature( af1 );
+
+      QFETCH( QString, string );
+      QFETCH( bool, evalError );
+      QFETCH( QVariant, result );
+
+      QgsExpression exp( string );
+      QCOMPARE( exp.hasParserError(), false );
+      if ( exp.hasParserError() )
+        qDebug() << exp.parserErrorString();
+
+      //try evaluating with context
+      QVariant res = exp.evaluate( &context );
+      if ( exp.hasEvalError() )
+        qDebug() << exp.evalErrorString();
+
+      QCOMPARE( exp.hasEvalError(), evalError );
+      QCOMPARE( res, result );
+
+      // check again - make sure value was correctly cached
+      res = exp.evaluate( &context );
+      QCOMPARE( res, result );
+    }
+
+    void relationAggregate_data()
+    {
+      QTest::addColumn<QString>( "string" );
+      QTest::addColumn<int>( "parentKey" );
+      QTest::addColumn<bool>( "evalError" );
+      QTest::addColumn<QVariant>( "result" );
+
+      QTest::newRow( "bad relation" ) << "relation_aggregate('xxxtest','sum',\"col3\")" << 0 << true << QVariant();
+      QTest::newRow( "bad aggregate" ) << "relation_aggregate('my_rel','xxsum',\"col3\")" << 0 << true << QVariant();
+      QTest::newRow( "bad expression" ) << "relation_aggregate('my_rel','sum',\"xcvxcvcol1\")" << 0 << true << QVariant();
+
+      QTest::newRow( "relation aggregate 1" ) << "relation_aggregate('my_rel','sum',\"col3\")" << 4 << false << QVariant( 5 );
+      QTest::newRow( "relation aggregate by name" ) << "relation_aggregate('relation name','sum',\"col3\")" << 4 << false << QVariant( 5 );
+      QTest::newRow( "relation aggregate 2" ) << "relation_aggregate('my_rel','sum',\"col3\")" << 3 << false << QVariant( 9 );
+      QTest::newRow( "relation aggregate 2" ) << "relation_aggregate('my_rel','sum',\"col3\")" << 6 << false << QVariant( 0 );
+      QTest::newRow( "relation aggregate count 1" ) << "relation_aggregate('my_rel','count',\"col3\")" << 4 << false << QVariant( 3 );
+      QTest::newRow( "relation aggregate count 2" ) << "relation_aggregate('my_rel','count',\"col3\")" << 3 << false << QVariant( 2 );
+      QTest::newRow( "relation aggregate count 2" ) << "relation_aggregate('my_rel','count',\"col3\")" << 6 << false << QVariant( 0 );
+      QTest::newRow( "relation aggregate concatenation" ) << "relation_aggregate('my_rel','concatenate',to_string(\"col3\"),concatenator:=',')" << 3 << false << QVariant( "2,7" );
+
+      QTest::newRow( "named relation aggregate 1" ) << "relation_aggregate(relation:='my_rel',aggregate:='sum',expression:=\"col3\")" << 4 << false << QVariant( 5 );
+      QTest::newRow( "relation aggregate sub expression 1" ) << "relation_aggregate('my_rel','sum',\"col3\" * 2)" << 4 << false << QVariant( 10 );
+      QTest::newRow( "relation aggregate bad sub expression" ) << "relation_aggregate('my_rel','sum',\"fsdfsddf\" * 2)" << 4 << true << QVariant();
+    }
+
+    void relationAggregate()
+    {
+      QFETCH( QString, string );
+      QFETCH( int, parentKey );
+      QFETCH( bool, evalError );
+      QFETCH( QVariant, result );
+
+      QgsExpressionContext context;
+      context.appendScope( QgsExpressionContextUtils::layerScope( mAggregatesLayer ) );
+
+      QgsFeature af1( mAggregatesLayer->dataProvider()->fields(), 1 );
+      af1.setAttribute( "col1", parentKey );
+      context.setFeature( af1 );
+
+      QgsExpression exp( string );
+      QCOMPARE( exp.hasParserError(), false );
+      if ( exp.hasParserError() )
+        qDebug() << exp.parserErrorString();
+
+      QVariant res;
+
+      //try evaluating with context
+      res = exp.evaluate( &context );
+      if ( exp.hasEvalError() )
+        qDebug() << exp.evalErrorString();
+
+      QCOMPARE( exp.hasEvalError(), evalError );
+      QCOMPARE( res, result );
+
+      // check again - make sure value was correctly cached
+      res = exp.evaluate( &context );
+      QCOMPARE( res, result );
+    }
+
     void get_feature_geometry()
     {
       //test that get_feature fetches feature's geometry
@@ -1448,10 +1751,10 @@ class TestQgsExpression: public QObject
       double expected = 1005640568.0;
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
       // units should not be converted if no geometry calculator set
-      expArea.setAreaUnits( QgsUnitTypes::SquareFeet );
+      expArea.setAreaUnits( QgsUnitTypes::AreaSquareFeet );
       vArea = expArea.evaluate( &context );
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
-      expArea.setAreaUnits( QgsUnitTypes::SquareNauticalMiles );
+      expArea.setAreaUnits( QgsUnitTypes::AreaSquareNauticalMiles );
       vArea = expArea.evaluate( &context );
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
 
@@ -1462,13 +1765,13 @@ class TestQgsExpression: public QObject
       expected = 1009089817.0;
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
       // test unit conversion
-      expArea2.setAreaUnits( QgsUnitTypes::SquareMeters ); //default units should be square meters
+      expArea2.setAreaUnits( QgsUnitTypes::AreaSquareMeters ); //default units should be square meters
       vArea = expArea2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
-      expArea2.setAreaUnits( QgsUnitTypes::UnknownAreaUnit ); //unknown units should not be converted
+      expArea2.setAreaUnits( QgsUnitTypes::AreaUnknownUnit ); //unknown units should not be converted
       vArea = expArea2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 1.0 ) );
-      expArea2.setAreaUnits( QgsUnitTypes::SquareMiles );
+      expArea2.setAreaUnits( QgsUnitTypes::AreaSquareMiles );
       expected = 389.6117565069;
       vArea = expArea2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vArea.toDouble(), expected, 0.001 ) );
@@ -1479,10 +1782,10 @@ class TestQgsExpression: public QObject
       expected = 128282.086;
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
       // units should not be converted if no geometry calculator set
-      expPerimeter.setDistanceUnits( QGis::Feet );
+      expPerimeter.setDistanceUnits( QgsUnitTypes::DistanceFeet );
       vPerimeter = expPerimeter.evaluate( &context );
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
-      expPerimeter.setDistanceUnits( QGis::NauticalMiles );
+      expPerimeter.setDistanceUnits( QgsUnitTypes::DistanceNauticalMiles );
       vPerimeter = expPerimeter.evaluate( &context );
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
 
@@ -1493,13 +1796,13 @@ class TestQgsExpression: public QObject
       expected = 128289.074;
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
       // test unit conversion
-      expPerimeter2.setDistanceUnits( QGis::Meters ); //default units should be meters
+      expPerimeter2.setDistanceUnits( QgsUnitTypes::DistanceMeters ); //default units should be meters
       vPerimeter = expPerimeter2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
-      expPerimeter2.setDistanceUnits( QGis::UnknownUnit ); //unknown units should not be converted
+      expPerimeter2.setDistanceUnits( QgsUnitTypes::DistanceUnknownUnit ); //unknown units should not be converted
       vPerimeter = expPerimeter2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
-      expPerimeter2.setDistanceUnits( QGis::Feet );
+      expPerimeter2.setDistanceUnits( QgsUnitTypes::DistanceFeet );
       expected = 420895.9120735;
       vPerimeter = expPerimeter2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vPerimeter.toDouble(), expected, 0.001 ) );
@@ -1515,10 +1818,10 @@ class TestQgsExpression: public QObject
       expected = 26930.637;
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
       // units should not be converted if no geometry calculator set
-      expLength.setDistanceUnits( QGis::Feet );
+      expLength.setDistanceUnits( QgsUnitTypes::DistanceFeet );
       vLength = expLength.evaluate( &context );
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
-      expLength.setDistanceUnits( QGis::NauticalMiles );
+      expLength.setDistanceUnits( QgsUnitTypes::DistanceNauticalMiles );
       vLength = expLength.evaluate( &context );
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
 
@@ -1529,13 +1832,13 @@ class TestQgsExpression: public QObject
       expected = 26932.156;
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
       // test unit conversion
-      expLength2.setDistanceUnits( QGis::Meters ); //default units should be meters
+      expLength2.setDistanceUnits( QgsUnitTypes::DistanceMeters ); //default units should be meters
       vLength = expLength2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
-      expLength2.setDistanceUnits( QGis::UnknownUnit ); //unknown units should not be converted
+      expLength2.setDistanceUnits( QgsUnitTypes::DistanceUnknownUnit ); //unknown units should not be converted
       vLength = expLength2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );
-      expLength2.setDistanceUnits( QGis::Feet );
+      expLength2.setDistanceUnits( QgsUnitTypes::DistanceFeet );
       expected = 88360.0918635;
       vLength = expLength2.evaluate( &context );
       QVERIFY( qgsDoubleNear( vLength.toDouble(), expected, 0.001 ) );

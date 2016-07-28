@@ -114,7 +114,7 @@ QgsGrassProvider::QgsGrassProvider( QString uri )
     , mLayerField( -1 )
     , mLayerType( POINT )
     , mGrassType( 0 )
-    , mQgisType( QGis::WKBUnknown )
+    , mQgisType( Qgis::WKBUnknown )
     , mLayer( 0 )
     , mMapVersion( 0 )
     , mNumberFeatures( 0 )
@@ -236,16 +236,16 @@ QgsGrassProvider::QgsGrassProvider( QString uri )
     case CENTROID:
     case TOPO_POINT:
     case TOPO_NODE:
-      mQgisType = QGis::WKBPoint;
+      mQgisType = Qgis::WKBPoint;
       break;
     case LINE:
     case BOUNDARY:
     case TOPO_LINE:
-      mQgisType = QGis::WKBLineString;
+      mQgisType = Qgis::WKBLineString;
       break;
     case POLYGON:
     case FACE:
-      mQgisType = QGis::WKBPolygon;
+      mQgisType = Qgis::WKBPolygon;
       break;
   }
 
@@ -279,7 +279,6 @@ QgsGrassProvider::QgsGrassProvider( QString uri )
 
 QgsGrassProvider::~QgsGrassProvider()
 {
-  QgsDebugMsg( "entered" );
   if ( mLayer )
   {
     mLayer->close();
@@ -314,7 +313,6 @@ int QgsGrassProvider::capabilities() const
 
 bool QgsGrassProvider::openLayer()
 {
-  QgsDebugMsg( "entered" );
   // the map may be invalid (e.g. wrong uri or open failed)
   QgsGrassVectorMap *vectorMap = QgsGrassVectorMapStore::instance()->openMap( mGrassObject );
   if ( !vectorMap ) // should not happen
@@ -382,7 +380,6 @@ void QgsGrassProvider::loadMapInfo()
 
 void QgsGrassProvider::update()
 {
-  QgsDebugMsg( "entered" );
 
   mValid = false;
 
@@ -417,7 +414,7 @@ QString QgsGrassProvider::storageType() const
 
 
 
-QgsFeatureIterator QgsGrassProvider::getFeatures( const QgsFeatureRequest& request )
+QgsFeatureIterator QgsGrassProvider::getFeatures( const QgsFeatureRequest& request ) const
 {
   if ( !mValid )
   {
@@ -432,7 +429,7 @@ QgsFeatureIterator QgsGrassProvider::getFeatures( const QgsFeatureRequest& reque
   return QgsFeatureIterator( iterator );
 }
 
-QgsRectangle QgsGrassProvider::extent()
+QgsRectangle QgsGrassProvider::extent() const
 {
   if ( isValid() )
   {
@@ -446,7 +443,7 @@ QgsRectangle QgsGrassProvider::extent()
 /**
 * Return the feature type
 */
-QGis::WkbType QgsGrassProvider::geometryType() const
+Qgis::WkbType QgsGrassProvider::geometryType() const
 {
   return mQgisType;
 }
@@ -456,7 +453,7 @@ long QgsGrassProvider::featureCount() const
   return mNumberFeatures;
 }
 
-const QgsFields & QgsGrassProvider::fields() const
+QgsFields QgsGrassProvider::fields() const
 {
   if ( isTopoType() )
   {
@@ -481,7 +478,7 @@ int QgsGrassProvider::keyField()
   return mLayer->keyColumn();
 }
 
-QVariant QgsGrassProvider::minimumValue( int index )
+QVariant QgsGrassProvider::minimumValue( int index ) const
 {
   if ( isValid() )
   {
@@ -500,14 +497,14 @@ QVariant QgsGrassProvider::maxValue( int index )
   return QVariant();
 }
 
-bool QgsGrassProvider::isValid()
+bool QgsGrassProvider::isValid() const
 {
   bool valid = mValid && mLayer && mLayer->map() && mLayer->map()->map();
   QgsDebugMsg( QString( "valid = %1" ).arg( valid ) );
   return valid;
 }
 
-QgsCoordinateReferenceSystem QgsGrassProvider::crs()
+QgsCoordinateReferenceSystem QgsGrassProvider::crs() const
 {
   QString error;
   return QgsGrass::crs( mGrassObject.gisdbase(), mGrassObject.location(), error );
@@ -563,7 +560,6 @@ int QgsGrassProvider::grassLayerType( QString name )
 
 void QgsGrassProvider::onDataChanged()
 {
-  QgsDebugMsg( "entered" );
   update();
   emit dataChanged();
 }
@@ -572,7 +568,6 @@ void QgsGrassProvider::onDataChanged()
 
 bool QgsGrassProvider::isGrassEditable( void )
 {
-  QgsDebugMsg( "entered" );
 
   if ( !isValid() )
     return false;
@@ -594,7 +589,6 @@ bool QgsGrassProvider::isEdited( void )
 
 void QgsGrassProvider::freeze()
 {
-  QgsDebugMsg( "entered" );
 
   if ( !isValid() )
   {
@@ -613,7 +607,6 @@ void QgsGrassProvider::freeze()
 
 void QgsGrassProvider::thaw()
 {
-  QgsDebugMsg( "entered" );
 
   if ( !openLayer() )
   {
@@ -628,7 +621,6 @@ void QgsGrassProvider::thaw()
 
 bool QgsGrassProvider::closeEdit( bool newMap, QgsVectorLayer *vectorLayer )
 {
-  QgsDebugMsg( "entered" );
 
   if ( !isValid() )
   {
@@ -663,7 +655,7 @@ bool QgsGrassProvider::closeEdit( bool newMap, QgsVectorLayer *vectorLayer )
   return false;
 }
 
-void QgsGrassProvider::ensureUpdated()
+void QgsGrassProvider::ensureUpdated() const
 {
   // TODO
 #if 0
@@ -685,7 +677,6 @@ void QgsGrassProvider::ensureUpdated()
 
 int QgsGrassProvider::numLines( void )
 {
-  QgsDebugMsg( "entered" );
 
   //return ( Vect_get_num_lines( map() ) );
   return mLayer->map()->numLines();
@@ -693,7 +684,6 @@ int QgsGrassProvider::numLines( void )
 
 int QgsGrassProvider::numNodes( void )
 {
-  QgsDebugMsg( "entered" );
 
   return ( Vect_get_num_nodes( map() ) );
 }
@@ -818,7 +808,6 @@ int QgsGrassProvider::rewriteLine( int oldLid, int type, struct line_pnts *Point
 
 int QgsGrassProvider::deleteLine( int line )
 {
-  QgsDebugMsg( "entered" );
 
   if ( !isEdited() )
     return -1;
@@ -1047,14 +1036,12 @@ QgsAttributeMap *QgsGrassProvider::attributes( int field, int cat )
 
 int QgsGrassProvider::numDbLinks( void )
 {
-  QgsDebugMsg( "entered" );
 
   return ( Vect_get_num_dblinks( map() ) );
 }
 
 int QgsGrassProvider::dbLinkField( int link )
 {
-  QgsDebugMsg( "entered" );
 
   struct  field_info *fi = Vect_get_dblink( map(), link );
 
@@ -1232,7 +1219,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
     }
     // geometry
     const QgsAbstractGeometryV2 *geometry = 0;
-    if ( !mEditBuffer->addedFeatures().contains( fid ) )
+    if ( !mEditBuffer->isFeatureAdded( fid ) )
     {
 #ifdef QGISDEBUG
       QgsDebugMsg( "the feature is missing in buffer addedFeatures :" );
@@ -1261,7 +1248,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
 
     setPoints( mPoints, geometry );
 
-    QgsFeatureMap& addedFeatures = const_cast<QgsFeatureMap&>( mEditBuffer->addedFeatures() );
+    QgsFeatureMap& addedFeatures = mEditBuffer->mAddedFeatures;
 
     // change polygon to linestring
     QgsWKBTypes::Type wkbType = QgsWKBTypes::flatType( geometry->wkbType() );
@@ -1284,7 +1271,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
       // resetting fid probably is not possible because it is stored in undo commands and used in buffer maps
 
       // It may be that user manualy entered cat value
-      QgsFeatureMap& addedFeatures = const_cast<QgsFeatureMap&>( mEditBuffer->addedFeatures() );
+      QgsFeatureMap& addedFeatures = mEditBuffer->mAddedFeatures;
       QgsFeature& feature = addedFeatures[fid];
       int catIndex = feature.fields()->indexFromName( mLayer->keyColumnName() );
       if ( catIndex != -1 )
@@ -1734,7 +1721,7 @@ void QgsGrassProvider::onAttributeValueChanged( QgsFeatureId fid, int idx, const
   {
     QgsDebugMsg( "changing attributes in different layer is not allowed" );
     // reset the value
-    QgsChangedAttributesMap &changedAttributes = const_cast<QgsChangedAttributesMap &>( mEditBuffer->changedAttributeValues() );
+    QgsChangedAttributesMap &changedAttributes = mEditBuffer->mChangedAttributeValues;
     if ( idx == mLayer->keyColumn() )
     {
       // should not happen because cat field is not editable
@@ -1932,12 +1919,11 @@ void QgsGrassProvider::onAttributeDeleted( int idx )
 
 void QgsGrassProvider::setAddedFeaturesSymbol()
 {
-  QgsDebugMsg( "entered" );
   if ( !mEditBuffer )
   {
     return;
   }
-  QgsFeatureMap& features = const_cast<QgsFeatureMap&>( mEditBuffer->addedFeatures() );
+  QgsFeatureMap& features = mEditBuffer->mAddedFeatures;
   Q_FOREACH ( QgsFeatureId fid, features.keys() )
   {
     QgsFeature feature = features[fid];
@@ -2006,18 +1992,15 @@ bool QgsGrassProvider::deleteAttributes( const QgsAttributeIds &attributes )
 
 void QgsGrassProvider::onBeforeCommitChanges()
 {
-  QgsDebugMsg( "entered" );
   mLayer->map()->clearUndoCommands();
 }
 
 void QgsGrassProvider::onBeforeRollBack()
 {
-  QgsDebugMsg( "entered" );
 }
 
 void QgsGrassProvider::onEditingStopped()
 {
-  QgsDebugMsg( "entered" );
   QgsVectorLayer *vectorLayer = qobject_cast<QgsVectorLayer *>( sender() );
   closeEdit( false, vectorLayer );
 }
@@ -2081,13 +2064,13 @@ QgsGrassVectorMapLayer * QgsGrassProvider::openLayer() const
   return mLayer->map()->openLayer( mLayerField );
 }
 
-struct Map_info * QgsGrassProvider::map()
-{
-  Q_ASSERT( mLayer );
-  Q_ASSERT( mLayer->map() );
-  Q_ASSERT( mLayer->map()->map() );
-  return mLayer->map()->map();
-}
+struct Map_info * QgsGrassProvider::map() const
+  {
+    Q_ASSERT( mLayer );
+    Q_ASSERT( mLayer->map() );
+    Q_ASSERT( mLayer->map()->map() );
+    return mLayer->map()->map();
+  }
 
 void QgsGrassProvider::setMapset()
 {

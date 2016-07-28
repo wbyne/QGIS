@@ -29,7 +29,7 @@ import os
 
 from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import QGis, QgsFeature, QgsGeometry, QgsFeatureRequest, QgsWKBTypes
+from qgis.core import Qgis, QgsFeature, QgsGeometry, QgsFeatureRequest, QgsWKBTypes
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
@@ -39,10 +39,6 @@ from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
 
 pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
-
-GEOM_25D = [QGis.WKBPoint25D, QGis.WKBLineString25D, QGis.WKBPolygon25D,
-            QGis.WKBMultiPoint25D, QGis.WKBMultiLineString25D,
-            QGis.WKBMultiPolygon25D]
 
 
 class Clip(GeoAlgorithm):
@@ -68,11 +64,6 @@ class Clip(GeoAlgorithm):
             self.getParameterValue(Clip.INPUT))
         layerB = dataobjects.getObjectFromUri(
             self.getParameterValue(Clip.OVERLAY))
-
-        geomType = layerA.dataProvider().geometryType()
-        if geomType in GEOM_25D:
-            raise GeoAlgorithmExecutionException(
-                self.tr('Input layer does not support 2.5D type geometry ({}).').format(QgsWKBTypes.displayString(geomType)))
 
         writer = self.getOutputFromName(self.OUTPUT).getVectorWriter(
             layerA.pendingFields(),
@@ -120,7 +111,7 @@ class Clip(GeoAlgorithm):
                 if found:
                     cur_geom = QgsGeometry(outFeat.geometry())
                     new_geom = QgsGeometry(geom.intersection(cur_geom))
-                    if new_geom.wkbType() == QGis.WKBUnknown or QgsWKBTypes.flatType(new_geom.geometry().wkbType()) == QgsWKBTypes.GeometryCollection:
+                    if new_geom.wkbType() == Qgis.WKBUnknown or QgsWKBTypes.flatType(new_geom.geometry().wkbType()) == QgsWKBTypes.GeometryCollection:
                         int_com = QgsGeometry(geom.combine(cur_geom))
                         int_sym = QgsGeometry(geom.symDifference(cur_geom))
                         new_geom = QgsGeometry(int_com.difference(int_sym))

@@ -1,8 +1,16 @@
 /***************************************************************************
- *  qgsgeometryduplicatenodescheck.cpp                                     *
- *  -------------------                                                    *
- *  copyright            : (C) 2014 by Sandro Mani / Sourcepole AG         *
- *  email                : smani@sourcepole.ch                             *
+    qgsgeometryduplicatenodescheck.cpp
+    ---------------------
+    begin                : September 2015
+    copyright            : (C) 2014 by Sandro Mani / Sourcepole AG
+    email                : smani at sourcepole dot ch
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
  ***************************************************************************/
 
 #include "qgsgeometryduplicatenodescheck.h"
@@ -26,7 +34,7 @@ void QgsGeometryDuplicateNodesCheck::collectErrors( QList<QgsGeometryCheckError*
     {
       for ( int iRing = 0, nRings = geom->ringCount( iPart ); iRing < nRings; ++iRing )
       {
-        int nVerts = QgsGeomUtils::polyLineSize( geom, iPart, iRing );
+        int nVerts = QgsGeometryCheckerUtils::polyLineSize( geom, iPart, iRing );
         if ( nVerts < 2 )
           continue;
         for ( int iVert = nVerts - 1, jVert = 0; jVert < nVerts; iVert = jVert++ )
@@ -62,7 +70,7 @@ void QgsGeometryDuplicateNodesCheck::fixError( QgsGeometryCheckError* error, int
   }
 
   // Check if error still applies
-  int nVerts = QgsGeomUtils::polyLineSize( geom, vidx.part, vidx.ring );
+  int nVerts = QgsGeometryCheckerUtils::polyLineSize( geom, vidx.part, vidx.ring );
   QgsPointV2 pi = geom->vertexAt( QgsVertexId( vidx.part, vidx.ring, ( vidx.vertex + nVerts - 1 ) % nVerts ) );
   QgsPointV2 pj = geom->vertexAt( error->vidx() );
   if ( QgsGeometryUtils::sqrDistance2D( pi, pj ) >= QgsGeometryCheckPrecision::tolerance() * QgsGeometryCheckPrecision::tolerance() )
@@ -78,10 +86,13 @@ void QgsGeometryDuplicateNodesCheck::fixError( QgsGeometryCheckError* error, int
   }
   else if ( method == RemoveDuplicates )
   {
-    geom->deleteVertex( error->vidx() );
-    if ( QgsGeomUtils::polyLineSize( geom, vidx.part, vidx.ring ) < 3 )
+    if ( !QgsGeometryCheckerUtils::canDeleteVertex( geom, vidx.part, vidx.ring ) )
     {
       error->setFixFailed( tr( "Resulting geometry is degenerate" ) );
+    }
+    else if ( !geom->deleteVertex( error->vidx() ) )
+    {
+      error->setFixFailed( tr( "Failed to delete vertex" ) );
     }
     else
     {

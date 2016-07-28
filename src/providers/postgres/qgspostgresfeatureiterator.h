@@ -18,6 +18,7 @@
 #include "qgsfeatureiterator.h"
 
 #include <QQueue>
+#include <QSharedPointer>
 
 #include "qgspostgresprovider.h"
 
@@ -45,8 +46,8 @@ class QgsPostgresFeatureSource : public QgsAbstractFeatureSource
     QString mRequestedSrid;
     QString mDetectedSrid;
     bool mForce2d;
-    QGis::WkbType mRequestedGeomType; //! geometry type requested in the uri
-    QGis::WkbType mDetectedGeomType;  //! geometry type detected in the database
+    Qgis::WkbType mRequestedGeomType; //! geometry type requested in the uri
+    Qgis::WkbType mDetectedGeomType;  //! geometry type detected in the database
     QgsPostgresPrimaryKeyType mPrimaryKeyType;
     QList<int> mPrimaryKeyAttrs;
     QString mQuery;
@@ -132,6 +133,7 @@ class QgsPostgresFeatureIterator : public QgsAbstractFeatureIteratorFromSource<Q
     bool mExpressionCompiled;
     bool mOrderByCompiled;
     bool mLastFetch;
+    bool mFilterRequiresGeometry;
 };
 
 #endif // QGSPOSTGRESFEATUREITERATOR_H

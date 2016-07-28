@@ -64,8 +64,8 @@ class GetScriptsAction(ToolboxAction):
     def execute(self):
         dlg = GetScriptsAndModelsDialog(GetScriptsAndModelsDialog.SCRIPTS)
         dlg.exec_()
-        if dlg.updateToolbox:
-            self.toolbox.updateProvider('script')
+        if dlg.updateProvider:
+            algList.reloadProvider('script')
 
 
 class GetRScriptsAction(ToolboxAction):
@@ -80,7 +80,7 @@ class GetRScriptsAction(ToolboxAction):
     def execute(self):
         dlg = GetScriptsAndModelsDialog(GetScriptsAndModelsDialog.RSCRIPTS)
         dlg.exec_()
-        if dlg.updateToolbox:
+        if dlg.updateProvider:
             self.toolbox.updateProvider('r')
 
 
@@ -96,8 +96,8 @@ class GetModelsAction(ToolboxAction):
     def execute(self):
         dlg = GetScriptsAndModelsDialog(GetScriptsAndModelsDialog.MODELS)
         dlg.exec_()
-        if dlg.updateToolbox:
-            self.toolbox.updateProvider('model')
+        if dlg.updateProvider:
+            algList.reloadProvider('model')
 
 
 class GetScriptsAndModelsDialog(BASE, WIDGET):
@@ -128,20 +128,20 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
 
         self.resourceType = resourceType
         if self.resourceType == self.MODELS:
-            self.folder = ModelerUtils.modelsFolder()
+            self.folder = ModelerUtils.modelsFolders()[0]
             self.urlBase = 'https://raw.githubusercontent.com/qgis/QGIS-Processing/master/models/'
             self.icon = QIcon(os.path.join(pluginPath, 'images', 'model.png'))
         elif self.resourceType == self.SCRIPTS:
-            self.folder = ScriptUtils.scriptsFolder()
+            self.folder = ScriptUtils.scriptsFolders()[0]
             self.urlBase = 'https://raw.githubusercontent.com/qgis/QGIS-Processing/master/scripts/'
             self.icon = QIcon(os.path.join(pluginPath, 'images', 'script.png'))
         else:
-            self.folder = RUtils.RScriptsFolder()
+            self.folder = RUtils.RScriptsFolders()[0]
             self.urlBase = 'https://raw.githubusercontent.com/qgis/QGIS-Processing/master/rscripts/'
             self.icon = QIcon(os.path.join(pluginPath, 'images', 'r.svg'))
 
         self.lastSelectedItem = None
-        self.updateToolbox = False
+        self.updateProvider = False
         self.populateTree()
         self.buttonBox.accepted.connect(self.okPressed)
         self.buttonBox.rejected.connect(self.cancelPressed)
@@ -208,10 +208,10 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
         self.tree.addTopLevelItem(self.notinstalledItem)
         self.tree.addTopLevelItem(self.uptodateItem)
 
-        self.webView.setHtml(self.HELP_TEXT)
+        self.txtHelp.setHtml(self.HELP_TEXT)
 
     def setHelp(self, reply, item):
-        """Change the webview HTML content"""
+        """Change the HTML content"""
         QApplication.restoreOverrideCursor()
         if reply.error() != QNetworkReply.NoError:
             html = self.tr('<h2>No detailed description available for this script</h2>')
@@ -223,14 +223,14 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
             html += self.tr('<p><b>Created by:</b> %s') % getDescription(ALG_CREATOR, descriptions)
             html += self.tr('<p><b>Version:</b> %s') % getDescription(ALG_VERSION, descriptions)
         reply.deleteLater()
-        self.webView.setHtml(html)
+        self.txtHelp.setHtml(html)
 
     def currentItemChanged(self, item, prev):
         if isinstance(item, TreeItem):
             url = self.urlBase + item.filename.replace(' ', '%20') + '.help'
             self.grabHTTP(url, self.setHelp, item)
         else:
-            self.webView.setHtml(self.HELP_TEXT)
+            self.txtHelp.setHtml(self.HELP_TEXT)
 
     def getTreeBranchForState(self, filename, version):
         if not os.path.exists(os.path.join(self.folder, filename)):
@@ -305,7 +305,7 @@ class GetScriptsAndModelsDialog(BASE, WIDGET):
                 if os.path.exists(path):
                     os.remove(path)
 
-        self.updateToolbox = len(toDownload) + len(toDelete) > 0
+        self.updateProvider = len(toDownload) + len(toDelete) > 0
         super(GetScriptsAndModelsDialog, self).accept()
 
 

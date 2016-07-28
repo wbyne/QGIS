@@ -74,7 +74,7 @@ class QgsVectorFileWriter
     {
       MetaData();
 
-      MetaData( const QString& longName, const QString& trLongName, const QString& glob, const QString& ext, const QMap<QString, QgsVectorFileWriter::Option*>& driverOptions, const QMap<QString, QgsVectorFileWriter::Option*>& layerOptions );
+      MetaData( const QString& longName, const QString& trLongName, const QString& glob, const QString& ext, const QMap<QString, QgsVectorFileWriter::Option*>& driverOptions, const QMap<QString, QgsVectorFileWriter::Option*>& layerOptions, const QString& compulsoryEncoding = QString() );
 
       QString longName;
       QString trLongName;
@@ -82,6 +82,8 @@ class QgsVectorFileWriter
       QString ext;
       QMap<QString, QgsVectorFileWriter::Option*> driverOptions;
       QMap<QString, QgsVectorFileWriter::Option*> layerOptions;
+      /** Some formats require a compulsory encoding, typically UTF-8. If no compulsory encoding, empty string */
+      QString compulsoryEncoding;
     };
 
     enum WriterError
@@ -155,7 +157,7 @@ class QgsVectorFileWriter
     static WriterError writeAsVectorFormat( QgsVectorLayer* layer,
                                             const QString& fileName,
                                             const QString& fileEncoding,
-                                            const QgsCoordinateReferenceSystem *destCRS,
+                                            const QgsCoordinateReferenceSystem& destCRS = QgsCoordinateReferenceSystem(),
                                             const QString& driverName = "ESRI Shapefile",
                                             bool onlySelected = false,
                                             QString *errorMessage = 0,
@@ -177,7 +179,8 @@ class QgsVectorFileWriter
      * @param layer layer to write
      * @param fileName file name to write to
      * @param fileEncoding encoding to use
-     * @param ct pointer to coordinate transform to reproject exported geometries with
+     * @param ct coordinate transform to reproject exported geometries with, or invalid transform
+     * for no transformation
      * @param driverName OGR driver to use
      * @param onlySelected write only selected features of layer
      * @param errorMessage pointer to buffer fo error message
@@ -199,7 +202,7 @@ class QgsVectorFileWriter
     static WriterError writeAsVectorFormat( QgsVectorLayer* layer,
                                             const QString& fileName,
                                             const QString& fileEncoding,
-                                            const QgsCoordinateTransform* ct,
+                                            const QgsCoordinateTransform& ct,
                                             const QString& driverName = "ESRI Shapefile",
                                             bool onlySelected = false,
                                             QString *errorMessage = 0,
@@ -221,8 +224,8 @@ class QgsVectorFileWriter
     QgsVectorFileWriter( const QString& vectorFileName,
                          const QString& fileEncoding,
                          const QgsFields& fields,
-                         QGis::WkbType geometryType,
-                         const QgsCoordinateReferenceSystem* srs,
+                         Qgis::WkbType geometryType,
+                         const QgsCoordinateReferenceSystem& srs = QgsCoordinateReferenceSystem(),
                          const QString& driverName = "ESRI Shapefile",
                          const QStringList &datasourceOptions = QStringList(),
                          const QStringList &layerOptions = QStringList(),
@@ -235,7 +238,7 @@ class QgsVectorFileWriter
                          const QString& fileEncoding,
                          const QgsFields& fields,
                          QgsWKBTypes::Type geometryType,
-                         const QgsCoordinateReferenceSystem* srs,
+                         const QgsCoordinateReferenceSystem& srs = QgsCoordinateReferenceSystem(),
                          const QString& driverName = "ESRI Shapefile",
                          const QStringList &datasourceOptions = QStringList(),
                          const QStringList &layerOptions = QStringList(),
@@ -268,7 +271,7 @@ class QgsVectorFileWriter
     QString errorMessage();
 
     /** Add feature to the currently opened data source */
-    bool addFeature( QgsFeature& feature, QgsFeatureRendererV2* renderer = 0, QGis::UnitType outputUnit = QGis::Meters );
+    bool addFeature( QgsFeature& feature, QgsFeatureRendererV2* renderer = 0, QgsUnitTypes::DistanceUnit outputUnit = QgsUnitTypes::DistanceMeters );
 
     //! @note not available in python bindings
     // QMap<int, int> attrIdxToOgrIdx();
@@ -292,7 +295,7 @@ class QgsVectorFileWriter
 
   protected:
     //! @note not available in python bindings
-    // OGRGeometryH createEmptyGeometry( QGis::WkbType wkbType );
+    // OGRGeometryH createEmptyGeometry( Qgis::WkbType wkbType );
 
   private:
 

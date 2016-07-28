@@ -20,7 +20,6 @@
 #include <QSortFilterProxyModel>
 #include <QModelIndex>
 
-#include "qgsvectorlayer.h" //QgsFeatureIds
 #include "qgsattributetablemodel.h"
 #include "qgsfeaturemodel.h"
 
@@ -28,6 +27,9 @@ class QgsVectorLayerCache;
 class QgsMapCanvas;
 class QItemSelectionModel;
 
+/** \ingroup gui
+ * \class QgsAttributeTableFilterModel
+ */
 class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, public QgsFeatureModel
 {
     Q_OBJECT
@@ -178,6 +180,20 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
      */
     virtual void sort( int column, Qt::SortOrder order = Qt::AscendingOrder ) override;
 
+    /**
+     * Sort by the given expression using the given order.
+     * Prefetches all the data from the layer to speed up sorting.
+     *
+     * @param expression The expression which should be used for sorting
+     * @param order      The order ( Qt::AscendingOrder or Qt::DescendingOrder )
+     */
+    void sort( QString expression, Qt::SortOrder order = Qt::AscendingOrder );
+
+    /**
+     * The expression which is used to sort the attribute table.
+     */
+    QString sortExpression() const;
+
     /** Returns the map canvas*/
     QgsMapCanvas* mapCanvas() const { return mCanvas; }
 
@@ -199,6 +215,14 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
      * is shown.
      */
     void setAttributeTableConfig( const QgsAttributeTableConfig& config );
+
+  signals:
+    /**
+     * Is emitted whenever the sort column is changed
+     * @param column The sort column
+     * @param order The sort order
+     */
+    void sortColumnChanged( int column, Qt::SortOrder order );
 
   protected:
     /**
@@ -241,6 +265,8 @@ class GUI_EXPORT QgsAttributeTableFilterModel: public QSortFilterProxyModel, pub
 
     QgsAttributeTableConfig mConfig;
     QVector<int> mColumnMapping;
+    int mapColumnToSource( int column ) const;
+
 };
 
 #endif

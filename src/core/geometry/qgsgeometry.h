@@ -32,7 +32,8 @@ email                : morb at ozemail dot com dot au
 
 #include "qgsabstractgeometryv2.h"
 #include "qgspoint.h"
-#include "qgscoordinatetransform.h"
+#include "qgspointv2.h"
+
 #include "qgsfeature.h"
 #include <limits>
 #include <QSet>
@@ -168,12 +169,12 @@ class CORE_EXPORT QgsGeometry
     /** Returns type of the geometry as a WKB type (point / linestring / polygon etc.)
      * @see type
      */
-    QGis::WkbType wkbType() const;
+    Qgis::WkbType wkbType() const;
 
-    /** Returns type of the geometry as a QGis::GeometryType
+    /** Returns type of the geometry as a Qgis::GeometryType
      * @see wkbType
      */
-    QGis::GeometryType type() const;
+    Qgis::GeometryType type() const;
 
     /** Returns true if WKB of the geometry is of WKBMulti* type */
     bool isMultipart() const;
@@ -354,7 +355,7 @@ class CORE_EXPORT QgsGeometry
      * not disjoint with existing polygons of the feature
      */
     // TODO QGIS 3.0 returns an enum instead of a magic constant
-    int addPart( const QList<QgsPoint> &points, QGis::GeometryType geomType = QGis::UnknownGeometry );
+    int addPart( const QList<QgsPoint> &points, Qgis::GeometryType geomType = Qgis::UnknownGeometry );
 
     /** Adds a new part to a the geometry.
      * @param points points describing part to add
@@ -363,7 +364,7 @@ class CORE_EXPORT QgsGeometry
      * not disjoint with existing polygons of the feature
      */
     // TODO QGIS 3.0 returns an enum instead of a magic constant
-    int addPart( const QgsPointSequenceV2 &points, QGis::GeometryType geomType = QGis::UnknownGeometry );
+    int addPart( const QgsPointSequenceV2 &points, Qgis::GeometryType geomType = Qgis::UnknownGeometry );
 
     /** Adds a new part to this geometry.
      * @param part part to add (ownership is transferred)
@@ -372,7 +373,7 @@ class CORE_EXPORT QgsGeometry
      * not disjoint with existing polygons of the feature
      */
     // TODO QGIS 3.0 returns an enum instead of a magic constant
-    int addPart( QgsAbstractGeometryV2* part, QGis::GeometryType geomType = QGis::UnknownGeometry );
+    int addPart( QgsAbstractGeometryV2* part, Qgis::GeometryType geomType = Qgis::UnknownGeometry );
 
     /** Adds a new island polygon to a multipolygon feature
      * @param newPart part to add. Ownership is NOT transferred.
@@ -556,7 +557,7 @@ class CORE_EXPORT QgsGeometry
      * @return the converted geometry or nullptr if the conversion fails.
      * @note added in 2.2
      */
-    QgsGeometry* convertToType( QGis::GeometryType destType, bool destMultipart = false ) const;
+    QgsGeometry* convertToType( Qgis::GeometryType destType, bool destMultipart = false ) const;
 
     /* Accessor functions for getting geometry data */
 
@@ -646,6 +647,8 @@ class CORE_EXPORT QgsGeometry
      */
     int avoidIntersections( const QMap<QgsVectorLayer*, QSet<QgsFeatureId> >& ignoreFeatures = ( QMap<QgsVectorLayer*, QSet<QgsFeatureId> >() ) );
 
+    /** \ingroup core
+     */
     class Error
     {
         QString message;
@@ -818,6 +821,12 @@ class CORE_EXPORT QgsGeometry
      * @param output destination for list of points converted to QgsPoint
      */
     static void convertPointList( const QgsPointSequenceV2 &input, QList<QgsPoint> &output );
+
+    //! Allows direct construction of QVariants from geometry.
+    operator QVariant() const
+    {
+      return QVariant::fromValue( *this );
+    }
 
   private:
 

@@ -55,15 +55,15 @@ QWidget *QgsPgSourceSelectDelegate::createEditor( QWidget *parent, const QStyleO
   if ( index.column() == QgsPgTableModel::dbtmType && index.data( Qt::UserRole + 1 ).toBool() )
   {
     QComboBox *cb = new QComboBox( parent );
-    Q_FOREACH ( QGis::WkbType type,
-                QList<QGis::WkbType>()
-                << QGis::WKBPoint
-                << QGis::WKBLineString
-                << QGis::WKBPolygon
-                << QGis::WKBMultiPoint
-                << QGis::WKBMultiLineString
-                << QGis::WKBMultiPolygon
-                << QGis::WKBNoGeometry )
+    Q_FOREACH ( Qgis::WkbType type,
+                QList<Qgis::WkbType>()
+                << Qgis::WKBPoint
+                << Qgis::WKBLineString
+                << Qgis::WKBPolygon
+                << Qgis::WKBMultiPoint
+                << Qgis::WKBMultiLineString
+                << Qgis::WKBMultiPolygon
+                << Qgis::WKBNoGeometry )
     {
       cb->addItem( QgsPgTableModel::iconForWkbType( type ), QgsPostgresConn::displayStringForWkbType( type ), type );
     }
@@ -157,10 +157,10 @@ void QgsPgSourceSelectDelegate::setModelData( QWidget *editor, QAbstractItemMode
   {
     if ( index.column() == QgsPgTableModel::dbtmType )
     {
-      QGis::WkbType type = ( QGis::WkbType ) cb->itemData( cb->currentIndex() ).toInt();
+      Qgis::WkbType type = ( Qgis::WkbType ) cb->itemData( cb->currentIndex() ).toInt();
 
       model->setData( index, QgsPgTableModel::iconForWkbType( type ), Qt::DecorationRole );
-      model->setData( index, type != QGis::WKBUnknown ? QgsPostgresConn::displayStringForWkbType( type ) : tr( "Select..." ) );
+      model->setData( index, type != Qgis::WKBUnknown ? QgsPostgresConn::displayStringForWkbType( type ) : tr( "Select..." ) );
       model->setData( index, type, Qt::UserRole + 2 );
     }
     else if ( index.column() == QgsPgTableModel::dbtmPkCol )
@@ -251,6 +251,8 @@ QgsPgSourceSelect::QgsPgSourceSelect( QWidget *parent, Qt::WindowFlags fl, bool 
   mTablesTreeView->setSortingEnabled( true );
   mTablesTreeView->setEditTriggers( QAbstractItemView::CurrentChanged );
   mTablesTreeView->setItemDelegate( new QgsPgSourceSelectDelegate( this ) );
+
+  connect( mTablesTreeView->selectionModel(), SIGNAL( selectionChanged( const QItemSelection&, const QItemSelection& ) ), this, SLOT( treeWidgetSelectionChanged( const QItemSelection&, const QItemSelection& ) ) );
 
   QSettings settings;
   mTablesTreeView->setSelectionMode( settings.value( "/qgis/addPostgisDC", false ).toBool() ?
@@ -446,7 +448,6 @@ void QgsPgSourceSelect::on_mSearchModeComboBox_currentIndexChanged( const QStrin
 
 void QgsPgSourceSelect::setLayerType( const QgsPostgresLayerProperty& layerProperty )
 {
-  QgsDebugMsg( "entering." );
   mTableModel.addTableEntry( layerProperty );
 }
 
@@ -557,9 +558,6 @@ void QgsPgSourceSelect::finishList()
 {
   QApplication::restoreOverrideCursor();
 
-  if ( cmbConnections->count() > 0 )
-    mAddButton->setEnabled( true );
-
 #if 0
   for ( int i = 0; i < QgsPgTableModel::dbtmColumns; i++ )
     mTablesTreeView->resizeColumnToContents( i );
@@ -657,4 +655,11 @@ void QgsPgSourceSelect::setConnectionListPosition()
 void QgsPgSourceSelect::setSearchExpression( const QString& regexp )
 {
   Q_UNUSED( regexp );
+}
+
+void QgsPgSourceSelect::treeWidgetSelectionChanged( const QItemSelection &selected, const QItemSelection &deselected )
+{
+  Q_UNUSED( deselected )
+  Q_UNUSED( selected )
+  mAddButton->setEnabled( !mTablesTreeView->selectionModel()->selection().isEmpty() );
 }

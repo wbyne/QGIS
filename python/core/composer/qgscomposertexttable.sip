@@ -1,11 +1,14 @@
-/** A text table item that reads text from string lists*/
+/** A text table item that reads text from string lists
+ * @deprecated use QgsComposerTextTableV2 instead
+*/
+
 class QgsComposerTextTable: QgsComposerTable
 {
 %TypeHeaderCode
 #include <qgscomposertexttable.h>
 %End
   public:
-    QgsComposerTextTable( QgsComposition* c /TransferThis/ );
+    QgsComposerTextTable( QgsComposition* c /TransferThis/ ) /Deprecated/;
     ~QgsComposerTextTable();
 
     /** Return correct graphics item type. */
@@ -30,14 +33,14 @@ class QgsComposerTextTable: QgsComposerTable
      * @param doc QDomDocument for the destination xml.
      * @see readXML
      */
-    bool writeXML( QDomElement& elem, QDomDocument & doc ) const;
+    bool writeXml( QDomElement& elem, QDomDocument & doc ) const;
 
     /** Reads the properties specific to a text table from xml.
      * @param itemElem a QDomElement holding the text table's desired properties.
      * @param doc QDomDocument for the source xml.
      * @see writeXML
      */
-    bool readXML( const QDomElement& itemElem, const QDomDocument& doc );
+    bool readXml( const QDomElement& itemElem, const QDomDocument& doc );
 
     /** Queries the text table for text to show in the cells.
      * @param attributeMaps list of QgsAttributeMaps where the cell text will be stored

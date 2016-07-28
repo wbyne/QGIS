@@ -15,6 +15,7 @@
 
 #include "qgsmaptoolsimplify.h"
 
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgsmapcanvas.h"
 #include "qgsrubberband.h"
@@ -50,6 +51,12 @@ void QgsSimplifyDialog::updateStatusText()
 void QgsSimplifyDialog::enableOkButton( bool enabled )
 {
   okButton->setEnabled( enabled );
+}
+
+void QgsSimplifyDialog::closeEvent( QCloseEvent* e )
+{
+  QDialog::closeEvent( e );
+  mTool->clearSelection();
 }
 
 
@@ -130,7 +137,7 @@ int QgsMapToolSimplify::vertexCount( const QgsGeometry* g ) const
 {
   switch ( g->type() )
   {
-    case QGis::Line:
+    case Qgis::Line:
     {
       int count = 0;
       if ( g->isMultipart() )
@@ -142,7 +149,7 @@ int QgsMapToolSimplify::vertexCount( const QgsGeometry* g ) const
         count = g->asPolyline().count();
       return count;
     }
-    case QGis::Polygon:
+    case Qgis::Polygon:
     {
       int count = 0;
       if ( g->isMultipart() )
@@ -182,7 +189,7 @@ void QgsMapToolSimplify::storeSimplified()
 
   clearSelection();
 
-  mCanvas->refresh();
+  vlayer->triggerRepaint();
 }
 
 
@@ -214,7 +221,7 @@ void QgsMapToolSimplify::canvasMoveEvent( QgsMapMouseEvent* e )
   {
     mDragging = true;
     delete mSelectionRubberBand;
-    mSelectionRubberBand = new QgsRubberBand( mCanvas, QGis::Polygon );
+    mSelectionRubberBand = new QgsRubberBand( mCanvas, Qgis::Polygon );
     QColor color( Qt::blue );
     color.setAlpha( 63 );
     mSelectionRubberBand->setColor( color );
@@ -256,6 +263,12 @@ void QgsMapToolSimplify::canvasReleaseEvent( QgsMapMouseEvent* e )
   }
 
   mDragging = false;
+
+  if ( mSelectedFeatures.isEmpty() )
+  {
+    emit messageEmitted( tr( "Could not find a nearby feature in the current layer." ) );
+    return;
+  }
 
   // count vertices, prepare rubber bands
   mOriginalVertexCount = 0;

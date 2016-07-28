@@ -15,7 +15,6 @@
 #include "qgsogrfeatureiterator.h"
 
 #include "qgsogrprovider.h"
-#include "qgsogrgeometrysimplifier.h"
 #include "qgsogrexpressioncompiler.h"
 #include "qgssqliteexpressioncompiler.h"
 
@@ -43,7 +42,6 @@ QgsOgrFeatureIterator::QgsOgrFeatureIterator( QgsOgrFeatureSource* source, bool 
     , ogrLayer( nullptr )
     , mSubsetStringSet( false )
     , mFetchGeometry( false )
-    , mGeometrySimplifier( nullptr )
     , mExpressionCompiled( false )
 {
   mConn = QgsOgrConnPool::instance()->acquireConnection( mSource->mProvider->dataSourceUri() );
@@ -88,6 +86,10 @@ QgsOgrFeatureIterator::QgsOgrFeatureIterator( QgsOgrFeatureSource* source, bool 
         attrs << attrIdx;
     }
     mRequest.setSubsetOfAttributes( attrs );
+  }
+  if ( request.filterType() == QgsFeatureRequest::FilterExpression && request.filterExpression()->needsGeometry() )
+  {
+    mFetchGeometry = true;
   }
 
   // make sure we fetch just relevant fields
@@ -153,44 +155,7 @@ QgsOgrFeatureIterator::QgsOgrFeatureIterator( QgsOgrFeatureSource* source, bool 
 
 QgsOgrFeatureIterator::~QgsOgrFeatureIterator()
 {
-  delete mGeometrySimplifier;
-  mGeometrySimplifier = nullptr;
-
   close();
-}
-
-bool QgsOgrFeatureIterator::prepareSimplification( const QgsSimplifyMethod& simplifyMethod )
-{
-  delete mGeometrySimplifier;
-  mGeometrySimplifier = nullptr;
-
-  // setup simplification of OGR-geometries fetched
-  if ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) && simplifyMethod.methodType() != QgsSimplifyMethod::NoSimplification && !simplifyMethod.forceLocalOptimization() )
-  {
-    QgsSimplifyMethod::MethodType methodType = simplifyMethod.methodType();
-    Q_UNUSED( methodType );
-
-#if defined(GDAL_VERSION_NUM) && defined(GDAL_COMPUTE_VERSION)
-#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(1,11,0)
-    if ( methodType == QgsSimplifyMethod::OptimizeForRendering )
-    {
-      int simplifyFlags = QgsMapToPixelSimplifier::SimplifyGeometry | QgsMapToPixelSimplifier::SimplifyEnvelope;
-      mGeometrySimplifier = new QgsOgrMapToPixelSimplifier( simplifyFlags, simplifyMethod.tolerance() );
-      return true;
-    }
-#endif
-#endif
-#if defined(GDAL_VERSION_NUM) && GDAL_VERSION_NUM >= 1900
-    if ( methodType == QgsSimplifyMethod::PreserveTopology )
-    {
-      mGeometrySimplifier = new QgsOgrTopologyPreservingSimplifier( simplifyMethod.tolerance() );
-      return true;
-    }
-#endif
-
-    QgsDebugMsg( QString( "Simplification method type (%1) is not recognised by OgrFeatureIterator class" ).arg( methodType ) );
-  }
-  return QgsAbstractFeatureIterator::prepareSimplification( simplifyMethod );
 }
 
 bool QgsOgrFeatureIterator::nextFeatureFilterExpression( QgsFeature& f )
@@ -199,26 +164,6 @@ bool QgsOgrFeatureIterator::nextFeatureFilterExpression( QgsFeature& f )
     return QgsAbstractFeatureIterator::nextFeatureFilterExpression( f );
   else
     return fetchFeature( f );
-}
-
-bool QgsOgrFeatureIterator::providerCanSimplify( QgsSimplifyMethod::MethodType methodType ) const
-{
-#if defined(GDAL_VERSION_NUM) && defined(GDAL_COMPUTE_VERSION)
-#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(1,11,0)
-  if ( methodType == QgsSimplifyMethod::OptimizeForRendering )
-  {
-    return true;
-  }
-#endif
-#endif
-#if defined(GDAL_VERSION_NUM) && GDAL_VERSION_NUM >= 1900
-  if ( methodType == QgsSimplifyMethod::PreserveTopology )
-  {
-    return true;
-  }
-#endif
-
-  return false;
 }
 
 bool QgsOgrFeatureIterator::fetchFeature( QgsFeature& feature )
@@ -333,9 +278,6 @@ bool QgsOgrFeatureIterator::readFeature( OGRFeatureH fet, QgsFeature& feature )
 
     if ( geom )
     {
-      if ( mGeometrySimplifier )
-        mGeometrySimplifier->simplifyGeometry( geom );
-
       feature.setGeometry( QgsOgrUtils::ogrGeometryToQgsGeometry( geom ) );
     }
     else
@@ -357,7 +299,7 @@ bool QgsOgrFeatureIterator::readFeature( OGRFeatureH fet, QgsFeature& feature )
   // fetch attributes
   if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
   {
-    const QgsAttributeList& attrs = mRequest.subsetOfAttributes();
+    QgsAttributeList attrs = mRequest.subsetOfAttributes();
     for ( QgsAttributeList::const_iterator it = attrs.begin(); it != attrs.end(); ++it )
     {
       getFeatureAttribute( fet, feature, *it );

@@ -127,11 +127,18 @@ class QgsAttributeTableFilterModel: QSortFilterProxyModel, QgsFeatureModel
     QgsFeatureId rowToId( const QModelIndex& row );
 
     QModelIndex fidToIndex( QgsFeatureId fid );
+
     QModelIndexList fidToIndexList( QgsFeatureId fid );
 
     virtual QModelIndex mapToMaster( const QModelIndex &proxyIndex ) const;
 
-    virtual QModelIndex mapFromMaster( const QModelIndex &sourceIndex ) const;
+    QModelIndex mapFromMaster( const QModelIndex& sourceIndex ) const;
+
+    virtual QModelIndex mapToSource( const QModelIndex& proxyIndex ) const;
+
+    virtual QModelIndex mapFromSource( const QModelIndex& sourceIndex ) const;
+
+    virtual Qt::ItemFlags flags( const QModelIndex &index ) const;
 
     /**
      * Sort by the given column using the given order.
@@ -141,6 +148,20 @@ class QgsAttributeTableFilterModel: QSortFilterProxyModel, QgsFeatureModel
      * @param order  The order ( Qt::AscendingOrder or Qt::DescendingOrder )
      */
     virtual void sort( int column, Qt::SortOrder order = Qt::AscendingOrder );
+
+    /**
+     * Sort by the given expression using the given order.
+     * Prefetches all the data from the layer to speed up sorting.
+     *
+     * @param expression The expression which should be used for sorting
+     * @param order      The order ( Qt::AscendingOrder or Qt::DescendingOrder )
+     */
+    void sort( QString expression, Qt::SortOrder order = Qt::AscendingOrder );
+
+    /**
+     * The expression which is used to sort the attribute table.
+     */
+    QString sortExpression() const;
 
     /** Returns the map canvas*/
     QgsMapCanvas* mapCanvas() const;
@@ -163,6 +184,14 @@ class QgsAttributeTableFilterModel: QSortFilterProxyModel, QgsFeatureModel
      * is shown.
      */
     void setAttributeTableConfig( const QgsAttributeTableConfig& config );
+
+  signals:
+    /**
+     * Is emitted whenever the sort column is changed
+     * @param column The sort column
+     * @param order The sort order
+     */
+    void sortColumnChanged( int column, Qt::SortOrder order );
 
   protected:
     /**

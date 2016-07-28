@@ -19,6 +19,7 @@
 #include "qgsgeometry.h"
 #include "qgswkbptr.h"
 #include "qgscoordinatereferencesystem.h"
+#include "qgsrectangle.h"
 
 #include <QColor>
 #include <QStringList>
@@ -56,10 +57,11 @@ QgsOgcUtilsExprToFilter::QgsOgcUtilsExprToFilter( QDomDocument& doc,
     , mGeomId( 1 )
 {
   QgsCoordinateReferenceSystem crs;
-  if ( !mSrsName.isEmpty() &&
-       crs.createFromOgcWmsCrs( mSrsName ) )
+  if ( !mSrsName.isEmpty() )
+    crs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( mSrsName );
+  if ( crs.isValid() )
   {
-    if ( honourAxisOrientation && crs.axisInverted() )
+    if ( honourAxisOrientation && crs.hasAxisInverted() )
     {
       mInvertAxisOrientation = !mInvertAxisOrientation;
     }
@@ -177,7 +179,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLPoint( const QDomElement& geometryEleme
   double y = point_it->y();
   int size = 1 + sizeof( int ) + 2 * sizeof( double );
 
-  QGis::WkbType type = QGis::WKBPoint;
+  Qgis::WkbType type = Qgis::WKBPoint;
   unsigned char* wkb = new unsigned char[size];
 
   int wkbPosition = 0; //current offset from wkb beginning (in bytes)
@@ -224,7 +226,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLLineString( const QDomElement& geometry
   char e = htonl( 1 ) != 1;
   int size = 1 + 2 * sizeof( int ) + lineCoordinates.size() * 2 * sizeof( double );
 
-  QGis::WkbType type = QGis::WKBLineString;
+  Qgis::WkbType type = Qgis::WKBLineString;
   unsigned char* wkb = new unsigned char[size];
 
   int wkbPosition = 0; //current offset from wkb beginning (in bytes)
@@ -342,7 +344,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLPolygon( const QDomElement& geometryEle
   }
   int size = 1 + 2 * sizeof( int ) + nrings * sizeof( int ) + 2 * npoints * sizeof( double );
 
-  QGis::WkbType type = QGis::WKBPolygon;
+  Qgis::WkbType type = Qgis::WKBPolygon;
   unsigned char* wkb = new unsigned char[size];
 
   //char e = QgsApplication::endian();
@@ -447,7 +449,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiPoint( const QDomElement& geometry
   //calculate the required wkb size
   int size = 1 + 2 * sizeof( int ) + pointList.size() * ( 2 * sizeof( double ) + 1 + sizeof( int ) );
 
-  QGis::WkbType type = QGis::WKBMultiPoint;
+  Qgis::WkbType type = Qgis::WKBMultiPoint;
   unsigned char* wkb = new unsigned char[size];
 
   //fill the wkb content
@@ -460,7 +462,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiPoint( const QDomElement& geometry
   wkbPosition += sizeof( int );
   memcpy( &( wkb )[wkbPosition], &nPoints, sizeof( int ) );
   wkbPosition += sizeof( int );
-  type = QGis::WKBPoint;
+  type = Qgis::WKBPoint;
   for ( QgsPolyline::const_iterator it = pointList.begin(); it != pointList.end(); ++it )
   {
     memcpy( &( wkb )[wkbPosition], &e, 1 );
@@ -585,7 +587,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiLineString( const QDomElement& geo
     size += it->size() * 2 * sizeof( double );
   }
 
-  QGis::WkbType type = QGis::WKBMultiLineString;
+  Qgis::WkbType type = Qgis::WKBMultiLineString;
   unsigned char* wkb = new unsigned char[size];
 
   //fill the wkb content
@@ -599,7 +601,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiLineString( const QDomElement& geo
   wkbPosition += sizeof( int );
   memcpy( &( wkb )[wkbPosition], &nLines, sizeof( int ) );
   wkbPosition += sizeof( int );
-  type = QGis::WKBLineString;
+  type = Qgis::WKBLineString;
   for ( QList< QgsPolyline >::const_iterator it = lineCoordinates.begin(); it != lineCoordinates.end(); ++it )
   {
     memcpy( &( wkb )[wkbPosition], &e, 1 );
@@ -781,7 +783,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiPolygon( const QDomElement& geomet
     }
   }
 
-  QGis::WkbType type = QGis::WKBMultiPolygon;
+  Qgis::WkbType type = Qgis::WKBMultiPolygon;
   unsigned char* wkb = new unsigned char[size];
 
   char e = htonl( 1 ) != 1;
@@ -798,7 +800,7 @@ QgsGeometry* QgsOgcUtils::geometryFromGMLMultiPolygon( const QDomElement& geomet
   memcpy( &( wkb )[wkbPosition], &nPolygons, sizeof( int ) );
   wkbPosition += sizeof( int );
 
-  type = QGis::WKBPolygon;
+  type = Qgis::WKBPolygon;
 
   for ( QgsMultiPolygon::const_iterator it = multiPolygonPoints.begin(); it != multiPolygonPoints.end(); ++it )
   {
@@ -1157,10 +1159,10 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
   {
     switch ( geometry->wkbType() )
     {
-      case QGis::WKBPoint25D:
-      case QGis::WKBPoint:
-      case QGis::WKBMultiPoint25D:
-      case QGis::WKBMultiPoint:
+      case Qgis::WKBPoint25D:
+      case Qgis::WKBPoint:
+      case Qgis::WKBMultiPoint25D:
+      case Qgis::WKBMultiPoint:
         baseCoordElem = doc.createElement( "gml:pos" );
         break;
       default:
@@ -1181,8 +1183,8 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
   {
     switch ( geometry->wkbType() )
     {
-      case QGis::WKBPoint25D:
-      case QGis::WKBPoint:
+      case Qgis::WKBPoint25D:
+      case Qgis::WKBPoint:
       {
         QDomElement pointElem = doc.createElement( "gml:Point" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -1203,11 +1205,11 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
         pointElem.appendChild( coordElem );
         return pointElem;
       }
-      case QGis::WKBMultiPoint25D:
+      case Qgis::WKBMultiPoint25D:
         hasZValue = true;
         //intentional fall-through
         FALLTHROUGH;
-      case QGis::WKBMultiPoint:
+      case Qgis::WKBMultiPoint:
       {
         QDomElement multiPointElem = doc.createElement( "gml:MultiPoint" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -1247,11 +1249,11 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
         }
         return multiPointElem;
       }
-      case QGis::WKBLineString25D:
+      case Qgis::WKBLineString25D:
         hasZValue = true;
         //intentional fall-through
         FALLTHROUGH;
-      case QGis::WKBLineString:
+      case Qgis::WKBLineString:
       {
         QDomElement lineStringElem = doc.createElement( "gml:LineString" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -1289,11 +1291,11 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
         lineStringElem.appendChild( coordElem );
         return lineStringElem;
       }
-      case QGis::WKBMultiLineString25D:
+      case Qgis::WKBMultiLineString25D:
         hasZValue = true;
         //intentional fall-through
         FALLTHROUGH;
-      case QGis::WKBMultiLineString:
+      case Qgis::WKBMultiLineString:
       {
         QDomElement multiLineStringElem = doc.createElement( "gml:MultiLineString" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -1346,11 +1348,11 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
         }
         return multiLineStringElem;
       }
-      case QGis::WKBPolygon25D:
+      case Qgis::WKBPolygon25D:
         hasZValue = true;
         //intentional fall-through
         FALLTHROUGH;
-      case QGis::WKBPolygon:
+      case Qgis::WKBPolygon:
       {
         QDomElement polygonElem = doc.createElement( "gml:Polygon" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -1411,11 +1413,11 @@ QDomElement QgsOgcUtils::geometryToGML( const QgsGeometry* geometry, QDomDocumen
         delete [] ringNumPoints;
         return polygonElem;
       }
-      case QGis::WKBMultiPolygon25D:
+      case Qgis::WKBMultiPolygon25D:
         hasZValue = true;
         //intentional fall-through
         FALLTHROUGH;
-      case QGis::WKBMultiPolygon:
+      case Qgis::WKBMultiPolygon:
       {
         QDomElement multiPolygonElem = doc.createElement( "gml:MultiPolygon" );
         if ( gmlVersion == GML_3_2_1 && !gmlIdBase.isEmpty() )
@@ -2266,7 +2268,7 @@ QDomElement QgsOgcUtilsExprToFilter::expressionLiteralToOgcFilter( const QgsExpr
       value = QString::number( node->value().toInt() );
       break;
     case QVariant::Double:
-      value = QString::number( node->value().toDouble() );
+      value = qgsDoubleToString( node->value().toDouble() );
       break;
     case QVariant::String:
       value = node->value().toString();
@@ -2711,7 +2713,7 @@ QDomElement QgsOgcUtilsSQLStatementToFilter::toOgcFilter( const QgsSQLStatement:
       value = QString::number( node->value().toLongLong() );
       break;
     case QVariant::Double:
-      value = QString::number( node->value().toDouble() );
+      value = qgsDoubleToString( node->value().toDouble() );
       break;
     case QVariant::String:
       value = node->value().toString();
@@ -2886,10 +2888,11 @@ bool QgsOgcUtilsSQLStatementToFilter::processSRSName( const QgsSQLStatement::Nod
   }
 
   QgsCoordinateReferenceSystem crs;
-  if ( !srsName.isEmpty() &&
-       crs.createFromOgcWmsCrs( srsName ) )
+  if ( !srsName.isEmpty() )
+    crs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( srsName );
+  if ( crs.isValid() )
   {
-    if ( mHonourAxisOrientation && crs.axisInverted() )
+    if ( mHonourAxisOrientation && crs.hasAxisInverted() )
     {
       axisInversion = !axisInversion;
     }
@@ -3125,7 +3128,7 @@ QDomElement QgsOgcUtilsSQLStatementToFilter::toOgcFilter( const QgsSQLStatement:
         distance = QString::number( lit->value().toLongLong() );
         break;
       case QVariant::Double:
-        distance = QString::number( lit->value().toDouble() );
+        distance = qgsDoubleToString( lit->value().toDouble() );
         break;
       case QVariant::String:
       {

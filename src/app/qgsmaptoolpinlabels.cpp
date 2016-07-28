@@ -52,7 +52,7 @@ void QgsMapToolPinLabels::canvasPressEvent( QgsMapMouseEvent* e )
   mSelectRect.setRect( 0, 0, 0, 0 );
   mSelectRect.setTopLeft( e->pos() );
   mSelectRect.setBottomRight( e->pos() );
-  mRubberBand = new QgsRubberBand( mCanvas, QGis::Polygon );
+  mRubberBand = new QgsRubberBand( mCanvas, Qgis::Polygon );
 }
 
 void QgsMapToolPinLabels::canvasMoveEvent( QgsMapMouseEvent* e )
@@ -105,7 +105,7 @@ void QgsMapToolPinLabels::canvasReleaseEvent( QgsMapMouseEvent* e )
 
     delete selectGeom;
 
-    mRubberBand->reset( QGis::Polygon );
+    mRubberBand->reset( Qgis::Polygon );
     delete mRubberBand;
     mRubberBand = nullptr;
   }
@@ -143,7 +143,7 @@ void QgsMapToolPinLabels::highlightLabel( const QgsLabelPosition& labelpos,
     const QColor& color )
 {
   QgsRectangle rect = labelpos.labelRect;
-  QgsRubberBand *rb = new QgsRubberBand( mCanvas, QGis::Polygon );
+  QgsRubberBand *rb = new QgsRubberBand( mCanvas, Qgis::Polygon );
   rb->addPoint( QgsPoint( rect.xMinimum(), rect.yMinimum() ) );
   rb->addPoint( QgsPoint( rect.xMinimum(), rect.yMaximum() ) );
   rb->addPoint( QgsPoint( rect.xMaximum(), rect.yMaximum() ) );
@@ -239,8 +239,6 @@ void QgsMapToolPinLabels::pinUnpinLabels( const QgsRectangle& ext, QMouseEvent *
   bool toggleUnpinOrPin = e->modifiers() & Qt::ControlModifier;
 
   // get list of all drawn labels from all layers within, or touching, chosen extent
-  bool labelChanged = false;
-
   const QgsLabelingResults* labelingResults = mCanvas->labelingResults();
   if ( !labelingResults )
   {
@@ -250,6 +248,7 @@ void QgsMapToolPinLabels::pinUnpinLabels( const QgsRectangle& ext, QMouseEvent *
 
   QList<QgsLabelPosition> labelPosList = labelingResults->labelsWithinRect( ext );
 
+  bool labelChanged = false;
   QList<QgsLabelPosition>::const_iterator it;
   for ( it = labelPosList.constBegin() ; it != labelPosList.constEnd(); ++it )
   {
@@ -284,7 +283,7 @@ void QgsMapToolPinLabels::pinUnpinLabels( const QgsRectangle& ext, QMouseEvent *
       }
     }
     // pin label
-    if ( !isPinned() && ( !doUnpin || toggleUnpinOrPin ) )
+    else if ( !isPinned() && ( !doUnpin || toggleUnpinOrPin ) )
     {
       // pin label's location, and optionally rotation, to attribute table
       if ( pinUnpinCurrentFeature( true ) )

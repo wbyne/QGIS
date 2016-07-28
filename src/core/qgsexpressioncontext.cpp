@@ -26,6 +26,7 @@
 #include "qgscomposeritem.h"
 #include "qgsatlascomposition.h"
 #include "qgsapplication.h"
+#include "qgsmapsettings.h"
 #include <QSettings>
 #include <QDir>
 
@@ -213,6 +214,7 @@ QgsExpressionContext::QgsExpressionContext( const QgsExpressionContext& other )
     mStack << new QgsExpressionContextScope( *scope );
   }
   mHighlightedVariables = other.mHighlightedVariables;
+  mCachedValues = other.mCachedValues;
 }
 
 QgsExpressionContext& QgsExpressionContext::operator=( const QgsExpressionContext & other )
@@ -224,6 +226,7 @@ QgsExpressionContext& QgsExpressionContext::operator=( const QgsExpressionContex
     mStack << new QgsExpressionContextScope( *scope );
   }
   mHighlightedVariables = other.mHighlightedVariables;
+  mCachedValues = other.mCachedValues;
   return *this;
 }
 
@@ -307,6 +310,19 @@ int QgsExpressionContext::indexOfScope( QgsExpressionContextScope* scope ) const
     return -1;
 
   return mStack.indexOf( scope );
+}
+
+int QgsExpressionContext::indexOfScope( const QString& scopeName ) const
+{
+  int index = 0;
+  Q_FOREACH ( const QgsExpressionContextScope* scope, mStack )
+  {
+    if ( scope->name() == scopeName )
+      return index;
+
+    index++;
+  }
+  return -1;
 }
 
 QStringList QgsExpressionContext::variableNames() const
@@ -439,6 +455,26 @@ void QgsExpressionContext::setOriginalValueVariable( const QVariant &value )
                               value, true ) );
 }
 
+void QgsExpressionContext::setCachedValue( const QString& key, const QVariant& value ) const
+{
+  mCachedValues.insert( key, value );
+}
+
+bool QgsExpressionContext::hasCachedValue( const QString& key ) const
+{
+  return mCachedValues.contains( key );
+}
+
+QVariant QgsExpressionContext::cachedValue( const QString& key ) const
+{
+  return mCachedValues.value( key, QVariant() );
+}
+
+void QgsExpressionContext::clearCachedValues() const
+{
+  mCachedValues.clear();
+}
+
 
 //
 // QgsExpressionContextUtils
@@ -474,9 +510,9 @@ QgsExpressionContextScope* QgsExpressionContextUtils::globalScope()
   }
 
   //add some extra global variables
-  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_version", QGis::QGIS_VERSION, true ) );
-  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_version_no", QGis::QGIS_VERSION_INT, true ) );
-  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_release_name", QGis::QGIS_RELEASE_NAME, true ) );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_version", Qgis::QGIS_VERSION, true ) );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_version_no", Qgis::QGIS_VERSION_INT, true ) );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_release_name", Qgis::QGIS_RELEASE_NAME, true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_platform", QgsApplication::platform(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( "qgis_os_name", QgsApplication::osName(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( "user_account_name", QgsApplication::userLoginName(), true ) );

@@ -16,6 +16,8 @@
 #include "qgsdatetimeeditfactory.h"
 #include "qgsdatetimeeditconfig.h"
 #include "qgsdatetimeeditwrapper.h"
+#include "qgsdatetimesearchwidgetwrapper.h"
+#include "qgsdatetimeedit.h"
 
 #include <QSettings>
 
@@ -27,6 +29,11 @@ QgsDateTimeEditFactory::QgsDateTimeEditFactory( const QString& name )
 QgsEditorWidgetWrapper *QgsDateTimeEditFactory::create( QgsVectorLayer *vl, int fieldIdx, QWidget *editor, QWidget *parent ) const
 {
   return new QgsDateTimeEditWrapper( vl, fieldIdx, editor, parent );
+}
+
+QgsSearchWidgetWrapper* QgsDateTimeEditFactory::createSearchWidget( QgsVectorLayer* vl, int fieldIdx, QWidget* parent ) const
+{
+  return new QgsDateTimeSearchWidgetWrapper( vl, fieldIdx, parent );
 }
 
 QgsEditorConfigWidget *QgsDateTimeEditFactory::configWidget( QgsVectorLayer *vl, int fieldIdx, QWidget *parent ) const
@@ -89,6 +96,15 @@ QString QgsDateTimeEditFactory::representValue( QgsVectorLayer* vl, int fieldIdx
   }
 
   return result;
+}
+
+Qt::AlignmentFlag QgsDateTimeEditFactory::alignmentFlag( QgsVectorLayer* vl, int fieldIdx, const QgsEditorWidgetConfig& config ) const
+{
+  Q_UNUSED( vl );
+  Q_UNUSED( fieldIdx );
+  Q_UNUSED( config );
+
+  return Qt::AlignLeft;
 }
 
 QMap<const char*, int> QgsDateTimeEditFactory::supportedWidgetTypes()

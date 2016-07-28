@@ -209,13 +209,6 @@ bool QgsPythonUtilsImpl::checkQgisUser()
   return true;
 }
 
-void QgsPythonUtilsImpl::doUserImports()
-{
-
-  QString startuppath = homePythonPath() + " + \"/startup.py\"";
-  runString( "if os.path.exists(" + startuppath + "): from startup import *\n" );
-}
-
 void QgsPythonUtilsImpl::initPython( QgisInterface* interface )
 {
   init();
@@ -231,7 +224,6 @@ void QgsPythonUtilsImpl::initPython( QgisInterface* interface )
     exitPython();
     return;
   }
-  doUserImports();
   finish();
 }
 
@@ -257,7 +249,6 @@ void QgsPythonUtilsImpl::initServerPython( QgsServerInterface* interface )
   // This is the other main difference with initInterface() for desktop plugins
   runString( "qgis.utils.initServerInterface(" + QString::number(( unsigned long ) interface ) + ')' );
 
-  doUserImports();
   finish();
 }
 
@@ -307,7 +298,7 @@ bool QgsPythonUtilsImpl::runStringUnsafe( const QString& command, bool single )
   // (non-unicode strings can be mangled)
   PyObject* obj = PyRun_String( command.toUtf8().data(), single ? Py_single_input : Py_file_input, mMainDict, mMainDict );
   bool res = nullptr == PyErr_Occurred();
-  Py_DECREF( obj );
+  Py_XDECREF( obj );
 
   // we are done calling python API, release global interpreter lock
   PyGILState_Release( gstate );
@@ -336,7 +327,7 @@ bool QgsPythonUtilsImpl::runString( const QString& command, QString msgOnError, 
 
   QString str = "<font color=\"red\">" + msgOnError + "</font><br><pre>\n" + traceback + "\n</pre>"
                 + QObject::tr( "Python version:" ) + "<br>" + version + "<br><br>"
-                + QObject::tr( "QGIS version:" ) + "<br>" + QString( "%1 '%2', %3" ).arg( QGis::QGIS_VERSION, QGis::QGIS_RELEASE_NAME, QGis::QGIS_DEV_VERSION ) + "<br><br>"
+                + QObject::tr( "QGIS version:" ) + "<br>" + QString( "%1 '%2', %3" ).arg( Qgis::QGIS_VERSION, Qgis::QGIS_RELEASE_NAME, Qgis::QGIS_DEV_VERSION ) + "<br><br>"
                 + QObject::tr( "Python path:" ) + "<br>" + path;
   str.replace( '\n', "<br>" ).replace( "  ", "&nbsp; " );
 
@@ -444,7 +435,7 @@ done:
 QString QgsPythonUtilsImpl::getTypeAsString( PyObject* obj )
 {
   if ( !obj )
-    return nullptr;
+    return QString();
 
 #if (PY_VERSION_HEX < 0x03000000)
   if ( PyClass_Check( obj ) )
@@ -604,9 +595,9 @@ QString QgsPythonUtilsImpl::pluginsPath()
 QString QgsPythonUtilsImpl::homePythonPath()
 {
   QString settingsDir = QgsApplication::qgisSettingsDirPath();
-  if ( QDir::cleanPath( settingsDir ) == QDir::homePath() + QString( "/.qgis%1" ).arg( QGis::QGIS_VERSION_INT / 10000 ) )
+  if ( QDir::cleanPath( settingsDir ) == QDir::homePath() + QString( "/.qgis%1" ).arg( Qgis::QGIS_VERSION_INT / 10000 ) )
   {
-    return QString( "b\"%1/.qgis%2/python\".decode('utf-8')" ).arg( QDir::homePath() ).arg( QGis::QGIS_VERSION_INT / 10000 );
+    return QString( "b\"%1/.qgis%2/python\".decode('utf-8')" ).arg( QDir::homePath() ).arg( Qgis::QGIS_VERSION_INT / 10000 );
   }
   else
   {

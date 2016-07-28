@@ -220,7 +220,7 @@ class FieldsMappingModel(QAbstractTableModel):
                 'type': field.type(),
                 'length': field.length(),
                 'precision': field.precision(),
-                'expression': field.name()}
+                'expression': QgsExpression.quotedColumnRef(field.name())}
 
     def loadLayerFields(self, layer):
         self.beginResetModel()
@@ -292,7 +292,10 @@ class FieldDelegate(QStyledItemDelegate):
 
         elif fieldType == QgsExpression:
             (value, isExpression, isValid) = editor.currentField()
-            model.setData(index, value)
+            if isExpression is True:
+                model.setData(index, value)
+            else:
+                model.setData(index, QgsExpression.quotedColumnRef(value))
 
         else:
             QStyledItemDelegate.setModelData(self, editor, model, index)
@@ -463,7 +466,7 @@ class FieldsMappingPanel(BASE, WIDGET):
             self.model.index(end, self.model.columnCount() - 1))
 
     def updateLayerCombo(self):
-        layers = dataobjects.getVectorLayers()
+        layers = dataobjects.getTables()
         layers.sort(key=lambda lay: lay.name())
         for layer in layers:
             self.layerCombo.addItem(layer.name(), layer)

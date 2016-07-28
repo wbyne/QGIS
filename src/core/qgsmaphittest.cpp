@@ -16,6 +16,7 @@
 
 #include "qgsmaphittest.h"
 
+#include "qgsfeatureiterator.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsrendercontext.h"
 #include "qgsmaplayerstylemanager.h"
@@ -31,7 +32,7 @@ QgsMapHitTest::QgsMapHitTest( const QgsMapSettings& settings, const QgsGeometry&
     , mLayerFilterExpression( layerFilterExpression )
     , mOnlyExpressions( false )
 {
-  if ( !polygon.isEmpty() && polygon.type() == QGis::Polygon )
+  if ( !polygon.isEmpty() && polygon.type() == Qgis::Polygon )
   {
     mPolygon = polygon;
   }
@@ -117,8 +118,8 @@ void QgsMapHitTest::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbol
   {
     if ( mSettings.destinationCrs() != vl->crs() )
     {
-      const QgsCoordinateTransform* ct = QgsCoordinateTransformCache::instance()->transform( mSettings.destinationCrs().authid(), vl->crs().authid() );
-      transformedPolygon.transform( *ct );
+      QgsCoordinateTransform ct = QgsCoordinateTransformCache::instance()->transform( mSettings.destinationCrs().authid(), vl->crs().authid() );
+      transformedPolygon.transform( ct );
     }
   }
 

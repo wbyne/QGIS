@@ -1,4 +1,4 @@
-class QgsRendererV2Widget : QWidget
+class QgsRendererV2Widget : QgsPanelWidget
 {
 %TypeHeaderCode
 #include <qgsrendererv2widget.h>
@@ -46,12 +46,6 @@ class QgsRendererV2Widget : QWidget
      * to re-synchronize with the variables.
      */
     void layerVariablesChanged();
-
-    /**
-     * Emmited when something on the widget has changed.
-     * All widgets will fire this event to notify of an internal change.
-     */
-    void widgetChanged();
 
   protected:
     /** Subclasses may provide the capability of changing multiple symbols at once by implementing the following two methods

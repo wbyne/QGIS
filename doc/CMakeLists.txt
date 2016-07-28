@@ -18,18 +18,30 @@ IF(TXT2TAGS_EXECUTABLE)
   ADD_CUSTOM_TARGET (t2tdoc ALL DEPENDS ${QGIS_DOC_FILES})
 ELSE(TXT2TAGS_EXECUTABLE)
   SET(QGIS_DOC_FILES
-    ${CMAKE_SOURCE_DIR}/INSTALL 
+    ${CMAKE_SOURCE_DIR}/INSTALL
   )
 ENDIF(TXT2TAGS_EXECUTABLE)
 
-SET(QGIS_DOC_FILES ${QGIS_DOC_FILES} index.html news.html developersmap.html contributors.json favicon.ico style.css AUTHORS CONTRIBUTORS SPONSORS DONORS TRANSLATORS LICENSE)
+SET(QGIS_DOC_FILES ${QGIS_DOC_FILES} index.html news.html developersmap.html contributors.json favicon.ico style.css release-sponsors.html AUTHORS CONTRIBUTORS SPONSORS DONORS TRANSLATORS LICENSE)
 
 INSTALL(FILES ${QGIS_DOC_FILES} DESTINATION ${QGIS_DATA_DIR}/doc)
 INSTALL(FILES ../images/icons/qgis-icon-60x60.png DESTINATION ${QGIS_DATA_DIR}/doc/images)
 
+# Sponsor images
+FILE (GLOB SPONSOR_IMAGES images/projects/thumbnails/* )
+INSTALL (FILES ${SPONSOR_IMAGES} DESTINATION ${QGIS_DATA_DIR}/doc/images/projects/thumbnails/)
+
 IF(WITH_APIDOC)
   FIND_PACKAGE(Doxygen 1.8.2 REQUIRED)
   IF(DOXYGEN_FOUND)
+
+    # Whether to generate QHP file
+    SET (GENERATE_QHP FALSE CACHE BOOL "Determines whether to generate Qt QHP help from the QGIS API Docs")
+    IF (GENERATE_QHP)
+      SET(WITH_QHP YES)
+    ELSE(GENERATE_QHP)
+      SET(WITH_QHP NO)
+    ENDIF(GENERATE_QHP)
 
     FIND_FILE(QT_TAG_FILE
       NAMES qt4.tags qt4.tag qt.tags qt.tag
@@ -48,6 +60,9 @@ IF(WITH_APIDOC)
             COMMENT "Generating API documentation" VERBATIM)
     INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/api/html/ DESTINATION ${QGIS_DATA_DIR}/doc/api)
     INSTALL(FILES ../images/icons/qgis-icon-60x60.png DESTINATION ${QGIS_DATA_DIR}/doc/api)
+    IF(GENERATE_QHP)
+      INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/api/qch/qgis.qch DESTINATION ${QGIS_DATA_DIR}/doc/api)
+    ENDIF(GENERATE_QHP)
   ELSE(DOXYGEN_FOUND)
     MESSAGE(STATUS "QGIS api documentation not built - Doxygen not found")
   ENDIF(DOXYGEN_FOUND)

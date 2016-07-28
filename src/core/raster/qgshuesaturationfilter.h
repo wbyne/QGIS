@@ -18,7 +18,6 @@
 #ifndef QGSHUESATURATIONFILTER_H
 #define QGSHUESATURATIONFILTER_H
 
-#include "qgsrasterdataprovider.h"
 #include "qgsrasterinterface.h"
 
 class QDomElement;
@@ -46,7 +45,7 @@ class CORE_EXPORT QgsHueSaturationFilter : public QgsRasterInterface
 
     int bandCount() const override;
 
-    QGis::DataType dataType( int bandNo ) const override;
+    Qgis::DataType dataType( int bandNo ) const override;
 
     bool setInput( QgsRasterInterface* input ) override;
 
@@ -65,10 +64,10 @@ class CORE_EXPORT QgsHueSaturationFilter : public QgsRasterInterface
     void setColorizeStrength( int colorizeStrength ) { mColorizeStrength = colorizeStrength; }
     int colorizeStrength() const { return mColorizeStrength; }
 
-    void writeXML( QDomDocument& doc, QDomElement& parentElem ) const override;
+    void writeXml( QDomDocument& doc, QDomElement& parentElem ) const override;
 
     /** Sets base class members from xml. Usually called from create() methods of subclasses*/
-    void readXML( const QDomElement& filterElem ) override;
+    void readXml( const QDomElement& filterElem ) override;
 
   private:
     /** Process a change in saturation and update resultant HSL & RGB values*/

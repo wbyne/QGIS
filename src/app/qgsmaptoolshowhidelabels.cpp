@@ -18,6 +18,8 @@
 #include "qgsmaptoolshowhidelabels.h"
 
 #include "qgsapplication.h"
+#include "qgscsexception.h"
+#include "qgsfeatureiterator.h"
 #include "qgsmapcanvas.h"
 #include "qgsvectorlayer.h"
 
@@ -46,7 +48,7 @@ void QgsMapToolShowHideLabels::canvasPressEvent( QgsMapMouseEvent* e )
   mSelectRect.setRect( 0, 0, 0, 0 );
   mSelectRect.setTopLeft( e->pos() );
   mSelectRect.setBottomRight( e->pos() );
-  mRubberBand = new QgsRubberBand( mCanvas, QGis::Polygon );
+  mRubberBand = new QgsRubberBand( mCanvas, Qgis::Polygon );
 }
 
 void QgsMapToolShowHideLabels::canvasMoveEvent( QgsMapMouseEvent* e )
@@ -94,7 +96,7 @@ void QgsMapToolShowHideLabels::canvasReleaseEvent( QgsMapMouseEvent* e )
 
     showHideLabels( e );
 
-    mRubberBand->reset( QGis::Polygon );
+    mRubberBand->reset( Qgis::Polygon );
     delete mRubberBand;
     mRubberBand = nullptr;
   }
@@ -179,7 +181,7 @@ void QgsMapToolShowHideLabels::showHideLabels( QMouseEvent * e )
   if ( labelChanged )
   {
     vlayer->endEditCommand();
-    mCanvas->refresh();
+    vlayer->triggerRepaint();
   }
   else
   {

@@ -34,7 +34,7 @@ QgsDb2Provider::QgsDb2Provider( QString uri )
     : QgsVectorDataProvider( uri )
     , mNumberFeatures( 0 )
     , mEnvironment( ENV_LUW )
-    , mWkbType( QGis::WKBUnknown )
+    , mWkbType( Qgis::WKBUnknown )
 {
   QgsDebugMsg( "uri: " + uri );
   QgsDataSourceURI anUri = QgsDataSourceURI( uri );
@@ -45,7 +45,7 @@ QgsDb2Provider::QgsDb2Provider( QString uri )
 
   if ( 0 != anUri.newWkbType() )
   {
-    mWkbType = QGis::fromNewWkbType( anUri.newWkbType() );
+    mWkbType = Qgis::fromNewWkbType( anUri.newWkbType() );
   }
   QgsDebugMsg( QString( "mWkbType: %1" ).arg( mWkbType ) );
   QgsDebugMsg( QString( "new mWkbType: %1" ).arg( anUri.newWkbType() ) );
@@ -105,7 +105,7 @@ QgsDb2Provider::QgsDb2Provider( QString uri )
   if ( mGeometryColName.isEmpty() )
   {
     // table contains no geometries
-    mWkbType = QGis::WKBNoGeometry;
+    mWkbType = Qgis::WKBNoGeometry;
     mSRId = 0;
   }
 
@@ -448,7 +448,7 @@ QgsAbstractFeatureSource* QgsDb2Provider::featureSource() const
   return new QgsDb2FeatureSource( this );
 }
 
-QgsFeatureIterator QgsDb2Provider::getFeatures( const QgsFeatureRequest& request )
+QgsFeatureIterator QgsDb2Provider::getFeatures( const QgsFeatureRequest& request ) const
 {
   if ( !mValid )
   {
@@ -459,7 +459,7 @@ QgsFeatureIterator QgsDb2Provider::getFeatures( const QgsFeatureRequest& request
   return QgsFeatureIterator( new QgsDb2FeatureIterator( new QgsDb2FeatureSource( this ), true, request ) );
 }
 
-QGis::WkbType QgsDb2Provider::geometryType() const
+Qgis::WkbType QgsDb2Provider::geometryType() const
 {
   return mWkbType;
 }
@@ -493,12 +493,12 @@ long QgsDb2Provider::featureCount() const
   }
 }
 
-const QgsFields &QgsDb2Provider::fields() const
+QgsFields QgsDb2Provider::fields() const
 {
   return mAttributeFields;
 }
 
-QgsCoordinateReferenceSystem QgsDb2Provider::crs()
+QgsCoordinateReferenceSystem QgsDb2Provider::crs() const
 {
   if ( !mCrs.isValid() && mSRId > 0 )
   {
@@ -514,9 +514,11 @@ QgsCoordinateReferenceSystem QgsDb2Provider::crs()
     bool execOk = query.exec( QString( "SELECT DEFINITION FROM DB2GSE.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = %1" ).arg( QString::number( mSRId ) ) );
     if ( execOk && query.isActive() )
     {
-      if ( query.next() && mCrs.createFromWkt( query.value( 0 ).toString() ) )
+      if ( query.next() )
       {
-        return mCrs;
+        mCrs = QgsCoordinateReferenceSystem::fromWkt( query.value( 0 ).toString() );
+        if ( mCrs.isValid() )
+          return mCrs;
       }
     }
   }
@@ -524,7 +526,7 @@ QgsCoordinateReferenceSystem QgsDb2Provider::crs()
 }
 
 // update the extent for this layer
-void QgsDb2Provider::updateStatistics()
+void QgsDb2Provider::updateStatistics() const
 {
   // get features to calculate the statistics
   QString statement;
@@ -615,7 +617,7 @@ void QgsDb2Provider::updateStatistics()
   }
 }
 
-QgsRectangle QgsDb2Provider::extent()
+QgsRectangle QgsDb2Provider::extent() const
 {
   QgsDebugMsg( QString( "entering; mExtent: %1" ).arg( mExtent.toString() ) );
   if ( mExtent.isEmpty() )
@@ -623,12 +625,12 @@ QgsRectangle QgsDb2Provider::extent()
   return mExtent;
 }
 
-bool QgsDb2Provider::isValid()
+bool QgsDb2Provider::isValid() const
 {
   return true; //DB2 only has valid geometries
 }
 
-QString QgsDb2Provider::subsetString()
+QString QgsDb2Provider::subsetString() const
 {
   return mSqlWhereClause;
 }
@@ -689,57 +691,57 @@ bool QgsDb2Provider::setSubsetString( const QString& theSQL, bool )
   return true;
 }
 
-void QgsDb2Provider::db2WkbTypeAndDimension( QGis::WkbType wkbType, QString &geometryType, int &dim )
+void QgsDb2Provider::db2WkbTypeAndDimension( Qgis::WkbType wkbType, QString &geometryType, int &dim )
 {
   switch ( wkbType )
   {
-    case QGis::WKBPoint25D:
+    case Qgis::WKBPoint25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBPoint:
+    case Qgis::WKBPoint:
       geometryType = "ST_POINT";
       break;
 
-    case QGis::WKBLineString25D:
+    case Qgis::WKBLineString25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBLineString:
+    case Qgis::WKBLineString:
       geometryType = "ST_LINESTRING";
       break;
 
-    case QGis::WKBPolygon25D:
+    case Qgis::WKBPolygon25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBPolygon:
+    case Qgis::WKBPolygon:
       geometryType = "ST_POLYGON";
       break;
 
-    case QGis::WKBMultiPoint25D:
+    case Qgis::WKBMultiPoint25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBMultiPoint:
+    case Qgis::WKBMultiPoint:
       geometryType = "ST_MULTIPOINT";
       break;
 
-    case QGis::WKBMultiLineString25D:
+    case Qgis::WKBMultiLineString25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBMultiLineString:
+    case Qgis::WKBMultiLineString:
       geometryType = "ST_MULTILINESTRING";
       break;
 
-    case QGis::WKBMultiPolygon25D:
+    case Qgis::WKBMultiPolygon25D:
       dim = 3;
       FALLTHROUGH;
-    case QGis::WKBMultiPolygon:
+    case Qgis::WKBMultiPolygon:
       geometryType = "ST_MULTIPOLYGON";
       break;
 
-    case QGis::WKBUnknown:
+    case Qgis::WKBUnknown:
       geometryType = "ST_GEOMETRY";
       break;
 
-    case QGis::WKBNoGeometry:
+    case Qgis::WKBNoGeometry:
     default:
       dim = 0;
       break;
@@ -915,7 +917,6 @@ bool QgsDb2Provider::changeAttributeValues( const QgsChangedAttributesMap &attr_
 
 bool QgsDb2Provider::addFeatures( QgsFeatureList & flist )
 {
-  QgsDebugMsg( "entering" );
   QgsDebugMsg( "mGeometryColType: " + mGeometryColType );
   int writeCount = 0;
   bool copyOperation = false;
@@ -930,7 +931,11 @@ bool QgsDb2Provider::addFeatures( QgsFeatureList & flist )
       return false;
     }
   }
-  mDatabase.transaction();
+  if ( !mDatabase.transaction() )
+  {
+    QgsDebugMsg( "transaction failed" );
+    return false;
+  }
   QSqlQuery query = QSqlQuery( mDatabase );
   query.setForwardOnly( true );
   QSqlQuery queryFid = QSqlQuery( mDatabase );
@@ -949,7 +954,7 @@ bool QgsDb2Provider::addFeatures( QgsFeatureList & flist )
 // Don't really do anything with it at this point
 #if 0
   QgsGeometry *geom = it.geometry();
-  QGis::WkbType wkbType = geom->wkbType();
+  Qgis::WkbType wkbType = geom->wkbType();
   QgsDebugMsg( QString( "wkbType: %1" ).arg( wkbType ) );
   QgsDebugMsg( QString( "mWkbType: %1" ).arg( mWkbType ) );
 #endif
@@ -1257,15 +1262,14 @@ bool QgsDb2Provider::changeGeometryValues( const QgsGeometryMap &geometry_map )
   return true;
 }
 
-QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer(
-  const QString& uri,
-  const QgsFields &fields,
-  QGis::WkbType wkbType,
-  const QgsCoordinateReferenceSystem *srs,
-  bool overwrite,
-  QMap<int, int> *oldToNewAttrIdxMap,
-  QString *errorMessage,
-  const QMap<QString, QVariant> *options )
+QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer( const QString& uri,
+    const QgsFields &fields,
+    Qgis::WkbType wkbType,
+    const QgsCoordinateReferenceSystem& srs,
+    bool overwrite,
+    QMap<int, int> *oldToNewAttrIdxMap,
+    QString *errorMessage,
+    const QMap<QString, QVariant> *options )
 {
   Q_UNUSED( options );
 
@@ -1291,8 +1295,8 @@ QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer(
   // srs->posgisSrid() seems to return the authority id which is
   // most often the EPSG id.  Hopefully DB2 has defined an SRS using this
   // value as the srid / srs_id.  If not, we are out of luck.
-  QgsDebugMsg( "srs: " + srs->toWkt() );
-  long srid = srs->postgisSrid();
+  QgsDebugMsg( "srs: " + srs.toWkt() );
+  long srid = srs.postgisSrid();
   QgsDebugMsg( QString( "srid: %1" ).arg( srid ) );
   if ( srid >= 0 )
   {
@@ -1343,9 +1347,9 @@ QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer(
   // This hack is problematic because the drag/drop will fail if the
   // actual data is a multi-type which is possible with a shapefile or
   // other data source.
-  QGis::WkbType wkbTypeSingle;
-  wkbTypeSingle = QGis::singleType( wkbType );
-  if ( wkbType != QGis::WKBNoGeometry && geometryColumn.isEmpty() )
+  Qgis::WkbType wkbTypeSingle;
+  wkbTypeSingle = Qgis::singleType( wkbType );
+  if ( wkbType != Qgis::WKBNoGeometry && geometryColumn.isEmpty() )
     geometryColumn = "GEOM";
 
   if ( primaryKey.isEmpty() )
@@ -1733,8 +1737,8 @@ QGISEXTERN QgsDataItem *dataItem( QString thePath, QgsDataItem *parentItem )
 QGISEXTERN QgsVectorLayerImport::ImportError createEmptyLayer(
   const QString& uri,
   const QgsFields &fields,
-  QGis::WkbType wkbType,
-  const QgsCoordinateReferenceSystem *srs,
+  Qgis::WkbType wkbType,
+  const QgsCoordinateReferenceSystem &srs,
   bool overwrite,
   QMap<int, int> *oldToNewAttrIdxMap,
   QString *errorMessage,

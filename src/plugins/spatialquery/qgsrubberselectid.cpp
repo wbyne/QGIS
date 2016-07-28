@@ -18,12 +18,12 @@
  ***************************************************************************/
 
 #include "qgsrubberselectid.h"
-
+#include "qgsfeatureiterator.h"
 #include "qgsfeature.h"
 
 QgsRubberSelectId::QgsRubberSelectId( QgsMapCanvas* mapCanvas )
 {
-  mGeometryType = QGis::Line;
+  mGeometryType = Qgis::Line;
   mMapCanvas = mapCanvas;
   mRubberBand = new QgsRubberBand( mMapCanvas, mGeometryType );
   mColorRGB[0] = 255;

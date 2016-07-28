@@ -19,6 +19,7 @@
 #include "qgsmergeattributesdialog.h"
 #include "qgisapp.h"
 #include "qgsapplication.h"
+#include "qgsfeatureiterator.h"
 #include "qgsfield.h"
 #include "qgsmapcanvas.h"
 #include "qgsrubberband.h"
@@ -459,7 +460,7 @@ void QgsMergeAttributesDialog::on_mRemoveFeatureFromSelectionButton_clicked()
   //remove feature from the vector layer selection
   QgsFeatureIds selectedIds = mVectorLayer->selectedFeaturesIds();
   selectedIds.remove( featureId );
-  mVectorLayer->setSelectedFeatures( selectedIds );
+  mVectorLayer->selectByIds( selectedIds );
   mMapCanvas->repaint();
 
   //remove feature option from the combo box (without altering the current merge values)

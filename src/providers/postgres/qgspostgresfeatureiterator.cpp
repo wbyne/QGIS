@@ -37,6 +37,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     , mExpressionCompiled( false )
     , mOrderByCompiled( false )
     , mLastFetch( false )
+    , mFilterRequiresGeometry( false )
 {
   if ( !source->mTransactionConnection )
   {
@@ -100,6 +101,7 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
       }
       mRequest.setSubsetOfAttributes( attrs );
     }
+    mFilterRequiresGeometry = request.filterExpression()->needsGeometry();
 
     if ( QSettings().value( "/qgis/compileExpressions", true ).toBool() )
     {
@@ -440,7 +442,7 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
                          mSource->mRequestedSrid );
   }
 
-  if ( mSource->mRequestedGeomType != QGis::WKBUnknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
+  if ( mSource->mRequestedGeomType != Qgis::WKBUnknown && mSource->mRequestedGeomType != mSource->mDetectedGeomType )
   {
     whereClause += QString( " AND %1" ).arg( QgsPostgresConn::postgisTypeFilter( mSource->mGeometryColumn, ( QgsWKBTypes::Type )mSource->mRequestedGeomType, castToGeometry ) );
   }
@@ -452,7 +454,7 @@ QString QgsPostgresFeatureIterator::whereClauseRect()
 
 bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause, long limit, bool closeOnFail, const QString& orderBy )
 {
-  mFetchGeometry = !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) && !mSource->mGeometryColumn.isNull();
+  mFetchGeometry = ( !( mRequest.flags() & QgsFeatureRequest::NoGeometry ) || mFilterRequiresGeometry ) && !mSource->mGeometryColumn.isNull();
 #if 0
   // TODO: check that all field indexes exist
   if ( !hasAllFields )
@@ -484,11 +486,13 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause, long
                    geom );
     }
 
+    Qgis::WkbType usedGeomType = mSource->mRequestedGeomType != Qgis::WKBUnknown
+                                 ? mSource->mRequestedGeomType : mSource->mDetectedGeomType;
+
     if ( !mRequest.simplifyMethod().forceLocalOptimization() &&
          mRequest.simplifyMethod().methodType() != QgsSimplifyMethod::NoSimplification &&
-         QGis::flatType( QGis::singleType( mSource->mRequestedGeomType != QGis::WKBUnknown
-                                           ? mSource->mRequestedGeomType
-                                           : mSource->mDetectedGeomType ) ) != QGis::WKBPoint )
+         Qgis::flatType( Qgis::singleType( usedGeomType ) ) != Qgis::WKBPoint &&
+         !QgsWKBTypes::isCurvedType( Qgis::fromOldWkbType( usedGeomType ) ) )
     {
       // PostGIS simplification method to use
       QString simplifyPostgisMethod;
@@ -577,6 +581,7 @@ bool QgsPostgresFeatureIterator::declareCursor( const QString& whereClause, long
       break;
 
     case pktInt:
+    case pktUint64:
       query += delim + QgsPostgresConn::quotedIdentifier( mSource->mFields.at( mSource->mPrimaryKeyAttrs.at( 0 ) ).name() );
       delim = ',';
       break;
@@ -701,17 +706,29 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
   QgsFeatureId fid = 0;
 
   bool subsetOfAttributes = mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes;
-  const QgsAttributeList& fetchAttributes = mRequest.subsetOfAttributes();
+  QgsAttributeList fetchAttributes = mRequest.subsetOfAttributes();
 
   switch ( mSource->mPrimaryKeyType )
   {
     case pktOid:
     case pktTid:
-    case pktInt:
       fid = mConn->getBinaryInt( queryResult, row, col++ );
-      if ( mSource->mPrimaryKeyType == pktInt &&
-           ( !subsetOfAttributes || fetchAttributes.contains( mSource->mPrimaryKeyAttrs.at( 0 ) ) ) )
+      break;
+
+    case pktInt:
+    case pktUint64:
+      fid = mConn->getBinaryInt( queryResult, row, col++ );
+      if ( !subsetOfAttributes || fetchAttributes.contains( mSource->mPrimaryKeyAttrs.at( 0 ) ) )
+      {
         feature.setAttribute( mSource->mPrimaryKeyAttrs[0], fid );
+      }
+      if ( mSource->mPrimaryKeyType == pktInt )
+      {
+        // NOTE: this needs be done _after_ the setAttribute call
+        // above as we want the attribute value to be 1:1 with
+        // database value
+        fid = QgsPostgresUtils::int32pk_to_fid( fid );
+      }
       break;
 
     case pktFidMap:

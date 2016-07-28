@@ -1,8 +1,16 @@
 /***************************************************************************
- *  qgsgeometryduplicatecheck.cpp                                          *
- *  -------------------                                                    *
- *  copyright            : (C) 2014 by Sandro Mani / Sourcepole AG         *
- *  email                : smani@sourcepole.ch                             *
+    qgsgeometryduplicatecheck.cpp
+    ---------------------
+    begin                : September 2015
+    copyright            : (C) 2014 by Sandro Mani / Sourcepole AG
+    email                : smani at sourcepole dot ch
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
  ***************************************************************************/
 
 #include "qgsgeometryengine.h"
@@ -22,7 +30,7 @@ void QgsGeometryDuplicateCheck::collectErrors( QList<QgsGeometryCheckError*>& er
     {
       continue;
     }
-    QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
+    QgsGeometryEngine* geomEngine = QgsGeometryCheckerUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
 
     QList<QgsFeatureId> duplicates;
     QgsFeatureIds ids = mFeaturePool->getIntersects( feature.geometry()->geometry()->boundingBox() );
@@ -74,7 +82,7 @@ void QgsGeometryDuplicateCheck::fixError( QgsGeometryCheckError* error, int meth
   }
   else if ( method == RemoveDuplicates )
   {
-    QgsGeometryEngine* geomEngine = QgsGeomUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
+    QgsGeometryEngine* geomEngine = QgsGeometryCheckerUtils::createGeomEngine( feature.geometry()->geometry(), QgsGeometryCheckPrecision::tolerance() );
 
     QgsGeometryDuplicateCheckError* duplicateError = static_cast<QgsGeometryDuplicateCheckError*>( error );
     Q_FOREACH ( QgsFeatureId id, duplicateError->duplicates() )

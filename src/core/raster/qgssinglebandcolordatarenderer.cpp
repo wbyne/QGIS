@@ -35,9 +35,7 @@ QgsSingleBandColorDataRenderer::~QgsSingleBandColorDataRenderer()
 QgsSingleBandColorDataRenderer* QgsSingleBandColorDataRenderer::clone() const
 {
   QgsSingleBandColorDataRenderer * renderer = new QgsSingleBandColorDataRenderer( nullptr, mBand );
-  renderer->setOpacity( mOpacity );
-  renderer->setAlphaBand( mAlphaBand );
-  renderer->setRasterTransparency( mRasterTransparency ? new QgsRasterTransparency( *mRasterTransparency ) : nullptr );
+  renderer->copyCommonProperties( this );
   return renderer;
 }
 
@@ -50,7 +48,7 @@ QgsRasterRenderer* QgsSingleBandColorDataRenderer::create( const QDomElement& el
 
   int band = elem.attribute( "band", "-1" ).toInt();
   QgsRasterRenderer* r = new QgsSingleBandColorDataRenderer( input, band );
-  r->readXML( elem );
+  r->readXml( elem );
   return r;
 }
 
@@ -76,19 +74,19 @@ QgsRasterBlock* QgsSingleBandColorDataRenderer::block( int bandNo, QgsRectangle 
   if ( !hasTransparency )
   {
     // Nothing to do, just retype if necessary
-    inputBlock->convert( QGis::ARGB32_Premultiplied );
+    inputBlock->convert( Qgis::ARGB32_Premultiplied );
     delete outputBlock;
     return inputBlock;
   }
 
-  if ( !outputBlock->reset( QGis::ARGB32_Premultiplied, width, height ) )
+  if ( !outputBlock->reset( Qgis::ARGB32_Premultiplied, width, height ) )
   {
     delete inputBlock;
     return outputBlock;
   }
 
   // make sure input is also premultiplied!
-  inputBlock->convert( QGis::ARGB32_Premultiplied );
+  inputBlock->convert( Qgis::ARGB32_Premultiplied );
 
   QRgb* inputBits = ( QRgb* )inputBlock->bits();
   QRgb* outputBits = ( QRgb* )outputBlock->bits();
@@ -102,13 +100,13 @@ QgsRasterBlock* QgsSingleBandColorDataRenderer::block( int bandNo, QgsRectangle 
   return outputBlock;
 }
 
-void QgsSingleBandColorDataRenderer::writeXML( QDomDocument& doc, QDomElement& parentElem ) const
+void QgsSingleBandColorDataRenderer::writeXml( QDomDocument& doc, QDomElement& parentElem ) const
 {
   if ( parentElem.isNull() )
     return;
 
   QDomElement rasterRendererElem = doc.createElement( "rasterrenderer" );
-  _writeXML( doc, rasterRendererElem );
+  _writeXml( doc, rasterRendererElem );
   rasterRendererElem.setAttribute( "band", mBand );
   parentElem.appendChild( rasterRendererElem );
 }
@@ -135,8 +133,8 @@ bool QgsSingleBandColorDataRenderer::setInput( QgsRasterInterface* input )
     return true;
   }
 
-  if ( input->dataType( 1 ) == QGis::ARGB32 ||
-       input->dataType( 1 ) == QGis::ARGB32_Premultiplied )
+  if ( input->dataType( 1 ) == Qgis::ARGB32 ||
+       input->dataType( 1 ) == Qgis::ARGB32_Premultiplied )
   {
     mInput = input;
     return true;

@@ -1,11 +1,20 @@
 /***************************************************************************
- *  qgsgeometryanglecheck.cpp                                              *
- *  -------------------                                                    *
- *  copyright            : (C) 2014 by Sandro Mani / Sourcepole AG         *
- *  email                : smani@sourcepole.ch                             *
+    qgsgeometryanglecheck.cpp
+    ---------------------
+    begin                : September 2015
+    copyright            : (C) 2014 by Sandro Mani / Sourcepole AG
+    email                : smani at sourcepole dot ch
+ ***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
  ***************************************************************************/
 
 #include "qgsgeometryanglecheck.h"
+#include "qgsgeometryutils.h"
 #include "../utils/qgsfeaturepool.h"
 
 void QgsGeometryAngleCheck::collectErrors( QList<QgsGeometryCheckError*>& errors, QStringList &/*messages*/, QAtomicInt* progressCounter , const QgsFeatureIds &ids ) const
@@ -24,7 +33,7 @@ void QgsGeometryAngleCheck::collectErrors( QList<QgsGeometryCheckError*>& errors
     {
       for ( int iRing = 0, nRings = geom->ringCount( iPart ); iRing < nRings; ++iRing )
       {
-        int nVerts = QgsGeomUtils::polyLineSize( geom, iPart, iRing );
+        int nVerts = QgsGeometryCheckerUtils::polyLineSize( geom, iPart, iRing );
         // Less than three points, no angles to check
         if ( nVerts < 3 )
         {
@@ -77,7 +86,7 @@ void QgsGeometryAngleCheck::fixError( QgsGeometryCheckError* error, int method, 
   }
 
   // Check if error still applies
-  int n = QgsGeomUtils::polyLineSize( geometry, vidx.part, vidx.ring );
+  int n = QgsGeometryCheckerUtils::polyLineSize( geometry, vidx.part, vidx.ring );
   const QgsPointV2& p1 = geometry->vertexAt( QgsVertexId( vidx.part, vidx.ring, ( vidx.vertex - 1 + n ) % n ) );
   const QgsPointV2& p2 = geometry->vertexAt( vidx );
   const QgsPointV2& p3 = geometry->vertexAt( QgsVertexId( vidx.part, vidx.ring, ( vidx.vertex + 1 ) % n ) );
@@ -106,17 +115,25 @@ void QgsGeometryAngleCheck::fixError( QgsGeometryCheckError* error, int method, 
   }
   else if ( method == DeleteNode )
   {
-
-    if ( n <= 3 )
+    if ( !QgsGeometryCheckerUtils::canDeleteVertex( geometry, vidx.part, vidx.ring ) )
     {
       error->setFixFailed( tr( "Resulting geometry is degenerate" ) );
     }
+    else if ( !geometry->deleteVertex( error->vidx() ) )
+    {
+      error->setFixFailed( tr( "Failed to delete vertex" ) );
+    }
     else
     {
-      geometry->deleteVertex( vidx );
+      changes[error->featureId()].append( Change( ChangeNode, ChangeRemoved, vidx ) );
+      if ( QgsGeometryUtils::sqrDistance2D( p1, p3 ) < QgsGeometryCheckPrecision::tolerance() * QgsGeometryCheckPrecision::tolerance()
+           && QgsGeometryCheckerUtils::canDeleteVertex( geometry, vidx.part, vidx.ring ) &&
+           geometry->deleteVertex( error->vidx() ) ) // error->vidx points to p3 after removing p2
+      {
+        changes[error->featureId()].append( Change( ChangeNode, ChangeRemoved, QgsVertexId( vidx.part, vidx.ring, ( vidx.vertex + 1 ) % n ) ) );
+      }
       mFeaturePool->updateFeature( feature );
       error->setFixed( method );
-      changes[error->featureId()].append( Change( ChangeNode, ChangeRemoved, vidx ) );
     }
   }
   else

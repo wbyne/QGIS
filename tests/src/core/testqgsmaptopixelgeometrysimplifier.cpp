@@ -133,7 +133,9 @@ void TestQgsMapToPixelGeometrySimplifier::testLine1()
 
   fl = QgsMapToPixelSimplifier::SimplifyEnvelope;
   ret = QgsMapToPixelSimplifier::simplifyGeometry( g.data(), fl, 20.0 );
-  QVERIFY( ! ret );
+  QVERIFY( ret );
+  wkt = g->exportToWkt();
+  QCOMPARE( wkt, QString( "LineString (0 0, 1 1, 20 1, 10 0, 5 0)" ) );
 
   ret = QgsMapToPixelSimplifier::simplifyGeometry( g.data(), fl, 30.0 );
   QVERIFY( ret );
@@ -172,13 +174,11 @@ void TestQgsMapToPixelGeometrySimplifier::testWkbDimensionMismatch()
   // NOTE: wkb onwership transferred to QgsGeometry
   g12416.fromWkb( wkb, size );
   QString wkt = g12416.exportToWkt();
-  QCOMPARE( wkt, QString( "MultiLineString ((0 0 0, 1 1 0, 2 0 0, 3 1 0, 10 0 -0.000001),(0 0 0, 0 0 0.000001))" ) );
+  QCOMPARE( wkt, QString( "MultiLineStringZ ((0 0 0, 1 1 0, 2 0 0, 3 1 0, 10 0 -0.000001),(0 0 0, 0 0 0.000001))" ) );
 
   int fl = QgsMapToPixelSimplifier::SimplifyGeometry;
   int ret = QgsMapToPixelSimplifier::simplifyGeometry( &g12416, fl, 20.0 );
-  // NOTE: currently false due to thrown exception, but fixing the
-  //       simplification code might actually give a success
-  QVERIFY( ! ret );
+  QVERIFY( ret );
 }
 
 QTEST_MAIN( TestQgsMapToPixelGeometrySimplifier )

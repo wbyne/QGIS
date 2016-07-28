@@ -20,6 +20,7 @@
 
 #include "checkDock.h"
 
+#include "qgsfeatureiterator.h"
 #include <qgsvectordataprovider.h>
 #include <qgsvectorlayer.h>
 #include <qgsmaplayer.h>
@@ -42,7 +43,7 @@
 //class QgisInterface;
 
 checkDock::checkDock( QgisInterface* qIface, QWidget* parent )
-    : QDockWidget( parent ), Ui::checkDock()
+    : QgsDockWidget( parent ), Ui::checkDock()
 {
   mTest = new topolTest( qIface );
 
@@ -232,7 +233,7 @@ void checkDock::errorListClicked( const QModelIndex& index )
 
   // use vertex marker when highlighting a point
   // and rubber band otherwise
-  if ( g->type() == QGis::Point )
+  if ( g->type() == Qgis::Point )
   {
     mVMFeature1 = new QgsVertexMarker( canvas );
     mVMFeature1->setIconType( QgsVertexMarker::ICON_X );
@@ -261,7 +262,7 @@ void checkDock::errorListClicked( const QModelIndex& index )
     return;
   }
 
-  if ( g->type() == QGis::Point )
+  if ( g->type() == Qgis::Point )
   {
     mVMFeature2 = new QgsVertexMarker( canvas );
     mVMFeature2->setIconType( QgsVertexMarker::ICON_BOX );
@@ -279,7 +280,7 @@ void checkDock::errorListClicked( const QModelIndex& index )
     return;
   }
 
-  if ( mErrorList.at( row )->conflict()->type() == QGis::Point )
+  if ( mErrorList.at( row )->conflict()->type() == Qgis::Point )
   {
     mVMConflict = new QgsVertexMarker( canvas );
     mVMConflict->setIconType( QgsVertexMarker::ICON_BOX );
@@ -358,9 +359,9 @@ void checkDock::runTests( ValidateType type )
       te->conflict();
 
       QSettings settings;
-      if ( te->conflict()->type() == QGis::Polygon )
+      if ( te->conflict()->type() == Qgis::Polygon )
       {
-        rb = new QgsRubberBand( qgsInterface->mapCanvas(), QGis::Polygon );
+        rb = new QgsRubberBand( qgsInterface->mapCanvas(), Qgis::Polygon );
       }
       else
       {

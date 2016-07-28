@@ -16,10 +16,11 @@
 
 #include "qgsfeaturepool.h"
 #include "qgsfeature.h"
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
-#include "qgsgeomutils.h"
+#include "qgsgeometryutils.h"
 
 #include <QMutexLocker>
 #include <qmath.h>
@@ -86,7 +87,7 @@ void QgsFeaturePool::addFeature( QgsFeature& feature )
   {
     QgsFeatureIds selectedFeatureIds = mLayer->selectedFeaturesIds();
     selectedFeatureIds.insert( feature.id() );
-    mLayer->setSelectedFeatures( selectedFeatureIds );
+    mLayer->selectByIds( selectedFeatureIds );
   }
   mLayerMutex.unlock();
   mIndexMutex.lock();

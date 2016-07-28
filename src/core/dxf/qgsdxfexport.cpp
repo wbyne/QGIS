@@ -33,6 +33,7 @@
 #include "qgsrendererv2.h"
 #include "qgssymbollayerv2.h"
 #include "qgsfillsymbollayerv2.h"
+#include "qgsfeatureiterator.h"
 #include "qgslinesymbollayerv2.h"
 #include "qgsvectorlayer.h"
 #include "qgsmaplayerregistry.h"
@@ -365,7 +366,7 @@ const char *QgsDxfExport::mDxfEncodings[][2] =
 QgsDxfExport::QgsDxfExport()
     : mSymbologyScaleDenominator( 1.0 )
     , mSymbologyExport( NoSymbology )
-    , mMapUnits( QGis::Meters )
+    , mMapUnits( QgsUnitTypes::DistanceMeters )
     , mLayerTitleAsName( false )
     , mSymbolLayerCounter( 0 )
     , mNextHandleId( DXF_HANDSEED )
@@ -851,7 +852,7 @@ void QgsDxfExport::writeBlocks()
       continue;
 
     // if point symbol layer and no data defined properties: write block
-    QgsSymbolV2RenderContext ctx( ct, QgsSymbolV2::MapUnit, slIt->second->alpha(), false, slIt->second->renderHints(), nullptr );
+    QgsSymbolV2RenderContext ctx( ct, QgsUnitTypes::RenderMapUnits, slIt->second->alpha(), false, slIt->second->renderHints(), nullptr );
     ml->startRender( ctx );
 
     // markers with data defined properties are inserted inline
@@ -911,7 +912,7 @@ void QgsDxfExport::writeEntities()
   mapSettings.setExtent( bbox );
 
   int dpi = 96;
-  double factor = 1000 * dpi / mSymbologyScaleDenominator / 25.4 * QgsUnitTypes::fromUnitToUnitFactor( mMapUnits, QGis::Meters );
+  double factor = 1000 * dpi / mSymbologyScaleDenominator / 25.4 * QgsUnitTypes::fromUnitToUnitFactor( mMapUnits, QgsUnitTypes::DistanceMeters );
   mapSettings.setOutputSize( QSize( bbox.width() * factor, bbox.height() * factor ) );
   mapSettings.setOutputDpi( dpi );
   mapSettings.setCrsTransformEnabled( false );
@@ -944,7 +945,7 @@ void QgsDxfExport::writeEntities()
       continue;
     }
 
-    QgsSymbolV2RenderContext sctx( ctx, QgsSymbolV2::MM, 1.0, false, 0, nullptr );
+    QgsSymbolV2RenderContext sctx( ctx, QgsUnitTypes::RenderMillimeters, 1.0, false, 0, nullptr );
     QgsFeatureRendererV2* renderer = vl->rendererV2();
     if ( !renderer )
     {
@@ -963,9 +964,8 @@ void QgsDxfExport::writeEntities()
     const QgsAbstractVectorLayerLabeling *labeling = vl->labeling();
     QgsDxfLabelProvider *lp = nullptr;
     QgsDxfRuleBasedLabelProvider *rblp = nullptr;
-    if ( dynamic_cast<const QgsRuleBasedLabeling*>( labeling ) )
+    if ( const QgsRuleBasedLabeling *rbl = dynamic_cast<const QgsRuleBasedLabeling*>( labeling ) )
     {
-      const QgsRuleBasedLabeling *rbl = dynamic_cast<const QgsRuleBasedLabeling*>( labeling );
       rblp = new QgsDxfRuleBasedLabelProvider( *rbl, vl, this );
       rblp->reinit( vl );
       engine.addProvider( rblp );
@@ -1084,12 +1084,12 @@ void QgsDxfExport::writeEntitiesSymbolLevels( QgsVectorLayer* layer )
   ctx.expressionContext() << QgsExpressionContextUtils::globalScope()
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::layerScope( layer );
-  QgsSymbolV2RenderContext sctx( ctx, QgsSymbolV2::MM, 1.0, false, 0, nullptr );
+  QgsSymbolV2RenderContext sctx( ctx, QgsUnitTypes::RenderMillimeters, 1.0, false, 0, nullptr );
   renderer->startRender( ctx, layer->fields() );
 
   // get iterator
   QgsFeatureRequest req;
-  if ( layer->wkbType() == QGis::WKBNoGeometry )
+  if ( layer->wkbType() == Qgis::WKBNoGeometry )
   {
     req.setFlags( QgsFeatureRequest::NoGeometry );
   }
@@ -3552,11 +3552,11 @@ void QgsDxfExport::writeFilledCircle( const QString &layer, const QColor& color,
 
 void QgsDxfExport::writeFilledCircle( const QString &layer, const QColor& color, const QgsPointV2 &pt, double radius )
 {
-  writeGroup( 0, "HATCH" );                     // Entity type
+  writeGroup( 0, "HATCH" );  // Entity type
   writeHandle();
   writeGroup( 330, mBlockHandle );
   writeGroup( 100, "AcDbEntity" );
-  writeGroup( 8, layer );   // Layer name
+  writeGroup( 8, layer );    // Layer name
   writeGroup( color );       // Color (0 by block, 256 by layer)
   writeGroup( 100, "AcDbHatch" );
 
@@ -3567,26 +3567,23 @@ void QgsDxfExport::writeFilledCircle( const QString &layer, const QColor& color,
   writeGroup( 70, 1 );       // Solid fill flag (solid fill = 1; pattern fill = 0)
   writeGroup( 71, 0 );       // Associativity flag (associative = 1; non-associative = 0)
 
-
   writeGroup( 91, 1 );       // Number of boundary paths (loops)
 
-  writeGroup( 92, 7 );       // Boundary path type flag (bit coded): 0 = Default; 1 = External; 2 = Polyline 4 = Derived; 8 = Textbox; 16 = Outermost
-  writeGroup( 72, 2 );
+  writeGroup( 92, 3 );       // Boundary path type flag (bit coded): 0 = Default; 1 = External; 2 = Polyline 4 = Derived; 8 = Textbox; 16 = Outermost
+  writeGroup( 72, 1 );
   writeGroup( 73, 1 );       // Is closed flag
   writeGroup( 93, 2 );       // Number of polyline vertices
 
-  writeGroup( 0, QgsPointV2( QgsWKBTypes::PointZ, pt.x() - radius, pt.y() ) );
+  writeGroup( 0, QgsPointV2( QgsWKBTypes::Point, pt.x() - radius, pt.y() ) );
   writeGroup( 42, 1.0 );
 
-  writeGroup( 0, QgsPointV2( QgsWKBTypes::PointZ, pt.x() + radius, pt.y() ) );
+  writeGroup( 0, QgsPointV2( QgsWKBTypes::Point, pt.x() + radius, pt.y() ) );
   writeGroup( 42, 1.0 );
 
   writeGroup( 97, 0 );       // Number of source boundary objects
 
-  writeGroup( 75, 1 );       // Hatch style: 0 = Hatch "odd parity" area (Normal style), 1 = Hatch outermost area only (Outer style), 2 = Hatch through entire area (Ignore style)
+  writeGroup( 75, 0 );       // Hatch style: 0 = Hatch "odd parity" area (Normal style), 1 = Hatch outermost area only (Outer style), 2 = Hatch through entire area (Ignore style)
   writeGroup( 76, 1 );       // Hatch pattern type: 0 = User-defined; 1 = Predefined; 2 = Custom
-  writeGroup( 47, 0.0059696789328105 ); // Pixel size
-
   writeGroup( 98, 0 );       // Number of seed points
 }
 
@@ -3706,7 +3703,7 @@ QgsRectangle QgsDxfExport::dxfExtent() const
       else
       {
         QgsRectangle layerExtent = layerIt->first->extent();
-        extent.combineExtentWith( &layerExtent );
+        extent.combineExtentWith( layerExtent );
       }
     }
   }
@@ -3963,14 +3960,14 @@ QgsRenderContext QgsDxfExport::renderContext() const
   return context;
 }
 
-double QgsDxfExport::mapUnitScaleFactor( double scaleDenominator, QgsSymbolV2::OutputUnit symbolUnits, QGis::UnitType mapUnits )
+double QgsDxfExport::mapUnitScaleFactor( double scaleDenominator, QgsUnitTypes::RenderUnit symbolUnits, QgsUnitTypes::DistanceUnit mapUnits )
 {
-  if ( symbolUnits == QgsSymbolV2::MapUnit )
+  if ( symbolUnits == QgsUnitTypes::RenderMapUnits )
   {
     return 1.0;
   }
   // MM symbol unit
-  return scaleDenominator * QgsUnitTypes::fromUnitToUnitFactor( QGis::Meters, mapUnits ) / 1000.0;
+  return scaleDenominator * QgsUnitTypes::fromUnitToUnitFactor( QgsUnitTypes::DistanceMeters, mapUnits ) / 1000.0;
 }
 
 QList< QPair< QgsSymbolLayerV2*, QgsSymbolV2* > > QgsDxfExport::symbolLayers( QgsRenderContext &context )
@@ -4038,19 +4035,19 @@ void QgsDxfExport::writeDefaultLinetypes()
   QVector<qreal> dashVector( 2 );
   dashVector[0] = das;
   dashVector[1] = dss;
-  writeLinetype( "DASH", dashVector, QgsSymbolV2::MapUnit );
+  writeLinetype( "DASH", dashVector, QgsUnitTypes::RenderMapUnits );
 
   QVector<qreal> dotVector( 2 );
   dotVector[0] = dos;
   dotVector[1] = dss;
-  writeLinetype( "DOT", dotVector, QgsSymbolV2::MapUnit );
+  writeLinetype( "DOT", dotVector, QgsUnitTypes::RenderMapUnits );
 
   QVector<qreal> dashDotVector( 4 );
   dashDotVector[0] = das;
   dashDotVector[1] = dss;
   dashDotVector[2] = dos;
   dashDotVector[3] = dss;
-  writeLinetype( "DASHDOT", dashDotVector, QgsSymbolV2::MapUnit );
+  writeLinetype( "DASHDOT", dashDotVector, QgsUnitTypes::RenderMapUnits );
 
   QVector<qreal> dashDotDotVector( 6 );
   dashDotDotVector[0] = das;
@@ -4059,7 +4056,7 @@ void QgsDxfExport::writeDefaultLinetypes()
   dashDotDotVector[3] = dss;
   dashDotDotVector[4] = dos;
   dashDotDotVector[5] = dss;
-  writeLinetype( "DASHDOTDOT", dashDotDotVector, QgsSymbolV2::MapUnit );
+  writeLinetype( "DASHDOTDOT", dashDotDotVector, QgsUnitTypes::RenderMapUnits );
 }
 
 void QgsDxfExport::writeSymbolLayerLinetype( const QgsSymbolLayerV2* symbolLayer )
@@ -4069,7 +4066,7 @@ void QgsDxfExport::writeSymbolLayerLinetype( const QgsSymbolLayerV2* symbolLayer
     return;
   }
 
-  QgsSymbolV2::OutputUnit unit;
+  QgsUnitTypes::RenderUnit unit;
   QVector<qreal> customLinestyle = symbolLayer->dxfCustomDashPattern( unit );
   if ( !customLinestyle.isEmpty() )
   {
@@ -4097,7 +4094,7 @@ int QgsDxfExport::nLineTypes( const QList< QPair< QgsSymbolLayerV2*, QgsSymbolV2
   return nLineTypes;
 }
 
-void QgsDxfExport::writeLinetype( const QString& styleName, const QVector<qreal>& pattern, QgsSymbolV2::OutputUnit u )
+void QgsDxfExport::writeLinetype( const QString& styleName, const QVector<qreal>& pattern, QgsUnitTypes::RenderUnit u )
 {
   double length = 0;
   QVector<qreal>::const_iterator dashIt = pattern.constBegin();
@@ -4167,7 +4164,7 @@ double QgsDxfExport::dashSeparatorSize() const
 
 double QgsDxfExport::sizeToMapUnits( double s ) const
 {
-  double size = s * QgsUnitTypes::fromUnitToUnitFactor( QGis::Meters, mMapUnits );
+  double size = s * QgsUnitTypes::fromUnitToUnitFactor( QgsUnitTypes::DistanceMeters, mMapUnits );
   return size;
 }
 
@@ -4212,6 +4209,11 @@ QString QgsDxfExport::dxfLayerName( const QString& name )
   layerName.replace( '|', '_' );
   layerName.replace( '=', '_' );
   layerName.replace( '\'', '_' );
+
+  // also remove newline characters (#15067)
+  layerName.replace( "\r\n", "_" );
+  layerName.replace( '\r', '_' );
+  layerName.replace( '\n', '_' );
 
   return layerName.trimmed();
 }

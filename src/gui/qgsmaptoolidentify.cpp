@@ -17,6 +17,7 @@
 #include "qgscursors.h"
 #include "qgsdistancearea.h"
 #include "qgsfeature.h"
+#include "qgsfeatureiterator.h"
 #include "qgsfeaturestore.h"
 #include "qgsfield.h"
 #include "qgsgeometry.h"
@@ -27,6 +28,7 @@
 #include "qgsmaptopixel.h"
 #include "qgsmessageviewer.h"
 #include "qgsmaplayer.h"
+#include "qgsrasterdataprovider.h"
 #include "qgsrasterlayer.h"
 #include "qgsrasteridentifyresult.h"
 #include "qgscoordinatereferencesystem.h"
@@ -39,6 +41,7 @@
 #include "qgsgeometrycollectionv2.h"
 #include "qgscurvev2.h"
 #include "qgscoordinateutils.h"
+#include "qgscsexception.h"
 
 #include <QSettings>
 #include <QMouseEvent>
@@ -310,6 +313,18 @@ void QgsMapToolIdentify::closestVertexAttributes( const QgsAbstractGeometryV2& g
     str = QLocale::system().toString( closestPoint.m(), 'g', 10 );
     derivedAttributes.insert( "Closest vertex M", str );
   }
+
+  if ( vId.type == QgsVertexId::CurveVertex )
+  {
+    double radius, centerX, centerY;
+    QgsVertexId vIdBefore = vId;
+    --vIdBefore.vertex;
+    QgsVertexId vIdAfter = vId;
+    ++vIdAfter.vertex;
+    QgsGeometryUtils::circleCenterRadius( geometry.vertexAt( vIdBefore ), geometry.vertexAt( vId ),
+                                          geometry.vertexAt( vIdAfter ), radius, centerX, centerY );
+    derivedAttributes.insert( "Closest vertex radius", QLocale::system().toString( radius ) );
+  }
 }
 
 QString QgsMapToolIdentify::formatCoordinate( const QgsPoint& canvasPoint ) const
@@ -344,7 +359,7 @@ QMap< QString, QString > QgsMapToolIdentify::featureDerivedAttributes( QgsFeatur
   calc.setSourceCrs( layer->crs().srsid() );
 
   QgsWKBTypes::Type wkbType = QgsWKBTypes::NoGeometry;
-  QGis::GeometryType geometryType = QGis::NoGeometry;
+  Qgis::GeometryType geometryType = Qgis::NoGeometry;
 
   QgsVertexId vId;
   QgsPointV2 closestPoint;
@@ -364,7 +379,7 @@ QMap< QString, QString > QgsMapToolIdentify::featureDerivedAttributes( QgsFeatur
     derivedAttributes.insert( tr( "Part number" ), str );
   }
 
-  if ( geometryType == QGis::Line )
+  if ( geometryType == Qgis::Line )
   {
     double dist = calc.measureLength( feature->constGeometry() );
     dist = calc.convertLengthMeasurement( dist, displayDistanceUnits() );
@@ -393,7 +408,7 @@ QMap< QString, QString > QgsMapToolIdentify::featureDerivedAttributes( QgsFeatur
       derivedAttributes.insert( tr( "lastY" ), str );
     }
   }
-  else if ( geometryType == QGis::Polygon )
+  else if ( geometryType == Qgis::Polygon )
   {
     double area = calc.measureArea( feature->constGeometry() );
     area = calc.convertAreaMeasurement( area, displayAreaUnits() );
@@ -411,7 +426,7 @@ QMap< QString, QString > QgsMapToolIdentify::featureDerivedAttributes( QgsFeatur
     //add details of closest vertex to identify point
     closestVertexAttributes( *feature->constGeometry()->geometry(), vId, layer, derivedAttributes );
   }
-  else if ( geometryType == QGis::Point &&
+  else if ( geometryType == Qgis::Point &&
             QgsWKBTypes::flatType( wkbType ) == QgsWKBTypes::Point )
   {
     // Include the x and y coordinates of the point as a derived attribute
@@ -542,8 +557,18 @@ bool QgsMapToolIdentify::identifyRasterLayer( QList<IdentifyResult> *results, Qg
         }
         else
         {
-          double value = values.value( bandNo ).toDouble();
-          valueString = QgsRasterBlock::printValue( value );
+          QVariant value( values.value( bandNo ) );
+          // The cast is legit. Quoting QT doc :
+          // "Although this function is declared as returning QVariant::Type,
+          // the return value should be interpreted as QMetaType::Type"
+          if ( static_cast<QMetaType::Type>( value.type() ) == QMetaType::Float )
+          {
+            valueString = QgsRasterBlock::printValue( value.toFloat() );
+          }
+          else
+          {
+            valueString = QgsRasterBlock::printValue( value.toDouble() );
+          }
         }
         attributes.insert( dprovider->generateBandName( bandNo ), valueString );
       }
@@ -635,13 +660,13 @@ bool QgsMapToolIdentify::identifyRasterLayer( QList<IdentifyResult> *results, Qg
   return true;
 }
 
-void QgsMapToolIdentify::convertMeasurement( QgsDistanceArea &calc, double &measure, QGis::UnitType &u, bool isArea )
+void QgsMapToolIdentify::convertMeasurement( QgsDistanceArea &calc, double &measure, QgsUnitTypes::DistanceUnit &u, bool isArea )
 {
   // Helper for converting between units
   // The parameter &u is out only...
 
   // Get the canvas units
-  QGis::UnitType myUnits = mCanvas->mapUnits();
+  QgsUnitTypes::DistanceUnit myUnits = mCanvas->mapUnits();
 
   Q_NOWARN_DEPRECATED_PUSH
   calc.convertMeasurement( measure, myUnits, displayUnits(), isArea );
@@ -649,12 +674,12 @@ void QgsMapToolIdentify::convertMeasurement( QgsDistanceArea &calc, double &meas
   Q_NOWARN_DEPRECATED_POP
 }
 
-QGis::UnitType QgsMapToolIdentify::displayUnits()
+QgsUnitTypes::DistanceUnit QgsMapToolIdentify::displayUnits()
 {
   return mCanvas->mapUnits();
 }
 
-QGis::UnitType QgsMapToolIdentify::displayDistanceUnits() const
+QgsUnitTypes::DistanceUnit QgsMapToolIdentify::displayDistanceUnits() const
 {
   return mCanvas->mapUnits();
 }
@@ -682,7 +707,6 @@ QString QgsMapToolIdentify::formatArea( double area ) const
 
 void QgsMapToolIdentify::formatChanged( QgsRasterLayer *layer )
 {
-  QgsDebugMsg( "Entered" );
   QList<IdentifyResult> results;
   if ( identifyRasterLayer( &results, layer, mLastPoint, mLastExtent, mLastMapUnitsPerPixel ) )
   {

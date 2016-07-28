@@ -19,6 +19,7 @@
 #define QGSPOINTV2_H
 
 #include "qgsabstractgeometryv2.h"
+#include "qgsrectangle.h"
 
 /***************************************************************************
  * This class is considered CRITICAL and any change MUST be accompanied with
@@ -165,9 +166,11 @@ class CORE_EXPORT QgsPointV2: public QgsAbstractGeometryV2
     QDomElement asGML3( QDomDocument& doc, int precision = 17, const QString& ns = "gml" ) const override;
     QString asJSON( int precision = 17 ) const override;
     void draw( QPainter& p ) const override;
-    void transform( const QgsCoordinateTransform& ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform ) override;
+    void transform( const QgsCoordinateTransform& ct, QgsCoordinateTransform::TransformDirection d = QgsCoordinateTransform::ForwardTransform,
+                    bool transformZ = false ) override;
     void transform( const QTransform& t ) override;
     virtual QgsCoordinateSequenceV2 coordinateSequence() const override;
+    virtual QgsAbstractGeometryV2* boundary() const override;
 
     //low-level editing
     virtual bool insertVertex( QgsVertexId position, const QgsPointV2& vertex ) override { Q_UNUSED( position ); Q_UNUSED( vertex ); return false; }

@@ -18,6 +18,7 @@ email                : marco.hugentobler at sourcepole dot com
 #include "qgswkbptr.h"
 #include "qgsgeos.h"
 #include "qgsmaptopixel.h"
+#include "qgspointv2.h"
 
 #include <limits>
 #include <QTransform>
@@ -174,6 +175,7 @@ QgsPointV2 QgsAbstractGeometryV2::centroid() const
   double A = 0.;
   double Cx = 0.;
   double Cy = 0.;
+  QgsPointV2 v0 = vertexAt( QgsVertexId( 0, 0, 0 ) );
   int i = 0, j = 1;
   if ( vertexAt( QgsVertexId( 0, 0, 0 ) ) != vertexAt( QgsVertexId( 0, 0, n - 1 ) ) )
   {
@@ -184,6 +186,10 @@ QgsPointV2 QgsAbstractGeometryV2::centroid() const
   {
     QgsPointV2 vi = vertexAt( QgsVertexId( 0, 0, i ) );
     QgsPointV2 vj = vertexAt( QgsVertexId( 0, 0, j ) );
+    vi.rx() -= v0.x();
+    vi.ry() -= v0.y();
+    vj.rx() -= v0.x();
+    vj.ry() -= v0.y();
     double d = vi.x() * vj.y() - vj.x() * vi.y();
     A += d;
     Cx += ( vi.x() + vj.x() ) * d;
@@ -203,7 +209,7 @@ QgsPointV2 QgsAbstractGeometryV2::centroid() const
   }
   else
   {
-    return QgsPointV2( Cx / ( 3. * A ), Cy / ( 3. * A ) );
+    return QgsPointV2( v0.x() + Cx / ( 3. * A ), v0.y() + Cy / ( 3. * A ) );
   }
 }
 
@@ -244,3 +250,12 @@ bool QgsAbstractGeometryV2::isEmpty() const
   QgsPointV2 vertex;
   return !nextVertex( vId, vertex );
 }
+
+
+QgsAbstractGeometryV2* QgsAbstractGeometryV2::segmentize( double tolerance, SegmentationToleranceType toleranceType ) const
+{
+  Q_UNUSED( tolerance );
+  Q_UNUSED( toleranceType );
+  return clone();
+}
+

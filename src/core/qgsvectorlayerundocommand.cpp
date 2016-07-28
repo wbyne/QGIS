@@ -15,6 +15,7 @@
 
 #include "qgsvectorlayerundocommand.h"
 
+#include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgsfeature.h"
 #include "qgsvectorlayer.h"
@@ -355,6 +356,11 @@ QgsVectorLayerUndoCommandDeleteAttribute::QgsVectorLayerUndoCommandDeleteAttribu
     mOldField = mBuffer->mAddedAttributes[mOriginIndex];
   }
 
+  if ( mBuffer->mRenamedAttributes.contains( fieldIndex ) )
+  {
+    mOldName = mBuffer->mRenamedAttributes.value( fieldIndex );
+  }
+
   // save values of new features
   for ( QgsFeatureMap::const_iterator it = mBuffer->mAddedFeatures.constBegin(); it != mBuffer->mAddedFeatures.constEnd(); ++it )
   {
@@ -385,6 +391,12 @@ void QgsVectorLayerUndoCommandDeleteAttribute::undo()
 
   mBuffer->updateLayerFields();
   mBuffer->handleAttributeAdded( mFieldIndex ); // update changed attributes + new features
+
+  if ( !mOldName.isEmpty() )
+  {
+    mBuffer->mRenamedAttributes[ mFieldIndex ] = mOldName;
+    mBuffer->updateLayerFields();
+  }
 
   // set previously used attributes of new features
   for ( QgsFeatureMap::iterator it = mBuffer->mAddedFeatures.begin(); it != mBuffer->mAddedFeatures.end(); ++it )
@@ -424,4 +436,27 @@ void QgsVectorLayerUndoCommandDeleteAttribute::redo()
   mBuffer->handleAttributeDeleted( mFieldIndex ); // update changed attributes + new features
   mBuffer->updateLayerFields();
   emit mBuffer->attributeDeleted( mFieldIndex );
+}
+
+
+QgsVectorLayerUndoCommandRenameAttribute::QgsVectorLayerUndoCommandRenameAttribute( QgsVectorLayerEditBuffer* buffer, int fieldIndex, const QString& newName )
+    : QgsVectorLayerUndoCommand( buffer )
+    , mFieldIndex( fieldIndex )
+    , mOldName( layer()->fields().at( fieldIndex ).name() )
+    , mNewName( newName )
+{
+}
+
+void QgsVectorLayerUndoCommandRenameAttribute::undo()
+{
+  mBuffer->mRenamedAttributes[ mFieldIndex ] = mOldName;
+  mBuffer->updateLayerFields();
+  emit mBuffer->attributeRenamed( mFieldIndex, mOldName );
+}
+
+void QgsVectorLayerUndoCommandRenameAttribute::redo()
+{
+  mBuffer->mRenamedAttributes[ mFieldIndex ] = mNewName;
+  mBuffer->updateLayerFields();
+  emit mBuffer->attributeRenamed( mFieldIndex, mNewName );
 }

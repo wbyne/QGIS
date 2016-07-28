@@ -20,9 +20,9 @@
 #include "qgsmultirenderchecker.h"
 #include "qgscomposermap.h"
 #include "qgsmaplayerregistry.h"
-#include "qgsmaprenderer.h"
 #include "qgsmultibandcolorrenderer.h"
 #include "qgsrasterlayer.h"
+#include "qgsrasterdataprovider.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
 #include "qgsproject.h"
@@ -146,8 +146,8 @@ void TestQgsComposerMap::uniqueId()
 {
   QDomDocument doc;
   QDomElement documentElement = doc.createElement( "ComposerItemClipboard" );
-  mComposerMap->writeXML( documentElement, doc );
-  mComposition->addItemsFromXML( documentElement, doc, 0, false );
+  mComposerMap->writeXml( documentElement, doc );
+  mComposition->addItemsFromXml( documentElement, doc, 0, false );
 
   //test if both composer maps have different ids
   const QgsComposerMap* newMap = 0;
@@ -355,9 +355,16 @@ void TestQgsComposerMap::dataDefinedStyles()
 
   QgsProject::instance()->visibilityPresetCollection()->insert( "test preset", rec );
 
+  // test following of preset
+  mComposerMap->setFollowVisibilityPreset( true );
+  mComposerMap->setFollowVisibilityPresetName( "test preset" );
+  QSet<QString> result = mComposerMap->layersToRender().toSet();
+  QCOMPARE( result.count(), 2 );
+  mComposerMap->setFollowVisibilityPresetName( QString() );
+
   //test malformed style string
   mComposerMap->setDataDefinedProperty( QgsComposerObject::MapStylePreset, true, true, "5", QString() );
-  QSet<QString> result = mComposerMap->layersToRender().toSet();
+  result = mComposerMap->layersToRender().toSet();
   QCOMPARE( result, ms.layers().toSet() );
 
   //test valid preset

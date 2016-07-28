@@ -19,8 +19,9 @@ import os
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtGui import QPainter
 
-from qgis.core import (QGis,
+from qgis.core import (Qgis,
                        QgsVectorLayer,
+                       QgsRectangle,
                        QgsFeature,
                        QgsFeatureRequest,
                        QgsGeometry,
@@ -33,7 +34,8 @@ from qgis.core import (QGis,
                        QgsSingleSymbolRendererV2,
                        QgsCoordinateReferenceSystem,
                        QgsProject,
-                       QgsUnitTypes)
+                       QgsUnitTypes,
+                       QgsAggregateCalculator)
 from qgis.testing import start_app, unittest
 from utilities import unitTestDataPath
 start_app()
@@ -57,6 +59,45 @@ def createLayerWithOnePoint():
     return layer
 
 
+def createLayerWithTwoPoints():
+    layer = QgsVectorLayer("Point?field=fldtxt:string&field=fldint:integer",
+                           "addfeat", "memory")
+    pr = layer.dataProvider()
+    f = QgsFeature()
+    f.setAttributes(["test", 123])
+    f.setGeometry(QgsGeometry.fromPoint(QgsPoint(100, 200)))
+    f2 = QgsFeature()
+    f2.setAttributes(["test2", 457])
+    f2.setGeometry(QgsGeometry.fromPoint(QgsPoint(100, 200)))
+    assert pr.addFeatures([f, f2])
+    assert layer.pendingFeatureCount() == 2
+    return layer
+
+
+def createLayerWithFivePoints():
+    layer = QgsVectorLayer("Point?field=fldtxt:string&field=fldint:integer",
+                           "addfeat", "memory")
+    pr = layer.dataProvider()
+    f = QgsFeature()
+    f.setAttributes(["test", 123])
+    f.setGeometry(QgsGeometry.fromPoint(QgsPoint(100, 200)))
+    f2 = QgsFeature()
+    f2.setAttributes(["test2", 457])
+    f2.setGeometry(QgsGeometry.fromPoint(QgsPoint(200, 200)))
+    f3 = QgsFeature()
+    f3.setAttributes(["test2", 888])
+    f3.setGeometry(QgsGeometry.fromPoint(QgsPoint(300, 200)))
+    f4 = QgsFeature()
+    f4.setAttributes(["test3", -1])
+    f4.setGeometry(QgsGeometry.fromPoint(QgsPoint(400, 300)))
+    f5 = QgsFeature()
+    f5.setAttributes(["test4", 0])
+    f5.setGeometry(QgsGeometry.fromPoint(QgsPoint(0, 0)))
+    assert pr.addFeatures([f, f2, f3, f4, f5])
+    assert layer.featureCount() == 5
+    return layer
+
+
 def createJoinLayer():
     joinLayer = QgsVectorLayer(
         "Point?field=x:string&field=y:integer&field=z:integer",
@@ -68,8 +109,14 @@ def createJoinLayer():
     f2 = QgsFeature()
     f2.setAttributes(["bar", 456, 654])
     f2.setGeometry(QgsGeometry.fromPoint(QgsPoint(2, 2)))
-    assert pr.addFeatures([f1, f2])
-    assert joinLayer.pendingFeatureCount() == 2
+    f3 = QgsFeature()
+    f3.setAttributes(["qar", 457, 111])
+    f3.setGeometry(QgsGeometry.fromPoint(QgsPoint(2, 2)))
+    f4 = QgsFeature()
+    f4.setAttributes(["a", 458, 19])
+    f4.setGeometry(QgsGeometry.fromPoint(QgsPoint(2, 2)))
+    assert pr.addFeatures([f1, f2, f3, f4])
+    assert joinLayer.pendingFeatureCount() == 4
     return joinLayer
 
 
@@ -830,6 +877,181 @@ class TestQgsVectorLayer(unittest.TestCase):
         layer.commitChanges()
         checkAfter2()
 
+    # RENAME ATTRIBUTE
+
+    def test_RenameAttribute(self):
+        layer = createLayerWithOnePoint()
+
+        # without editing mode
+        self.assertFalse(layer.renameAttribute(0, 'renamed'))
+
+        def checkFieldNames(names):
+            flds = layer.fields()
+            f = next(layer.getFeatures())
+            self.assertEqual(flds.count(), len(names))
+            self.assertEqual(f.fields().count(), len(names))
+
+            for idx, expected_name in enumerate(names):
+                self.assertEqual(flds[idx].name(), expected_name)
+                self.assertEqual(f.fields().at(idx).name(), expected_name)
+
+        layer.startEditing()
+
+        checkFieldNames(['fldtxt', 'fldint'])
+
+        self.assertFalse(layer.renameAttribute(-1, 'fldtxt2'))
+        self.assertFalse(layer.renameAttribute(10, 'fldtxt2'))
+        self.assertFalse(layer.renameAttribute(0, 'fldint')) # duplicate name
+
+        self.assertTrue(layer.renameAttribute(0, 'fldtxt2'))
+        checkFieldNames(['fldtxt2', 'fldint'])
+
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt2', 'fldint'])
+
+        # change two fields
+        self.assertTrue(layer.renameAttribute(1, 'fldint2'))
+        checkFieldNames(['fldtxt2', 'fldint2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt2', 'fldint'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt2', 'fldint'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt2', 'fldint2'])
+
+        # two renames
+        self.assertTrue(layer.renameAttribute(0, 'fldtxt3'))
+        checkFieldNames(['fldtxt3', 'fldint2'])
+        self.assertTrue(layer.renameAttribute(0, 'fldtxt4'))
+        checkFieldNames(['fldtxt4', 'fldint2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt3', 'fldint2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt2', 'fldint2'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt3', 'fldint2'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt4', 'fldint2'])
+
+    def test_RenameAttributeAfterAdd(self):
+        layer = createLayerWithOnePoint()
+
+        def checkFieldNames(names):
+            flds = layer.fields()
+            f = next(layer.getFeatures())
+            self.assertEqual(flds.count(), len(names))
+            self.assertEqual(f.fields().count(), len(names))
+
+            for idx, expected_name in enumerate(names):
+                self.assertEqual(flds[idx].name(), expected_name)
+                self.assertEqual(f.fields().at(idx).name(), expected_name)
+
+        layer.startEditing()
+
+        checkFieldNames(['fldtxt', 'fldint'])
+        self.assertTrue(layer.renameAttribute(1, 'fldint2'))
+        checkFieldNames(['fldtxt', 'fldint2'])
+        #add an attribute
+        self.assertTrue(layer.addAttribute(QgsField("flddouble", QVariant.Double, "double")))
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble'])
+        # rename it
+        self.assertTrue(layer.renameAttribute(2, 'flddouble2'))
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2'])
+        self.assertTrue(layer.addAttribute(QgsField("flddate", QVariant.Date, "date")))
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2', 'flddate'])
+        self.assertTrue(layer.renameAttribute(2, 'flddouble3'))
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble3', 'flddate'])
+        self.assertTrue(layer.renameAttribute(3, 'flddate2'))
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble3', 'flddate2'])
+
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble3', 'flddate'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2', 'flddate'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint'])
+
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble2', 'flddate'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble3', 'flddate'])
+        layer.undoStack().redo()
+        checkFieldNames(['fldtxt', 'fldint2', 'flddouble3', 'flddate2'])
+
+    def test_RenameAttributeAndDelete(self):
+        layer = createLayerWithOnePoint()
+        layer.dataProvider().addAttributes(
+            [QgsField("flddouble", QVariant.Double, "double")])
+        layer.updateFields()
+
+        def checkFieldNames(names):
+            flds = layer.fields()
+            f = next(layer.getFeatures())
+            self.assertEqual(flds.count(), len(names))
+            self.assertEqual(f.fields().count(), len(names))
+
+            for idx, expected_name in enumerate(names):
+                self.assertEqual(flds[idx].name(), expected_name)
+                self.assertEqual(f.fields().at(idx).name(), expected_name)
+
+        layer.startEditing()
+
+        checkFieldNames(['fldtxt', 'fldint', 'flddouble'])
+        self.assertTrue(layer.renameAttribute(0, 'fldtxt2'))
+        checkFieldNames(['fldtxt2', 'fldint', 'flddouble'])
+        self.assertTrue(layer.renameAttribute(2, 'flddouble2'))
+        checkFieldNames(['fldtxt2', 'fldint', 'flddouble2'])
+
+        #delete an attribute
+        self.assertTrue(layer.deleteAttribute(0))
+        checkFieldNames(['fldint', 'flddouble2'])
+        # rename remaining
+        self.assertTrue(layer.renameAttribute(0, 'fldint2'))
+        checkFieldNames(['fldint2', 'flddouble2'])
+        self.assertTrue(layer.renameAttribute(1, 'flddouble3'))
+        checkFieldNames(['fldint2', 'flddouble3'])
+        #delete an attribute
+        self.assertTrue(layer.deleteAttribute(0))
+        checkFieldNames(['flddouble3'])
+        self.assertTrue(layer.renameAttribute(0, 'flddouble4'))
+        checkFieldNames(['flddouble4'])
+
+        layer.undoStack().undo()
+        checkFieldNames(['flddouble3'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldint2', 'flddouble3'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldint2', 'flddouble2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldint', 'flddouble2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt2', 'fldint', 'flddouble2'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt2', 'fldint', 'flddouble'])
+        layer.undoStack().undo()
+        checkFieldNames(['fldtxt', 'fldint', 'flddouble'])
+
+        #layer.undoStack().redo()
+        #checkFieldNames(['fldtxt2', 'fldint'])
+        #layer.undoStack().redo()
+        #checkFieldNames(['fldint'])
+
     def test_fields(self):
         layer = createLayerWithOnePoint()
 
@@ -851,6 +1073,31 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.assertEqual(f["fldint"], 123)
 
         self.assertFalse(fi.nextFeature(f))
+
+        layer2 = createLayerWithFivePoints()
+
+        # getFeature(fid)
+        feat = layer2.getFeature(4)
+        self.assertTrue(feat.isValid())
+        self.assertEqual(feat['fldtxt'], 'test3')
+        self.assertEqual(feat['fldint'], -1)
+        feat = layer2.getFeature(10)
+        self.assertFalse(feat.isValid())
+
+        # getFeatures(expression)
+        it = layer2.getFeatures("fldint <= 0")
+        fids = [f.id() for f in it]
+        self.assertEqual(set(fids), set([4, 5]))
+
+        # getFeatures(fids)
+        it = layer2.getFeatures([1, 2])
+        fids = [f.id() for f in it]
+        self.assertEqual(set(fids), set([1, 2]))
+
+        # getFeatures(rect)
+        it = layer2.getFeatures(QgsRectangle(99, 99, 201, 201))
+        fids = [f.id() for f in it]
+        self.assertEqual(set(fids), set([1, 2]))
 
     def test_join(self):
 
@@ -905,6 +1152,24 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.assertEqual(len(f2.attributes()), 6)
         self.assertEqual(f2[2], "foo")
         self.assertEqual(f2[3], 321)
+
+    def test_JoinStats(self):
+        """ test calculating min/max/uniqueValues on joined field """
+        joinLayer = createJoinLayer()
+        layer = createLayerWithTwoPoints()
+        QgsMapLayerRegistry.instance().addMapLayers([joinLayer, layer])
+
+        join = QgsVectorJoinInfo()
+        join.targetFieldName = "fldint"
+        join.joinLayerId = joinLayer.id()
+        join.joinFieldName = "y"
+        join.memoryCache = True
+        layer.addJoin(join)
+
+        # stats on joined fields should only include values present by join
+        self.assertEqual(layer.minimumValue(3), 111)
+        self.assertEqual(layer.maximumValue(3), 321)
+        self.assertEqual(set(layer.uniqueValues(3)), set([111, 321]))
 
     def test_InvalidOperations(self):
         layer = createLayerWithOnePoint()
@@ -1004,7 +1269,7 @@ class TestQgsVectorLayer(unittest.TestCase):
         QgsProject.instance().writeEntry("SpatialRefSys", "/ProjectCRSID", srs.srsid())
         QgsProject.instance().writeEntry("SpatialRefSys", "/ProjectCrs", srs.authid())
         QgsProject.instance().writeEntry("Measure", "/Ellipsoid", "WGS84")
-        QgsProject.instance().writeEntry("Measurement", "/DistanceUnits", QgsUnitTypes.encodeUnit(QGis.Meters))
+        QgsProject.instance().writeEntry("Measurement", "/DistanceUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.DistanceMeters))
 
         idx = temp_layer.addExpressionField('$length', QgsField('length', QVariant.Double))  # NOQA
 
@@ -1014,7 +1279,7 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.assertAlmostEqual(f['length'], expected, 3)
 
         # change project length unit, check calculation respects unit
-        QgsProject.instance().writeEntry("Measurement", "/DistanceUnits", QgsUnitTypes.encodeUnit(QGis.Feet))
+        QgsProject.instance().writeEntry("Measurement", "/DistanceUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.DistanceFeet))
         f = next(temp_layer.getFeatures())
         expected = 88360.0918635
         self.assertAlmostEqual(f['length'], expected, 3)
@@ -1034,7 +1299,7 @@ class TestQgsVectorLayer(unittest.TestCase):
         QgsProject.instance().writeEntry("SpatialRefSys", "/ProjectCRSID", srs.srsid())
         QgsProject.instance().writeEntry("SpatialRefSys", "/ProjectCrs", srs.authid())
         QgsProject.instance().writeEntry("Measure", "/Ellipsoid", "WGS84")
-        QgsProject.instance().writeEntry("Measurement", "/AreaUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.SquareMeters))
+        QgsProject.instance().writeEntry("Measurement", "/AreaUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.AreaSquareMeters))
 
         idx = temp_layer.addExpressionField('$area', QgsField('area', QVariant.Double))  # NOQA
 
@@ -1044,7 +1309,7 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.assertAlmostEqual(f['area'], expected, delta=1.0)
 
         # change project area unit, check calculation respects unit
-        QgsProject.instance().writeEntry("Measurement", "/AreaUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.SquareMiles))
+        QgsProject.instance().writeEntry("Measurement", "/AreaUnits", QgsUnitTypes.encodeUnit(QgsUnitTypes.AreaSquareMiles))
         f = next(temp_layer.getFeatures())
         expected = 389.6117565069
         self.assertAlmostEqual(f['area'], expected, 3)
@@ -1061,6 +1326,157 @@ class TestQgsVectorLayer(unittest.TestCase):
         features = layer.getFeatures(QgsFeatureRequest().setFilterExpression('"test" = 5'))
 
         assert(len(list(features)) == 1)
+
+    def testSelectByIds(self):
+        """ Test selecting by ID"""
+        layer = QgsVectorLayer(os.path.join(unitTestDataPath(), 'points.shp'), 'Points', 'ogr')
+
+        # SetSelection
+        layer.selectByIds([1, 3, 5, 7], QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 3, 5, 7]))
+        # check that existing selection is cleared
+        layer.selectByIds([2, 4, 6], QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 4, 6]))
+
+        # AddToSelection
+        layer.selectByIds([3, 5], QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 4, 5, 6]))
+        layer.selectByIds([1], QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 2, 3, 4, 5, 6]))
+
+        # IntersectSelection
+        layer.selectByIds([1, 3, 5, 6], QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 3, 5, 6]))
+        layer.selectByIds([1, 2, 5, 6], QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 5, 6]))
+
+        # RemoveFromSelection
+        layer.selectByIds([2, 6, 7], QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 5]))
+        layer.selectByIds([1, 5], QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([]))
+
+    def testSelectByExpression(self):
+        """ Test selecting by expression """
+        layer = QgsVectorLayer(os.path.join(unitTestDataPath(), 'points.shp'), 'Points', 'ogr')
+
+        # SetSelection
+        layer.selectByExpression('"Class"=\'B52\' and "Heading" > 10 and "Heading" <70', QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([10, 11]))
+        # check that existing selection is cleared
+        layer.selectByExpression('"Class"=\'Biplane\'', QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([1, 5, 6, 7, 8]))
+        # SetSelection no matching
+        layer.selectByExpression('"Class"=\'A380\'', QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([]))
+
+        # AddToSelection
+        layer.selectByExpression('"Importance"=3', QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([0, 2, 3, 4, 14]))
+        layer.selectByExpression('"Importance"=4', QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([0, 2, 3, 4, 13, 14]))
+
+        # IntersectSelection
+        layer.selectByExpression('"Heading"<100', QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([0, 2, 3, 4]))
+        layer.selectByExpression('"Cabin Crew"=1', QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3]))
+
+        # RemoveFromSelection
+        layer.selectByExpression('"Heading"=85', QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([3]))
+        layer.selectByExpression('"Heading"=95', QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([]))
+
+    def testSelectByRect(self):
+        """ Test selecting by rectangle """
+        layer = QgsVectorLayer(os.path.join(unitTestDataPath(), 'points.shp'), 'Points', 'ogr')
+
+        # SetSelection
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 45), QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 7, 10, 11, 15]))
+        # check that existing selection is cleared
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 37), QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 10, 15]))
+        # SetSelection no matching
+        layer.selectByRect(QgsRectangle(112, 30, 115, 45), QgsVectorLayer.SetSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([]))
+
+        # AddToSelection
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 37), QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 10, 15]))
+        layer.selectByRect(QgsRectangle(-112, 37, -94, 45), QgsVectorLayer.AddToSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 7, 10, 11, 15]))
+
+        # IntersectSelection
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 37), QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 3, 10, 15]))
+        layer.selectByIds([2, 10, 13])
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 37), QgsVectorLayer.IntersectSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([2, 10]))
+
+        # RemoveFromSelection
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 45), QgsVectorLayer.SetSelection)
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 37), QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([7, 11]))
+        layer.selectByRect(QgsRectangle(-112, 30, -94, 45), QgsVectorLayer.RemoveFromSelection)
+        self.assertEqual(set(layer.selectedFeaturesIds()), set([]))
+
+    def testAggregate(self):
+        """ Test aggregate calculation """
+        layer = QgsVectorLayer("Point?field=fldint:integer", "layer", "memory")
+        pr = layer.dataProvider()
+
+        int_values = [4, 2, 3, 2, 5, None, 8]
+        features = []
+        for i in int_values:
+            f = QgsFeature()
+            f.setFields(layer.fields())
+            f.setAttributes([i])
+            features.append(f)
+        assert pr.addFeatures(features)
+
+        tests = [[QgsAggregateCalculator.Count, 6],
+                 [QgsAggregateCalculator.Sum, 24],
+                 [QgsAggregateCalculator.Mean, 4],
+                 [QgsAggregateCalculator.StDev, 2.0816],
+                 [QgsAggregateCalculator.StDevSample, 2.2803],
+                 [QgsAggregateCalculator.Min, 2],
+                 [QgsAggregateCalculator.Max, 8],
+                 [QgsAggregateCalculator.Range, 6],
+                 [QgsAggregateCalculator.Median, 3.5],
+                 [QgsAggregateCalculator.CountDistinct, 5],
+                 [QgsAggregateCalculator.CountMissing, 1],
+                 [QgsAggregateCalculator.FirstQuartile, 2],
+                 [QgsAggregateCalculator.ThirdQuartile, 5.0],
+                 [QgsAggregateCalculator.InterQuartileRange, 3.0]
+                 ]
+
+        for t in tests:
+            val, ok = layer.aggregate(t[0], 'fldint')
+            self.assertTrue(ok)
+            if isinstance(t[1], int):
+                self.assertEqual(val, t[1])
+            else:
+                self.assertAlmostEqual(val, t[1], 3)
+
+        # test with parameters
+        layer = QgsVectorLayer("Point?field=fldstring:string", "layer", "memory")
+        pr = layer.dataProvider()
+
+        string_values = ['this', 'is', 'a', 'test']
+        features = []
+        for s in string_values:
+            f = QgsFeature()
+            f.setFields(layer.fields())
+            f.setAttributes([s])
+            features.append(f)
+        assert pr.addFeatures(features)
+        params = QgsAggregateCalculator.AggregateParameters()
+        params.delimiter = ' '
+        val, ok = layer.aggregate(QgsAggregateCalculator.StringConcatenate, 'fldstring', params)
+        self.assertTrue(ok)
+        self.assertEqual(val, 'this is a test')
 
     def onLayerTransparencyChanged(self, tr):
         self.transparencyTest = tr
@@ -1083,7 +1499,7 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.rendererChanged = False
         layer.rendererChanged.connect(self.onRendererChanged)
 
-        r = QgsSingleSymbolRendererV2(QgsSymbolV2.defaultSymbol(QGis.Point))
+        r = QgsSingleSymbolRendererV2(QgsSymbolV2.defaultSymbol(Qgis.Point))
         layer.setRendererV2(r)
         self.assertTrue(self.rendererChanged)
         self.assertEqual(layer.rendererV2(), r)

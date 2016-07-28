@@ -17,6 +17,8 @@
 
 #include "DualEdgeTriangulation.h"
 #include <map>
+#include "Line3D.h"
+#include "MathUtils.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsvectorfilewriter.h"
@@ -462,12 +464,12 @@ int DualEdgeTriangulation::baseEdgeOfPoint( int point )
       return actedge;
     }
 
-    else if ( leftofnumber <= 0 )
+    else if ( leftofnumber <= 0.0 )
     {
       actedge = mHalfEdge[actedge]->getNext();
     }
 
-    else if ( leftofnumber > 0 )
+    else
     {
       actedge = mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[actedge]->getDual()]->getNext()]->getNext()]->getDual();
     }
@@ -3105,7 +3107,7 @@ bool DualEdgeTriangulation::saveAsShapefile( const QString& fileName ) const
     }
   }
 
-  QgsVectorFileWriter writer( shapeFileName, "Utf-8", fields, QGis::WKBLineString, nullptr );
+  QgsVectorFileWriter writer( shapeFileName, "Utf-8", fields, Qgis::WKBLineString );
   if ( writer.hasError() != QgsVectorFileWriter::NoError )
   {
     return false;

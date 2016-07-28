@@ -52,15 +52,15 @@ QWidget *QgsMssqlSourceSelectDelegate::createEditor( QWidget *parent, const QSty
   if ( index.column() == QgsMssqlTableModel::dbtmType && index.data( Qt::UserRole + 1 ).toBool() )
   {
     QComboBox *cb = new QComboBox( parent );
-    Q_FOREACH ( QGis::WkbType type,
-                QList<QGis::WkbType>()
-                << QGis::WKBPoint
-                << QGis::WKBLineString
-                << QGis::WKBPolygon
-                << QGis::WKBMultiPoint
-                << QGis::WKBMultiLineString
-                << QGis::WKBMultiPolygon
-                << QGis::WKBNoGeometry )
+    Q_FOREACH ( Qgis::WkbType type,
+                QList<Qgis::WkbType>()
+                << Qgis::WKBPoint
+                << Qgis::WKBLineString
+                << Qgis::WKBPolygon
+                << Qgis::WKBMultiPoint
+                << Qgis::WKBMultiLineString
+                << Qgis::WKBMultiPolygon
+                << Qgis::WKBNoGeometry )
     {
       cb->addItem( QgsMssqlTableModel::iconForWkbType( type ), QgsMssqlTableModel::displayStringForWkbType( type ), type );
     }
@@ -99,10 +99,10 @@ void QgsMssqlSourceSelectDelegate::setModelData( QWidget *editor, QAbstractItemM
   {
     if ( index.column() == QgsMssqlTableModel::dbtmType )
     {
-      QGis::WkbType type = ( QGis::WkbType ) cb->itemData( cb->currentIndex() ).toInt();
+      Qgis::WkbType type = ( Qgis::WkbType ) cb->itemData( cb->currentIndex() ).toInt();
 
       model->setData( index, QgsMssqlTableModel::iconForWkbType( type ), Qt::DecorationRole );
-      model->setData( index, type != QGis::WKBUnknown ? QgsMssqlTableModel::displayStringForWkbType( type ) : tr( "Select..." ) );
+      model->setData( index, type != Qgis::WKBUnknown ? QgsMssqlTableModel::displayStringForWkbType( type ) : tr( "Select..." ) );
       model->setData( index, type, Qt::UserRole + 2 );
     }
     else if ( index.column() == QgsMssqlTableModel::dbtmPkCol )
@@ -172,6 +172,8 @@ QgsMssqlSourceSelect::QgsMssqlSourceSelect( QWidget *parent, Qt::WindowFlags fl,
   mTablesTreeView->setSortingEnabled( true );
   mTablesTreeView->setEditTriggers( QAbstractItemView::CurrentChanged );
   mTablesTreeView->setItemDelegate( new QgsMssqlSourceSelectDelegate( this ) );
+
+  connect( mTablesTreeView->selectionModel(), SIGNAL( selectionChanged( const QItemSelection&, const QItemSelection& ) ), this, SLOT( treeWidgetSelectionChanged( const QItemSelection&, const QItemSelection& ) ) );
 
   QSettings settings;
   mTablesTreeView->setSelectionMode( settings.value( "/qgis/addMSSQLDC", false ).toBool() ?
@@ -384,7 +386,6 @@ void QgsMssqlSourceSelect::on_mSearchModeComboBox_currentIndexChanged( const QSt
 
 void QgsMssqlSourceSelect::setLayerType( const QgsMssqlLayerProperty& layerProperty )
 {
-  QgsDebugMsg( "entering." );
   mTableModel.setGeometryTypesForTable( layerProperty );
 }
 
@@ -632,9 +633,6 @@ void QgsMssqlSourceSelect::finishList()
 {
   QApplication::restoreOverrideCursor();
 
-  if ( cmbConnections->count() > 0 )
-    mAddButton->setEnabled( true );
-
   mTablesTreeView->sortByColumn( QgsMssqlTableModel::dbtmTable, Qt::AscendingOrder );
   mTablesTreeView->sortByColumn( QgsMssqlTableModel::dbtmSchema, Qt::AscendingOrder );
 }
@@ -737,6 +735,11 @@ void QgsMssqlSourceSelect::setSearchExpression( const QString& regexp )
   Q_UNUSED( regexp );
 }
 
+void QgsMssqlSourceSelect::treeWidgetSelectionChanged( const QItemSelection &selected, const QItemSelection &deselected )
+{
+  Q_UNUSED( deselected )
+  mAddButton->setEnabled( !selected.isEmpty() );
+}
 
 QgsMssqlGeomColumnTypeThread::QgsMssqlGeomColumnTypeThread( QString connectionName, bool useEstimatedMetadata )
     : QThread()

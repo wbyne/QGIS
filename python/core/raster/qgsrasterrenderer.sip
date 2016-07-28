@@ -32,7 +32,7 @@ class QgsRasterRenderer : QgsRasterInterface
 
     virtual int bandCount() const;
 
-    virtual QGis::DataType dataType( int bandNo ) const;
+    virtual Qgis::DataType dataType( int bandNo ) const;
 
     virtual QString type() const;
 
@@ -55,7 +55,12 @@ class QgsRasterRenderer : QgsRasterInterface
     virtual void legendSymbologyItems( QList< QPair< QString, QColor > >& symbolItems ) const;
 
     /** Sets base class members from xml. Usually called from create() methods of subclasses*/
-    void readXML( const QDomElement& rendererElem );
+    void readXml( const QDomElement& rendererElem );
+
+    /** Copies common properties like opacity / transparency data from other renderer.
+     *  Useful when cloning renderers.
+     *  @note added in 2.16  */
+    void copyCommonProperties( const QgsRasterRenderer* other );
 
     /** Returns a list of band numbers used by the renderer*/
     virtual QList<int> usesBands() const;
@@ -67,7 +72,7 @@ class QgsRasterRenderer : QgsRasterInterface
   protected:
 
     /** Write upper class info into rasterrenderer element (called by writeXML method of subclasses)*/
-    void _writeXML( QDomDocument& doc, QDomElement& rasterRendererElem ) const;
+    void _writeXml( QDomDocument& doc, QDomElement& rasterRendererElem ) const;
 
   private:
 

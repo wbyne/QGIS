@@ -35,23 +35,23 @@
 #include "qgsvectordataprovider.h"
 #include "qgsvectorlayer.h"
 
-QgsWMSConfigParser::QgsWMSConfigParser()
+QgsWmsConfigParser::QgsWmsConfigParser()
 {
 
 }
 
-QgsWMSConfigParser::~QgsWMSConfigParser()
+QgsWmsConfigParser::~QgsWmsConfigParser()
 {
 
 }
 
-QgsComposition* QgsWMSConfigParser::createPrintComposition( const QString& composerTemplate, QgsMapRenderer* mapRenderer, const QMap< QString, QString >& parameterMap ) const
+QgsComposition* QgsWmsConfigParser::createPrintComposition( const QString& composerTemplate, QgsMapRenderer* mapRenderer, const QMap< QString, QString >& parameterMap ) const
 {
   QStringList highlightLayers;
   return createPrintComposition( composerTemplate, mapRenderer, parameterMap, highlightLayers );
 }
 
-QgsComposition* QgsWMSConfigParser::createPrintComposition( const QString& composerTemplate, QgsMapRenderer* mapRenderer, const QMap< QString, QString >& parameterMap, QStringList& highlightLayers ) const
+QgsComposition* QgsWmsConfigParser::createPrintComposition( const QString& composerTemplate, QgsMapRenderer* mapRenderer, const QMap< QString, QString >& parameterMap, QStringList& highlightLayers ) const
 {
   QList<QgsComposerMap*> composerMaps;
   QList<QgsComposerLegend*> composerLegends;
@@ -113,7 +113,7 @@ QgsComposition* QgsWMSConfigParser::createPrintComposition( const QString& compo
 
     //Change x- and y- of extent for WMS 1.3.0 if axis inverted
     QString version = parameterMap.value( "VERSION" );
-    if ( version == "1.3.0" && mapRenderer && mapRenderer->destinationCrs().axisInverted() )
+    if ( version == "1.3.0" && mapRenderer && mapRenderer->destinationCrs().hasAxisInverted() )
     {
       r.invert();
     }
@@ -289,7 +289,7 @@ QgsComposition* QgsWMSConfigParser::createPrintComposition( const QString& compo
   return c;
 }
 
-QStringList QgsWMSConfigParser::addHighlightLayers( const QMap<QString, QString>& parameterMap, QStringList& layerSet, const QString& parameterPrefix )
+QStringList QgsWmsConfigParser::addHighlightLayers( const QMap<QString, QString>& parameterMap, QStringList& layerSet, const QString& parameterPrefix )
 {
   QStringList highlightLayers, geomSplit, symbolSplit, labelSplit, labelFontSplit, labelSizeSplit,
   labelWeightSplit, labelColorSplit, labelBufferColorSplit, labelBufferSizeSplit;
@@ -349,7 +349,7 @@ QStringList QgsWMSConfigParser::addHighlightLayers( const QMap<QString, QString>
   return highlightLayers;
 }
 
-QgsVectorLayer* QgsWMSConfigParser::createHighlightLayer( int i, const QString& crsString, QgsGeometry* geom, const QString& labelString, const QStringList& labelSizeSplit, const QStringList& labelColorSplit,
+QgsVectorLayer* QgsWmsConfigParser::createHighlightLayer( int i, const QString& crsString, QgsGeometry* geom, const QString& labelString, const QStringList& labelSizeSplit, const QStringList& labelColorSplit,
     const QStringList& labelWeightSplit, const QStringList& labelFontSplit, const QStringList& labelBufferSizeSplit,
     const QStringList& labelBufferColorSplit )
 {
@@ -358,13 +358,13 @@ QgsVectorLayer* QgsWMSConfigParser::createHighlightLayer( int i, const QString& 
     return 0;
   }
 
-  QGis::GeometryType geomType = geom->type();
-  QString typeName = QString( QGis::featureType( geom->wkbType() ) ).replace( "WKB", "" );
+  Qgis::GeometryType geomType = geom->type();
+  QString typeName = QString( Qgis::featureType( geom->wkbType() ) ).replace( "WKB", "" );
   QString url = typeName + "?crs=" + crsString;
   if ( !labelString.isEmpty() )
   {
     url += "&field=label:string";
-    if ( geomType == QGis::Polygon )
+    if ( geomType == Qgis::Polygon )
     {
       url += "&field=x:double&field=y:double&field=hali:string&field=vali:string";
     }
@@ -381,7 +381,7 @@ QgsVectorLayer* QgsWMSConfigParser::createHighlightLayer( int i, const QString& 
   if ( !labelString.isEmpty() )
   {
     fet.setAttribute( 0, labelString );
-    if ( geomType == QGis::Polygon )
+    if ( geomType == Qgis::Polygon )
     {
       QgsGeometry* point = geom->pointOnSurface();
       if ( point )
@@ -446,12 +446,12 @@ QgsVectorLayer* QgsWMSConfigParser::createHighlightLayer( int i, const QString& 
     int placement = 0;
     switch ( geomType )
     {
-      case QGis::Point:
+      case Qgis::Point:
         placement = 0;
         layer->setCustomProperty( "labeling/dist", 2 );
         layer->setCustomProperty( "labeling/placementFlags", 0 );
         break;
-      case QGis::Polygon:
+      case Qgis::Polygon:
         layer->setCustomProperty( "labeling/dataDefinedProperty9", 1 );
         layer->setCustomProperty( "labeling/dataDefinedProperty10", 2 );
         layer->setCustomProperty( "labeling/dataDefinedProperty11", 3 );
@@ -470,7 +470,7 @@ QgsVectorLayer* QgsWMSConfigParser::createHighlightLayer( int i, const QString& 
   return layer;
 }
 
-void QgsWMSConfigParser::highlightParameters( const QMap<QString, QString>& parameterMap, const QString& parameterPrefix, QStringList& geom, QStringList& symbol,
+void QgsWmsConfigParser::highlightParameters( const QMap<QString, QString>& parameterMap, const QString& parameterPrefix, QStringList& geom, QStringList& symbol,
     QStringList& label, QStringList& labelFont, QStringList& labelSize, QStringList& labelWeight, QStringList& labelColor,
     QStringList& labelBufferColor, QStringList& labelBufferSize )
 {
@@ -529,7 +529,7 @@ void QgsWMSConfigParser::highlightParameters( const QMap<QString, QString>& para
   }
 }
 
-void QgsWMSConfigParser::removeHighlightLayers( const QStringList& layerIds )
+void QgsWmsConfigParser::removeHighlightLayers( const QStringList& layerIds )
 {
   QStringList::const_iterator idIt = layerIds.constBegin();
   for ( ; idIt != layerIds.constEnd(); ++idIt )
@@ -538,7 +538,7 @@ void QgsWMSConfigParser::removeHighlightLayers( const QStringList& layerIds )
   }
 }
 
-void QgsWMSConfigParser::setLayerIdsToLegendModel( QgsLegendModelV2* model, const QStringList& layerSet, double scale )
+void QgsWmsConfigParser::setLayerIdsToLegendModel( QgsLegendModelV2* model, const QStringList& layerSet, double scale )
 {
   if ( !model )
   {

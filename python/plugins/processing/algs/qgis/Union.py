@@ -29,7 +29,7 @@ import os
 
 from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import QGis, QgsFeatureRequest, QgsFeature, QgsGeometry, QgsWKBTypes
+from qgis.core import Qgis, QgsFeatureRequest, QgsFeature, QgsGeometry, QgsWKBTypes
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
@@ -41,17 +41,13 @@ from processing.tools import dataobjects, vector
 pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 wkbTypeGroups = {
-    'Point': (QGis.WKBPoint, QGis.WKBMultiPoint, QGis.WKBPoint25D, QGis.WKBMultiPoint25D,),
-    'LineString': (QGis.WKBLineString, QGis.WKBMultiLineString, QGis.WKBLineString25D, QGis.WKBMultiLineString25D,),
-    'Polygon': (QGis.WKBPolygon, QGis.WKBMultiPolygon, QGis.WKBPolygon25D, QGis.WKBMultiPolygon25D,),
+    'Point': (Qgis.WKBPoint, Qgis.WKBMultiPoint, Qgis.WKBPoint25D, Qgis.WKBMultiPoint25D,),
+    'LineString': (Qgis.WKBLineString, Qgis.WKBMultiLineString, Qgis.WKBLineString25D, Qgis.WKBMultiLineString25D,),
+    'Polygon': (Qgis.WKBPolygon, Qgis.WKBMultiPolygon, Qgis.WKBPolygon25D, Qgis.WKBMultiPolygon25D,),
 }
 for key, value in wkbTypeGroups.items():
     for const in value:
         wkbTypeGroups[const] = key
-
-GEOM_25D = [QGis.WKBPoint25D, QGis.WKBLineString25D, QGis.WKBPolygon25D,
-            QGis.WKBMultiPoint25D, QGis.WKBMultiLineString25D,
-            QGis.WKBMultiPolygon25D]
 
 
 class Union(GeoAlgorithm):
@@ -79,10 +75,6 @@ class Union(GeoAlgorithm):
         vproviderA = vlayerA.dataProvider()
 
         geomType = vproviderA.geometryType()
-        if geomType in GEOM_25D:
-            raise GeoAlgorithmExecutionException(
-                self.tr('Input layer has unsupported geometry type {}').format(geomType))
-
         fields = vector.combineVectorFields(vlayerA, vlayerB)
         writer = self.getOutputFromName(Union.OUTPUT).getVectorWriter(fields,
                                                                       geomType, vproviderA.crs())
@@ -133,7 +125,7 @@ class Union(GeoAlgorithm):
                         else:
                             int_geom = QgsGeometry(int_geom)
 
-                        if int_geom.wkbType() == QGis.WKBUnknown or QgsWKBTypes.flatType(int_geom.geometry().wkbType()) == QgsWKBTypes.GeometryCollection:
+                        if int_geom.wkbType() == Qgis.WKBUnknown or QgsWKBTypes.flatType(int_geom.geometry().wkbType()) == QgsWKBTypes.GeometryCollection:
                             # Intersection produced different geomety types
                             temp_list = int_geom.asGeometryCollection()
                             for i in temp_list:

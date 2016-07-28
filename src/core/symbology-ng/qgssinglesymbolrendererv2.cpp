@@ -266,7 +266,7 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::create( QDomElement& element )
   return r;
 }
 
-QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& element, QGis::GeometryType geomType )
+QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& element, Qgis::GeometryType geomType )
 {
   // XXX this renderer can handle only one Rule!
 
@@ -333,15 +333,15 @@ QgsFeatureRendererV2* QgsSingleSymbolRendererV2::createFromSld( QDomElement& ele
   QgsSymbolV2 *symbol;
   switch ( geomType )
   {
-    case QGis::Line:
+    case Qgis::Line:
       symbol = new QgsLineSymbolV2( layers );
       break;
 
-    case QGis::Polygon:
+    case Qgis::Polygon:
       symbol = new QgsFillSymbolV2( layers );
       break;
 
-    case QGis::Point:
+    case Qgis::Point:
       symbol = new QgsMarkerSymbolV2( layers );
       break;
 
@@ -423,11 +423,11 @@ QgsLegendSymbolListV2 QgsSingleSymbolRendererV2::legendSymbolItemsV2() const
       QgsScaleExpression scaleExp( sizeDD.expressionString() );
       if ( scaleExp.type() != QgsScaleExpression::Unknown )
       {
-        QgsLegendSymbolItemV2 title( nullptr, scaleExp.baseExpression(), nullptr );
+        QgsLegendSymbolItemV2 title( nullptr, scaleExp.baseExpression(), QString() );
         lst << title;
         Q_FOREACH ( double v, QgsSymbolLayerV2Utils::prettyBreaks( scaleExp.minValue(), scaleExp.maxValue(), 4 ) )
         {
-          QgsLegendSymbolItemV2 si( mSymbol.data(), QString::number( v ), nullptr );
+          QgsLegendSymbolItemV2 si( mSymbol.data(), QString::number( v ), QString() );
           QgsMarkerSymbolV2 * s = static_cast<QgsMarkerSymbolV2 *>( si.symbol() );
           s->setDataDefinedSize( 0 );
           s->setSize( scaleExp.size( v ) );
@@ -438,7 +438,7 @@ QgsLegendSymbolListV2 QgsSingleSymbolRendererV2::legendSymbolItemsV2() const
     }
   }
 
-  lst << QgsLegendSymbolItemV2( mSymbol.data(), QString(), nullptr );
+  lst << QgsLegendSymbolItemV2( mSymbol.data(), QString(), QString() );
   return lst;
 }
 

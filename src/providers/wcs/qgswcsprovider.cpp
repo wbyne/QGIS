@@ -30,6 +30,7 @@
 #include "qgsnetworkaccessmanager.h"
 #include "qgsnetworkreplyparser.h"
 #include "qgsmessagelog.h"
+#include "qgscsexception.h"
 
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -67,7 +68,7 @@ static QString DEFAULT_LATLON_CRS = "CRS:84";
 
 // TODO: colortable - use comon baseclass with gdal, mapserver does not support http://trac.osgeo.org/mapserver/ticket/1671
 
-QgsWcsProvider::QgsWcsProvider( QString const &uri )
+QgsWcsProvider::QgsWcsProvider( const QString& uri )
     : QgsRasterDataProvider( uri )
     , QgsGdalProviderBase()
     , mHttpUri( QString::null )
@@ -84,7 +85,6 @@ QgsWcsProvider::QgsWcsProvider( QString const &uri )
     , mCachedViewExtent( 0 )
     , mCachedViewWidth( 0 )
     , mCachedViewHeight( 0 )
-    , mCoordinateTransform( nullptr )
     , mExtentDirty( true )
     , mGetFeatureInfoUrlBase( "" )
     , mErrors( 0 )
@@ -310,23 +310,23 @@ QgsWcsProvider::QgsWcsProvider( QString const &uri )
     double myInternalNoDataValue;
     switch ( srcDataType( i ) )
     {
-      case QGis::Byte:
+      case Qgis::Byte:
         myInternalNoDataValue = -32768.0;
         myInternalGdalDataType = GDT_Int16;
         break;
-      case QGis::Int16:
+      case Qgis::Int16:
         myInternalNoDataValue = -2147483648.0;
         myInternalGdalDataType = GDT_Int32;
         break;
-      case QGis::UInt16:
+      case Qgis::UInt16:
         myInternalNoDataValue = -2147483648.0;
         myInternalGdalDataType = GDT_Int32;
         break;
-      case QGis::Int32:
+      case Qgis::Int32:
         // We believe that such values is no used in real data
         myInternalNoDataValue = -2147483648.0;
         break;
-      case QGis::UInt32:
+      case Qgis::UInt32:
         // We believe that such values is no used in real data
         myInternalNoDataValue = 4294967295.0;
         break;
@@ -447,13 +447,6 @@ QgsWcsProvider::~QgsWcsProvider()
 
   // Dispose of any cached image as created by draw()
   clearCache();
-
-  if ( mCoordinateTransform )
-  {
-    delete mCoordinateTransform;
-    mCoordinateTransform = nullptr;
-  }
-
 }
 
 QgsWcsProvider* QgsWcsProvider::clone() const
@@ -487,21 +480,17 @@ void QgsWcsProvider::setCoverageCrs( QString const & crs )
   if ( crs != mCoverageCrs && !crs.isEmpty() )
   {
     // delete old coordinate transform as it is no longer valid
-    if ( mCoordinateTransform )
-    {
-      delete mCoordinateTransform;
-      mCoordinateTransform = nullptr;
-    }
+    mCoordinateTransform = QgsCoordinateTransform();
 
     mExtentDirty = true;
 
     mCoverageCrs = crs;
 
-    mCrs.createFromOgcWmsCrs( mCoverageCrs );
+    mCrs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( mCoverageCrs );
   }
 }
 
-void QgsWcsProvider::setQueryItem( QUrl &url, const QString& item, const QString& value )
+void QgsWcsProvider::setQueryItem( QUrl &url, const QString& item, const QString& value ) const
 {
   url.removeQueryItem( item );
   url.addQueryItem( item, value );
@@ -509,7 +498,6 @@ void QgsWcsProvider::setQueryItem( QUrl &url, const QString& item, const QString
 
 void QgsWcsProvider::readBlock( int bandNo, QgsRectangle  const & viewExtent, int pixelWidth, int pixelHeight, void *block )
 {
-  QgsDebugMsg( "Entered" );
 
   // TODO: set block to null values, move that to function and call only if fails
   memset( block, 0, pixelWidth * pixelHeight * QgsRasterBlock::typeSize( dataType( bandNo ) ) );
@@ -627,10 +615,9 @@ void QgsWcsProvider::readBlock( int bandNo, QgsRectangle  const & viewExtent, in
   }
 }
 
-void QgsWcsProvider::getCache( int bandNo, QgsRectangle  const & viewExtent, int pixelWidth, int pixelHeight, QString crs )
+void QgsWcsProvider::getCache( int bandNo, QgsRectangle  const & viewExtent, int pixelWidth, int pixelHeight, QString crs ) const
 {
   Q_UNUSED( bandNo );
-  QgsDebugMsg( "Entered" );
   // delete cached data
   clearCache();
 
@@ -654,8 +641,8 @@ void QgsWcsProvider::getCache( int bandNo, QgsRectangle  const & viewExtent, int
   if ( !mIgnoreAxisOrientation && ( mCapabilities.version().startsWith( "1.1" ) ) )
   {
     //create CRS from string
-    QgsCoordinateReferenceSystem theSrs;
-    if ( theSrs.createFromOgcWmsCrs( crs ) && theSrs.axisInverted() )
+    QgsCoordinateReferenceSystem theSrs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( crs );
+    if ( theSrs.isValid() && theSrs.hasAxisInverted() )
     {
       changeXY = true;
     }
@@ -831,7 +818,6 @@ void QgsWcsProvider::getCache( int bandNo, QgsRectangle  const & viewExtent, int
 // use standard readBlock with extent
 void QgsWcsProvider::readBlock( int theBandNo, int xBlock, int yBlock, void *block )
 {
-  QgsDebugMsg( "Entered" );
 
   QgsDebugMsg( QString( "xBlock = %1 yBlock = %2" ).arg( xBlock ).arg( yBlock ) );
 
@@ -855,21 +841,21 @@ void QgsWcsProvider::readBlock( int theBandNo, int xBlock, int yBlock, void *blo
 
 
 // This could be shared with GDAL provider
-QGis::DataType QgsWcsProvider::srcDataType( int bandNo ) const
+Qgis::DataType QgsWcsProvider::sourceDataType( int bandNo ) const
 {
   if ( bandNo < 0 || bandNo > mSrcGdalDataType.size() )
   {
-    return QGis::UnknownDataType;
+    return Qgis::UnknownDataType;
   }
 
   return dataTypeFromGdal( mSrcGdalDataType[bandNo-1] );
 }
 
-QGis::DataType QgsWcsProvider::dataType( int bandNo ) const
+Qgis::DataType QgsWcsProvider::dataType( int bandNo ) const
 {
   if ( bandNo < 0 || bandNo > mGdalDataType.size() )
   {
-    return QGis::UnknownDataType;
+    return Qgis::UnknownDataType;
   }
 
   return dataTypeFromGdal( mGdalDataType[bandNo-1] );
@@ -894,9 +880,8 @@ int QgsWcsProvider::yBlockSize() const
 int QgsWcsProvider::xSize() const { return mWidth; }
 int QgsWcsProvider::ySize() const { return mHeight; }
 
-void QgsWcsProvider::clearCache()
+void QgsWcsProvider::clearCache() const
 {
-  QgsDebugMsg( "Entered" );
   if ( mCachedGdalDataset )
   {
     QgsDebugMsg( "Close mCachedGdalDataset" );
@@ -919,7 +904,6 @@ void QgsWcsProvider::clearCache()
 
 QList<QgsColorRampShader::ColorRampItem> QgsWcsProvider::colorTable( int theBandNumber )const
 {
-  QgsDebugMsg( "entered." );
   return mColorTables.value( theBandNumber - 1 );
 }
 
@@ -932,7 +916,6 @@ int QgsWcsProvider::colorInterpretation( int bandNo ) const
 
 bool QgsWcsProvider::parseServiceExceptionReportDom( QByteArray const & xml, const QString& wcsVersion, QString& errorTitle, QString& errorText )
 {
-  QgsDebugMsg( "entering." );
 
 #ifdef QGISDEBUG
   //test the content of the QByteArray
@@ -987,7 +970,6 @@ bool QgsWcsProvider::parseServiceExceptionReportDom( QByteArray const & xml, con
 
 void QgsWcsProvider::parseServiceException( QDomElement const & e, const QString& wcsVersion, QString& errorTitle, QString& errorText )
 {
-  QgsDebugMsg( "entering." );
 
   errorTitle = tr( "Service Exception" );
 
@@ -1055,7 +1037,7 @@ void QgsWcsProvider::parseServiceException( QDomElement const & e, const QString
 
 
 
-QgsRectangle QgsWcsProvider::extent()
+QgsRectangle QgsWcsProvider::extent() const
 {
   if ( mExtentDirty )
   {
@@ -1068,7 +1050,7 @@ QgsRectangle QgsWcsProvider::extent()
   return mCoverageExtent;
 }
 
-bool QgsWcsProvider::isValid()
+bool QgsWcsProvider::isValid() const
 {
   return mValid;
 }
@@ -1079,9 +1061,8 @@ QString QgsWcsProvider::wcsVersion()
   return mCapabilities.version();
 }
 
-bool QgsWcsProvider::calculateExtent()
+bool QgsWcsProvider::calculateExtent() const
 {
-  QgsDebugMsg( "entered." );
 
   // Make sure we know what extents are available
   if ( !mCoverageSummary.described )
@@ -1102,18 +1083,15 @@ bool QgsWcsProvider::calculateExtent()
   {
     // Set up the coordinate transform from the WCS standard CRS:84 bounding
     // box to the user's selected CRS
-    if ( !mCoordinateTransform )
+    if ( !mCoordinateTransform.isValid() )
     {
-      QgsCoordinateReferenceSystem qgisSrsSource;
-      QgsCoordinateReferenceSystem qgisSrsDest;
+      QgsCoordinateReferenceSystem qgisSrsSource = QgsCoordinateReferenceSystem::fromOgcWmsCrs( "EPSG:4326" );
+      QgsCoordinateReferenceSystem qgisSrsDest = QgsCoordinateReferenceSystem::fromOgcWmsCrs( mCoverageCrs );
 
-      //qgisSrsSource.createFromOgcWmsCrs( DEFAULT_LATLON_CRS );
-      qgisSrsSource.createFromOgcWmsCrs( "EPSG:4326" );
       //QgsDebugMsg( "qgisSrsSource: " + qgisSrsSource.toWkt() );
-      qgisSrsDest.createFromOgcWmsCrs( mCoverageCrs );
       //QgsDebugMsg( "qgisSrsDest: " + qgisSrsDest.toWkt() );
 
-      mCoordinateTransform = new QgsCoordinateTransform( qgisSrsSource, qgisSrsDest );
+      mCoordinateTransform = QgsCoordinateTransform( qgisSrsSource, qgisSrsDest );
 
     }
 
@@ -1122,7 +1100,7 @@ bool QgsWcsProvider::calculateExtent()
     // Convert to the user's CRS as required
     try
     {
-      mCoverageExtent = mCoordinateTransform->transformBoundingBox( mCoverageSummary.wgs84BoundingBox, QgsCoordinateTransform::ForwardTransform );
+      mCoverageExtent = mCoordinateTransform.transformBoundingBox( mCoverageSummary.wgs84BoundingBox, QgsCoordinateTransform::ForwardTransform );
     }
     catch ( QgsCsException &cse )
     {
@@ -1367,7 +1345,7 @@ QString QgsWcsProvider:: htmlRow( const QString &text1, const QString &text2 )
   return "<tr>" + htmlCell( text1 ) +  htmlCell( text2 ) + "</tr>";
 }
 
-QgsRasterIdentifyResult QgsWcsProvider::identify( const QgsPoint & thePoint, QgsRaster::IdentifyFormat theFormat, const QgsRectangle &theExtent, int theWidth, int theHeight )
+QgsRasterIdentifyResult QgsWcsProvider::identify( const QgsPoint & thePoint, QgsRaster::IdentifyFormat theFormat, const QgsRectangle &theExtent, int theWidth, int theHeight , int /*theDpi*/ )
 {
   QgsDebugMsg( QString( "thePoint =  %1 %2" ).arg( thePoint.x(), 0, 'g', 10 ).arg( thePoint.y(), 0, 'g', 10 ) );
   QgsDebugMsg( QString( "theWidth = %1 theHeight = %2" ).arg( theWidth ).arg( theHeight ) );
@@ -1418,13 +1396,13 @@ QgsRasterIdentifyResult QgsWcsProvider::identify( const QgsPoint & thePoint, Qgs
       // set resolution approximately to 1mm
       switch ( mCrs.mapUnits() )
       {
-        case QGis::Meters:
+        case QgsUnitTypes::DistanceMeters:
           xRes = 0.001;
           break;
-        case QGis::Feet:
+        case QgsUnitTypes::DistanceFeet:
           xRes = 0.003;
           break;
-        case QGis::Degrees:
+        case QgsUnitTypes::DistanceDegrees:
           // max length of degree of latitude on pole is 111694 m
           xRes = 1e-8;
           break;
@@ -1528,8 +1506,8 @@ QgsRasterIdentifyResult QgsWcsProvider::identify( const QgsPoint & thePoint, Qgs
     }
 
     // Apply no data and user no data
-    if (( srcHasNoDataValue( i ) && useSrcNoDataValue( i ) &&
-          ( qIsNaN( value ) || qgsDoubleNear( value, srcNoDataValue( i ) ) ) ) ||
+    if (( sourceHasNoDataValue( i ) && useSourceNoDataValue( i ) &&
+          ( qIsNaN( value ) || qgsDoubleNear( value, sourceNoDataValue( i ) ) ) ) ||
         ( QgsRasterRange::contains( value, userNoDataValues( i ) ) ) )
     {
       results.insert( i, QVariant() );
@@ -1543,7 +1521,7 @@ QgsRasterIdentifyResult QgsWcsProvider::identify( const QgsPoint & thePoint, Qgs
   return QgsRasterIdentifyResult( QgsRaster::IdentifyFormatValue, results );
 }
 
-QgsCoordinateReferenceSystem QgsWcsProvider::crs()
+QgsCoordinateReferenceSystem QgsWcsProvider::crs() const
 {
   return mCrs;
 }

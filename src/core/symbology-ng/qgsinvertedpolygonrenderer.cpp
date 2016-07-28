@@ -29,7 +29,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 
-QgsInvertedPolygonRenderer::QgsInvertedPolygonRenderer( const QgsFeatureRendererV2* subRenderer )
+QgsInvertedPolygonRenderer::QgsInvertedPolygonRenderer( QgsFeatureRendererV2* subRenderer )
     : QgsFeatureRendererV2( "invertedPolygonRenderer" )
     , mPreprocessingEnabled( false )
 {
@@ -39,7 +39,7 @@ QgsInvertedPolygonRenderer::QgsInvertedPolygonRenderer( const QgsFeatureRenderer
   }
   else
   {
-    mSubRenderer.reset( QgsFeatureRendererV2::defaultRenderer( QGis::Polygon ) );
+    mSubRenderer.reset( QgsFeatureRendererV2::defaultRenderer( Qgis::Polygon ) );
   }
 }
 
@@ -47,11 +47,11 @@ QgsInvertedPolygonRenderer::~QgsInvertedPolygonRenderer()
 {
 }
 
-void QgsInvertedPolygonRenderer::setEmbeddedRenderer( const QgsFeatureRendererV2* subRenderer )
+void QgsInvertedPolygonRenderer::setEmbeddedRenderer( QgsFeatureRendererV2* subRenderer )
 {
   if ( subRenderer )
   {
-    mSubRenderer.reset( const_cast<QgsFeatureRendererV2*>( subRenderer )->clone() );
+    mSubRenderer.reset( subRenderer );
   }
   else
   {
@@ -62,6 +62,38 @@ void QgsInvertedPolygonRenderer::setEmbeddedRenderer( const QgsFeatureRendererV2
 const QgsFeatureRendererV2* QgsInvertedPolygonRenderer::embeddedRenderer() const
 {
   return mSubRenderer.data();
+}
+
+void QgsInvertedPolygonRenderer::setLegendSymbolItem( const QString& key, QgsSymbolV2* symbol )
+{
+  if ( !mSubRenderer )
+    return;
+
+  mSubRenderer->setLegendSymbolItem( key, symbol );
+}
+
+bool QgsInvertedPolygonRenderer::legendSymbolItemsCheckable() const
+{
+  if ( !mSubRenderer )
+    return false;
+
+  return mSubRenderer->legendSymbolItemsCheckable();
+}
+
+bool QgsInvertedPolygonRenderer::legendSymbolItemChecked( const QString& key )
+{
+  if ( !mSubRenderer )
+    return false;
+
+  return mSubRenderer->legendSymbolItemChecked( key );
+}
+
+void QgsInvertedPolygonRenderer::checkLegendSymbolItem( const QString& key, bool state )
+{
+  if ( !mSubRenderer )
+    return;
+
+  return mSubRenderer->checkLegendSymbolItem( key, state );
 }
 
 void QgsInvertedPolygonRenderer::startRender( QgsRenderContext& context, const QgsFields& fields )
@@ -108,10 +140,10 @@ void QgsInvertedPolygonRenderer::startRender( QgsRenderContext& context, const Q
   // If we don't do that, there is no need to have a simple rectangular extent
   // that covers the whole screen
   // (a rectangle in the destCRS cannot be expressed as valid coordinates in the sourceCRS in general)
-  if ( context.coordinateTransform() )
+  if ( context.coordinateTransform().isValid() )
   {
     // disable projection
-    mContext.setCoordinateTransform( nullptr );
+    mContext.setCoordinateTransform( QgsCoordinateTransform() );
     // recompute extent so that polygon clipping is correct
     QRect v( context.painter()->viewport() );
     mContext.setExtent( QgsRectangle( mtp.toMapCoordinates( v.topLeft() ), mtp.toMapCoordinates( v.bottomRight() ) ) );
@@ -192,10 +224,10 @@ bool QgsInvertedPolygonRenderer::renderFeature( QgsFeature& feature, QgsRenderCo
   }
   QScopedPointer<QgsGeometry> geom( new QgsGeometry( *feature.constGeometry() ) );
 
-  const QgsCoordinateTransform* xform = context.coordinateTransform();
-  if ( xform )
+  QgsCoordinateTransform xform = context.coordinateTransform();
+  if ( xform.isValid() )
   {
-    geom->transform( *xform );
+    geom->transform( xform );
   }
 
   if ( mPreprocessingEnabled )
@@ -256,13 +288,13 @@ void QgsInvertedPolygonRenderer::stopRender( QgsRenderContext& context )
       Q_FOREACH ( QgsGeometry* geom, cit.geometries )
       {
         QgsMultiPolygon multi;
-        if (( geom->wkbType() == QGis::WKBPolygon ) ||
-            ( geom->wkbType() == QGis::WKBPolygon25D ) )
+        QgsWKBTypes::Type type = QgsWKBTypes::flatType( geom->geometry()->wkbType() );
+
+        if (( type == QgsWKBTypes::Polygon ) || ( type == QgsWKBTypes::CurvePolygon ) )
         {
           multi.append( geom->asPolygon() );
         }
-        else if (( geom->wkbType() == QGis::WKBMultiPolygon ) ||
-                 ( geom->wkbType() == QGis::WKBMultiPolygon25D ) )
+        else if (( type == QgsWKBTypes::MultiPolygon ) || ( type == QgsWKBTypes::MultiSurface ) )
         {
           multi = geom->asMultiPolygon();
         }
@@ -341,7 +373,7 @@ QgsInvertedPolygonRenderer* QgsInvertedPolygonRenderer::clone() const
   }
   else
   {
-    newRenderer = new QgsInvertedPolygonRenderer( mSubRenderer.data() );
+    newRenderer = new QgsInvertedPolygonRenderer( mSubRenderer.data()->clone() );
   }
   newRenderer->setPreprocessingEnabled( preprocessingEnabled() );
   copyRendererData( newRenderer );
@@ -357,7 +389,6 @@ QgsFeatureRendererV2* QgsInvertedPolygonRenderer::create( QDomElement& element )
   {
     QgsFeatureRendererV2* renderer = QgsFeatureRendererV2::load( embeddedRendererElem );
     r->setEmbeddedRenderer( renderer );
-    delete renderer;
   }
   r->setPreprocessingEnabled( element.attribute( "preprocessing", "0" ).toInt() == 1 );
   return r;

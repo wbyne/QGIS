@@ -130,7 +130,7 @@ bool QgsPointV2::fromWkt( const QString& wkt )
 
   QPair<QgsWKBTypes::Type, QString> parts = QgsGeometryUtils::wktReadBlock( wkt );
 
-  if ( QgsWKBTypes::flatType( parts.first ) != QgsWKBTypes::parseType( geometryType() ) )
+  if ( QgsWKBTypes::flatType( parts.first ) != QgsWKBTypes::Point )
     return false;
   mWkbType = parts.first;
 
@@ -253,15 +253,22 @@ void QgsPointV2::draw( QPainter& p ) const
 
 void QgsPointV2::clear()
 {
-  mWkbType = QgsWKBTypes::Unknown;
   mX = mY = mZ = mM = 0.;
   clearCache();
 }
 
-void QgsPointV2::transform( const QgsCoordinateTransform& ct, QgsCoordinateTransform::TransformDirection d )
+void QgsPointV2::transform( const QgsCoordinateTransform& ct, QgsCoordinateTransform::TransformDirection d, bool transformZ )
 {
   clearCache();
-  ct.transformInPlace( mX, mY, mZ, d );
+  if ( transformZ )
+  {
+    ct.transformInPlace( mX, mY, mZ, d );
+  }
+  else
+  {
+    double z = 0.0;
+    ct.transformInPlace( mX, mY, z, d );
+  }
 }
 
 QgsCoordinateSequenceV2 QgsPointV2::coordinateSequence() const
@@ -272,6 +279,11 @@ QgsCoordinateSequenceV2 QgsPointV2::coordinateSequence() const
   cs.back().append( QgsPointSequenceV2() << QgsPointV2( *this ) );
 
   return cs;
+}
+
+QgsAbstractGeometryV2* QgsPointV2::boundary() const
+{
+  return nullptr;
 }
 
 /***************************************************************************

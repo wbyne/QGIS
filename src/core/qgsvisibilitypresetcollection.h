@@ -39,7 +39,8 @@ class CORE_EXPORT QgsVisibilityPresetCollection : public QObject
 
   public:
 
-    /** Individual preset record of visible layers and styles.
+    /** \ingroup core
+     * Individual preset record of visible layers and styles.
      */
     class PresetRecord
     {
@@ -124,15 +125,15 @@ class CORE_EXPORT QgsVisibilityPresetCollection : public QObject
 
     /** Reads the preset collection state from XML
      * @param doc DOM document
-     * @see writeXML
+     * @see writeXml
      */
-    void readXML( const QDomDocument& doc );
+    void readXml( const QDomDocument& doc );
 
     /** Writes the preset collection state to XML.
      * @param doc DOM document
-     * @see readXML
+     * @see readXml
      */
-    void writeXML( QDomDocument& doc );
+    void writeXml( QDomDocument& doc );
 
     /** Static method for adding visible layers from a layer tree group to a preset
      * record.

@@ -28,7 +28,8 @@ __revision__ = '$Format:%H$'
 
 import os
 import re
-from qgis.core import QGis, QgsProject, QgsVectorFileWriter, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMapLayerRegistry, QgsCoordinateReferenceSystem
+from qgis.core import Qgis, QgsProject, QgsVectorFileWriter, QgsMapLayer, QgsRasterLayer, \
+    QgsVectorLayer, QgsMapLayerRegistry, QgsCoordinateReferenceSystem
 from qgis.gui import QgsSublayersDialog
 from qgis.PyQt.QtCore import QSettings
 from qgis.utils import iface
@@ -173,9 +174,9 @@ def load(fileName, name=None, crs=None, style=None):
         if crs is not None and qgslayer.crs() is None:
             qgslayer.setCrs(crs, False)
         if style is None:
-            if qgslayer.geometryType() == QGis.Point:
+            if qgslayer.geometryType() == Qgis.Point:
                 style = ProcessingConfig.getSetting(ProcessingConfig.VECTOR_POINT_STYLE)
-            elif qgslayer.geometryType() == QGis.Line:
+            elif qgslayer.geometryType() == Qgis.Line:
                 style = ProcessingConfig.getSetting(ProcessingConfig.VECTOR_LINE_STYLE)
             else:
                 style = ProcessingConfig.getSetting(ProcessingConfig.VECTOR_POLYGON_STYLE)
@@ -271,7 +272,7 @@ def getObjectFromUri(uri, forceLoad=True):
         return None
 
 
-def exportVectorLayer(layer):
+def exportVectorLayer(layer, supported=None):
     """Takes a QgsVectorLayer and returns the filename to refer to it,
     which allows external apps which support only file-based layers to
     use it. It performs the necessary export in case the input layer
@@ -285,21 +286,11 @@ def exportVectorLayer(layer):
     a new file if the original one contains non-ascii characters.
     """
 
+    supported = supported or ["shp"]
     settings = QSettings()
     systemEncoding = settings.value('/UI/encoding', 'System')
 
-    filename = os.path.basename(unicode(layer.source()))
-    idx = filename.rfind('.')
-    if idx != -1:
-        filename = filename[:idx]
-
-    filename = unicode(layer.name())
-    validChars = \
-        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:'
-    filename = ''.join(c for c in filename if c in validChars)
-    if len(filename) == 0:
-        filename = 'layer'
-    output = getTempFilenameInTempFolder(filename + '.shp')
+    output = getTempFilename('shp')
     provider = layer.dataProvider()
     useSelection = ProcessingConfig.getSetting(ProcessingConfig.USE_SELECTED)
     if useSelection and layer.selectedFeatureCount() != 0:
@@ -317,7 +308,7 @@ def exportVectorLayer(layer):
             unicode(layer.source()).decode('ascii')
         except UnicodeEncodeError:
             isASCII = False
-        if not unicode(layer.source()).endswith('shp') or not isASCII:
+        if not os.path.splitext(layer.source())[1].lower() in supported or not isASCII:
             writer = QgsVectorFileWriter(
                 output, systemEncoding,
                 layer.pendingFields(), provider.geometryType(),
@@ -374,7 +365,7 @@ def exportTable(table):
         or unicode(table.source()).endswith('shp')
     if not isDbf or not isASCII:
         writer = QgsVectorFileWriter(output, systemEncoding,
-                                     provider.fields(), QGis.WKBNoGeometry,
+                                     provider.fields(), Qgis.WKBNoGeometry,
                                      QgsCoordinateReferenceSystem('4326'))
         for feat in table.getFeatures():
             writer.addFeature(feat)

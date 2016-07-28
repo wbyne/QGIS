@@ -238,13 +238,13 @@ void QgsSpatialQueryDialog::showResultQuery( QDateTime *datetimeStart, QDateTime
     switch ( typeResultFor )
     {
       case selectedNew:
-        mLayerTarget->setSelectedFeatures( mFeatureResult );
+        mLayerTarget->selectByIds( mFeatureResult );
         break;
       case selectedAdd:
-        mLayerTarget->setSelectedFeatures( mLayerTarget->selectedFeaturesIds() + mFeatureResult );
+        mLayerTarget->selectByIds( mLayerTarget->selectedFeaturesIds() + mFeatureResult );
         break;
       case selectedRemove:
-        mLayerTarget->setSelectedFeatures( mLayerTarget->selectedFeaturesIds() - mFeatureResult );
+        mLayerTarget->selectByIds( mLayerTarget->selectedFeaturesIds() - mFeatureResult );
         break;
       default:
         return;
@@ -403,14 +403,14 @@ QgsVectorLayer * QgsSpatialQueryDialog::getLayerFromCombobox( bool isTarget, int
   return lyr;
 } // QgsVectorLayer * QgsSpatialQueryDialog::getLayerFromCombobox(bool isTarget, int index)
 
-QIcon QgsSpatialQueryDialog::getIconTypeGeometry( QGis::GeometryType geomType )
+QIcon QgsSpatialQueryDialog::getIconTypeGeometry( Qgis::GeometryType geomType )
 {
   QString theName;
-  if ( geomType == QGis::Point )
+  if ( geomType == Qgis::Point )
   {
     theName = "/mIconPointLayer.svg";
   }
-  else if ( geomType == QGis::Line )
+  else if ( geomType == Qgis::Line )
   {
     theName = "/mIconLineLayer.svg";
   }
@@ -704,9 +704,8 @@ void QgsSpatialQueryDialog::zoomFeature( QgsVectorLayer* lyr, QgsFeatureId fid )
   }
   else
   {
-    QgsCoordinateTransform * coordTransform =  new QgsCoordinateTransform( srsSource, srcMapcanvas );
-    QgsRectangle rectExtent = coordTransform->transform( feat.constGeometry()->boundingBox() );
-    delete coordTransform;
+    QgsCoordinateTransform coordTransform( srsSource, srcMapcanvas );
+    QgsRectangle rectExtent = coordTransform.transform( feat.constGeometry()->boundingBox() );
     mIface->mapCanvas()->setExtent( rectExtent );
   }
   mIface->mapCanvas()->refresh();
