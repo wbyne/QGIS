@@ -40,8 +40,8 @@
 #include <qgsproject.h>
 #include <qgspoint.h>
 #include <qgsdistancearea.h>
-#include <symbology-ng/qgsrendererv2.h>
-#include <symbology-ng/qgssymbolv2.h>
+#include <symbology-ng/qgsrenderer.h>
+#include <symbology-ng/qgssymbol.h>
 #include <qgspallabeling.h>
 
 #include <QAction>
@@ -777,18 +777,18 @@ void GlobePlugin::addModelLayer( QgsVectorLayer* vLayer, QgsGlobeVectorLayerConf
   featureOpt.setLayer( vLayer );
   osgEarth::Style style;
 
-  if ( !vLayer->rendererV2()->symbols().isEmpty() )
+  if ( !vLayer->renderer()->symbols().isEmpty() )
   {
-    Q_FOREACH ( QgsSymbolV2* sym, vLayer->rendererV2()->symbols() )
+    Q_FOREACH ( QgsSymbol* sym, vLayer->renderer()->symbols() )
     {
-      if ( sym->type() == QgsSymbolV2::Line )
+      if ( sym->type() == QgsSymbol::Line )
       {
         osgEarth::LineSymbol* ls = style.getOrCreateSymbol<osgEarth::LineSymbol>();
         QColor color = sym->color();
         ls->stroke()->color() = osg::Vec4f( color.redF(), color.greenF(), color.blueF(), color.alphaF() * ( 100.f - vLayer->layerTransparency() ) / 100.f );
         ls->stroke()->width() = 1.0f;
       }
-      else if ( sym->type() == QgsSymbolV2::Fill )
+      else if ( sym->type() == QgsSymbol::Fill )
       {
         // TODO access border color, etc.
         osgEarth::PolygonSymbol* poly = style.getOrCreateSymbol<osgEarth::PolygonSymbol>();

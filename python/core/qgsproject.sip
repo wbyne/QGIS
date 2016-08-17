@@ -273,7 +273,7 @@ class QgsProject : QObject
     /** Returns pointer to the project's visibility preset collection.
      * @note added in QGIS 2.12
      */
-    QgsVisibilityPresetCollection* visibilityPresetCollection();
+    QgsMapThemeCollection* mapThemeCollection();
 
     /**
      * Set a list of layers which should not be taken into account on map identification
@@ -323,6 +323,8 @@ class QgsProject : QObject
      * @note added in 2.16
      */
     void setEvaluateDefaultValues( bool evaluateDefaultValues );
+
+    QgsExpressionContext createExpressionContext() const;
 
   protected:
 

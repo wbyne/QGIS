@@ -33,6 +33,7 @@
 #include "qgssnapper.h"
 #include "qgsunittypes.h"
 #include "qgsprojectversion.h"
+#include "qgsexpressioncontextgenerator.h"
 
 class QFileInfo;
 class QDomDocument;
@@ -45,7 +46,7 @@ class QgsMapLayer;
 class QgsProjectBadLayerHandler;
 class QgsRelationManager;
 class QgsVectorLayer;
-class QgsVisibilityPresetCollection;
+class QgsMapThemeCollection;
 class QgsTransactionGroup;
 class QgsTolerance;
 
@@ -67,7 +68,7 @@ class QgsTolerance;
 // project.  Just as the GIMP can have simultaneous multiple images, perhaps
 // QGIS can one day have simultaneous multiple projects.
 
-class CORE_EXPORT QgsProject : public QObject
+class CORE_EXPORT QgsProject : public QObject, public QgsExpressionContextGenerator
 {
     Q_OBJECT
     Q_PROPERTY( QStringList nonIdentifiableLayers READ nonIdentifiableLayers WRITE setNonIdentifiableLayers NOTIFY nonIdentifiableLayersChanged )
@@ -325,10 +326,11 @@ class CORE_EXPORT QgsProject : public QObject
      */
     QgsLayerTreeRegistryBridge* layerTreeRegistryBridge() const { return mLayerTreeRegistryBridge; }
 
-    /** Returns pointer to the project's visibility preset collection.
+    /** Returns pointer to the project's map theme collection.
      * @note added in QGIS 2.12
+     * @note renamed in QGIS 3.0, formerly QgsVisibilityPresetCollection
      */
-    QgsVisibilityPresetCollection* visibilityPresetCollection();
+    QgsMapThemeCollection* mapThemeCollection();
 
     /**
      * Set a list of layers which should not be taken into account on map identification
@@ -389,6 +391,8 @@ class CORE_EXPORT QgsProject : public QObject
      * @note added in 2.16
      */
     void setEvaluateDefaultValues( bool evaluateDefaultValues );
+
+    QgsExpressionContext createExpressionContext() const override;
 
   protected:
     /** Set error message from read/write operation
@@ -537,7 +541,7 @@ class CORE_EXPORT QgsProject : public QObject
     //! map of transaction group: QPair( providerKey, connString ) -> transactionGroup
     QMap< QPair< QString, QString>, QgsTransactionGroup*> mTransactionGroups;
 
-    QScopedPointer<QgsVisibilityPresetCollection> mVisibilityPresetCollection;
+    QScopedPointer<QgsMapThemeCollection> mVisibilityPresetCollection;
 };
 
 

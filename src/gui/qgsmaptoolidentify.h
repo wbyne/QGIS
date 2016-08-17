@@ -159,15 +159,6 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
 
   private:
 
-    //! Private helper
-    //! @deprecated use displayDistanceUnits() and displayAreaUnits() instead
-    Q_DECL_DEPRECATED virtual void convertMeasurement( QgsDistanceArea &calc, double &measure, QgsUnitTypes::DistanceUnit &u, bool isArea );
-
-    /** Transforms the measurements of derived attributes in the desired units
-     * @deprecated use displayDistanceUnits() and displayAreaUnits() instead
-    */
-    Q_DECL_DEPRECATED virtual QgsUnitTypes::DistanceUnit displayUnits();
-
     /** Desired units for distance display.
      * @note added in QGIS 2.14
      * @see displayAreaUnits()
@@ -196,7 +187,7 @@ class GUI_EXPORT QgsMapToolIdentify : public QgsMapTool
 
     /** Adds details of the closest vertex to derived attributes
      */
-    void closestVertexAttributes( const QgsAbstractGeometryV2& geometry, QgsVertexId vId, QgsMapLayer *layer, QMap< QString, QString >& derivedAttributes );
+    void closestVertexAttributes( const QgsAbstractGeometry& geometry, QgsVertexId vId, QgsMapLayer *layer, QMap< QString, QString >& derivedAttributes );
 
     QString formatCoordinate( const QgsPoint& canvasPoint ) const;
     QString formatXCoordinate( const QgsPoint& canvasPoint ) const;

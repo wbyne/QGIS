@@ -20,6 +20,7 @@ from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtGui import QPainter
 
 from qgis.core import (Qgis,
+                       QgsWkbTypes,
                        QgsVectorLayer,
                        QgsRectangle,
                        QgsFeature,
@@ -30,8 +31,8 @@ from qgis.core import (Qgis,
                        QgsFields,
                        QgsMapLayerRegistry,
                        QgsVectorJoinInfo,
-                       QgsSymbolV2,
-                       QgsSingleSymbolRendererV2,
+                       QgsSymbol,
+                       QgsSingleSymbolRenderer,
                        QgsCoordinateReferenceSystem,
                        QgsProject,
                        QgsUnitTypes,
@@ -1171,6 +1172,103 @@ class TestQgsVectorLayer(unittest.TestCase):
         self.assertEqual(layer.maximumValue(3), 321)
         self.assertEqual(set(layer.uniqueValues(3)), set([111, 321]))
 
+    def testUniqueValue(self):
+        """ test retrieving unique values """
+        layer = createLayerWithFivePoints()
+
+        # test layer with just provider features
+        self.assertEqual(set(layer.uniqueValues(1)), set([123, 457, 888, -1, 0]))
+
+        # add feature with new value
+        layer.startEditing()
+        f1 = QgsFeature()
+        f1.setAttributes(["test2", 999])
+        self.assertTrue(layer.addFeature(f1))
+
+        # should be included in unique values
+        self.assertEqual(set(layer.uniqueValues(1)), set([123, 457, 888, -1, 0, 999]))
+        # add it again, should be no change
+        f2 = QgsFeature()
+        f2.setAttributes(["test2", 999])
+        self.assertTrue(layer.addFeature(f1))
+        self.assertEqual(set(layer.uniqueValues(1)), set([123, 457, 888, -1, 0, 999]))
+        # add another feature
+        f3 = QgsFeature()
+        f3.setAttributes(["test2", 9999])
+        self.assertTrue(layer.addFeature(f3))
+        self.assertEqual(set(layer.uniqueValues(1)), set([123, 457, 888, -1, 0, 999, 9999]))
+
+        # change an attribute value to a new unique value
+        f = QgsFeature()
+        f1_id = next(layer.getFeatures()).id()
+        self.assertTrue(layer.changeAttributeValue(f1_id, 1, 481523))
+        # note - this isn't 100% accurate, since 123 no longer exists - but it avoids looping through all features
+        self.assertEqual(set(layer.uniqueValues(1)), set([123, 457, 888, -1, 0, 999, 9999, 481523]))
+
+    def testMinValue(self):
+        """ test retrieving minimum values """
+        layer = createLayerWithFivePoints()
+
+        # test layer with just provider features
+        self.assertEqual(layer.minimumValue(1), -1)
+
+        # add feature with new value
+        layer.startEditing()
+        f1 = QgsFeature()
+        f1.setAttributes(["test2", -999])
+        self.assertTrue(layer.addFeature(f1))
+
+        # should be new minimum value
+        self.assertEqual(layer.minimumValue(1), -999)
+        # add it again, should be no change
+        f2 = QgsFeature()
+        f2.setAttributes(["test2", -999])
+        self.assertTrue(layer.addFeature(f1))
+        self.assertEqual(layer.minimumValue(1), -999)
+        # add another feature
+        f3 = QgsFeature()
+        f3.setAttributes(["test2", -1000])
+        self.assertTrue(layer.addFeature(f3))
+        self.assertEqual(layer.minimumValue(1), -1000)
+
+        # change an attribute value to a new minimum value
+        f = QgsFeature()
+        f1_id = next(layer.getFeatures()).id()
+        self.assertTrue(layer.changeAttributeValue(f1_id, 1, -1001))
+        self.assertEqual(layer.minimumValue(1), -1001)
+
+    def testMaxValue(self):
+        """ test retrieving maximum values """
+        layer = createLayerWithFivePoints()
+
+        # test layer with just provider features
+        self.assertEqual(layer.maximumValue(1), 888)
+
+        # add feature with new value
+        layer.startEditing()
+        f1 = QgsFeature()
+        f1.setAttributes(["test2", 999])
+        self.assertTrue(layer.addFeature(f1))
+
+        # should be new maximum value
+        self.assertEqual(layer.maximumValue(1), 999)
+        # add it again, should be no change
+        f2 = QgsFeature()
+        f2.setAttributes(["test2", 999])
+        self.assertTrue(layer.addFeature(f1))
+        self.assertEqual(layer.maximumValue(1), 999)
+        # add another feature
+        f3 = QgsFeature()
+        f3.setAttributes(["test2", 1000])
+        self.assertTrue(layer.addFeature(f3))
+        self.assertEqual(layer.maximumValue(1), 1000)
+
+        # change an attribute value to a new maximum value
+        f = QgsFeature()
+        f1_id = next(layer.getFeatures()).id()
+        self.assertTrue(layer.changeAttributeValue(f1_id, 1, 1001))
+        self.assertEqual(layer.maximumValue(1), 1001)
+
     def test_InvalidOperations(self):
         layer = createLayerWithOnePoint()
 
@@ -1493,16 +1591,16 @@ class TestQgsVectorLayer(unittest.TestCase):
     def onRendererChanged(self):
         self.rendererChanged = True
 
-    def test_setRendererV2(self):
+    def test_setRenderer(self):
         layer = createLayerWithOnePoint()
 
         self.rendererChanged = False
         layer.rendererChanged.connect(self.onRendererChanged)
 
-        r = QgsSingleSymbolRendererV2(QgsSymbolV2.defaultSymbol(Qgis.Point))
-        layer.setRendererV2(r)
+        r = QgsSingleSymbolRenderer(QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry))
+        layer.setRenderer(r)
         self.assertTrue(self.rendererChanged)
-        self.assertEqual(layer.rendererV2(), r)
+        self.assertEqual(layer.renderer(), r)
 
 # TODO:
 # - fetch rect: feat with changed geometry: 1. in rect, 2. out of rect

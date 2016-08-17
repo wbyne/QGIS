@@ -38,7 +38,7 @@
 #include "qgsdialog.h"
 #include "qgscomposer.h"
 #include "qgscolorschemeregistry.h"
-#include "qgssymbollayerv2utils.h"
+#include "qgssymbollayerutils.h"
 #include "qgscolordialog.h"
 #include "qgsexpressioncontext.h"
 #include "qgsunittypes.h"
@@ -318,7 +318,8 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl )
   mCacheSize->setMinimum( 0 );
   mCacheSize->setMaximum( std::numeric_limits<int>::max() );
   mCacheSize->setSingleStep( 1024 );
-  mCacheSize->setValue( mSettings->value( "cache/size" ).toInt() / 1024 );
+  qint64 cacheSize = mSettings->value( "cache/size", 50 * 1024 * 1024 ).toULongLong();
+  mCacheSize->setValue(( int )( cacheSize / 1024 ) );
 
   //wms search server
   leWmsSearch->setText( mSettings->value( "/qgis/WMSSearchUrl", "http://geopole.org/wms/search?search=%1&type=rss" ).toString() );
@@ -888,10 +889,7 @@ QgsOptions::QgsOptions( QWidget *parent, Qt::WindowFlags fl )
   mValidateGeometries->clear();
   mValidateGeometries->addItem( tr( "Off" ) );
   mValidateGeometries->addItem( tr( "QGIS" ) );
-#if defined(GEOS_VERSION_MAJOR) && defined(GEOS_VERSION_MINOR) && \
-    ( (GEOS_VERSION_MAJOR==3 && GEOS_VERSION_MINOR>=3) || GEOS_VERSION_MAJOR>3)
   mValidateGeometries->addItem( tr( "GEOS" ) );
-#endif
 
   QString markerStyle = mSettings->value( "/qgis/digitizing/marker_style", "Cross" ).toString();
   if ( markerStyle == "SemiTransparentCircle" )
@@ -2152,14 +2150,14 @@ void QgsOptions::saveDefaultDatumTransformations()
 
 void QgsOptions::on_mButtonAddColor_clicked()
 {
-  QColor newColor = QgsColorDialogV2::getColor( QColor(), this->parentWidget(), tr( "Select color" ), true );
+  QColor newColor = QgsColorDialog::getColor( QColor(), this->parentWidget(), tr( "Select color" ), true );
   if ( !newColor.isValid() )
   {
     return;
   }
   activateWindow();
 
-  mTreeCustomColors->addColor( newColor, QgsSymbolLayerV2Utils::colorToName( newColor ) );
+  mTreeCustomColors->addColor( newColor, QgsSymbolLayerUtils::colorToName( newColor ) );
 }
 
 void QgsOptions::on_mButtonImportColors_clicked()

@@ -17,6 +17,7 @@
 #define QGSCOMPOUNDCOLORWIDGET_H
 
 #include "qgisgui.h"
+#include "qgspanelwidget.h"
 #include "ui_qgscompoundcolorwidget.h"
 
 /** \ingroup gui
@@ -26,18 +27,26 @@
  * \note Added in version 2.16
  */
 
-class GUI_EXPORT QgsCompoundColorWidget : public QWidget, private Ui::QgsCompoundColorWidgetBase
+class GUI_EXPORT QgsCompoundColorWidget : public QgsPanelWidget, private Ui::QgsCompoundColorWidgetBase
 {
 
     Q_OBJECT
 
   public:
 
+    //! Widget layout
+    enum Layout
+    {
+      LayoutDefault = 0, /*!< Use the default (rectangular) layout */
+      LayoutVertical, /*!< Use a narrower, vertically stacked layout */
+    };
+
     /** Constructor for QgsCompoundColorWidget
      * @param parent parent widget
      * @param color initial color for dialog
+     * @param layout widget layout to use
      */
-    QgsCompoundColorWidget( QWidget *parent = nullptr, const QColor& color = QColor() );
+    QgsCompoundColorWidget( QWidget *parent = nullptr, const QColor& color = QColor(), Layout layout = LayoutDefault );
 
     ~QgsCompoundColorWidget();
 

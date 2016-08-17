@@ -17,8 +17,8 @@
 #include "qgscomposerpolyline.h"
 #include "qgscomposition.h"
 #include "qgscomposerutils.h"
-#include "qgssymbollayerv2utils.h"
-#include "qgssymbolv2.h"
+#include "qgssymbollayerutils.h"
+#include "qgssymbol.h"
 #include "qgsmapsettings.h"
 #include <limits>
 
@@ -87,7 +87,7 @@ void QgsComposerPolyline::createDefaultPolylineStyleSymbol()
   properties.insert( "width", "0.3" );
   properties.insert( "capstyle", "square" );
 
-  mPolylineStyleSymbol.reset( QgsLineSymbolV2::createSimple( properties ) );
+  mPolylineStyleSymbol.reset( QgsLineSymbol::createSimple( properties ) );
 
   emit frameChanged();
 }
@@ -111,9 +111,8 @@ void QgsComposerPolyline::_draw( QPainter *painter )
   context.setPainter( painter );
   context.setForceVectorOutput( true );
 
-  QScopedPointer<QgsExpressionContext> expressionContext;
-  expressionContext.reset( createExpressionContext() );
-  context.setExpressionContext( *expressionContext.data() );
+  QgsExpressionContext expressionContext = createExpressionContext();
+  context.setExpressionContext( expressionContext );
 
   painter->scale( 1 / dotsPerMM, 1 / dotsPerMM ); // scale painter from mm to dots
   QTransform t = QTransform::fromScale( dotsPerMM, dotsPerMM );
@@ -126,19 +125,19 @@ void QgsComposerPolyline::_draw( QPainter *painter )
 
 void QgsComposerPolyline::_readXmlStyle( const QDomElement &elmt )
 {
-  mPolylineStyleSymbol.reset( QgsSymbolLayerV2Utils::loadSymbol<QgsLineSymbolV2>( elmt ) );
+  mPolylineStyleSymbol.reset( QgsSymbolLayerUtils::loadSymbol<QgsLineSymbol>( elmt ) );
 }
 
-void QgsComposerPolyline::setPolylineStyleSymbol( QgsLineSymbolV2* symbol )
+void QgsComposerPolyline::setPolylineStyleSymbol( QgsLineSymbol* symbol )
 {
-  mPolylineStyleSymbol.reset( static_cast<QgsLineSymbolV2*>( symbol->clone() ) );
+  mPolylineStyleSymbol.reset( static_cast<QgsLineSymbol*>( symbol->clone() ) );
   update();
   emit frameChanged();
 }
 
 void QgsComposerPolyline::_writeXmlStyle( QDomDocument &doc, QDomElement &elmt ) const
 {
-  const QDomElement pe = QgsSymbolLayerV2Utils::saveSymbol( QString(),
+  const QDomElement pe = QgsSymbolLayerUtils::saveSymbol( QString(),
                          mPolylineStyleSymbol.data(),
                          doc );
   elmt.appendChild( pe );

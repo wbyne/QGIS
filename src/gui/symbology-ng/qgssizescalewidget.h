@@ -24,7 +24,7 @@
 #include <QItemDelegate>
 
 class QgsVectorLayer;
-class QgsSymbolV2;
+class QgsSymbol;
 class QgsLayerTreeLayer;
 class QgsScaleExpression;
 class QgsDataDefined;
@@ -33,12 +33,12 @@ class QgsMapCanvas;
 /** \ingroup gui
  * \class QgsSizeScaleWidget
  */
-class GUI_EXPORT QgsSizeScaleWidget : public QgsDataDefinedAssistant, private Ui_SizeScaleBase
+class GUI_EXPORT QgsSizeScaleWidget : public QgsDataDefinedAssistant, private Ui_SizeScaleBase, private QgsExpressionContextGenerator
 {
     Q_OBJECT
 
   public:
-    QgsSizeScaleWidget( const QgsVectorLayer * layer, const QgsSymbolV2 * symbol );
+    QgsSizeScaleWidget( const QgsVectorLayer * layer, const QgsSymbol * symbol );
 
     QgsDataDefined dataDefined() const override;
 
@@ -57,7 +57,7 @@ class GUI_EXPORT QgsSizeScaleWidget : public QgsDataDefinedAssistant, private Ui
 
   private:
 
-    const QgsSymbolV2* mSymbol;
+    const QgsSymbol* mSymbol;
     QgsVectorLayer* mLayer;
     QgsLayerTreeLayer* mLayerTreeLayer;
     QgsLayerTreeGroup mRoot;
@@ -67,6 +67,7 @@ class GUI_EXPORT QgsSizeScaleWidget : public QgsDataDefinedAssistant, private Ui
     QgsScaleExpression* createExpression() const;
     void setFromSymbol();
 
+    QgsExpressionContext createExpressionContext() const override;
 };
 
 /// @cond PRIVATE

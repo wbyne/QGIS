@@ -15,7 +15,8 @@
 
 #include "qgsmaprendererparalleljob.h"
 
-#include "qgslabelingenginev2.h"
+#include "qgsfeedback.h"
+#include "qgslabelingengine.h"
 #include "qgslogger.h"
 #include "qgsmaplayerrenderer.h"
 #include "qgspallabeling.h"
@@ -55,7 +56,7 @@ void QgsMapRendererParallelJob::start()
 
   if ( mSettings.testFlag( QgsMapSettings::DrawLabeling ) )
   {
-    mLabelingEngineV2 = new QgsLabelingEngineV2();
+    mLabelingEngineV2 = new QgsLabelingEngine();
     mLabelingEngineV2->readSettingsFromProject();
     mLabelingEngineV2->setMapSettings( mSettings );
   }
@@ -91,6 +92,8 @@ void QgsMapRendererParallelJob::cancel()
   for ( LayerRenderJobs::iterator it = mLayerJobs.begin(); it != mLayerJobs.end(); ++it )
   {
     it->context.setRenderingStopped( true );
+    if ( it->renderer && it->renderer->feedback() )
+      it->renderer->feedback()->cancel();
   }
 
   if ( mStatus == RenderingLayers )

@@ -20,12 +20,12 @@
 #include "qgsfeatureiterator.h"
 #include "qgsgeometryvalidator.h"
 #include "qgslayertreeview.h"
-#include "qgslinestringv2.h"
+#include "qgslinestring.h"
 #include "qgslogger.h"
 #include "qgsmapcanvas.h"
 #include "qgsmapcanvastracer.h"
 #include "qgsmapmouseevent.h"
-#include "qgspolygonv2.h"
+#include "qgspolygon.h"
 #include "qgsrubberband.h"
 #include "qgsvectorlayer.h"
 #include "qgsvertexmarker.h"
@@ -122,13 +122,13 @@ void QgsMapToolCapture::currentLayerChanged( QgsMapLayer *layer )
 
   switch ( vlayer->geometryType() )
   {
-    case Qgis::Point:
+    case QgsWkbTypes::PointGeometry:
       mCaptureMode = CapturePoint;
       break;
-    case Qgis::Line:
+    case QgsWkbTypes::LineGeometry:
       mCaptureMode = CaptureLine;
       break;
-    case Qgis::Polygon:
+    case QgsWkbTypes::PolygonGeometry:
       mCaptureMode = CapturePolygon;
       break;
     default:
@@ -176,7 +176,7 @@ bool QgsMapToolCapture::tracingMouseMove( QgsMapMouseEvent* e )
   if ( !tracer )
     return false;  // this should not happen!
 
-  mTempRubberBand->reset( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+  mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
 
   QgsTracer::PathError err;
   QVector<QgsPoint> points = tracer->findShortestPath( pt0, e->mapPoint(), &err );
@@ -235,7 +235,7 @@ bool QgsMapToolCapture::tracingAddVertex( const QgsPoint& point )
     return false; // ignore the vertex - can't find path to the end point!
 
   // transform points
-  QgsPointSequenceV2 layerPoints;
+  QgsPointSequence layerPoints;
   QgsPointV2 lp; // in layer coords
   for ( int i = 1; i < points.count(); ++i )
   {
@@ -282,7 +282,7 @@ void QgsMapToolCapture::cadCanvasMoveEvent( QgsMapMouseEvent * e )
 
   if ( !mTempRubberBand && mCaptureCurve.numPoints() > 0 )
   {
-    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line, true );
+    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry, true );
     QgsPointV2 pt = mCaptureCurve.endPoint();
     mTempRubberBand->addPoint( QgsPoint( pt.x(), pt.y() ) );
     mTempRubberBand->addPoint( point );
@@ -304,7 +304,7 @@ void QgsMapToolCapture::cadCanvasMoveEvent( QgsMapMouseEvent * e )
             ( mCaptureMode == CapturePolygon && mTempRubberBand->numberOfVertices() != 3 ) ) )
       {
         // fix temporary rubber band after tracing which may have added multiple points
-        mTempRubberBand->reset( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+        mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
         if ( mCaptureMode == CapturePolygon )
           mTempRubberBand->addPoint( *mRubberBand->getPoint( 0, 0 ), false );
         QgsPointV2 pt = mCaptureCurve.endPoint();
@@ -340,9 +340,9 @@ int QgsMapToolCapture::nextPoint( const QgsPointV2& mapPoint, QgsPointV2& layerP
   {
     QgsPoint mapP( mapPoint.x(), mapPoint.y() );
     layerPoint = QgsPointV2( toLayerCoordinates( vlayer, mapP ) ); //transform snapped point back to layer crs
-    if ( QgsWKBTypes::hasZ( Qgis::fromOldWkbType( vlayer->wkbType() ) ) )
+    if ( QgsWkbTypes::hasZ( vlayer->wkbType() ) )
       layerPoint.addZValue( 0.0 );
-    if ( QgsWKBTypes::hasM( Qgis::fromOldWkbType( vlayer->wkbType() ) ) )
+    if ( QgsWkbTypes::hasM( vlayer->wkbType() ) )
       layerPoint.addMValue( 0.0 );
   }
   catch ( QgsCsException &cse )
@@ -383,9 +383,9 @@ int QgsMapToolCapture::fetchLayerPoint( QgsPointLocator::Match match , QgsPointV
     if ( fetched )
     {
       QgsVertexId vId;
-      if ( !f.geometry()->vertexIdFromVertexNr( match.vertexIndex(), vId ) )
+      if ( !f.geometry().vertexIdFromVertexNr( match.vertexIndex(), vId ) )
         return 2;
-      layerPoint = f.geometry()->geometry()->vertexAt( vId );
+      layerPoint = f.geometry().geometry()->vertexAt( vId );
       return 0;
     }
     else
@@ -426,16 +426,16 @@ int QgsMapToolCapture::addVertex( const QgsPoint& point, QgsPointLocator::Match 
 
   if ( !mRubberBand )
   {
-    mRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+    mRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
   }
 
   if ( !mTempRubberBand )
   {
-    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line, true );
+    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry, true );
   }
   else
   {
-    mTempRubberBand->reset( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+    mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
   }
 
   bool traceCreated = false;
@@ -468,7 +468,7 @@ int QgsMapToolCapture::addVertex( const QgsPoint& point, QgsPointLocator::Match 
   return 0;
 }
 
-int QgsMapToolCapture::addCurve( QgsCurveV2* c )
+int QgsMapToolCapture::addCurve( QgsCurve* c )
 {
   if ( !c )
   {
@@ -477,14 +477,14 @@ int QgsMapToolCapture::addCurve( QgsCurveV2* c )
 
   if ( !mRubberBand )
   {
-    mRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+    mRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
   }
 
-  QgsLineStringV2* lineString = c->curveToLine();
-  QgsPointSequenceV2 linePoints;
+  QgsLineString* lineString = c->curveToLine();
+  QgsPointSequence linePoints;
   lineString->points( linePoints );
   delete lineString;
-  QgsPointSequenceV2::const_iterator ptIt = linePoints.constBegin();
+  QgsPointSequence::const_iterator ptIt = linePoints.constBegin();
   for ( ; ptIt != linePoints.constEnd(); ++ptIt )
   {
     mRubberBand->addPoint( QgsPoint( ptIt->x(), ptIt->y() ) );
@@ -492,7 +492,7 @@ int QgsMapToolCapture::addCurve( QgsCurveV2* c )
 
   if ( !mTempRubberBand )
   {
-    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line, true );
+    mTempRubberBand = createRubberBand( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry, true );
   }
   else
   {
@@ -539,7 +539,7 @@ void QgsMapToolCapture::undo()
     }
     else
     {
-      mTempRubberBand->reset( mCaptureMode == CapturePolygon ? Qgis::Polygon : Qgis::Line );
+      mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
     }
 
     QgsVertexId vertexToRemove;
@@ -659,15 +659,16 @@ void QgsMapToolCapture::validateGeometry()
     case CaptureNone:
     case CapturePoint:
       return;
+    case CaptureSegment:
     case CaptureLine:
-      if ( size() < 2 )
+      if ( size() < 2  || ( mCaptureMode == CaptureSegment && size() > 2 ) )
         return;
       g.reset( new QgsGeometry( mCaptureCurve.curveToLine() ) );
       break;
     case CapturePolygon:
       if ( size() < 3 )
         return;
-      QgsLineStringV2* exteriorRing = mCaptureCurve.curveToLine();
+      QgsLineString* exteriorRing = mCaptureCurve.curveToLine();
       exteriorRing->close();
       QgsPolygonV2* polygon = new QgsPolygonV2();
       polygon->setExteriorRing( exteriorRing );
@@ -717,7 +718,7 @@ int QgsMapToolCapture::size()
 
 QList<QgsPoint> QgsMapToolCapture::points()
 {
-  QgsPointSequenceV2 pts;
+  QgsPointSequence pts;
   QList<QgsPoint> points;
   mCaptureCurve.points( pts );
   QgsGeometry::convertPointList( pts, points );
@@ -726,10 +727,10 @@ QList<QgsPoint> QgsMapToolCapture::points()
 
 void QgsMapToolCapture::setPoints( const QList<QgsPoint>& pointList )
 {
-  QgsPointSequenceV2 pts;
+  QgsPointSequence pts;
   QgsGeometry::convertPointList( pointList, pts );
 
-  QgsLineStringV2* line = new QgsLineStringV2();
+  QgsLineString* line = new QgsLineString();
   line->setPoints( pts );
 
   mCaptureCurve.clear();

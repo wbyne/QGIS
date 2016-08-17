@@ -29,7 +29,7 @@
 #include "qgisapp.h"
 #include "qgsproject.h"
 #include "qgssvgcache.h"
-#include "qgssymbollayerv2utils.h"
+#include "qgssymbollayerutils.h"
 #include "qgscharacterselectdialog.h"
 #include "qgssvgselectorwidget.h"
 #include "qgsvectorlayerlabeling.h"
@@ -38,7 +38,7 @@
 #include <QCheckBox>
 #include <QSettings>
 
-static QgsExpressionContext _getExpressionContext( const void* context )
+QgsExpressionContext QgsLabelingGui::createExpressionContext() const
 {
   QgsExpressionContext expContext;
   expContext << QgsExpressionContextUtils::globalScope()
@@ -46,9 +46,8 @@ static QgsExpressionContext _getExpressionContext( const void* context )
   << QgsExpressionContextUtils::atlasScope( nullptr )
   << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() );
 
-  const QgsVectorLayer* layer = ( const QgsVectorLayer* ) context;
-  if ( layer )
-    expContext << QgsExpressionContextUtils::layerScope( layer );
+  if ( mLayer )
+    expContext << QgsExpressionContextUtils::layerScope( mLayer );
 
   expContext << QgsExpressionContextUtils::updateSymbolScope( nullptr, new QgsExpressionContextScope() );
 
@@ -78,7 +77,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
 {
   setupUi( this );
 
-  mFieldExpressionWidget->registerGetExpressionContextCallback( &_getExpressionContext, mLayer );
+  mFieldExpressionWidget->registerExpressionContextGenerator( this );
 
   Q_FOREACH ( QgsUnitSelectionWidget* unitWidget, findChildren<QgsUnitSelectionWidget*>() )
   {
@@ -517,7 +516,7 @@ void QgsLabelingGui::connectValueChanged( QList<QWidget *> widgets, const char *
     {
       connect( w , SIGNAL( valueChanged( double ) ), this, slot );
     }
-    else if ( QgsColorButtonV2* w = qobject_cast<QgsColorButtonV2*>( widget ) )
+    else if ( QgsColorButton* w = qobject_cast<QgsColorButton*>( widget ) )
     {
       connect( w, SIGNAL( colorChanged( QColor ) ), this, slot );
     }
@@ -564,11 +563,11 @@ void QgsLabelingGui::setLayer( QgsMapLayer* mapLayer )
 void QgsLabelingGui::init()
 {
   // show/hide options based upon geometry type
-  chkMergeLines->setVisible( mLayer->geometryType() == Qgis::Line );
-  mDirectSymbolsFrame->setVisible( mLayer->geometryType() == Qgis::Line );
-  mMinSizeFrame->setVisible( mLayer->geometryType() != Qgis::Point );
-  mPolygonObstacleTypeFrame->setVisible( mLayer->geometryType() == Qgis::Polygon );
-  mPolygonFeatureOptionsFrame->setVisible( mLayer->geometryType() == Qgis::Polygon );
+  chkMergeLines->setVisible( mLayer->geometryType() == QgsWkbTypes::LineGeometry );
+  mDirectSymbolsFrame->setVisible( mLayer->geometryType() == QgsWkbTypes::LineGeometry );
+  mMinSizeFrame->setVisible( mLayer->geometryType() != QgsWkbTypes::PointGeometry );
+  mPolygonObstacleTypeFrame->setVisible( mLayer->geometryType() == QgsWkbTypes::PolygonGeometry );
+  mPolygonFeatureOptionsFrame->setVisible( mLayer->geometryType() == QgsWkbTypes::PolygonGeometry );
 
   // field combo and expression button
   mFieldExpressionWidget->setLayer( mLayer );
@@ -581,22 +580,22 @@ void QgsLabelingGui::init()
   // set placement methods page based on geometry type
   switch ( mLayer->geometryType() )
   {
-    case Qgis::Point:
+    case QgsWkbTypes::PointGeometry:
       stackedPlacement->setCurrentWidget( pagePoint );
       break;
-    case Qgis::Line:
+    case QgsWkbTypes::LineGeometry:
       stackedPlacement->setCurrentWidget( pageLine );
       break;
-    case Qgis::Polygon:
+    case QgsWkbTypes::PolygonGeometry:
       stackedPlacement->setCurrentWidget( pagePolygon );
       break;
-    case Qgis::NoGeometry:
+    case QgsWkbTypes::NullGeometry:
       break;
-    case Qgis::UnknownGeometry:
+    case QgsWkbTypes::UnknownGeometry:
       qFatal( "unknown geometry type unexpected" );
   }
 
-  if ( mLayer->geometryType() == Qgis::Point )
+  if ( mLayer->geometryType() == QgsWkbTypes::PointGeometry )
   {
     // follow placement alignment is only valid for point layers
     if ( mFontMultiLineAlignComboBox->findText( tr( "Follow label placement" ) ) == -1 )
@@ -1225,7 +1224,7 @@ void QgsLabelingGui::populateDataDefinedButtons( QgsPalLayerSettings& s )
 {
   Q_FOREACH ( QgsDataDefinedButton* button, findChildren< QgsDataDefinedButton* >() )
   {
-    button->registerGetExpressionContextCallback( &_getExpressionContext, mLayer );
+    button->registerExpressionContextGenerator( this );
   }
 
   // don't register enable/disable siblings, since visual feedback from data defined buttons should be enough,
@@ -1981,7 +1980,7 @@ void QgsLabelingGui::updateSvgWidgets( const QString& svgPath )
     mShapeSVGPathLineEdit->setText( svgPath );
   }
 
-  QString resolvedPath = QgsSymbolLayerV2Utils::symbolNameToPath( svgPath );
+  QString resolvedPath = QgsSymbolLayerUtils::symbolNameToPath( svgPath );
   bool validSVG = !resolvedPath.isNull();
 
   // draw red text for path field if invalid (path can't be resolved)

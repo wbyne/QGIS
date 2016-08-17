@@ -18,8 +18,8 @@
 #include "qgsannotationitem.h"
 #include "qgsmapcanvas.h"
 #include "qgsrendercontext.h"
-#include "qgssymbollayerv2utils.h"
-#include "qgssymbolv2.h"
+#include "qgssymbollayerutils.h"
+#include "qgssymbol.h"
 #include <QPainter>
 #include <QPen>
 
@@ -31,7 +31,7 @@ QgsAnnotationItem::QgsAnnotationItem( QgsMapCanvas* mapCanvas )
     , mBalloonSegment( -1 )
 {
   setFlag( QGraphicsItem::ItemIsSelectable, true );
-  mMarkerSymbol = new QgsMarkerSymbolV2();
+  mMarkerSymbol = new QgsMarkerSymbol();
   mFrameBorderWidth = 1.0;
   mFrameColor = QColor( 0, 0, 0 );
   mFrameBackgroundColor = QColor( 255, 255, 255 );
@@ -43,7 +43,7 @@ QgsAnnotationItem::~QgsAnnotationItem()
   delete mMarkerSymbol;
 }
 
-void QgsAnnotationItem::setMarkerSymbol( QgsMarkerSymbolV2* symbol )
+void QgsAnnotationItem::setMarkerSymbol( QgsMarkerSymbol* symbol )
 {
   delete mMarkerSymbol;
   mMarkerSymbol = symbol;
@@ -433,7 +433,7 @@ void QgsAnnotationItem::_writeXml( QDomDocument& doc, QDomElement& itemElem ) co
   annotationElem.setAttribute( "visible", isVisible() );
   if ( mMarkerSymbol )
   {
-    QDomElement symbolElem = QgsSymbolLayerV2Utils::saveSymbol( "marker symbol", mMarkerSymbol, doc );
+    QDomElement symbolElem = QgsSymbolLayerUtils::saveSymbol( "marker symbol", mMarkerSymbol, doc );
     if ( !symbolElem.isNull() )
     {
       annotationElem.appendChild( symbolElem );
@@ -479,7 +479,7 @@ void QgsAnnotationItem::_readXml( const QDomDocument& doc, const QDomElement& an
   QDomElement symbolElem = annotationElem.firstChildElement( "symbol" );
   if ( !symbolElem.isNull() )
   {
-    QgsMarkerSymbolV2* symbol = QgsSymbolLayerV2Utils::loadSymbol<QgsMarkerSymbolV2>( symbolElem );
+    QgsMarkerSymbol* symbol = QgsSymbolLayerUtils::loadSymbol<QgsMarkerSymbol>( symbolElem );
     if ( symbol )
     {
       delete mMarkerSymbol;

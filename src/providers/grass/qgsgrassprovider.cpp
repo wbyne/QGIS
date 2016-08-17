@@ -25,9 +25,9 @@
 #include "qgsdataprovider.h"
 #include "qgsfeature.h"
 #include "qgsfield.h"
-#include "qgslinestringv2.h"
+#include "qgslinestring.h"
 #include "qgspointv2.h"
-#include "qgspolygonv2.h"
+#include "qgspolygon.h"
 #include "qgsrectangle.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectorlayereditbuffer.h"
@@ -114,7 +114,7 @@ QgsGrassProvider::QgsGrassProvider( QString uri )
     , mLayerField( -1 )
     , mLayerType( POINT )
     , mGrassType( 0 )
-    , mQgisType( Qgis::WKBUnknown )
+    , mQgisType( QgsWkbTypes::Unknown )
     , mLayer( 0 )
     , mMapVersion( 0 )
     , mNumberFeatures( 0 )
@@ -236,16 +236,16 @@ QgsGrassProvider::QgsGrassProvider( QString uri )
     case CENTROID:
     case TOPO_POINT:
     case TOPO_NODE:
-      mQgisType = Qgis::WKBPoint;
+      mQgisType = QgsWkbTypes::Point;
       break;
     case LINE:
     case BOUNDARY:
     case TOPO_LINE:
-      mQgisType = Qgis::WKBLineString;
+      mQgisType = QgsWkbTypes::LineString;
       break;
     case POLYGON:
     case FACE:
-      mQgisType = Qgis::WKBPolygon;
+      mQgisType = QgsWkbTypes::Polygon;
       break;
   }
 
@@ -293,7 +293,7 @@ QgsGrassProvider::~QgsGrassProvider()
   }
 }
 
-int QgsGrassProvider::capabilities() const
+QgsVectorDataProvider::Capabilities QgsGrassProvider::capabilities() const
 {
   // Because of bug in GRASS https://trac.osgeo.org/grass/ticket/2775 it is not possible
   // close db drivers in random order on Unix and probably Mac -> disable editing if another layer is edited
@@ -443,7 +443,7 @@ QgsRectangle QgsGrassProvider::extent() const
 /**
 * Return the feature type
 */
-Qgis::WkbType QgsGrassProvider::geometryType() const
+QgsWkbTypes::Type QgsGrassProvider::wkbType() const
 {
   return mQgisType;
 }
@@ -1112,7 +1112,7 @@ void QgsGrassProvider::startEditing( QgsVectorLayer *vectorLayer )
   mEditBuffer = vectorLayer->editBuffer();
   connect( mEditBuffer, SIGNAL( featureAdded( QgsFeatureId ) ), SLOT( onFeatureAdded( QgsFeatureId ) ) );
   connect( mEditBuffer, SIGNAL( featureDeleted( QgsFeatureId ) ), SLOT( onFeatureDeleted( QgsFeatureId ) ) );
-  connect( mEditBuffer, SIGNAL( geometryChanged( QgsFeatureId, QgsGeometry & ) ), SLOT( onGeometryChanged( QgsFeatureId, QgsGeometry & ) ) );
+  connect( mEditBuffer, SIGNAL( geometryChanged( QgsFeatureId, const QgsGeometry & ) ), SLOT( onGeometryChanged( QgsFeatureId, const QgsGeometry & ) ) );
   connect( mEditBuffer, SIGNAL( attributeValueChanged( QgsFeatureId, int, const QVariant & ) ), SLOT( onAttributeValueChanged( QgsFeatureId, int, const QVariant & ) ) );
   connect( mEditBuffer, SIGNAL( attributeAdded( int ) ), SLOT( onAttributeAdded( int ) ) );
   connect( mEditBuffer, SIGNAL( attributeDeleted( int ) ), SLOT( onAttributeDeleted( int ) ) );
@@ -1136,7 +1136,7 @@ void QgsGrassProvider::startEditing( QgsVectorLayer *vectorLayer )
   QgsDebugMsg( "edit started" );
 }
 
-void QgsGrassProvider::setPoints( struct line_pnts *points, const QgsAbstractGeometryV2 * geometry )
+void QgsGrassProvider::setPoints( struct line_pnts *points, const QgsAbstractGeometry * geometry )
 {
   if ( !points )
   {
@@ -1147,7 +1147,7 @@ void QgsGrassProvider::setPoints( struct line_pnts *points, const QgsAbstractGeo
   {
     return;
   }
-  if ( geometry->wkbType() == QgsWKBTypes::Point || geometry->wkbType() == QgsWKBTypes::PointZ )
+  if ( geometry->wkbType() == QgsWkbTypes::Point || geometry->wkbType() == QgsWkbTypes::PointZ )
   {
     const QgsPointV2* point = dynamic_cast<const QgsPointV2*>( geometry );
     if ( point )
@@ -1156,9 +1156,9 @@ void QgsGrassProvider::setPoints( struct line_pnts *points, const QgsAbstractGeo
       QgsDebugMsg( QString( "x = %1 y = %2" ).arg( point->x() ).arg( point->y() ) );
     }
   }
-  else if ( geometry->wkbType() == QgsWKBTypes::LineString || geometry->wkbType() == QgsWKBTypes::LineStringZ )
+  else if ( geometry->wkbType() == QgsWkbTypes::LineString || geometry->wkbType() == QgsWkbTypes::LineStringZ )
   {
-    const QgsLineStringV2* lineString = dynamic_cast<const QgsLineStringV2*>( geometry );
+    const QgsLineString* lineString = dynamic_cast<const QgsLineString*>( geometry );
     if ( lineString )
     {
       for ( int i = 0; i < lineString->numPoints(); i++ )
@@ -1168,12 +1168,12 @@ void QgsGrassProvider::setPoints( struct line_pnts *points, const QgsAbstractGeo
       }
     }
   }
-  else if ( geometry->wkbType() == QgsWKBTypes::Polygon || geometry->wkbType() == QgsWKBTypes::PolygonZ )
+  else if ( geometry->wkbType() == QgsWkbTypes::Polygon || geometry->wkbType() == QgsWkbTypes::PolygonZ )
   {
     const QgsPolygonV2* polygon = dynamic_cast<const QgsPolygonV2*>( geometry );
     if ( polygon && polygon->exteriorRing() )
     {
-      QgsLineStringV2* lineString = polygon->exteriorRing()->curveToLine();
+      QgsLineString* lineString = polygon->exteriorRing()->curveToLine();
       if ( lineString )
       {
         for ( int i = 0; i < lineString->numPoints(); i++ )
@@ -1218,7 +1218,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
       type = mNewFeatureType == GV_AREA ? GV_BOUNDARY : mNewFeatureType;
     }
     // geometry
-    const QgsAbstractGeometryV2 *geometry = 0;
+    const QgsAbstractGeometry *geometry = 0;
     if ( !mEditBuffer->isFeatureAdded( fid ) )
     {
 #ifdef QGISDEBUG
@@ -1232,14 +1232,8 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
       return;
     }
     QgsFeature feature = mEditBuffer->addedFeatures().value( fid );
-    if ( feature.constGeometry() )
-    {
-      geometry = feature.constGeometry()->geometry();
-    }
-    else
-    {
-      QgsDebugMsg( "feature does not have geometry" );
-    }
+    QgsGeometry featureGeometry = feature.geometry();
+    geometry = featureGeometry.geometry();
     if ( !geometry )
     {
       QgsDebugMsg( "geometry is null" );
@@ -1251,14 +1245,15 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
     QgsFeatureMap& addedFeatures = mEditBuffer->mAddedFeatures;
 
     // change polygon to linestring
-    QgsWKBTypes::Type wkbType = QgsWKBTypes::flatType( geometry->wkbType() );
-    if ( wkbType == QgsWKBTypes::Polygon )
+    QgsWkbTypes::Type wkbType = QgsWkbTypes::flatType( geometry->wkbType() );
+    if ( wkbType == QgsWkbTypes::Polygon )
     {
-      const QgsPolygonV2* polygon = dynamic_cast<const QgsPolygonV2*>( addedFeatures[fid].geometry()->geometry() );
+      QgsGeometry addedFeatureGeom = addedFeatures[fid].geometry();
+      const QgsPolygonV2* polygon = dynamic_cast<const QgsPolygonV2*>( addedFeatureGeom.geometry() );
       if ( polygon )
       {
-        QgsLineStringV2* lineString = polygon->exteriorRing()->curveToLine();
-        addedFeatures[fid].setGeometry( new QgsGeometry( lineString ) );
+        QgsLineString* lineString = polygon->exteriorRing()->curveToLine();
+        addedFeatures[fid].setGeometry( QgsGeometry( lineString ) );
       }
       // TODO: create also centroid and add it to undo
     }
@@ -1273,7 +1268,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
       // It may be that user manualy entered cat value
       QgsFeatureMap& addedFeatures = mEditBuffer->mAddedFeatures;
       QgsFeature& feature = addedFeatures[fid];
-      int catIndex = feature.fields()->indexFromName( mLayer->keyColumnName() );
+      int catIndex = feature.fields().indexFromName( mLayer->keyColumnName() );
       if ( catIndex != -1 )
       {
         QVariant userCatVariant = feature.attributes().value( catIndex );
@@ -1439,7 +1434,7 @@ void QgsGrassProvider::onFeatureAdded( QgsFeatureId fid )
     else
     {
       QgsDebugMsg( QString( "the line does not exist -> restore old geometry" ) );
-      const QgsAbstractGeometryV2 *geometry = 0;
+      const QgsAbstractGeometry *geometry = 0;
 
       // If it is not new feature, we should have the geometry in oldGeometries
       if ( mLayer->map()->oldGeometries().contains( lid ) )
@@ -1573,7 +1568,7 @@ void QgsGrassProvider::onFeatureDeleted( QgsFeatureId fid )
       // store only the first original geometry if it is not new feature, changed geometries are stored in the buffer
       if ( oldLid > 0 && !mLayer->map()->oldGeometries().contains( oldLid ) )
       {
-        QgsAbstractGeometryV2 *geometry = mLayer->map()->lineGeometry( oldLid );
+        QgsAbstractGeometry *geometry = mLayer->map()->lineGeometry( oldLid );
         if ( geometry )
         {
           QgsDebugMsg( QString( "save old geometry of oldLid = %1" ).arg( oldLid ) );
@@ -1660,7 +1655,7 @@ void QgsGrassProvider::onFeatureDeleted( QgsFeatureId fid )
   }
 }
 
-void QgsGrassProvider::onGeometryChanged( QgsFeatureId fid, QgsGeometry &geom )
+void QgsGrassProvider::onGeometryChanged( QgsFeatureId fid, const QgsGeometry &geom )
 {
   int oldLid = QgsGrassFeatureIterator::lidFromFid( fid );
   int realLine = oldLid;
@@ -1681,7 +1676,7 @@ void QgsGrassProvider::onGeometryChanged( QgsFeatureId fid, QgsGeometry &geom )
   // store only the first original geometry if it is not new feature, changed geometries are stored in the buffer
   if ( oldLid > 0 && !mLayer->map()->oldGeometries().contains( oldLid ) )
   {
-    QgsAbstractGeometryV2 *geometry = mLayer->map()->lineGeometry( oldLid );
+    QgsAbstractGeometry *geometry = mLayer->map()->lineGeometry( oldLid );
     if ( geometry )
     {
       QgsDebugMsg( QString( "save old geometry of oldLid = %1" ).arg( oldLid ) );
@@ -1927,7 +1922,7 @@ void QgsGrassProvider::setAddedFeaturesSymbol()
   Q_FOREACH ( QgsFeatureId fid, features.keys() )
   {
     QgsFeature feature = features[fid];
-    if ( !feature.constGeometry() || !feature.constGeometry()->geometry() )
+    if ( !feature.hasGeometry() )
     {
       continue;
     }

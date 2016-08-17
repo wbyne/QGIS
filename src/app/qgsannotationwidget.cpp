@@ -17,10 +17,10 @@
 
 #include "qgsannotationwidget.h"
 #include "qgsannotationitem.h"
-#include "qgsstylev2.h"
-#include "qgssymbollayerv2utils.h"
-#include "qgssymbolv2.h"
-#include "qgssymbolv2selectordialog.h"
+#include "qgsstyle.h"
+#include "qgssymbollayerutils.h"
+#include "qgssymbol.h"
+#include "qgssymbolselectordialog.h"
 #include <QColorDialog>
 
 
@@ -56,7 +56,7 @@ QgsAnnotationWidget::QgsAnnotationWidget( QgsAnnotationItem* item, QWidget * par
 
     connect( mBackgroundColorButton, SIGNAL( colorChanged( QColor ) ), this, SIGNAL( backgroundColorChanged( QColor ) ) );
 
-    const QgsMarkerSymbolV2* symbol = mItem->markerSymbol();
+    const QgsMarkerSymbol* symbol = mItem->markerSymbol();
     if ( symbol )
     {
       mMarkerSymbol.reset( symbol->clone() );
@@ -98,8 +98,8 @@ void QgsAnnotationWidget::on_mMapMarkerButton_clicked()
   {
     return;
   }
-  QgsMarkerSymbolV2* markerSymbol = mMarkerSymbol->clone();
-  QgsSymbolV2SelectorDialog dlg( markerSymbol, QgsStyleV2::defaultStyle(), nullptr, this );
+  QgsMarkerSymbol* markerSymbol = mMarkerSymbol->clone();
+  QgsSymbolSelectorDialog dlg( markerSymbol, QgsStyle::defaultStyle(), nullptr, this );
   if ( dlg.exec() == QDialog::Rejected )
   {
     delete markerSymbol;
@@ -117,7 +117,7 @@ void QgsAnnotationWidget::updateCenterIcon()
   {
     return;
   }
-  QIcon icon = QgsSymbolLayerV2Utils::symbolPreviewIcon( mMarkerSymbol.data(), mMapMarkerButton->iconSize() );
+  QIcon icon = QgsSymbolLayerUtils::symbolPreviewIcon( mMarkerSymbol.data(), mMapMarkerButton->iconSize() );
   mMapMarkerButton->setIcon( icon );
 }
 

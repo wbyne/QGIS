@@ -59,7 +59,7 @@ class QgsSpatiaLiteProvider: public QgsVectorDataProvider
     static QgsVectorLayerImport::ImportError createEmptyLayer(
       const QString& uri,
       const QgsFields &fields,
-      Qgis::WkbType wkbType,
+      QgsWkbTypes::Type wkbType,
       const QgsCoordinateReferenceSystem& srs,
       bool overwrite,
       QMap<int, int> *oldToNewAttrIdxMap,
@@ -106,7 +106,7 @@ class QgsSpatiaLiteProvider: public QgsVectorDataProvider
      * WKBMultiPolygon
      * as defined in qgis.h
      */
-    Qgis::WkbType geometryType() const override;
+    QgsWkbTypes::Type wkbType() const override;
 
     /** Return the number of layers for the current data source
      *
@@ -163,7 +163,7 @@ class QgsSpatiaLiteProvider: public QgsVectorDataProvider
     bool changeGeometryValues( const QgsGeometryMap &geometry_map ) override;
 
     /** Returns a bitmask containing the supported capabilities*/
-    int capabilities() const override;
+    QgsVectorDataProvider::Capabilities capabilities() const override;
 
     /** The SpatiaLite provider does its own transforms so we return
      * true for the following three functions to indicate that transforms
@@ -336,7 +336,7 @@ class QgsSpatiaLiteProvider: public QgsVectorDataProvider
     QString mIndexGeometry;
 
     //! Geometry type
-    Qgis::WkbType mGeomType;
+    QgsWkbTypes::Type mGeomType;
 
     //! SQLite handle
     sqlite3 *mSqliteHandle;
@@ -368,9 +368,9 @@ class QgsSpatiaLiteProvider: public QgsVectorDataProvider
     //! this Geometry is supported by an MBR cache spatial index
     bool mSpatialIndexMbrCache;
 
-    int mEnabledCapabilities;
+    QgsVectorDataProvider::Capabilities mEnabledCapabilities;
 
-    const QgsField &field( int index ) const;
+    QgsField field( int index ) const;
 
     //! SpatiaLite version string
     QString mSpatialiteVersionInfo;

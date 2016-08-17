@@ -23,7 +23,7 @@
 #include "qgsproject.h"
 #include "qgsapplication.h"
 #include "qgsdiagramproperties.h"
-#include "qgsdiagramrendererv2.h"
+#include "qgsdiagramrenderer.h"
 #include "qgslabelengineconfigdialog.h"
 #include "qgsmessagebar.h"
 #include "qgsvectorlayerproperties.h"
@@ -31,8 +31,8 @@
 #include "qgsfeatureiterator.h"
 #include "qgscolordialog.h"
 #include "qgisgui.h"
-#include "qgssymbolv2selectordialog.h"
-#include "qgsstylev2.h"
+#include "qgssymbolselectordialog.h"
+#include "qgsstyle.h"
 #include "qgsmapcanvas.h"
 #include "qgsexpressionbuilderdialog.h"
 
@@ -40,23 +40,19 @@
 #include <QMessageBox>
 #include <QSettings>
 
-static QgsExpressionContext _getExpressionContext( const void* context )
+QgsExpressionContext QgsDiagramProperties::createExpressionContext() const
 {
   QgsExpressionContext expContext;
   expContext << QgsExpressionContextUtils::globalScope()
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::atlasScope( nullptr )
-  << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() );
-
-  const QgsVectorLayer* layer = ( const QgsVectorLayer* ) context;
-  if ( layer )
-    expContext << QgsExpressionContextUtils::layerScope( layer );
+  << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() )
+  << QgsExpressionContextUtils::layerScope( mLayer );
 
   return expContext;
 }
 
-QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
-    QWidget* parent, QgsMapCanvas *canvas )
+QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* parent, QgsMapCanvas *canvas )
     : QWidget( parent )
     , mMapCanvas( canvas )
 {
@@ -83,7 +79,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
   mDiagramTypeComboBox->blockSignals( false );
 
   mScaleRangeWidget->setMapCanvas( QgisApp::instance()->mapCanvas() );
-  mSizeFieldExpressionWidget->registerGetExpressionContextCallback( &_getExpressionContext, mLayer );
+  mSizeFieldExpressionWidget->registerExpressionContextGenerator( this );
 
   mBackgroundColorButton->setColorDialogTitle( tr( "Select background color" ) );
   mBackgroundColorButton->setAllowAlpha( true );
@@ -104,8 +100,8 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
   mDiagramUnitComboBox->setUnits( QgsUnitTypes::RenderUnitList() << QgsUnitTypes::RenderMillimeters << QgsUnitTypes::RenderMapUnits << QgsUnitTypes::RenderPixels );
   mDiagramLineUnitComboBox->setUnits( QgsUnitTypes::RenderUnitList() << QgsUnitTypes::RenderMillimeters << QgsUnitTypes::RenderMapUnits << QgsUnitTypes::RenderPixels );
 
-  Qgis::GeometryType layerType = layer->geometryType();
-  if ( layerType == Qgis::UnknownGeometry || layerType == Qgis::NoGeometry )
+  QgsWkbTypes::GeometryType layerType = layer->geometryType();
+  if ( layerType == QgsWkbTypes::UnknownGeometry || layerType == QgsWkbTypes::NullGeometry )
   {
     mDiagramTypeComboBox->setEnabled( false );
     mDiagramFrame->setEnabled( false );
@@ -115,17 +111,17 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
   mPlacementComboBox->blockSignals( true );
   switch ( layerType )
   {
-    case Qgis::Point:
+    case QgsWkbTypes::PointGeometry:
       mPlacementComboBox->addItem( tr( "Around Point" ), QgsDiagramLayerSettings::AroundPoint );
       mPlacementComboBox->addItem( tr( "Over Point" ), QgsDiagramLayerSettings::OverPoint );
       mLinePlacementFrame->setVisible( false );
       break;
-    case Qgis::Line:
+    case QgsWkbTypes::LineGeometry:
       mPlacementComboBox->addItem( tr( "Around Line" ), QgsDiagramLayerSettings::Line );
       mPlacementComboBox->addItem( tr( "Over Line" ), QgsDiagramLayerSettings::Horizontal );
       mLinePlacementFrame->setVisible( true );
       break;
-    case Qgis::Polygon:
+    case QgsWkbTypes::PolygonGeometry:
       mPlacementComboBox->addItem( tr( "Around Centroid" ), QgsDiagramLayerSettings::AroundPoint );
       mPlacementComboBox->addItem( tr( "Over Centroid" ), QgsDiagramLayerSettings::OverPoint );
       mPlacementComboBox->addItem( tr( "Perimeter" ), QgsDiagramLayerSettings::Line );
@@ -184,17 +180,17 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
   for ( int idx = 0; idx < layerFields.count(); ++idx )
   {
     QTreeWidgetItem *newItem = new QTreeWidgetItem( mAttributesTreeWidget );
-    QString name = QString( "\"%1\"" ).arg( layerFields[idx].name() );
+    QString name = QString( "\"%1\"" ).arg( layerFields.at( idx ).name() );
     newItem->setText( 0, name );
     newItem->setData( 0, Qt::UserRole, name );
     newItem->setFlags( newItem->flags() & ~Qt::ItemIsDropEnabled );
 
-    mDataDefinedXComboBox->addItem( layerFields[idx].name(), idx );
-    mDataDefinedYComboBox->addItem( layerFields[idx].name(), idx );
-    mDataDefinedVisibilityComboBox->addItem( layerFields[idx].name(), idx );
+    mDataDefinedXComboBox->addItem( layerFields.at( idx ).name(), idx );
+    mDataDefinedYComboBox->addItem( layerFields.at( idx ).name(), idx );
+    mDataDefinedVisibilityComboBox->addItem( layerFields.at( idx ).name(), idx );
   }
 
-  const QgsDiagramRendererV2* dr = layer->diagramRenderer();
+  const QgsDiagramRenderer* dr = layer->diagramRenderer();
   if ( !dr ) //no diagram renderer yet, insert reasonable default
   {
     mDiagramTypeComboBox->blockSignals( true );
@@ -216,25 +212,25 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
     mDataDefinedVisibilityGroupBox->setChecked( false );
     mCheckBoxAttributeLegend->setChecked( true );
     mCheckBoxSizeLegend->setChecked( false );
-    mSizeLegendSymbol.reset( QgsMarkerSymbolV2::createSimple( QgsStringMap() ) );
+    mSizeLegendSymbol.reset( QgsMarkerSymbol::createSimple( QgsStringMap() ) );
 
     switch ( layerType )
     {
-      case Qgis::Point:
+      case QgsWkbTypes::PointGeometry:
         mPlacementComboBox->setCurrentIndex( mPlacementComboBox->findData( QgsDiagramLayerSettings::AroundPoint ) );
         break;
-      case Qgis::Line:
+      case QgsWkbTypes::LineGeometry:
         mPlacementComboBox->setCurrentIndex( mPlacementComboBox->findData( QgsDiagramLayerSettings::Line ) );
         chkLineAbove->setChecked( true );
         chkLineBelow->setChecked( false );
         chkLineOn->setChecked( false );
         chkLineOrientationDependent->setChecked( false );
         break;
-      case Qgis::Polygon:
+      case QgsWkbTypes::PolygonGeometry:
         mPlacementComboBox->setCurrentIndex( mPlacementComboBox->findData( QgsDiagramLayerSettings::AroundPoint ) );
         break;
-      case Qgis::UnknownGeometry:
-      case Qgis::NoGeometry:
+      case QgsWkbTypes::UnknownGeometry:
+      case QgsWkbTypes::NullGeometry:
         break;
     }
     mBackgroundColorButton->setColor( QColor( 255, 255, 255, 255 ) );
@@ -256,8 +252,8 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer,
     mLinearScaleFrame->setEnabled( mAttributeBasedScalingRadio->isChecked() );
     mCheckBoxAttributeLegend->setChecked( dr->attributeLegend() );
     mCheckBoxSizeLegend->setChecked( dr->sizeLegend() );
-    mSizeLegendSymbol.reset( dr->sizeLegendSymbol() ? dr->sizeLegendSymbol()->clone() : QgsMarkerSymbolV2::createSimple( QgsStringMap() ) );
-    QIcon icon = QgsSymbolLayerV2Utils::symbolPreviewIcon( mSizeLegendSymbol.data(), mButtonSizeLegendSymbol->iconSize() );
+    mSizeLegendSymbol.reset( dr->sizeLegendSymbol() ? dr->sizeLegendSymbol()->clone() : QgsMarkerSymbol::createSimple( QgsStringMap() ) );
+    QIcon icon = QgsSymbolLayerUtils::symbolPreviewIcon( mSizeLegendSymbol.data(), mButtonSizeLegendSymbol->iconSize() );
     mButtonSizeLegendSymbol->setIcon( icon );
 
     //assume single category or linearly interpolated diagram renderer for now
@@ -609,7 +605,7 @@ void QgsDiagramProperties::on_mDiagramAttributesTreeWidget_itemDoubleClicked( QT
 {
   if ( column == 1 ) //change color
   {
-    QColor newColor = QgsColorDialogV2::getColor( item->background( 1 ).color(), nullptr );
+    QColor newColor = QgsColorDialog::getColor( item->background( 1 ).color(), nullptr );
     if ( newColor.isValid() )
     {
       item->setBackground( 1, QBrush( newColor ) );
@@ -755,7 +751,7 @@ void QgsDiagramProperties::apply()
 
   ds.barWidth = mBarWidthSpinBox->value();
 
-  QgsDiagramRendererV2* renderer = nullptr;
+  QgsDiagramRenderer* renderer = nullptr;
   if ( mFixedSizeRadio->isChecked() )
   {
     QgsSingleCategoryDiagramRenderer* dr = new QgsSingleCategoryDiagramRenderer();
@@ -895,7 +891,7 @@ void QgsDiagramProperties::on_mPlacementComboBox_currentIndexChanged( int index 
 {
   QgsDiagramLayerSettings::Placement currentPlacement = ( QgsDiagramLayerSettings::Placement )mPlacementComboBox->itemData( index ).toInt();
   if ( currentPlacement == QgsDiagramLayerSettings::AroundPoint ||
-       ( currentPlacement == QgsDiagramLayerSettings::Line && mLayer->geometryType() == Qgis::Line ) )
+       ( currentPlacement == QgsDiagramLayerSettings::Line && mLayer->geometryType() == QgsWkbTypes::LineGeometry ) )
   {
     mDiagramDistanceLabel->setEnabled( true );
     mDiagramDistanceSpinBox->setEnabled( true );
@@ -906,7 +902,7 @@ void QgsDiagramProperties::on_mPlacementComboBox_currentIndexChanged( int index 
     mDiagramDistanceSpinBox->setEnabled( false );
   }
 
-  bool linePlacementEnabled = mLayer->geometryType() == Qgis::Line && currentPlacement == QgsDiagramLayerSettings::Line;
+  bool linePlacementEnabled = mLayer->geometryType() == QgsWkbTypes::LineGeometry && currentPlacement == QgsDiagramLayerSettings::Line;
   chkLineAbove->setEnabled( linePlacementEnabled );
   chkLineBelow->setEnabled( linePlacementEnabled );
   chkLineOn->setEnabled( linePlacementEnabled );
@@ -915,13 +911,13 @@ void QgsDiagramProperties::on_mPlacementComboBox_currentIndexChanged( int index 
 
 void QgsDiagramProperties::on_mButtonSizeLegendSymbol_clicked()
 {
-  QgsMarkerSymbolV2* newSymbol = mSizeLegendSymbol->clone();
-  QgsSymbolV2SelectorDialog d( newSymbol, QgsStyleV2::defaultStyle(), nullptr, this );
+  QgsMarkerSymbol* newSymbol = mSizeLegendSymbol->clone();
+  QgsSymbolSelectorDialog d( newSymbol, QgsStyle::defaultStyle(), nullptr, this );
 
   if ( d.exec() == QDialog::Accepted )
   {
     mSizeLegendSymbol.reset( newSymbol );
-    QIcon icon = QgsSymbolLayerV2Utils::symbolPreviewIcon( mSizeLegendSymbol.data(), mButtonSizeLegendSymbol->iconSize() );
+    QIcon icon = QgsSymbolLayerUtils::symbolPreviewIcon( mSizeLegendSymbol.data(), mButtonSizeLegendSymbol->iconSize() );
     mButtonSizeLegendSymbol->setIcon( icon );
   }
   else

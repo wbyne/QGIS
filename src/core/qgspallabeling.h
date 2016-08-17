@@ -30,6 +30,7 @@
 #include <QPainter>
 #include <QRectF>
 #include "qgsfeature.h"
+#include "qgsgeometry.h"
 #include "qgsfield.h"
 #include "qgspoint.h"
 #include "qgsmapunitscale.h"
@@ -57,7 +58,7 @@ class QgsCoordinateTransform;
 class QgsLabelSearchTree;
 class QgsMapSettings;
 class QgsLabelFeature;
-class QgsLabelingEngineV2;
+class QgsLabelingEngine;
 class QgsPalLayerSettings;
 class QgsVectorLayerLabelProvider;
 class QgsDxfExport;
@@ -184,7 +185,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     /** Placement modes which determine how label candidates are generated for a feature.
      */
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum Placement
     {
       AroundPoint, /**< Arranges candidates in a circle around a point (or centroid of a polygon). Applies to point or polygon layers only.*/
@@ -198,7 +199,7 @@ class CORE_EXPORT QgsPalLayerSettings
     };
 
     //! Positions for labels when using the QgsPalLabeling::OrderedPositionsAroundPoint placement mode
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum PredefinedPointPosition
     {
       TopLeft, //!< Label on top-left of point
@@ -217,7 +218,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     //! Behaviour modifier for label offset and distance, only applies in some
     //! label placement modes.
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum OffsetType
     {
       FromPoint, //!< Offset distance applies from point geometry
@@ -226,7 +227,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     /** Line placement flags, which control how candidates are generated for a linear feature.
      */
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2, rename to LinePlacementFlag, use Q_DECLARE_FLAGS to make
+    //TODO QGIS 3.0 - move to QgsLabelingEngine, rename to LinePlacementFlag, use Q_DECLARE_FLAGS to make
     //LinePlacementFlags type, and replace use of pal::LineArrangementFlag
     enum LinePlacementFlags
     {
@@ -281,7 +282,7 @@ class CORE_EXPORT QgsPalLayerSettings
     /** Valid obstacle types, which affect how features within the layer will act as obstacles
      * for labels.
      */
-    //TODO QGIS 3.0 - Move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - Move to QgsLabelingEngine
     enum ObstacleType
     {
       PolygonInterior, /*!< avoid placing labels over interior of polygon (prefer placing labels totally
@@ -643,7 +644,7 @@ class CORE_EXPORT QgsPalLayerSettings
      * @param f feature to label
      * @param context render context. The QgsExpressionContext contained within the render context
      * must have already had the feature and fields sets prior to calling this method.
-     * @param labelFeature if using QgsLabelingEngineV2, this will receive the label feature. Not available
+     * @param labelFeature if using QgsLabelingEngine, this will receive the label feature. Not available
      * in Python bindings.
      * @param obstacleGeometry optional obstacle geometry, if a different geometry to the feature's geometry
      * should be used as an obstacle for labels (eg, if the feature has been rendered with an offset point
@@ -758,7 +759,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     QgsPoint ptZero;
     QgsPoint ptOne;
-    QgsGeometry* extentGeom;
+    QgsGeometry extentGeom;
     int mFeaturesToLabel; // total features that will probably be labeled, may be less (figured before PAL)
     int mFeatsSendingToPal; // total features tested for sending into PAL (relative to maxNumLabels)
     int mFeatsRegPal; // number of features registered in PAL, when using limitNumLabels
@@ -817,7 +818,7 @@ class CORE_EXPORT QgsPalLayerSettings
 
     /** Checks if a feature is larger than a minimum size (in mm)
     @return true if above size, false if below*/
-    bool checkMinimumSizeMM( const QgsRenderContext& ct, const QgsGeometry* geom, double minSize ) const;
+    bool checkMinimumSizeMM( const QgsRenderContext& ct, const QgsGeometry& geom, double minSize ) const;
 
     /** Registers a feature as an obstacle only (no label rendered)
      */
@@ -1112,10 +1113,10 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
      * @param context render context
      * @param ct coordinate transform, or invalid transform if no transformation required
      * @param clipGeometry geometry to clip features to, if applicable
-     * @returns prepared geometry, the caller takes ownership
+     * @returns prepared geometry
      * @note added in QGIS 2.9
      */
-    static QgsGeometry* prepareGeometry( const QgsGeometry *geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = nullptr );
+    static QgsGeometry prepareGeometry( const QgsGeometry& geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = nullptr );
 
     /** Checks whether a geometry requires preparation before registration with PAL
      * @param geometry geometry to prepare
@@ -1125,7 +1126,7 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
      * @returns true if geometry requires preparation
      * @note added in QGIS 2.9
      */
-    static bool geometryRequiresPreparation( const QgsGeometry *geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = nullptr );
+    static bool geometryRequiresPreparation( const QgsGeometry& geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = nullptr );
 
     /** Splits a text string to a list of separate lines, using a specified wrap character.
      * The text string will be split on either newline characters or the wrap character.
@@ -1187,7 +1188,7 @@ class CORE_EXPORT QgsPalLabeling : public QgsLabelingEngineInterface
     QgsPalLayerSettings mInvalidLayerSettings;
 
     //! New labeling engine to interface with PAL
-    QgsLabelingEngineV2* mEngine;
+    QgsLabelingEngine* mEngine;
 
     // list of candidates from last labeling
     QList<QgsLabelCandidate> mCandidates;

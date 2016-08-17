@@ -58,7 +58,7 @@ class QgsPostgresProvider : public QgsVectorDataProvider
     static QgsVectorLayerImport::ImportError createEmptyLayer(
       const QString& uri,
       const QgsFields &fields,
-      Qgis::WkbType wkbType,
+      QgsWkbTypes::Type wkbType,
       const QgsCoordinateReferenceSystem &srs,
       bool overwrite,
       QMap<int, int> *oldToNewAttrIdxMap,
@@ -97,7 +97,7 @@ class QgsPostgresProvider : public QgsVectorDataProvider
      * WKBMultiPolygon
      * as defined in qgis.h
      */
-    Qgis::WkbType geometryType() const override;
+    QgsWkbTypes::Type wkbType() const override;
 
     /** Return the number of layers for the current data source
      * @note Should this be subLayerCount() instead?
@@ -203,7 +203,7 @@ class QgsPostgresProvider : public QgsVectorDataProvider
     virtual bool supportsSubsetString() const override { return true; }
 
     /** Returns a bitmask containing the supported capabilities*/
-    int capabilities() const override;
+    QgsVectorDataProvider::Capabilities capabilities() const override;
 
     /** The Postgres provider does its own transforms so we return
      * true for the following three functions to indicate that transforms
@@ -294,7 +294,7 @@ class QgsPostgresProvider : public QgsVectorDataProvider
 
     bool hasSufficientPermsAndCapabilities();
 
-    const QgsField &field( int index ) const;
+    QgsField field( int index ) const;
 
     /** Load the field list
      */
@@ -331,7 +331,7 @@ class QgsPostgresProvider : public QgsVectorDataProvider
     QString mDataComment;
 
     //! Data source URI struct for this layer
-    QgsDataSourceURI mUri;
+    QgsDataSourceUri mUri;
 
     /**
      * Flag indicating if the layer data source is a valid PostgreSQL layer
@@ -379,9 +379,9 @@ class QgsPostgresProvider : public QgsVectorDataProvider
     QString mGeometryColumn;          //! name of the geometry column
     mutable QgsRectangle mLayerExtent;        //! Rectangle that contains the extent (bounding box) of the layer
 
-    Qgis::WkbType mDetectedGeomType;  //! geometry type detected in the database
+    QgsWkbTypes::Type mDetectedGeomType;  //! geometry type detected in the database
     bool mForce2d;                    //! geometry type needs to be forced to 2d (eg. ZM)
-    Qgis::WkbType mRequestedGeomType; //! geometry type requested in the uri
+    QgsWkbTypes::Type mRequestedGeomType; //! geometry type requested in the uri
     QString mDetectedSrid;            //! Spatial reference detected in the database
     QString mRequestedSrid;           //! Spatial reference requested in the uri
 
@@ -430,9 +430,9 @@ class QgsPostgresProvider : public QgsVectorDataProvider
     // A function that determines if the given columns contain unique entries
     bool uniqueData( const QString& quotedColNames );
 
-    int mEnabledCapabilities;
+    QgsVectorDataProvider::Capabilities mEnabledCapabilities;
 
-    void appendGeomParam( const QgsGeometry *geom, QStringList &param ) const;
+    void appendGeomParam( const QgsGeometry& geom, QStringList &param ) const;
     void appendPkParams( QgsFeatureId fid, QStringList &param ) const;
 
     QString paramValue( const QString& fieldvalue, const QString &defaultValue ) const;
@@ -508,10 +508,10 @@ class QgsPostgresSharedData
     void ensureFeaturesCountedAtLeast( long fetched );
 
     // FID lookups
-    QgsFeatureId lookupFid( const QVariant &v ); // lookup existing mapping or add a new one
-    QVariant removeFid( QgsFeatureId fid );
-    void insertFid( QgsFeatureId fid, const QVariant& k );
-    QVariant lookupKey( QgsFeatureId featureId );
+    QgsFeatureId lookupFid( const QVariantList& v ); // lookup existing mapping or add a new one
+    QVariantList removeFid( QgsFeatureId fid );
+    void insertFid( QgsFeatureId fid, const QVariantList& k );
+    QVariantList lookupKey( QgsFeatureId featureId );
 
   protected:
     QMutex mMutex; //!< Access to all data members is guarded by the mutex
@@ -519,8 +519,8 @@ class QgsPostgresSharedData
     long mFeaturesCounted;    //! Number of features in the layer
 
     QgsFeatureId mFidCounter;                    // next feature id if map is used
-    QMap<QVariant, QgsFeatureId> mKeyToFid;      // map key values to feature id
-    QMap<QgsFeatureId, QVariant> mFidToKey;      // map feature back to fea
+    QMap<QVariantList, QgsFeatureId> mKeyToFid;      // map key values to feature id
+    QMap<QgsFeatureId, QVariantList> mFidToKey;      // map feature id back to key values
 };
 
 #endif

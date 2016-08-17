@@ -168,7 +168,7 @@ class QgsVectorFileWriter
                                             SymbologyExport symbologyExport = NoSymbology,
                                             double symbologyScale = 1.0,
                                             const QgsRectangle* filterExtent = 0,
-                                            QgsWKBTypes::Type overrideGeometryType = QgsWKBTypes::Unknown,
+                                            QgsWkbTypes::Type overrideGeometryType = QgsWkbTypes::Unknown,
                                             bool forceMulti = false,
                                             bool includeZ = false,
                                             QgsAttributeList attributes = QgsAttributeList(),
@@ -213,7 +213,7 @@ class QgsVectorFileWriter
                                             SymbologyExport symbologyExport = NoSymbology,
                                             double symbologyScale = 1.0,
                                             const QgsRectangle* filterExtent = 0,
-                                            QgsWKBTypes::Type overrideGeometryType = QgsWKBTypes::Unknown,
+                                            QgsWkbTypes::Type overrideGeometryType = QgsWkbTypes::Unknown,
                                             bool forceMulti = false,
                                             bool includeZ = false,
                                             QgsAttributeList attributes = QgsAttributeList(),
@@ -224,20 +224,7 @@ class QgsVectorFileWriter
     QgsVectorFileWriter( const QString& vectorFileName,
                          const QString& fileEncoding,
                          const QgsFields& fields,
-                         Qgis::WkbType geometryType,
-                         const QgsCoordinateReferenceSystem& srs = QgsCoordinateReferenceSystem(),
-                         const QString& driverName = "ESRI Shapefile",
-                         const QStringList &datasourceOptions = QStringList(),
-                         const QStringList &layerOptions = QStringList(),
-                         QString *newFilename = nullptr,
-                         SymbologyExport symbologyExport = NoSymbology
-                       );
-
-    /** Create a new vector file writer */
-    QgsVectorFileWriter( const QString& vectorFileName,
-                         const QString& fileEncoding,
-                         const QgsFields& fields,
-                         QgsWKBTypes::Type geometryType,
+                         QgsWkbTypes::Type geometryType,
                          const QgsCoordinateReferenceSystem& srs = QgsCoordinateReferenceSystem(),
                          const QString& driverName = "ESRI Shapefile",
                          const QStringList &datasourceOptions = QStringList(),
@@ -271,7 +258,7 @@ class QgsVectorFileWriter
     QString errorMessage();
 
     /** Add feature to the currently opened data source */
-    bool addFeature( QgsFeature& feature, QgsFeatureRendererV2* renderer = 0, QgsUnitTypes::DistanceUnit outputUnit = QgsUnitTypes::DistanceMeters );
+    bool addFeature( QgsFeature& feature, QgsFeatureRenderer* renderer = 0, QgsUnitTypes::DistanceUnit outputUnit = QgsUnitTypes::DistanceMeters );
 
     //! @note not available in python bindings
     // QMap<int, int> attrIdxToOgrIdx();
@@ -293,9 +280,23 @@ class QgsVectorFileWriter
 
     static bool driverMetadata( const QString& driverName, MetaData& driverMetadata );
 
+    /** Returns a list of the default dataset options for a specified driver.
+     * @param driverName name of OGR driver
+     * @note added in QGIS 3.0
+     * @see defaultLayerOptions()
+     */
+    static QStringList defaultDatasetOptions( const QString& driverName );
+
+    /** Returns a list of the default layer options for a specified driver.
+     * @param driverName name of OGR driver
+     * @note added in QGIS 3.0
+     * @see defaultDatasetOptions()
+     */
+    static QStringList defaultLayerOptions( const QString& driverName );
+
   protected:
     //! @note not available in python bindings
-    // OGRGeometryH createEmptyGeometry( Qgis::WkbType wkbType );
+    // OGRGeometryH createEmptyGeometry( QgsWkbTypes::Type wkbType );
 
   private:
 

@@ -171,15 +171,21 @@ QString QgsRelation::getRelatedFeaturesFilter( const QgsFeature& feature ) const
     int referencingIdx = referencingLayer()->fields().indexFromName( fieldPair.referencingField() );
     QgsField referencingField = referencingLayer()->fields().at( referencingIdx );
 
-    if ( referencingField.type() == QVariant::String )
+    QVariant val( feature.attribute( fieldPair.referencedField() ) );
+
+    if ( val.isNull() )
+    {
+      conditions << QString( "\"%1\" IS NULL" ).arg( fieldPair.referencingField() );
+    }
+    else if ( referencingField.type() == QVariant::String )
     {
       // Use quotes
-      conditions << QString( "\"%1\" = '%2'" ).arg( fieldPair.referencingField(), feature.attribute( fieldPair.referencedField() ).toString() );
+      conditions << QString( "\"%1\" = '%2'" ).arg( fieldPair.referencingField(), val.toString() );
     }
     else
     {
       // No quotes
-      conditions << QString( "\"%1\" = %2" ).arg( fieldPair.referencingField(), feature.attribute( fieldPair.referencedField() ).toString() );
+      conditions << QString( "\"%1\" = %2" ).arg( fieldPair.referencingField(), val.toString() );
     }
   }
 
@@ -305,26 +311,46 @@ void QgsRelation::updateRelationStatus()
   mValid = true;
 
   if ( mRelationId.isEmpty() )
-    mValid = false;
-
-  if ( !mReferencedLayer || !mReferencingLayer )
   {
+    QgsDebugMsg( "Invalid relation: no ID" );
     mValid = false;
-  }
+      }
   else
   {
-    if ( mFieldPairs.count() < 1 )
+    if ( !mReferencedLayer )
     {
+      QgsDebugMsg( QString("Invalid relation: referenced layer does not exist. ID: %1").arg(mReferencedLayerId) );
       mValid = false;
     }
-
-    Q_FOREACH ( const FieldPair& fieldPair, mFieldPairs )
+    else if ( !mReferencingLayer )
     {
-      if ( -1 == mReferencingLayer->fieldNameIndex( fieldPair.first )
-           || -1 == mReferencedLayer->fieldNameIndex( fieldPair.second ) )
+      QgsDebugMsg( QString("Invalid relation: referencing layer does not exist. ID: %2").arg(mReferencingLayerId) );
+      mValid = false;
+    }
+    else
+    {
+      if ( mFieldPairs.count() < 1 )
       {
+        QgsDebugMsg( "Invalid relation: no pair of field is specified." );
         mValid = false;
       }
+
+      Q_FOREACH ( const FieldPair& fieldPair, mFieldPairs )
+      {
+        if ( -1 == mReferencingLayer->fieldNameIndex( fieldPair.first ))
+        {
+          QgsDebugMsg( QString("Invalid relation: field %1 does not exist in referencing layer %2").arg(fieldPair.first, mReferencingLayer->name()) );
+          mValid = false;
+          break;
+        }
+        else if ( -1 == mReferencedLayer->fieldNameIndex( fieldPair.second ) )
+        {
+          QgsDebugMsg( QString("Invalid relation: field %1 does not exist in referencedg layer %2").arg(fieldPair.second, mReferencedLayer->name()) );
+          mValid = false;
+          break;
+        }
+      }
     }
+
   }
 }

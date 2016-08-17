@@ -61,7 +61,7 @@ class QgsComposerMultiFrame;
 class QgsComposerMultiFrameCommand;
 class QgsVectorLayer;
 class QgsComposer;
-class QgsFillSymbolV2;
+class QgsFillSymbol;
 class QgsDataDefined;
 class QgsComposerModel;
 class QgsPaperItem;
@@ -72,7 +72,7 @@ class QgsPaperItem;
  * them in a list in ascending z-Order. This list can be changed to lower/raise items one position
  * or to bring them to front/back.
  * */
-class CORE_EXPORT QgsComposition : public QGraphicsScene
+class CORE_EXPORT QgsComposition : public QGraphicsScene, public QgsExpressionContextGenerator
 {
     Q_OBJECT
   public:
@@ -222,9 +222,9 @@ class CORE_EXPORT QgsComposition : public QGraphicsScene
     bool shouldExportPage( const int page ) const;
 
     /** Note: added in version 2.1*/
-    void setPageStyleSymbol( QgsFillSymbolV2* symbol );
+    void setPageStyleSymbol( QgsFillSymbol* symbol );
     /** Note: added in version 2.1*/
-    QgsFillSymbolV2* pageStyleSymbol() { return mPageStyleSymbol; }
+    QgsFillSymbol* pageStyleSymbol() { return mPageStyleSymbol; }
 
     /** Returns the position within a page of a point in the composition
       @note Added in QGIS 2.1
@@ -909,7 +909,7 @@ class CORE_EXPORT QgsComposition : public QGraphicsScene
      * scopes for global, project, composition and atlas properties.
      * @note added in QGIS 2.12
      */
-    QgsExpressionContext* createExpressionContext() const;
+    QgsExpressionContext createExpressionContext() const override;
 
   protected:
     void init();
@@ -926,7 +926,7 @@ class CORE_EXPORT QgsComposition : public QGraphicsScene
     double mSpaceBetweenPages; //space in preview between pages
 
     /** Drawing style for page*/
-    QgsFillSymbolV2* mPageStyleSymbol;
+    QgsFillSymbol* mPageStyleSymbol;
     void createDefaultPageStyleSymbol();
 
     /** List multiframe objects*/

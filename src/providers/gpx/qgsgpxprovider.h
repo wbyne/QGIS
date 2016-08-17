@@ -61,7 +61,7 @@ class QgsGPXProvider : public QgsVectorDataProvider
      * Get feature type.
      * @return int representing the feature type
      */
-    virtual Qgis::WkbType geometryType() const override;
+    virtual QgsWkbTypes::Type wkbType() const override;
 
     /**
      * Number of features in the layer
@@ -91,7 +91,7 @@ class QgsGPXProvider : public QgsVectorDataProvider
      */
     virtual bool changeAttributeValues( const QgsChangedAttributesMap & attr_map ) override;
 
-    virtual int capabilities() const override;
+    virtual QgsVectorDataProvider::Capabilities capabilities() const override;
 
     virtual QVariant defaultValue( int fieldId ) const override;
 

@@ -43,8 +43,8 @@
 #include "qgsmessagelog.h"
 #include "qgsmapserviceexception.h"
 #include "qgssldconfigparser.h"
-#include "qgssymbolv2.h"
-#include "qgsrendererv2.h"
+#include "qgssymbol.h"
+#include "qgsrenderer.h"
 #include "qgspaintenginehack.h"
 #include "qgsogcutils.h"
 #include "qgsfeature.h"
@@ -841,13 +841,13 @@ QImage* QgsWmsServer::getLegendGraphics()
       QgsLayerTreeLayer* nodeLayer = QgsLayerTree::toLayer( node );
 
       QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( nodeLayer->layer() );
-      if ( !vl || !vl->rendererV2() )
+      if ( !vl || !vl->renderer() )
         continue;
 
-      const SymbolV2Set& usedSymbols = hitTest[vl];
+      const SymbolSet& usedSymbols = hitTest[vl];
       QList<int> order;
       int i = 0;
-      Q_FOREACH ( const QgsLegendSymbolItemV2& legendItem, vl->rendererV2()->legendSymbolItemsV2() )
+      Q_FOREACH ( const QgsLegendSymbolItem& legendItem, vl->renderer()->legendSymbolItemsV2() )
       {
         if ( usedSymbols.contains( legendItem.legacyRuleKey() ) )
           order.append( i );
@@ -988,12 +988,12 @@ void QgsWmsServer::runHitTest( QPainter* painter, HitTest& hitTest )
   Q_FOREACH ( const QString& layerID, mMapRenderer->layerSet() )
   {
     QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( QgsMapLayerRegistry::instance()->mapLayer( layerID ) );
-    if ( !vl || !vl->rendererV2() )
+    if ( !vl || !vl->renderer() )
       continue;
 
     if ( vl->hasScaleBasedVisibility() && ( mMapRenderer->scale() < vl->minimumScale() || mMapRenderer->scale() > vl->maximumScale() ) )
     {
-      hitTest[vl] = SymbolV2Set(); // no symbols -> will not be shown
+      hitTest[vl] = SymbolSet(); // no symbols -> will not be shown
       continue;
     }
 
@@ -1007,15 +1007,15 @@ void QgsWmsServer::runHitTest( QPainter* painter, HitTest& hitTest )
       context.setExtent( r1 );
     }
 
-    SymbolV2Set& usedSymbols = hitTest[vl];
+    SymbolSet& usedSymbols = hitTest[vl];
     runHitTestLayer( vl, usedSymbols, context );
   }
 }
 
-void QgsWmsServer::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbols, QgsRenderContext& context )
+void QgsWmsServer::runHitTestLayer( QgsVectorLayer* vl, SymbolSet& usedSymbols, QgsRenderContext& context )
 {
-  QgsFeatureRendererV2* r = vl->rendererV2();
-  bool moreSymbolsPerFeature = r->capabilities() & QgsFeatureRendererV2::MoreSymbolsPerFeature;
+  QgsFeatureRenderer* r = vl->renderer();
+  bool moreSymbolsPerFeature = r->capabilities() & QgsFeatureRenderer::MoreSymbolsPerFeature;
   r->startRender( context, vl->pendingFields() );
   QgsFeature f;
   QgsFeatureRequest request( context.extent() );
@@ -1026,7 +1026,7 @@ void QgsWmsServer::runHitTestLayer( QgsVectorLayer* vl, SymbolV2Set& usedSymbols
     context.expressionContext().setFeature( f );
     if ( moreSymbolsPerFeature )
     {
-      Q_FOREACH ( QgsSymbolV2* s, r->originalSymbolsForFeature( f, context ) )
+      Q_FOREACH ( QgsSymbol* s, r->originalSymbolsForFeature( f, context ) )
         usedSymbols.insert( s );
     }
     else
@@ -1278,7 +1278,7 @@ QByteArray* QgsWmsServer::getPrint( const QString& formatString )
     throw QgsMapServiceException( "ParameterMissing", "The TEMPLATE parameter is required for the GetPrint request" );
   }
 
-  QList< QPair< QgsVectorLayer*, QgsFeatureRendererV2*> > bkVectorRenderers;
+  QList< QPair< QgsVectorLayer*, QgsFeatureRenderer*> > bkVectorRenderers;
   QList< QPair< QgsRasterLayer*, QgsRasterRenderer* > > bkRasterRenderers;
   QList< QPair< QgsVectorLayer*, double > > labelTransparencies;
   QList< QPair< QgsVectorLayer*, double > > labelBufferTransparencies;
@@ -1419,7 +1419,7 @@ QImage* QgsWmsServer::getMap( HitTest* hitTest )
 
   QStringList selectedLayerIdList = applyFeatureSelections( layersList );
 
-  QList< QPair< QgsVectorLayer*, QgsFeatureRendererV2*> > bkVectorRenderers;
+  QList< QPair< QgsVectorLayer*, QgsFeatureRenderer*> > bkVectorRenderers;
   QList< QPair< QgsRasterLayer*, QgsRasterRenderer* > > bkRasterRenderers;
   QList< QPair< QgsVectorLayer*, double > > labelTransparencies;
   QList< QPair< QgsVectorLayer*, double > > labelBufferTransparencies;
@@ -2233,7 +2233,7 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
       break;
     }
 
-    QgsFeatureRendererV2* r2 = layer->rendererV2();
+    QgsFeatureRenderer* r2 = layer->renderer();
     if ( !r2 )
     {
       continue;
@@ -2243,9 +2243,9 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
 
     //check if feature is rendered at all
     r2->startRender( renderContext, layer->pendingFields() );
-    bool renderV2 = r2->willRenderFeature( feature, renderContext );
+    bool render = r2->willRenderFeature( feature, renderContext );
     r2->stopRender( renderContext );
-    if ( !renderV2 )
+    if ( !render )
     {
       continue;
     }
@@ -2253,7 +2253,7 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
     QgsRectangle box;
     if ( hasGeometry )
     {
-      box = mapRender->layerExtentToOutputExtent( layer, feature.constGeometry()->boundingBox() );
+      box = mapRender->layerExtentToOutputExtent( layer, feature.geometry().boundingBox() );
       if ( featureBBox ) //extend feature info bounding box if requested
       {
         if ( !featureBBoxInitialized && featureBBox->isEmpty() )
@@ -2276,7 +2276,7 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
 
     if ( infoFormat == "application/vnd.ogc.gml" )
     {
-      bool withGeom = layer->wkbType() != Qgis::WKBNoGeometry && addWktGeometry;
+      bool withGeom = layer->wkbType() != QgsWkbTypes::NoGeometry && addWktGeometry;
       int version = infoFormat.startsWith( "application/vnd.ogc.gml/3" ) ? 3 : 2;
       QString typeName =  layer->name();
       if ( mConfigParser && mConfigParser->useLayerIds() )
@@ -2305,13 +2305,13 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
       for ( int i = 0; i < featureAttributes.count(); ++i )
       {
         //skip attribute if it is explicitly excluded from WMS publication
-        if ( excludedAttributes.contains( fields[i].name() ) )
+        if ( excludedAttributes.contains( fields.at( i ).name() ) )
         {
           continue;
         }
 #ifdef HAVE_SERVER_PYTHON_PLUGINS
         //skip attribute if it is excluded by access control
-        if ( !attributes.contains( fields[i].name() ) )
+        if ( !attributes.contains( fields.at( i ).name() ) )
         {
           continue;
         }
@@ -2332,16 +2332,13 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
       }
 
       //add maptip attribute based on html/expression (in case there is no maptip attribute)
-      if ( layer->fieldNameIndex( layer->displayField() ) < 0 )
+      QString mapTip = layer->mapTipTemplate();
+      if ( !mapTip.isEmpty() )
       {
-        QString displayField = layer->displayField();
-        if ( !displayField.isEmpty() )
-        {
-          QDomElement maptipElem = infoDocument.createElement( "Attribute" );
-          maptipElem.setAttribute( "name", "maptip" );
-          maptipElem.setAttribute( "value",  QgsExpression::replaceExpressionText( displayField, &renderContext.expressionContext() ) );
-          featureElement.appendChild( maptipElem );
-        }
+        QDomElement maptipElem = infoDocument.createElement( "Attribute" );
+        maptipElem.setAttribute( "name", "maptip" );
+        maptipElem.setAttribute( "value",  QgsExpression::replaceExpressionText( mapTip, &renderContext.expressionContext() ) );
+        featureElement.appendChild( maptipElem );
       }
 
       //append feature bounding box to feature info xml
@@ -2359,18 +2356,18 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
       //also append the wkt geometry as an attribute
       if ( addWktGeometry && hasGeometry )
       {
-        QgsGeometry *geom = feature.geometry();
-        if ( geom )
+        QgsGeometry geom = feature.geometry();
+        if ( !geom.isEmpty() )
         {
           if ( layer->crs() != outputCrs )
           {
             QgsCoordinateTransform transform = mapRender->transformation( layer );
             if ( transform.isValid() )
-              geom->transform( transform );
+              geom.transform( transform );
           }
           QDomElement geometryElement = infoDocument.createElement( "Attribute" );
           geometryElement.setAttribute( "name", "geometry" );
-          geometryElement.setAttribute( "value", geom->exportToWkt( getWMSPrecision( 8 ) ) );
+          geometryElement.setAttribute( "value", geom.exportToWkt( getWMSPrecision( 8 ) ) );
           geometryElement.setAttribute( "type", "derived" );
           featureElement.appendChild( geometryElement );
         }
@@ -2832,7 +2829,7 @@ void QgsWmsServer::clearFeatureSelections( const QStringList& layerIds ) const
   return;
 }
 
-void QgsWmsServer::applyOpacities( const QStringList& layerList, QList< QPair< QgsVectorLayer*, QgsFeatureRendererV2*> >& vectorRenderers,
+void QgsWmsServer::applyOpacities( const QStringList& layerList, QList< QPair< QgsVectorLayer*, QgsFeatureRenderer*> >& vectorRenderers,
                                    QList< QPair< QgsRasterLayer*, QgsRasterRenderer* > >& rasterRenderers,
                                    QList< QPair< QgsVectorLayer*, double > >& labelTransparencies,
                                    QList< QPair< QgsVectorLayer*, double > >& labelBufferTransparencies )
@@ -2882,17 +2879,17 @@ void QgsWmsServer::applyOpacities( const QStringList& layerList, QList< QPair< Q
     {
       QgsVectorLayer* vl = qobject_cast<QgsVectorLayer*>( ml );
 
-      QgsFeatureRendererV2* rendererV2 = vl->rendererV2();
+      QgsFeatureRenderer* renderer = vl->renderer();
       //backup old renderer
-      vectorRenderers.push_back( qMakePair( vl, rendererV2->clone() ) );
+      vectorRenderers.push_back( qMakePair( vl, renderer->clone() ) );
       //modify symbols of current renderer
       QgsRenderContext context;
       context.expressionContext() << QgsExpressionContextUtils::globalScope()
       << QgsExpressionContextUtils::projectScope()
       << QgsExpressionContextUtils::layerScope( vl );
 
-      QgsSymbolV2List symbolList = rendererV2->symbols( context );
-      QgsSymbolV2List::iterator symbolIt = symbolList.begin();
+      QgsSymbolList symbolList = renderer->symbols( context );
+      QgsSymbolList::iterator symbolIt = symbolList.begin();
       for ( ; symbolIt != symbolList.end(); ++symbolIt )
       {
         ( *symbolIt )->setAlpha(( *symbolIt )->alpha() * opacityRatio );
@@ -2925,7 +2922,7 @@ void QgsWmsServer::applyOpacities( const QStringList& layerList, QList< QPair< Q
   }
 }
 
-void QgsWmsServer::restoreOpacities( QList< QPair< QgsVectorLayer*, QgsFeatureRendererV2*> >& vectorRenderers,
+void QgsWmsServer::restoreOpacities( QList< QPair< QgsVectorLayer*, QgsFeatureRenderer*> >& vectorRenderers,
                                      QList < QPair< QgsRasterLayer*, QgsRasterRenderer* > >& rasterRenderers,
                                      QList< QPair< QgsVectorLayer*, double > >& labelOpacities,
                                      QList< QPair< QgsVectorLayer*, double > >& labelBufferOpacities )
@@ -2935,10 +2932,10 @@ void QgsWmsServer::restoreOpacities( QList< QPair< QgsVectorLayer*, QgsFeatureRe
     return;
   }
 
-  QList< QPair< QgsVectorLayer*, QgsFeatureRendererV2*> >::iterator vIt = vectorRenderers.begin();
+  QList< QPair< QgsVectorLayer*, QgsFeatureRenderer*> >::iterator vIt = vectorRenderers.begin();
   for ( ; vIt != vectorRenderers.end(); ++vIt )
   {
-    ( *vIt ).first->setRendererV2(( *vIt ).second );
+    ( *vIt ).first->setRenderer(( *vIt ).second );
   }
 
   QList< QPair< QgsRasterLayer*, QgsRasterRenderer* > >::iterator rIt = rasterRenderers.begin();
@@ -3198,7 +3195,7 @@ QDomElement QgsWmsServer::createFeatureGML(
     transform = mMapRenderer->transformation( layer );
   }
 
-  QgsGeometry* geom = feat->geometry();
+  QgsGeometry geom = feat->geometry();
 
   QgsExpressionContext expressionContext;
   expressionContext << QgsExpressionContextUtils::globalScope()
@@ -3208,9 +3205,9 @@ QDomElement QgsWmsServer::createFeatureGML(
   expressionContext.setFeature( *feat );
 
   // always add bounding box info if feature contains geometry
-  if ( geom && geom->type() != Qgis::UnknownGeometry &&  geom->type() != Qgis::NoGeometry )
+  if ( !geom.isEmpty() && geom.type() != QgsWkbTypes::UnknownGeometry && geom.type() != QgsWkbTypes::NullGeometry )
   {
-    QgsRectangle box = feat->constGeometry()->boundingBox();
+    QgsRectangle box = feat->geometry().boundingBox();
     if ( transform.isValid() )
     {
       try
@@ -3243,24 +3240,24 @@ QDomElement QgsWmsServer::createFeatureGML(
     typeNameElement.appendChild( bbElem );
   }
 
-  if ( withGeom && geom )
+  if ( withGeom && !geom.isEmpty() )
   {
     //add geometry column (as gml)
 
     if ( transform.isValid() )
     {
-      geom->transform( transform );
+      geom.transform( transform );
     }
 
     QDomElement geomElem = doc.createElement( "qgs:geometry" );
     QDomElement gmlElem;
     if ( version < 3 )
     {
-      gmlElem = QgsOgcUtils::geometryToGML( geom, doc, 8 );
+      gmlElem = QgsOgcUtils::geometryToGML( &geom, doc, 8 );
     }
     else
     {
-      gmlElem = QgsOgcUtils::geometryToGML( geom, doc, "GML3", 8 );
+      gmlElem = QgsOgcUtils::geometryToGML( &geom, doc, "GML3", 8 );
     }
 
     if ( !gmlElem.isNull() )
@@ -3276,10 +3273,10 @@ QDomElement QgsWmsServer::createFeatureGML(
 
   //read all allowed attribute values from the feature
   QgsAttributes featureAttributes = feat->attributes();
-  const QgsFields* fields = feat->fields();
-  for ( int i = 0; i < fields->count(); ++i )
+  QgsFields fields = feat->fields();
+  for ( int i = 0; i < fields.count(); ++i )
   {
-    QString attributeName = fields->at( i ).name();
+    QString attributeName = fields.at( i ).name();
     //skip attribute if it is explicitly excluded from WMS publication
     if ( layer && layer->excludeAttributesWms().contains( attributeName ) )
     {
@@ -3303,12 +3300,13 @@ QDomElement QgsWmsServer::createFeatureGML(
   }
 
   //add maptip attribute based on html/expression (in case there is no maptip attribute)
-  if ( layer && layer->fieldNameIndex( layer->displayField() ) < 0 )
+  if ( layer )
   {
-    QString displayField = layer->displayField();
-    if ( !displayField.isEmpty() )
+    QString mapTip = layer->mapTipTemplate();
+
+    if ( !mapTip.isEmpty() )
     {
-      QString fieldTextString = QgsExpression::replaceExpressionText( displayField, &expressionContext );
+      QString fieldTextString = QgsExpression::replaceExpressionText( mapTip, &expressionContext );
       QDomElement fieldElem = doc.createElement( "qgs:maptip" );
       QDomText maptipText = doc.createTextNode( fieldTextString );
       fieldElem.appendChild( maptipText );
@@ -3386,7 +3384,7 @@ QgsRectangle QgsWmsServer::featureInfoSearchRect( QgsVectorLayer* ml, QgsMapRend
   }
 
   double mapUnitTolerance = 0.0;
-  if ( ml->geometryType() == Qgis::Polygon )
+  if ( ml->geometryType() == QgsWkbTypes::PolygonGeometry )
   {
     QMap<QString, QString>::const_iterator tolIt = mParameters.find( "FI_POLYGON_TOLERANCE" );
     if ( tolIt != mParameters.constEnd() )
@@ -3398,7 +3396,7 @@ QgsRectangle QgsWmsServer::featureInfoSearchRect( QgsVectorLayer* ml, QgsMapRend
       mapUnitTolerance = mr->extent().width() / 400.0;
     }
   }
-  else if ( ml->geometryType() == Qgis::Line )
+  else if ( ml->geometryType() == QgsWkbTypes::LineGeometry )
   {
     QMap<QString, QString>::const_iterator tolIt = mParameters.find( "FI_LINE_TOLERANCE" );
     if ( tolIt != mParameters.constEnd() )

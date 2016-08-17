@@ -12,11 +12,11 @@ class QgsComposerPolygon: QgsComposerNodesItem
     /** Overridden to return shape name */
     virtual QString displayName() const;
 
-    /** Returns the QgsSymbolV2 used to draw the shape. */
-    QgsFillSymbolV2* polygonStyleSymbol();
+    /** Returns the QgsSymbol used to draw the shape. */
+    QgsFillSymbol* polygonStyleSymbol();
 
-    /** Set the QgsSymbolV2 used to draw the shape. */
-    void setPolygonStyleSymbol( QgsFillSymbolV2* symbol );
+    /** Set the QgsSymbol used to draw the shape. */
+    void setPolygonStyleSymbol( QgsFillSymbol* symbol );
 
     /** Return correct graphics item type. */
     virtual int type() const;

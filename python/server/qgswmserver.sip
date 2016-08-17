@@ -30,7 +30,7 @@ class QgsComposerLegendItem;
 class QgsComposition;
 class QgsConfigParser;
 class QgsFeature;
-class QgsFeatureRendererV2;
+class QgsFeatureRenderer;
 class QgsMapLayer;
 class QgsMapRenderer;
 class QgsPoint;
@@ -40,7 +40,7 @@ class QgsRectangle;
 class QgsRenderContext;
 class QgsVectorLayer;
 class QgsSymbol;
-class QgsSymbolV2;
+class QgsSymbol;
 class QColor;
 class QFile;
 class QFont;
@@ -74,8 +74,8 @@ class QgsWmsServer: public QgsOWSServer
     of the image object*/
     QImage* getLegendGraphics();
 
-    typedef QSet<QgsSymbolV2*> SymbolV2Set;
-    typedef QMap<QgsVectorLayer*, SymbolV2Set> HitTest;
+    typedef QSet<QgsSymbol*> SymbolSet;
+    typedef QMap<QgsVectorLayer*, SymbolSet> HitTest;
 
     /** Returns the map as an image (or a null pointer in case of error). The caller takes ownership
     of the image object). If an instance to existing hit test structure is passed, instead of rendering

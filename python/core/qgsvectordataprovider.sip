@@ -25,20 +25,12 @@ class QgsVectorDataProvider : QgsDataProvider
       AddAttributes,
       /** Allows deletion of attributes (fields) */
       DeleteAttributes,
-      /** DEPRECATED - do not use */
-      SaveAsShapefile,
       /** Allows creation of spatial index */
       CreateSpatialIndex,
       /** Fast access to features using their ID */
       SelectAtId,
       /** Allows modifications of geometries */
       ChangeGeometries,
-      /** DEPRECATED - do not use */
-      SelectGeometryAtId,
-      /** DEPRECATED - do not use */
-      RandomSelectGeometryAtId,
-      /** DEPRECATED - do not use */
-      SequentialSelectGeometryAtId,
       /** DEPRECATED - do not use */
       CreateAttributeIndex,
       /** Allows user to select encoding */
@@ -58,6 +50,7 @@ class QgsVectorDataProvider : QgsDataProvider
       /** Supports renaming attributes (fields). Added in QGIS 2.16 */
       RenameAttributes,
     };
+    typedef QFlags<QgsVectorDataProvider::Capability> Capabilities;
 
     /** Bitmask of all provider's editing capabilities */
     static const int EditingCapabilities;
@@ -104,10 +97,9 @@ class QgsVectorDataProvider : QgsDataProvider
     virtual QgsFeatureIterator getFeatures( const QgsFeatureRequest& request = QgsFeatureRequest() ) const = 0;
 
     /**
-     * Get feature type.
-     * @return int representing the feature type
+     * Returns the geometry type which is returned by this layer
      */
-    virtual Qgis::WkbType geometryType() const = 0;
+    virtual QgsWkbTypes::Type wkbType() const = 0;
 
     /**
      * Number of features in the layer
@@ -257,11 +249,11 @@ class QgsVectorDataProvider : QgsDataProvider
     virtual bool createAttributeIndex( int field );
 
     /** Returns a bitmask containing the supported capabilities
-        Note, some capabilities may change depending on whether
+        @note, some capabilities may change depending on whether
         a spatial filter is active on this provider, so it may
         be prudent to check this value per intended operation.
      */
-    virtual int capabilities() const;
+    virtual Capabilities capabilities() const;
 
     /**
      *  Returns the above in friendly format.
@@ -392,5 +384,7 @@ class QgsVectorDataProvider : QgsDataProvider
 
     /** Converts the geometry to the provider type if possible / necessary
     @return the converted geometry or nullptr if no conversion was necessary or possible*/
-    QgsGeometry* convertToProviderType( const QgsGeometry* geom ) const /Factory/;
+    QgsGeometry* convertToProviderType( const QgsGeometry& geom ) const /Factory/;
 };
+
+QFlags<QgsVectorDataProvider::Capability> operator|(QgsVectorDataProvider::Capability f1, QFlags<QgsVectorDataProvider::Capability> f2);

@@ -17,8 +17,8 @@
 #include "qgscomposernodesitem.h"
 #include "qgscomposition.h"
 #include "qgscomposerutils.h"
-#include "qgssymbollayerv2utils.h"
-#include "qgssymbolv2.h"
+#include "qgssymbollayerutils.h"
+#include "qgssymbol.h"
 #include "qgsmapsettings.h"
 #include <limits>
 #include <math.h>
@@ -136,8 +136,8 @@ void QgsComposerNodesItem::drawNodes( QPainter *painter ) const
   properties.insert( "name", "cross" );
   properties.insert( "color_border", "red" );
 
-  QScopedPointer<QgsMarkerSymbolV2> symbol;
-  symbol.reset( QgsMarkerSymbolV2::createSimple( properties ) );
+  QScopedPointer<QgsMarkerSymbol> symbol;
+  symbol.reset( QgsMarkerSymbol::createSimple( properties ) );
   symbol.data()->setSize( rectSize );
   symbol.data()->setAngle( 45 );
 
@@ -148,9 +148,8 @@ void QgsComposerNodesItem::drawNodes( QPainter *painter ) const
   context.setPainter( painter );
   context.setForceVectorOutput( true );
 
-  QScopedPointer<QgsExpressionContext> expressionContext;
-  expressionContext.reset( createExpressionContext() );
-  context.setExpressionContext( *expressionContext.data() );
+  QgsExpressionContext expressionContext = createExpressionContext();
+  context.setExpressionContext( expressionContext );
 
   symbol.data()->startRender( context );
 
@@ -173,8 +172,8 @@ void QgsComposerNodesItem::drawSelectedNode( QPainter *painter ) const
   properties.insert( "color_border", "blue" );
   properties.insert( "width_border", "4" );
 
-  QScopedPointer<QgsMarkerSymbolV2> symbol;
-  symbol.reset( QgsMarkerSymbolV2::createSimple( properties ) );
+  QScopedPointer<QgsMarkerSymbol> symbol;
+  symbol.reset( QgsMarkerSymbol::createSimple( properties ) );
   symbol.data()->setSize( rectSize );
 
   QgsMapSettings ms = mComposition->mapSettings();
@@ -184,9 +183,8 @@ void QgsComposerNodesItem::drawSelectedNode( QPainter *painter ) const
   context.setPainter( painter );
   context.setForceVectorOutput( true );
 
-  QScopedPointer<QgsExpressionContext> expressionContext;
-  expressionContext.reset( createExpressionContext() );
-  context.setExpressionContext( *expressionContext.data() );
+  QgsExpressionContext expressionContext = createExpressionContext();
+  context.setExpressionContext( expressionContext );
 
   symbol.data()->startRender( context );
   symbol.data()->renderPoint( mPolygon.at( mSelectedNode ), nullptr, context );

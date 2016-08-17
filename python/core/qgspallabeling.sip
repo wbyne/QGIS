@@ -157,7 +157,7 @@ class QgsPalLayerSettings
 {
 %TypeHeaderCode
 #include <qgspallabeling.h>
-#include <qgsdiagramrendererv2.h>
+#include <qgsdiagramrenderer.h>
 %End
   public:
     QgsPalLayerSettings();
@@ -169,7 +169,7 @@ class QgsPalLayerSettings
 
     /** Placement modes which determine how label candidates are generated for a feature.
      */
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum Placement
     {
       AroundPoint, /**< Arranges candidates in a circle around a point (or centroid of a polygon). Applies to point or polygon layers only.*/
@@ -179,10 +179,11 @@ class QgsPalLayerSettings
       Horizontal, /**< Arranges horizontal candidates scattered throughout a polygon feature. Applies to polygon layers only.*/
       Free, /**< Arranges candidates scattered throughout a polygon feature. Candidates are rotated to respect the polygon's orientation. Applies to polygon layers only.*/
       OrderedPositionsAroundPoint, /**< Candidates are placed in predefined positions around a point. Peference is given to positions with greatest cartographic appeal, eg top right, bottom right, etc. Applies to point layers only.*/
+      PerimeterCurved, /** Arranges candidates following the curvature of a polygon's boundary. Applies to polygon layers only.*/
     };
 
     //! Positions for labels when using the QgsPalLabeling::OrderedPositionsAroundPoint placement mode
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum PredefinedPointPosition
     {
       TopLeft, //!< Label on top-left of point
@@ -201,7 +202,7 @@ class QgsPalLayerSettings
 
     //! Behaviour modifier for label offset and distance, only applies in some
     //! label placement modes.
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - move to QgsLabelingEngine
     enum OffsetType
     {
       FromPoint, //!< Offset distance applies from point geometry
@@ -210,7 +211,7 @@ class QgsPalLayerSettings
 
     /** Line placement flags, which control how candidates are generated for a linear feature.
      */
-    //TODO QGIS 3.0 - move to QgsLabelingEngineV2, rename to LinePlacementFlag, use Q_DECLARE_FLAGS to make
+    //TODO QGIS 3.0 - move to QgsLabelingEngine, rename to LinePlacementFlag, use Q_DECLARE_FLAGS to make
     //LinePlacementFlags type, and replace use of pal::LineArrangementFlag
     enum LinePlacementFlags
     {
@@ -265,7 +266,7 @@ class QgsPalLayerSettings
     /** Valid obstacle types, which affect how features within the layer will act as obstacles
      * for labels.
      */
-    //TODO QGIS 3.0 - Move to QgsLabelingEngineV2
+    //TODO QGIS 3.0 - Move to QgsLabelingEngine
     enum ObstacleType
     {
       PolygonInterior, /*!< avoid placing labels over interior of polygon (prefer placing labels totally
@@ -627,7 +628,7 @@ class QgsPalLayerSettings
      * @param f feature to label
      * @param context render context. The QgsExpressionContext contained within the render context
      * must have already had the feature and fields sets prior to calling this method.
-     * @param labelFeature if using QgsLabelingEngineV2, this will receive the label feature. Not available
+     * @param labelFeature if using QgsLabelingEngine, this will receive the label feature. Not available
      * in Python bindings.
      * @param obstacleGeometry optional obstacle geometry, if a different geometry to the feature's geometry
      * should be used as an obstacle for labels (eg, if the feature has been rendered with an offset point
@@ -742,7 +743,7 @@ class QgsPalLayerSettings
 
     QgsPoint ptZero;
     QgsPoint ptOne;
-    QgsGeometry* extentGeom;
+    QgsGeometry extentGeom;
     int mFeaturesToLabel; // total features that will probably be labeled, may be less (figured before PAL)
     int mFeatsSendingToPal; // total features tested for sending into PAL (relative to maxNumLabels)
     int mFeatsRegPal; // number of features registered in PAL, when using limitNumLabels
@@ -991,10 +992,10 @@ class QgsPalLabeling : QgsLabelingEngineInterface
      * @param context render context
      * @param ct coordinate transform, or invalid transform if no transformation required
      * @param clipGeometry geometry to clip features to, if applicable
-     * @returns prepared geometry, the caller takes ownership
+     * @returns prepared geometry
      * @note added in QGIS 2.9
      */
-    static QgsGeometry* prepareGeometry( const QgsGeometry *geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = 0 ) /Factory/;
+    static QgsGeometry prepareGeometry( const QgsGeometry &geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = 0 ) /Factory/;
 
     /** Checks whether a geometry requires preparation before registration with PAL
      * @param geometry geometry to prepare
@@ -1004,7 +1005,7 @@ class QgsPalLabeling : QgsLabelingEngineInterface
      * @returns true if geometry requires preparation
      * @note added in QGIS 2.9
      */
-    static bool geometryRequiresPreparation( const QgsGeometry *geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = 0 );
+    static bool geometryRequiresPreparation( const QgsGeometry& geometry, QgsRenderContext &context, const QgsCoordinateTransform& ct, QgsGeometry *clipGeometry = 0 );
 
     /** Splits a text string to a list of separate lines, using a specified wrap character.
      * The text string will be split on either newline characters or the wrap character.
@@ -1054,5 +1055,5 @@ class QgsPalLabeling : QgsLabelingEngineInterface
      * @returns true if geometry exceeds minimum size
      * @note added in QGIS 2.9
      */
-    static bool checkMinimumSizeMM( const QgsRenderContext &context, const QgsGeometry *geom, double minSize );
+    static bool checkMinimumSizeMM( const QgsRenderContext &context, const QgsGeometry* geom, double minSize );
 };

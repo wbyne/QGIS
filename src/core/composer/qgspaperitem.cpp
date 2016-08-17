@@ -17,7 +17,7 @@
 
 #include "qgspaperitem.h"
 #include "qgscomposition.h"
-#include "qgsstylev2.h"
+#include "qgsstyle.h"
 #include "qgslogger.h"
 #include "qgsmapsettings.h"
 #include <QGraphicsRectItem>
@@ -165,9 +165,8 @@ void QgsPaperItem::paint( QPainter* painter, const QStyleOptionGraphicsItem* ite
   QgsRenderContext context = QgsRenderContext::fromMapSettings( ms );
   context.setPainter( painter );
   context.setForceVectorOutput( true );
-  QgsExpressionContext* expressionContext = createExpressionContext();
-  context.setExpressionContext( *expressionContext );
-  delete expressionContext;
+  QgsExpressionContext expressionContext = createExpressionContext();
+  context.setExpressionContext( expressionContext );
 
   painter->save();
 
@@ -206,7 +205,7 @@ void QgsPaperItem::paint( QPainter* painter, const QStyleOptionGraphicsItem* ite
 void QgsPaperItem::calculatePageMargin()
 {
   //get max bleed from symbol
-  double maxBleed = QgsSymbolLayerV2Utils::estimateMaxSymbolBleed( mComposition->pageStyleSymbol() );
+  double maxBleed = QgsSymbolLayerUtils::estimateMaxSymbolBleed( mComposition->pageStyleSymbol() );
 
   //Now subtract 1 pixel to prevent semi-transparent borders at edge of solid page caused by
   //anti-aliased painting. This may cause a pixel to be cropped from certain edge lines/symbols,

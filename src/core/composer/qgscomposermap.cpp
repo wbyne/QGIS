@@ -34,10 +34,10 @@
 #include "qgsvectorlayer.h"
 #include "qgspallabeling.h"
 #include "qgsexpression.h"
-#include "qgsvisibilitypresetcollection.h"
+#include "qgsmapthemecollection.h"
 #include "qgsannotation.h"
 
-#include "qgssymbollayerv2utils.h" //for pointOnLineWithDistance
+#include "qgssymbollayerutils.h" //for pointOnLineWithDistance
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -200,7 +200,7 @@ QgsMapSettings QgsComposerMap::mapSettings( const QgsRectangle& extent, QSizeF s
 {
   const QgsMapSettings &ms = mComposition->mapSettings();
 
-  QScopedPointer< QgsExpressionContext > expressionContext( createExpressionContext() );
+  QgsExpressionContext expressionContext = createExpressionContext();
 
   QgsMapSettings jobMapSettings;
   jobMapSettings.setExtent( extent );
@@ -212,7 +212,7 @@ QgsMapSettings QgsComposerMap::mapSettings( const QgsRectangle& extent, QSizeF s
   jobMapSettings.setRotation( mEvaluatedMapRotation );
 
   //set layers to render
-  QStringList theLayerSet = layersToRender( expressionContext.data() );
+  QStringList theLayerSet = layersToRender( &expressionContext );
   if ( -1 != mCurrentExportLayer )
   {
     //exporting with separate layers (eg, to svg layers), so we only want to render a single map layer
@@ -223,7 +223,7 @@ QgsMapSettings QgsComposerMap::mapSettings( const QgsRectangle& extent, QSizeF s
       : QStringList(); //exporting decorations such as map frame/grid/overview, so no map layers required
   }
   jobMapSettings.setLayers( theLayerSet );
-  jobMapSettings.setLayerStyleOverrides( layerStyleOverridesToRender( *expressionContext ) );
+  jobMapSettings.setLayerStyleOverrides( layerStyleOverridesToRender( expressionContext ) );
   jobMapSettings.setDestinationCrs( ms.destinationCrs() );
   jobMapSettings.setCrsTransformEnabled( ms.hasCrsTransformEnabled() );
   jobMapSettings.setFlags( ms.flags() );
@@ -236,9 +236,8 @@ QgsMapSettings QgsComposerMap::mapSettings( const QgsRectangle& extent, QSizeF s
     jobMapSettings.setFlag( QgsMapSettings::UseRenderingOptimization, false );
   }
 
-  QgsExpressionContext* context = createExpressionContext();
-  jobMapSettings.setExpressionContext( *context );
-  delete context;
+  QgsExpressionContext context = createExpressionContext();
+  jobMapSettings.setExpressionContext( context );
 
   // composer-specific overrides of flags
   jobMapSettings.setFlag( QgsMapSettings::ForceVectorOutput ); // force vector output (no caching of marker images etc.)
@@ -522,13 +521,8 @@ void QgsComposerMap::setCacheUpdated( bool u )
 
 QStringList QgsComposerMap::layersToRender( const QgsExpressionContext* context ) const
 {
-  const QgsExpressionContext* evalContext = context;
-  QScopedPointer< QgsExpressionContext > scopedContext;
-  if ( !evalContext )
-  {
-    scopedContext.reset( createExpressionContext() );
-    evalContext = scopedContext.data();
-  }
+  QgsExpressionContext scopedContext = createExpressionContext();
+  const QgsExpressionContext* evalContext = context ? context : &scopedContext;
 
   QStringList renderLayerSet;
 
@@ -543,8 +537,8 @@ QStringList QgsComposerMap::layersToRender( const QgsExpressionContext* context 
       presetName = exprVal.toString();
     }
 
-    if ( QgsProject::instance()->visibilityPresetCollection()->hasPreset( presetName ) )
-      renderLayerSet = QgsProject::instance()->visibilityPresetCollection()->presetVisibleLayers( presetName );
+    if ( QgsProject::instance()->mapThemeCollection()->hasPreset( presetName ) )
+      renderLayerSet = QgsProject::instance()->mapThemeCollection()->presetVisibleLayers( presetName );
     else  // fallback to using map canvas layers
       renderLayerSet = mComposition->mapSettings().layers();
   }
@@ -604,8 +598,8 @@ QMap<QString, QString> QgsComposerMap::layerStyleOverridesToRender( const QgsExp
       presetName = exprVal.toString();
     }
 
-    if ( QgsProject::instance()->visibilityPresetCollection()->hasPreset( presetName ) )
-      return QgsProject::instance()->visibilityPresetCollection()->presetStyleOverrides( presetName );
+    if ( QgsProject::instance()->mapThemeCollection()->hasPreset( presetName ) )
+      return QgsProject::instance()->mapThemeCollection()->presetStyleOverrides( presetName );
     else
       return QMap<QString, QString>();
   }
@@ -970,13 +964,8 @@ double QgsComposerMap::mapRotation( QgsComposerObject::PropertyValueType valueTy
 
 void QgsComposerMap::refreshMapExtents( const QgsExpressionContext* context )
 {
-  const QgsExpressionContext* evalContext = context;
-  QScopedPointer< QgsExpressionContext > scopedContext;
-  if ( !evalContext )
-  {
-    scopedContext.reset( createExpressionContext() );
-    evalContext = scopedContext.data();
-  }
+  QgsExpressionContext scopedContext = createExpressionContext();
+  const QgsExpressionContext* evalContext = context ? context : &scopedContext;
 
   //data defined map extents set?
   QVariant exprVal;
@@ -1306,7 +1295,7 @@ bool QgsComposerMap::writeXml( QDomElement& elem, QDomDocument & doc ) const
   extentElem.setAttribute( "ymax", qgsDoubleToString( mExtent.yMaximum() ) );
   composerMapElem.appendChild( extentElem );
 
-  // follow visibility preset
+  // follow map theme
   composerMapElem.setAttribute( "followPreset", mFollowVisibilityPreset ? "true" : "false" );
   composerMapElem.setAttribute( "followPresetName", mFollowVisibilityPresetName );
 
@@ -1411,7 +1400,7 @@ bool QgsComposerMap::readXml( const QDomElement& itemElem, const QDomDocument& d
     mMapRotation = itemElem.attribute( "mapRotation", "0" ).toDouble();
   }
 
-  // follow visibility preset
+  // follow map theme
   mFollowVisibilityPreset = itemElem.attribute( "followPreset" ).compare( "true" ) == 0;
   mFollowVisibilityPresetName = itemElem.attribute( "followPresetName" );
 
@@ -1499,16 +1488,16 @@ bool QgsComposerMap::readXml( const QDomElement& itemElem, const QDomDocument& d
     mapGrid->setFrameStyle( static_cast< QgsComposerMapGrid::FrameStyle >( gridElem.attribute( "gridFrameStyle", "0" ).toInt() ) );
     mapGrid->setFrameWidth( gridElem.attribute( "gridFrameWidth", "2.0" ).toDouble() );
     mapGrid->setFramePenSize( gridElem.attribute( "gridFramePenThickness", "0.5" ).toDouble() );
-    mapGrid->setFramePenColor( QgsSymbolLayerV2Utils::decodeColor( gridElem.attribute( "framePenColor", "0,0,0" ) ) );
-    mapGrid->setFrameFillColor1( QgsSymbolLayerV2Utils::decodeColor( gridElem.attribute( "frameFillColor1", "255,255,255,255" ) ) );
-    mapGrid->setFrameFillColor2( QgsSymbolLayerV2Utils::decodeColor( gridElem.attribute( "frameFillColor2", "0,0,0,255" ) ) );
+    mapGrid->setFramePenColor( QgsSymbolLayerUtils::decodeColor( gridElem.attribute( "framePenColor", "0,0,0" ) ) );
+    mapGrid->setFrameFillColor1( QgsSymbolLayerUtils::decodeColor( gridElem.attribute( "frameFillColor1", "255,255,255,255" ) ) );
+    mapGrid->setFrameFillColor2( QgsSymbolLayerUtils::decodeColor( gridElem.attribute( "frameFillColor2", "0,0,0,255" ) ) );
     mapGrid->setBlendMode( QgsPainting::getCompositionMode( static_cast< QgsPainting::BlendMode >( itemElem.attribute( "gridBlendMode", "0" ).toUInt() ) ) );
     QDomElement gridSymbolElem = gridElem.firstChildElement( "symbol" );
-    QgsLineSymbolV2* lineSymbol = nullptr;
+    QgsLineSymbol* lineSymbol = nullptr;
     if ( gridSymbolElem.isNull() )
     {
       //old project file, read penWidth /penColorRed, penColorGreen, penColorBlue
-      lineSymbol = QgsLineSymbolV2::createSimple( QgsStringMap() );
+      lineSymbol = QgsLineSymbol::createSimple( QgsStringMap() );
       lineSymbol->setWidth( gridElem.attribute( "penWidth", "0" ).toDouble() );
       lineSymbol->setColor( QColor( gridElem.attribute( "penColorRed", "0" ).toInt(),
                                     gridElem.attribute( "penColorGreen", "0" ).toInt(),
@@ -1516,7 +1505,7 @@ bool QgsComposerMap::readXml( const QDomElement& itemElem, const QDomDocument& d
     }
     else
     {
-      lineSymbol = QgsSymbolLayerV2Utils::loadSymbol<QgsLineSymbolV2>( gridSymbolElem );
+      lineSymbol = QgsSymbolLayerUtils::loadSymbol<QgsLineSymbol>( gridSymbolElem );
     }
     mapGrid->setLineSymbol( lineSymbol );
 
@@ -1539,7 +1528,7 @@ bool QgsComposerMap::readXml( const QDomElement& itemElem, const QDomDocument& d
       QFont annotationFont;
       annotationFont.fromString( annotationElem.attribute( "font", "" ) );
       mapGrid->setAnnotationFont( annotationFont );
-      mapGrid->setAnnotationFontColor( QgsSymbolLayerV2Utils::decodeColor( itemElem.attribute( "fontColor", "0,0,0,255" ) ) );
+      mapGrid->setAnnotationFontColor( QgsSymbolLayerUtils::decodeColor( itemElem.attribute( "fontColor", "0,0,0,255" ) ) );
 
       mapGrid->setAnnotationPrecision( annotationElem.attribute( "precision", "3" ).toInt() );
     }
@@ -1557,11 +1546,11 @@ bool QgsComposerMap::readXml( const QDomElement& itemElem, const QDomDocument& d
     mapOverview->setInverted( overviewFrameElem.attribute( "overviewInverted" ).compare( "true", Qt::CaseInsensitive ) == 0 );
     mapOverview->setCentered( overviewFrameElem.attribute( "overviewCentered" ).compare( "true", Qt::CaseInsensitive ) == 0 );
 
-    QgsFillSymbolV2* fillSymbol = nullptr;
+    QgsFillSymbol* fillSymbol = nullptr;
     QDomElement overviewFrameSymbolElem = overviewFrameElem.firstChildElement( "symbol" );
     if ( !overviewFrameSymbolElem.isNull() )
     {
-      fillSymbol = QgsSymbolLayerV2Utils::loadSymbol<QgsFillSymbolV2>( overviewFrameSymbolElem );
+      fillSymbol = QgsSymbolLayerUtils::loadSymbol<QgsFillSymbol>( overviewFrameSymbolElem );
       mapOverview->setFrameSymbol( fillSymbol );
     }
     mOverviewStack->addOverview( mapOverview );
@@ -1768,7 +1757,7 @@ QPen QgsComposerMap::gridPen() const
   QPen p;
   if ( g->lineSymbol() )
   {
-    QgsLineSymbolV2* line = g->lineSymbol()->clone();
+    QgsLineSymbol* line = g->lineSymbol()->clone();
     if ( !line )
     {
       return p;
@@ -2158,9 +2147,9 @@ void QgsComposerMap::requestedExtent( QgsRectangle& extent ) const
   }
 }
 
-QgsExpressionContext* QgsComposerMap::createExpressionContext() const
+QgsExpressionContext QgsComposerMap::createExpressionContext() const
 {
-  QgsExpressionContext* context = QgsComposerItem::createExpressionContext();
+  QgsExpressionContext context = QgsComposerItem::createExpressionContext();
 
   //Can't utilise QgsExpressionContextUtils::mapSettingsScope as we don't always
   //have a QgsMapSettings object available when the context is required, so we manually
@@ -2175,11 +2164,10 @@ QgsExpressionContext* QgsComposerMap::createExpressionContext() const
   QgsRectangle extent( *currentMapExtent() );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( "map_extent_width", extent.width(), true ) );
   scope->addVariable( QgsExpressionContextScope::StaticVariable( "map_extent_height", extent.height(), true ) );
-  QgsGeometry* centerPoint = QgsGeometry::fromPoint( extent.center() );
-  scope->addVariable( QgsExpressionContextScope::StaticVariable( "map_extent_center", QVariant::fromValue( *centerPoint ), true ) );
-  delete centerPoint;
+  QgsGeometry centerPoint = QgsGeometry::fromPoint( extent.center() );
+  scope->addVariable( QgsExpressionContextScope::StaticVariable( "map_extent_center", QVariant::fromValue( centerPoint ), true ) );
 
-  context->appendScope( scope );
+  context.appendScope( scope );
 
   return context;
 }
@@ -2208,13 +2196,8 @@ int QgsComposerMap::overviewFrameMapId() const
 
 void QgsComposerMap::refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property, const QgsExpressionContext* context )
 {
-  const QgsExpressionContext* evalContext = context;
-  QScopedPointer< QgsExpressionContext > scopedContext;
-  if ( !evalContext )
-  {
-    scopedContext.reset( createExpressionContext() );
-    evalContext = scopedContext.data();
-  }
+  QgsExpressionContext scopedContext = createExpressionContext();
+  const QgsExpressionContext* evalContext = context ? context : &scopedContext;
 
   //updates data defined properties and redraws item to match
   if ( property == QgsComposerObject::MapRotation || property == QgsComposerObject::MapScale ||
@@ -2238,13 +2221,13 @@ void QgsComposerMap::refreshDataDefinedProperty( const QgsComposerObject::DataDe
   QgsComposerItem::refreshDataDefinedProperty( property, evalContext );
 }
 
-void QgsComposerMap::setOverviewFrameMapSymbol( QgsFillSymbolV2* symbol )
+void QgsComposerMap::setOverviewFrameMapSymbol( QgsFillSymbol* symbol )
 {
   QgsComposerMapOverview* o = overview();
   o->setFrameSymbol( symbol );
 }
 
-QgsFillSymbolV2 *QgsComposerMap::overviewFrameMapSymbol()
+QgsFillSymbol *QgsComposerMap::overviewFrameMapSymbol()
 {
   QgsComposerMapOverview* o = overview();
   return o->frameSymbol();
@@ -2287,13 +2270,13 @@ void QgsComposerMap::setOverviewCentered( bool centered )
   //overviewExtentChanged();
 }
 
-void QgsComposerMap::setGridLineSymbol( QgsLineSymbolV2* symbol )
+void QgsComposerMap::setGridLineSymbol( QgsLineSymbol* symbol )
 {
   QgsComposerMapGrid* g = grid();
   g->setLineSymbol( symbol );
 }
 
-QgsLineSymbolV2* QgsComposerMap::gridLineSymbol()
+QgsLineSymbol* QgsComposerMap::gridLineSymbol()
 {
   QgsComposerMapGrid* g = grid();
   return g->lineSymbol();
@@ -2518,8 +2501,8 @@ double QgsComposerMap::atlasMargin( const QgsComposerObject::PropertyValueType v
     //start with user specified margin
     double margin = mAtlasMargin;
     QVariant exprVal;
-    QScopedPointer< QgsExpressionContext > context( createExpressionContext() );
-    if ( dataDefinedEvaluate( QgsComposerObject::MapAtlasMargin, exprVal, *context.data() ) )
+    QgsExpressionContext context = createExpressionContext();
+    if ( dataDefinedEvaluate( QgsComposerObject::MapAtlasMargin, exprVal, context ) )
     {
       bool ok;
       double ddMargin = exprVal.toDouble( &ok );

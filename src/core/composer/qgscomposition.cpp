@@ -44,8 +44,8 @@
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
 #include "qgsexpression.h"
-#include "qgssymbolv2.h"
-#include "qgssymbollayerv2utils.h"
+#include "qgssymbol.h"
+#include "qgssymbollayerutils.h"
 #include "qgsdatadefined.h"
 #include "qgslogger.h"
 
@@ -231,13 +231,9 @@ void QgsComposition::setAllUnselected()
 
 void QgsComposition::refreshDataDefinedProperty( const QgsComposerObject::DataDefinedProperty property, const QgsExpressionContext* context )
 {
-  const QgsExpressionContext* evalContext = context;
-  QScopedPointer< QgsExpressionContext > scopedContext;
-  if ( !evalContext )
-  {
-    scopedContext.reset( createExpressionContext() );
-    evalContext = scopedContext.data();
-  }
+  QgsExpressionContext scopedContext = createExpressionContext();
+  const QgsExpressionContext* evalContext = context ? context : &scopedContext;
+
 
   //updates data defined properties and redraws composition to match
   if ( property == QgsComposerObject::NumPages || property == QgsComposerObject::AllProperties )
@@ -454,8 +450,8 @@ void QgsComposition::setNumPages( const int pages )
 
   //data defined num pages set?
   QVariant exprVal;
-  QScopedPointer< QgsExpressionContext > context( createExpressionContext() );
-  if ( dataDefinedEvaluate( QgsComposerObject::NumPages, exprVal, *context.data(), &mDataDefinedProperties ) )
+  QgsExpressionContext context = createExpressionContext();
+  if ( dataDefinedEvaluate( QgsComposerObject::NumPages, exprVal, context, &mDataDefinedProperties ) )
   {
     bool ok = false;
     int pagesD = exprVal.toInt( &ok );
@@ -556,10 +552,10 @@ bool QgsComposition::shouldExportPage( const int page ) const
   return true;
 }
 
-void QgsComposition::setPageStyleSymbol( QgsFillSymbolV2* symbol )
+void QgsComposition::setPageStyleSymbol( QgsFillSymbol* symbol )
 {
   delete mPageStyleSymbol;
-  mPageStyleSymbol = static_cast<QgsFillSymbolV2*>( symbol->clone() );
+  mPageStyleSymbol = static_cast<QgsFillSymbol*>( symbol->clone() );
   QgsProject::instance()->setDirty( true );
 }
 
@@ -571,7 +567,7 @@ void QgsComposition::createDefaultPageStyleSymbol()
   properties.insert( "style", "solid" );
   properties.insert( "style_border", "no" );
   properties.insert( "joinstyle", "miter" );
-  mPageStyleSymbol = QgsFillSymbolV2::createSimple( properties );
+  mPageStyleSymbol = QgsFillSymbol::createSimple( properties );
 }
 
 QPointF QgsComposition::positionOnPage( QPointF position ) const
@@ -857,7 +853,7 @@ bool QgsComposition::writeXml( QDomElement& composerElem, QDomDocument& doc )
   compositionElem.setAttribute( "paperHeight", QString::number( mPageHeight ) );
   compositionElem.setAttribute( "numPages", mPages.size() );
 
-  QDomElement pageStyleElem = QgsSymbolLayerV2Utils::saveSymbol( QString(), mPageStyleSymbol, doc );
+  QDomElement pageStyleElem = QgsSymbolLayerUtils::saveSymbol( QString(), mPageStyleSymbol, doc );
   compositionElem.appendChild( pageStyleElem );
 
   //snapping
@@ -963,7 +959,7 @@ bool QgsComposition::readXml( const QDomElement& compositionElem, const QDomDocu
   if ( !pageStyleSymbolElem.isNull() )
   {
     delete mPageStyleSymbol;
-    mPageStyleSymbol = QgsSymbolLayerV2Utils::loadSymbol<QgsFillSymbolV2>( pageStyleSymbolElem );
+    mPageStyleSymbol = QgsSymbolLayerUtils::loadSymbol<QgsFillSymbol>( pageStyleSymbolElem );
   }
 
   if ( widthConversionOk && heightConversionOk )
@@ -1331,7 +1327,7 @@ void QgsComposition::addItemsFromXml( const QDomElement& elem, const QDomDocumen
     QgsComposerShape* newShape = new QgsComposerShape( this );
     newShape->readXml( currentComposerShapeElem, doc );
     //new shapes should default to symbol v2
-    newShape->setUseSymbolV2( true );
+    newShape->setUseSymbol( true );
     if ( pos )
     {
       if ( pasteInPlace )
@@ -3335,13 +3331,8 @@ bool QgsComposition::ddPageSizeActive() const
 
 void QgsComposition::refreshPageSize( const QgsExpressionContext* context )
 {
-  const QgsExpressionContext* evalContext = context;
-  QScopedPointer< QgsExpressionContext > scopedContext;
-  if ( !evalContext )
-  {
-    scopedContext.reset( createExpressionContext() );
-    evalContext = scopedContext.data();
-  }
+  QgsExpressionContext scopedContext = createExpressionContext();
+  const QgsExpressionContext* evalContext = context ? context : &scopedContext;
 
   double pageWidth = mPageWidth;
   double pageHeight = mPageHeight;
@@ -3639,23 +3630,23 @@ void QgsComposition::prepareDataDefinedExpression( QgsDataDefined *dd, QMap<QgsC
   }
 }
 
-QgsExpressionContext* QgsComposition::createExpressionContext() const
+QgsExpressionContext QgsComposition::createExpressionContext() const
 {
-  QgsExpressionContext* context = new QgsExpressionContext();
-  context->appendScope( QgsExpressionContextUtils::globalScope() );
-  context->appendScope( QgsExpressionContextUtils::projectScope() );
-  context->appendScope( QgsExpressionContextUtils::compositionScope( this ) );
+  QgsExpressionContext context = QgsExpressionContext();
+  context.appendScope( QgsExpressionContextUtils::globalScope() );
+  context.appendScope( QgsExpressionContextUtils::projectScope() );
+  context.appendScope( QgsExpressionContextUtils::compositionScope( this ) );
   if ( mAtlasComposition.enabled() )
   {
-    context->appendScope( QgsExpressionContextUtils::atlasScope( &mAtlasComposition ) );
+    context.appendScope( QgsExpressionContextUtils::atlasScope( &mAtlasComposition ) );
   }
   return context;
 }
 
 void QgsComposition::prepareAllDataDefinedExpressions()
 {
-  QScopedPointer< QgsExpressionContext > context( createExpressionContext() );
-  prepareDataDefinedExpression( nullptr, &mDataDefinedProperties, *context.data() );
+  QgsExpressionContext context = createExpressionContext();
+  prepareDataDefinedExpression( nullptr, &mDataDefinedProperties, context );
 }
 
 void QgsComposition::relativeResizeRect( QRectF& rectToResize, const QRectF& boundsBefore, const QRectF& boundsAfter )

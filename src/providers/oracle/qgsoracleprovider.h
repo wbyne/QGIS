@@ -63,7 +63,7 @@ class QgsOracleProvider : public QgsVectorDataProvider
     static QgsVectorLayerImport::ImportError createEmptyLayer(
       const QString& uri,
       const QgsFields &fields,
-      Qgis::WkbType wkbType,
+      QgsWkbTypes::Type wkbType,
       const QgsCoordinateReferenceSystem *srs,
       bool overwrite,
       QMap<int, int> *oldToNewAttrIdxMap,
@@ -105,7 +105,7 @@ class QgsOracleProvider : public QgsVectorDataProvider
      * WKBMultiPolygon
      * as defined in qgis.h
      */
-    Qgis::WkbType geometryType() const override;
+    QgsWkbTypes::Type wkbType() const override;
 
     /** Return the number of layers for the current data source
      * @note Should this be subLayerCount() instead?
@@ -240,7 +240,7 @@ class QgsOracleProvider : public QgsVectorDataProvider
     virtual bool supportsSubsetString() const override { return true; }
 
     /** Returns a bitmask containing the supported capabilities*/
-    int capabilities() const override;
+    QgsVectorDataProvider::Capabilities capabilities() const override;
 
     /** Return a provider name
      *
@@ -287,12 +287,12 @@ class QgsOracleProvider : public QgsVectorDataProvider
     QString whereClause( QgsFeatureId featureId ) const;
     QString pkParamWhereClause() const;
     QString paramValue( QString fieldvalue, const QString &defaultValue ) const;
-    void appendGeomParam( const QgsGeometry *geom, QSqlQuery &qry ) const;
+    void appendGeomParam( const QgsGeometry& geom, QSqlQuery &qry ) const;
     void appendPkParams( QgsFeatureId fid, QSqlQuery &qry ) const;
 
     bool hasSufficientPermsAndCapabilities();
 
-    const QgsField &field( int index ) const;
+    QgsField field( int index ) const;
 
     /** Load the field list
      */
@@ -306,7 +306,7 @@ class QgsOracleProvider : public QgsVectorDataProvider
     QString mDataComment;
 
     //! Data source URI struct for this layer
-    QgsDataSourceURI mUri;
+    QgsDataSourceUri mUri;
 
     /**
      * Flag indicating if the layer data source is a valid oracle layer
@@ -350,10 +350,10 @@ class QgsOracleProvider : public QgsVectorDataProvider
     mutable QgsRectangle mLayerExtent; //! Rectangle that contains the extent (bounding box) of the layer
     mutable long mFeaturesCounted;     //! Number of features in the layer
     int mSrid;                         //! srid of column
-    int mEnabledCapabilities;          //! capabilities of layer
+    QgsVectorDataProvider::Capabilities mEnabledCapabilities;          //! capabilities of layer
 
-    Qgis::WkbType mDetectedGeomType;   //! geometry type detected in the database
-    Qgis::WkbType mRequestedGeomType;  //! geometry type requested in the uri
+    QgsWkbTypes::Type mDetectedGeomType;   //! geometry type detected in the database
+    QgsWkbTypes::Type mRequestedGeomType;  //! geometry type requested in the uri
 
     bool getGeometryDetails();
 
@@ -409,7 +409,6 @@ class QgsOracleProvider : public QgsVectorDataProvider
 
     QMap<QVariant, QgsFeatureId> mKeyToFid;  //! map key values to feature id
     QMap<QgsFeatureId, QVariant> mFidToKey;  //! map feature back to fea
-    QgsFeatureId mFidCounter;                //! next feature id if map is used
     QgsOracleConn *mConnection;
 
     bool mHasSpatialIndex;                   //! Geometry column is indexed

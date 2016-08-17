@@ -15,13 +15,14 @@
 
 #include "qgsmaprenderercustompainterjob.h"
 
-#include "qgslabelingenginev2.h"
+#include "qgsfeedback.h"
+#include "qgslabelingengine.h"
 #include "qgslogger.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsmaplayerrenderer.h"
 #include "qgspallabeling.h"
 #include "qgsvectorlayer.h"
-#include "qgsrendererv2.h"
+#include "qgsrenderer.h"
 
 
 QgsMapRendererCustomPainterJob::QgsMapRendererCustomPainterJob( const QgsMapSettings& settings, QPainter* painter )
@@ -77,7 +78,7 @@ void QgsMapRendererCustomPainterJob::start()
 
   if ( mSettings.testFlag( QgsMapSettings::DrawLabeling ) )
   {
-    mLabelingEngineV2 = new QgsLabelingEngineV2();
+    mLabelingEngineV2 = new QgsLabelingEngine();
     mLabelingEngineV2->readSettingsFromProject();
     mLabelingEngineV2->setMapSettings( mSettings );
   }
@@ -124,6 +125,8 @@ void QgsMapRendererCustomPainterJob::cancel()
   for ( LayerRenderJobs::iterator it = mLayerJobs.begin(); it != mLayerJobs.end(); ++it )
   {
     it->context.setRenderingStopped( true );
+    if ( it->renderer && it->renderer->feedback() )
+      it->renderer->feedback()->cancel();
   }
 
   QTime t;
@@ -271,7 +274,7 @@ void QgsMapRendererCustomPainterJob::doRender()
 }
 
 
-void QgsMapRendererJob::drawLabeling( const QgsMapSettings& settings, QgsRenderContext& renderContext, QgsLabelingEngineV2* labelingEngine2, QPainter* painter )
+void QgsMapRendererJob::drawLabeling( const QgsMapSettings& settings, QgsRenderContext& renderContext, QgsLabelingEngine* labelingEngine2, QPainter* painter )
 {
   QgsDebugMsg( "Draw labeling start" );
 
@@ -316,7 +319,7 @@ bool QgsMapRendererJob::needTemporaryImage( QgsMapLayer* ml )
   if ( ml->type() == QgsMapLayer::VectorLayer )
   {
     QgsVectorLayer* vl = qobject_cast<QgsVectorLayer *>( ml );
-    if ( vl->rendererV2() && vl->rendererV2()->forceRasterRender() )
+    if ( vl->renderer() && vl->renderer()->forceRasterRender() )
     {
       //raster rendering is forced for this layer
       return true;
