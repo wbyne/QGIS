@@ -37,7 +37,7 @@ class GUI_EXPORT QgsSingleSymbolRendererWidget : public QgsRendererWidget
 
     virtual QgsFeatureRenderer* renderer() override;
 
-    virtual void setMapCanvas( QgsMapCanvas* canvas ) override;
+    virtual void setContext( const QgsSymbolWidgetContext& context ) override;
 
     /**
      * Set the widget in dock mode which tells the widget to emit panel
@@ -48,9 +48,6 @@ class GUI_EXPORT QgsSingleSymbolRendererWidget : public QgsRendererWidget
 
   public slots:
     void changeSingleSymbol();
-
-    void sizeScaleFieldChanged( const QString& fldName );
-    void scaleMethodChanged( QgsSymbol::ScaleMethod scaleMethod );
 
     void showSymbolLevels();
 

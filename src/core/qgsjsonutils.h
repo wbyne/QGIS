@@ -19,7 +19,7 @@
 #include "qgsfeature.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgscoordinatetransform.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 
 class QTextCodec;
 class QgsVectorLayer;
@@ -240,6 +240,12 @@ class CORE_EXPORT QgsJSONUtils
      */
     static QString exportAttributes( const QgsFeature& feature );
 
+    /** Parse a simple array (depth=1).
+     * @param json the JSON to parse
+     * @param type the type of the elements
+     * @note added in QGIS 3.0
+     */
+    static QVariantList parseArray( const QString& json, QVariant::Type type );
 };
 
 #endif // QGSJSONUTILS_H

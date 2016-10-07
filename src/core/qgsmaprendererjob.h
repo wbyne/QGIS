@@ -46,6 +46,7 @@ struct LayerRenderJob
   QImage* img; // may be null if it is not necessary to draw to separate image (e.g. sequential rendering)
   QgsMapLayerRenderer* renderer; // must be deleted
   QPainter::CompositionMode blendMode;
+  double opacity;
   bool cached; // if true, img already contains cached image from previous rendering
   QString layerId;
   int renderingTime; //!< time it took to render the layer in ms (it is -1 if not rendered or still rendering)
@@ -140,6 +141,14 @@ class CORE_EXPORT QgsMapRendererJob : public QObject
     const QgsMapSettings& mapSettings() const;
 
   signals:
+    /**
+     * Emitted when the layers are rendered.
+     * Rendering labels is not yet done. If the fully rendered layer including labels is required use
+     * finished() instead.
+     *
+     * @note Added in QGIS 3.0
+     */
+    void renderingLayersFinished();
 
     //! emitted when asynchronous rendering is finished (or canceled).
     void finished();

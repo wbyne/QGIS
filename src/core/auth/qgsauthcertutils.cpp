@@ -30,12 +30,10 @@ QString QgsAuthCertUtils::getSslProtocolName( QSsl::SslProtocol protocol )
 {
   switch ( protocol )
   {
-#if QT_VERSION >= 0x040800
     case QSsl::SecureProtocols:
       return QObject::tr( "SecureProtocols" );
     case QSsl::TlsV1SslV3:
       return QObject::tr( "TlsV1SslV3" );
-#endif
     case QSsl::TlsV1:
       return QObject::tr( "TlsV1" );
     case QSsl::SslV3:
@@ -182,7 +180,7 @@ QSslKey QgsAuthCertUtils::keyFromFile( const QString &keypath,
 QList<QSslCertificate> QgsAuthCertUtils::certsFromString( const QString &pemtext )
 {
   QList<QSslCertificate> certs;
-  certs = QSslCertificate::fromData( pemtext.toAscii(), QSsl::Pem );
+  certs = QSslCertificate::fromData( pemtext.toLatin1(), QSsl::Pem );
   if ( certs.isEmpty() )
   {
     QgsDebugMsg( "Parsed cert(s) EMPTY" );
@@ -253,7 +251,7 @@ QString QgsAuthCertUtils::pemTextToTempFile( const QString &name, const QByteArr
   QFile pemFile( QDir::tempPath() + QDir::separator() + name );
   QString pemFilePath( pemFile.fileName() );
 
-  if ( pemFile.open( QIODevice::WriteOnly ) )
+  if ( pemFile.open( QIODevice::WriteOnly | QIODevice::Truncate ) )
   {
     qint64 bytesWritten = pemFile.write( pemtext );
     if ( bytesWritten == -1 )

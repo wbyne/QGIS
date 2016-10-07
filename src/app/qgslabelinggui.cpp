@@ -34,6 +34,7 @@
 #include "qgssvgselectorwidget.h"
 #include "qgsvectorlayerlabeling.h"
 #include "qgslogger.h"
+#include "qgssubstitutionlistwidget.h"
 
 #include <QCheckBox>
 #include <QSettings>
@@ -137,6 +138,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   connect( mShadowTranspSlider, SIGNAL( valueChanged( int ) ), mShadowTranspSpnBx, SLOT( setValue( int ) ) );
   connect( mShadowTranspSpnBx, SIGNAL( valueChanged( int ) ), mShadowTranspSlider, SLOT( setValue( int ) ) );
   connect( mLimitLabelChkBox, SIGNAL( toggled( bool ) ), mLimitLabelSpinBox, SLOT( setEnabled( bool ) ) );
+  connect( mCheckBoxSubstituteText, SIGNAL( toggled( bool ) ), mToolButtonConfigureSubstitutes, SLOT( setEnabled( bool ) ) );
 
   //connections to prevent users removing all line placement positions
   connect( chkLineAbove, SIGNAL( toggled( bool ) ), this, SLOT( updateLinePlacementOptions() ) );
@@ -350,6 +352,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mLineDistanceDDBtn
   << mLineDistanceSpnBx
   << mLineDistanceUnitDDBtn
+  << mLineDistanceUnitWidget
   << mMaxCharAngleDDBtn
   << mMaxCharAngleInDSpinBox
   << mMaxCharAngleOutDSpinBox
@@ -363,6 +366,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mPointAngleSpinBox
   << mPointOffsetDDBtn
   << mPointOffsetUnitsDDBtn
+  << mPointOffsetUnitWidget
   << mPointOffsetXSpinBox
   << mPointOffsetYSpinBox
   << mPointPositionOrderDDBtn
@@ -374,6 +378,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mRepeatDistanceDDBtn
   << mRepeatDistanceSpinBox
   << mRepeatDistanceUnitDDBtn
+  << mRepeatDistanceUnitWidget
   << mScaleBasedVisibilityChkBx
   << mScaleBasedVisibilityDDBtn
   << mScaleBasedVisibilityMaxDDBtn
@@ -392,10 +397,12 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mShadowOffsetGlobalChkBx
   << mShadowOffsetSpnBx
   << mShadowOffsetUnitsDDBtn
+  << mShadowOffsetUnitWidget
   << mShadowRadiusAlphaChkBx
   << mShadowRadiusDDBtn
   << mShadowRadiusDblSpnBx
   << mShadowRadiusUnitsDDBtn
+  << mShadowRadiusUnitWidget
   << mShadowScaleDDBtn
   << mShadowScaleSpnBx
   << mShadowTranspDDBtn
@@ -409,6 +416,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mShapeBorderUnitsDDBtn
   << mShapeBorderWidthDDBtn
   << mShapeBorderWidthSpnBx
+  << mShapeBorderWidthUnitWidget
   << mShapeDrawChkBx
   << mShapeDrawDDBtn
   << mShapeFillColorBtn
@@ -417,6 +425,7 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mShapeOffsetUnitsDDBtn
   << mShapeOffsetXSpnBx
   << mShapeOffsetYSpnBx
+  << mShapeOffsetUnitWidget
   << mShapePenStyleCmbBx
   << mShapePenStyleDDBtn
   << mShapeRadiusDDBtn
@@ -427,11 +436,13 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << mShapeRotationDDBtn
   << mShapeRotationDblSpnBx
   << mShapeRotationTypeDDBtn
+  << mShapeRadiusUnitWidget
   << mShapeSVGPathDDBtn
   << mShapeSVGPathLineEdit
   << mShapeSizeCmbBx
   << mShapeSizeTypeDDBtn
   << mShapeSizeUnitsDDBtn
+  << mShapeSizeUnitWidget
   << mShapeSizeXDDBtn
   << mShapeSizeXSpnBx
   << mShapeSizeYDDBtn
@@ -466,7 +477,8 @@ QgsLabelingGui::QgsLabelingGui( QgsVectorLayer* layer, QgsMapCanvas* mapCanvas, 
   << radPolygonPerimeter
   << radPolygonPerimeterCurved
   << radPredefinedOrder
-  << mFieldExpressionWidget;
+  << mFieldExpressionWidget
+  << mCheckBoxSubstituteText;
   connectValueChanged( widgets, SLOT( updatePreview() ) );
 
   connect( mQuadrantBtnGrp, SIGNAL( buttonClicked( int ) ), this, SLOT( updatePreview() ) );
@@ -503,6 +515,10 @@ void QgsLabelingGui::connectValueChanged( QList<QWidget *> widgets, const char *
     else if ( QgsFieldExpressionWidget* w = qobject_cast<QgsFieldExpressionWidget*>( widget ) )
     {
       connect( w, SIGNAL( fieldChanged( QString ) ), this,  slot );
+    }
+    else if ( QgsUnitSelectionWidget* w = qobject_cast<QgsUnitSelectionWidget*>( widget ) )
+    {
+      connect( w, SIGNAL( changed() ), this,  slot );
     }
     else if ( QComboBox* w = qobject_cast<QComboBox*>( widget ) )
     {
@@ -623,6 +639,8 @@ void QgsLabelingGui::init()
   // set the current field or add the current expression to the bottom of the list
   mFieldExpressionWidget->setRow( -1 );
   mFieldExpressionWidget->setField( lyr.fieldName );
+  mCheckBoxSubstituteText->setChecked( lyr.useSubstitutions );
+  mSubstitutions = lyr.substitutions;
 
   // populate placement options
   mCentroidRadioWhole->setChecked( lyr.centroidWhole );
@@ -935,7 +953,7 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   lyr.dist = mLineDistanceSpnBx->value();
   lyr.distInMapUnits = ( mLineDistanceUnitWidget->unit() == QgsUnitTypes::RenderMapUnits );
   lyr.distMapUnitScale = mLineDistanceUnitWidget->getMapUnitScale();
-  lyr.offsetType = static_cast< QgsPalLayerSettings::OffsetType >( mOffsetTypeComboBox->itemData( mOffsetTypeComboBox->currentIndex() ).toInt() );
+  lyr.offsetType = static_cast< QgsPalLayerSettings::OffsetType >( mOffsetTypeComboBox->currentData().toInt() );
   lyr.quadOffset = ( QgsPalLayerSettings::QuadrantPosition )mQuadrantBtnGrp->checkedId();
   lyr.xOffset = mPointOffsetXSpinBox->value();
   lyr.yOffset = mPointOffsetYSpinBox->value();
@@ -1005,7 +1023,7 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   lyr.priority = mPrioritySlider->value();
   lyr.obstacle = mChkNoObstacle->isChecked() || mMode == ObstaclesOnly;
   lyr.obstacleFactor = mObstacleFactorSlider->value() / 50.0;
-  lyr.obstacleType = ( QgsPalLayerSettings::ObstacleType )mObstacleTypeComboBox->itemData( mObstacleTypeComboBox->currentIndex() ).toInt();
+  lyr.obstacleType = ( QgsPalLayerSettings::ObstacleType )mObstacleTypeComboBox->currentData().toInt();
   lyr.labelPerPart = chkLabelPerFeaturePart->isChecked();
   lyr.displayAll = mPalShowAllLabelsForLayerChkBx->isChecked();
   lyr.mergeLines = chkMergeLines->isChecked();
@@ -1013,6 +1031,8 @@ QgsPalLayerSettings QgsLabelingGui::layerSettings()
   lyr.scaleVisibility = mScaleBasedVisibilityChkBx->isChecked();
   lyr.scaleMin = mScaleBasedVisibilityMinSpnBx->value();
   lyr.scaleMax = mScaleBasedVisibilityMaxSpnBx->value();
+  lyr.useSubstitutions = mCheckBoxSubstituteText->isChecked();
+  lyr.substitutions = mSubstitutions;
 
   // buffer
   lyr.bufferDraw = mBufferDrawChkBx->isChecked();
@@ -1973,6 +1993,12 @@ void QgsLabelingGui::updateLinePlacementOptions()
   }
 }
 
+void QgsLabelingGui::onSubstitutionsChanged( const QgsStringReplacementCollection& substitutions )
+{
+  mSubstitutions = substitutions;
+  emit widgetChanged();
+}
+
 void QgsLabelingGui::updateSvgWidgets( const QString& svgPath )
 {
   if ( mShapeSVGPathLineEdit->text() != svgPath )
@@ -2097,6 +2123,28 @@ void QgsLabelingGui::on_mChkNoObstacle_toggled( bool active )
 {
   mPolygonObstacleTypeFrame->setEnabled( active );
   mObstaclePriorityFrame->setEnabled( active );
+}
+
+void QgsLabelingGui::on_mToolButtonConfigureSubstitutes_clicked()
+{
+  QgsPanelWidget* panel = QgsPanelWidget::findParentPanel( this );
+  if ( panel && panel->dockMode() )
+  {
+    QgsSubstitutionListWidget* widget = new QgsSubstitutionListWidget( panel );
+    widget->setPanelTitle( tr( "Substitutions" ) );
+    widget->setSubstitutions( mSubstitutions );
+    connect( widget, SIGNAL( substitutionsChanged( QgsStringReplacementCollection ) ), this, SLOT( onSubstitutionsChanged( QgsStringReplacementCollection ) ) );
+    panel->openPanel( widget );
+    return;
+  }
+
+  QgsSubstitutionListDialog dlg( this );
+  dlg.setSubstitutions( mSubstitutions );
+  if ( dlg.exec() == QDialog::Accepted )
+  {
+    mSubstitutions = dlg.substitutions();
+    emit widgetChanged();
+  }
 }
 
 void QgsLabelingGui::showBackgroundRadius( bool show )

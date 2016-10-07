@@ -23,7 +23,7 @@
 #include "qgsvectorlayer.h"
 #include "qgssymbollayer.h"
 #include "qgsogcutils.h"
-#include "qgsvectorcolorramp.h"
+#include "qgscolorramp.h"
 #include "qgsrendercontext.h"
 #include "qgspainteffect.h"
 #include "qgspainteffectregistry.h"
@@ -45,7 +45,7 @@ QgsHeatmapRenderer::QgsHeatmapRenderer()
     , mRenderQuality( 3 )
     , mFeaturesRendered( 0 )
 {
-  mGradientRamp = new QgsVectorGradientColorRamp( QColor( 255, 255, 255 ), QColor( 0, 0, 0 ) );
+  mGradientRamp = new QgsGradientColorRamp( QColor( 255, 255, 255 ), QColor( 0, 0, 0 ) );
 
 }
 
@@ -73,7 +73,7 @@ void QgsHeatmapRenderer::startRender( QgsRenderContext& context, const QgsFields
   }
 
   // find out classification attribute index from name
-  mWeightAttrNum = fields.fieldNameIndex( mWeightExpressionString );
+  mWeightAttrNum = fields.lookupField( mWeightExpressionString );
   if ( mWeightAttrNum == -1 )
   {
     mWeightExpression.reset( new QgsExpression( mWeightExpressionString ) );
@@ -384,7 +384,7 @@ QgsSymbolList QgsHeatmapRenderer::symbols( QgsRenderContext& )
   return QgsSymbolList();
 }
 
-QList<QString> QgsHeatmapRenderer::usedAttributes()
+QSet<QString> QgsHeatmapRenderer::usedAttributes() const
 {
   QSet<QString> attributes;
 
@@ -396,9 +396,9 @@ QList<QString> QgsHeatmapRenderer::usedAttributes()
 
   QgsExpression testExpr( mWeightExpressionString );
   if ( !testExpr.hasParserError() )
-    attributes.unite( testExpr.referencedColumns().toSet() );
+    attributes.unite( testExpr.referencedColumns() );
 
-  return attributes.toList();
+  return attributes;
 }
 
 QgsHeatmapRenderer* QgsHeatmapRenderer::convertFromRenderer( const QgsFeatureRenderer *renderer )
@@ -413,7 +413,7 @@ QgsHeatmapRenderer* QgsHeatmapRenderer::convertFromRenderer( const QgsFeatureRen
   }
 }
 
-void QgsHeatmapRenderer::setColorRamp( QgsVectorColorRamp *ramp )
+void QgsHeatmapRenderer::setColorRamp( QgsColorRamp *ramp )
 {
   delete mGradientRamp;
   mGradientRamp = ramp;

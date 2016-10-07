@@ -80,11 +80,11 @@ QgsFeatureRenderer* QgsSingleSymbolRendererWidget::renderer()
   return mRenderer;
 }
 
-void QgsSingleSymbolRendererWidget::setMapCanvas( QgsMapCanvas* canvas )
+void QgsSingleSymbolRendererWidget::setContext( const QgsSymbolWidgetContext& context )
 {
-  QgsRendererWidget::setMapCanvas( canvas );
+  QgsRendererWidget::setContext( context );
   if ( mSelector )
-    mSelector->setMapCanvas( canvas );
+    mSelector->setContext( context );
 }
 
 void QgsSingleSymbolRendererWidget::setDockMode( bool dockMode )
@@ -99,22 +99,6 @@ void QgsSingleSymbolRendererWidget::changeSingleSymbol()
   // update symbol from the GUI
   mRenderer->setSymbol( mSingleSymbol->clone() );
   emit widgetChanged();
-}
-
-void QgsSingleSymbolRendererWidget::sizeScaleFieldChanged( const QString& fldName )
-{
-  mRenderer->setSizeScaleField( fldName );
-}
-
-void QgsSingleSymbolRendererWidget::scaleMethodChanged( QgsSymbol::ScaleMethod scaleMethod )
-{
-  mRenderer->setScaleMethod( scaleMethod );
-  // Set also on the symbol clone
-  QgsMarkerSymbol *markerSymbol = dynamic_cast<QgsMarkerSymbol *>( mSingleSymbol );
-  if ( markerSymbol )
-  {
-    markerSymbol->setScaleMethod( scaleMethod );
-  }
 }
 
 void QgsSingleSymbolRendererWidget::showSymbolLevels()

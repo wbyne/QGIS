@@ -55,7 +55,7 @@ QgsTransformSettingsDialog::QgsTransformSettingsDialog( const QString &raster, c
   QStringList listCompressionTr;
   Q_FOREACH ( const QString& item, mListCompression )
   {
-    listCompressionTr.append( tr( item.toAscii().data() ) );
+    listCompressionTr.append( tr( item.toLatin1().data() ) );
   }
   cmbCompressionComboBox->addItems( listCompressionTr );
 
@@ -97,7 +97,7 @@ void QgsTransformSettingsDialog::getTransformSettings( QgsGeorefTransform::Trans
   if ( cmbTransformType->currentIndex() == -1 )
     tp = QgsGeorefTransform::InvalidTransform;
   else
-    tp = ( QgsGeorefTransform::TransformParametrisation )cmbTransformType->itemData( cmbTransformType->currentIndex() ).toInt();
+    tp = ( QgsGeorefTransform::TransformParametrisation )cmbTransformType->currentData().toInt();
 
   rm = ( QgsImageWarper::ResamplingMethod )cmbResampling->currentIndex();
   comprMethod = mListCompression.at( cmbCompressionComboBox->currentIndex() ).toUpper();

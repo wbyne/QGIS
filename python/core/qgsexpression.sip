@@ -12,7 +12,22 @@ class QgsExpression
      * loop in which this expression is used.
      */
     QgsExpression( const QString& expr );
+    /**
+     * Create an empty expression.
+     *
+     * @note Added in QGIS 3.0
+     */
+    QgsExpression();
+
     ~QgsExpression();
+
+    /**
+     * Checks if this expression is valid.
+     * A valid expression could be parsed but does not necessarily evaluate properly.
+     *
+     * @note Added in QGIS 3.0
+     */
+    bool isValid() const;
 
     //! Returns true if an error occurred when parsing the input expression
     bool hasParserError() const;
@@ -36,7 +51,14 @@ class QgsExpression
      *
      * TODO QGIS3: Return QSet<QString>
      */
-    QStringList referencedColumns() const;
+    QSet<QString> referencedColumns() const;
+
+    /**
+     * Return a list of field name indexes obtained from the provided fields.
+     *
+     * @note Added in QGIS 3.0
+     */
+    QSet<int> referencedAttributeIndexes( const QgsFields& fields ) const;
 
     //! Returns true if the expression uses feature geometry for some computation
     bool needsGeometry() const;
@@ -73,9 +95,16 @@ class QgsExpression
      * @param context optional expression context
      * @param errorMessage will be filled with any error message from the validation
      * @returns true if string is a valid expression
-     * @note added in QGIS 2.12
+     * @note added in QGIS 3.0
      */
-    static bool isValid( const QString& text, const QgsExpressionContext* context, QString &errorMessage );
+    static bool checkExpression( const QString& text, const QgsExpressionContext* context, QString &errorMessage /Out/ );
+
+    /**
+     * Set the expression string, will reset the whole internal structure.
+     *
+     * @note Added in QGIS 3.0
+     */
+    void setExpression( const QString& expression );
 
     //! Return the original, unmodified expression string.
     //! If there was none supplied because it was constructed by sole
@@ -272,7 +301,7 @@ class QgsExpression
                   const QString& group,
                   const QString& helpText = QString(),
                   bool usesGeometry = false,
-                  const QStringList& referencedColumns = QStringList(),
+                  const QSet<QString>& referencedColumns = QSet<QString>(),
                   bool lazyEval = false,
                   bool handlesNull = false,
                   bool isContextual = false );
@@ -285,7 +314,7 @@ class QgsExpression
                   const QString& group,
                   const QString& helpText = QString(),
                   bool usesGeometry = false,
-                  const QStringList& referencedColumns = QStringList(),
+                  const QSet<QString>& referencedColumns = QSet<QString>(),
                   bool lazyEval = false,
                   bool handlesNull = false,
                   bool isContextual = false );
@@ -321,7 +350,7 @@ class QgsExpression
          */
         bool lazyEval() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
 
         /** Returns whether the function is only available if provided by a QgsExpressionContext object.
          * @note added in QGIS 2.12
@@ -488,7 +517,7 @@ class QgsExpression
          *
          * @return A list of columns required to evaluate this expression
          */
-        virtual QStringList referencedColumns() const = 0;
+        virtual QSet<QString> referencedColumns() const = 0;
 
         /**
          * Abstract virtual method which returns if the geometry is required to evaluate
@@ -499,23 +528,6 @@ class QgsExpression
          * @return true if a geometry is required to evaluate this expression
          */
         virtual bool needsGeometry() const = 0;
-
-        /**
-         * Support the visitor pattern.
-         *
-         * For any implementation this should look like
-         *
-         * C++:
-         *
-         *     v.visit( *this );
-         *
-         * Python:
-         *
-         *     v.visit( self)
-         *
-         * @param v A visitor that visits this node.
-         */
-        virtual void accept( QgsExpression::Visitor& v ) const = 0;
     };
 
     //! Named node
@@ -584,9 +596,8 @@ class QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
     };
 
@@ -605,9 +616,8 @@ class QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
 
         int precedence() const;
@@ -640,9 +650,8 @@ class QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
     };
 
@@ -661,9 +670,8 @@ class QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
 
         //! Tests whether the provided argument list is valid for the matching function
@@ -684,9 +692,8 @@ class QgsExpression
         virtual QString dump() const;
         virtual QgsExpression::Node* clone() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
     };
 
     class NodeColumnRef : QgsExpression::Node
@@ -702,10 +709,9 @@ class QgsExpression
         virtual QVariant eval( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
 
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
     };
 
@@ -735,32 +741,10 @@ class QgsExpression
         virtual bool prepare( QgsExpression* parent, const QgsExpressionContext* context );
         virtual QString dump() const;
 
-        virtual QStringList referencedColumns() const;
+        virtual QSet<QString> referencedColumns() const;
         virtual bool needsGeometry() const;
-        virtual void accept( QgsExpression::Visitor& v ) const;
         virtual QgsExpression::Node* clone() const;
     };
-
-    //////
-
-    /** Support for visitor pattern - algorithms dealing with the expressions
-        may be implemented without modifying the Node classes */
-    class Visitor
-    {
-      public:
-        virtual ~Visitor();
-        virtual void visit( const QgsExpression::NodeUnaryOperator& n ) = 0;
-        virtual void visit( const QgsExpression::NodeBinaryOperator& n ) = 0;
-        virtual void visit( const QgsExpression::NodeInOperator& n ) = 0;
-        virtual void visit( const QgsExpression::NodeFunction& n ) = 0;
-        virtual void visit( const QgsExpression::NodeLiteral& n ) = 0;
-        virtual void visit( const QgsExpression::NodeColumnRef& n ) = 0;
-        virtual void visit( const QgsExpression::NodeCondition& n ) = 0;
-    };
-
-    /** Entry function for the visitor pattern */
-    void acceptVisitor( QgsExpression::Visitor& v ) const;
-
     /** Returns the help text for a specified function.
      * @param name function name
      * @see variableHelpText()

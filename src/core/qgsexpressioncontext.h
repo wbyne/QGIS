@@ -41,12 +41,17 @@ class QgsSymbol;
 class CORE_EXPORT QgsScopedExpressionFunction : public QgsExpression::Function
 {
   public:
+    /**
+     * Create a new QgsScopedExpressionFunction
+     *
+     * @note Added in QGIS 2.12
+     */
     QgsScopedExpressionFunction( const QString& fnname,
                                  int params,
                                  const QString& group,
                                  const QString& helpText = QString(),
                                  bool usesGeometry = false,
-                                 const QStringList& referencedColumns = QStringList(),
+                                 const QSet<QString>& referencedColumns = QSet<QString>(),
                                  bool lazyEval = false,
                                  bool handlesNull = false,
                                  bool isContextual = true )
@@ -259,7 +264,9 @@ class CORE_EXPORT QgsExpressionContext
 
     QgsExpressionContext& operator=( const QgsExpressionContext& other );
 
+#ifdef HAS_MOVE_SEMANTICS
     QgsExpressionContext& operator=( QgsExpressionContext && other );
+#endif
 
     ~QgsExpressionContext();
 
@@ -501,6 +508,10 @@ class CORE_EXPORT QgsExpressionContext
     static const QString EXPR_GEOMETRY_POINT_COUNT;
     //! Inbuilt variable name for point number variable
     static const QString EXPR_GEOMETRY_POINT_NUM;
+    //! Inbuilt variable name for cluster size variable
+    static const QString EXPR_CLUSTER_SIZE;
+    //! Inbuilt variable name for cluster color variable
+    static const QString EXPR_CLUSTER_COLOR;
 
   private:
 

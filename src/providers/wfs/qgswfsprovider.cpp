@@ -18,7 +18,7 @@
 #include "qgis.h"
 #include "qgsapplication.h"
 #include "qgsfeature.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgslogger.h"
@@ -257,7 +257,7 @@ void QgsWFSProviderSQLColumnRefValidator::visit( const QgsSQLStatement::NodeColu
     }
 
     QgsFields tableFields = mMapTypenameToFields[typeName];
-    int idx = tableFields.fieldNameIndex( n.name() );
+    int idx = tableFields.lookupField( n.name() );
     if ( idx < 0 && mMapTypenameToGeometryAttribute[typeName] != n.name() )
     {
       mError = true;
@@ -542,7 +542,8 @@ bool QgsWFSProvider::processSQL( const QString& sqlString, QString& errorMsg, QS
               tablePrefix = QgsWFSUtils::removeNamespacePrefix( tablePrefix );
             fieldName = tablePrefix + "." + fieldName;
           }
-          QgsField field( fieldName, srcField.type(), srcField.typeName() );
+          QgsField field( srcField );
+          field.setName( fieldName );
           if ( mapFieldNameToSrcLayerNameFieldName.contains( fieldName ) )
           {
             errorMsg = tr( "Field '%1': a field with the same name already exists" ).arg( field.name() );
@@ -572,7 +573,8 @@ bool QgsWFSProvider::processSQL( const QString& sqlString, QString& errorMsg, QS
                 tablePrefix = QgsWFSUtils::removeNamespacePrefix( tablePrefix );
               fieldName = tablePrefix + "." + fieldName;
             }
-            QgsField field( fieldName, srcField.type(), srcField.typeName() );
+            QgsField field( srcField );
+            field.setName( fieldName );
             mapFieldNameToSrcLayerNameFieldName[ field.name()] =
               QPair<QString, QString>( typeName, srcField.name() );
             mShared->mFields.append( field );
@@ -593,7 +595,7 @@ bool QgsWFSProvider::processSQL( const QString& sqlString, QString& errorMsg, QS
     else
     {
       const QgsFields tableFields = mapTypenameToFields[columnTableTypename];
-      int idx = tableFields.fieldNameIndex( columnRef->name() );
+      int idx = tableFields.lookupField( columnRef->name() );
       if ( idx < 0 )
       {
         QgsDebugMsg( QString( "Should not happen. Cannot find field for %1" ).arg( columnRef->name() ) );
@@ -618,9 +620,11 @@ bool QgsWFSProvider::processSQL( const QString& sqlString, QString& errorMsg, QS
         return false;
       }
 
-      QgsField field( fieldName, tableFields.at( idx ).type(), tableFields.at( idx ).typeName() );
+      QgsField orig = tableFields.at( idx );
+      QgsField field( orig );
+      field.setName( fieldName );
       mapFieldNameToSrcLayerNameFieldName[ field.name()] =
-        QPair<QString, QString>( columnTableTypename, tableFields.at( idx ).name() );
+        QPair<QString, QString>( columnTableTypename, orig.name() );
       mShared->mFields.append( field );
     }
   }
@@ -1245,8 +1249,15 @@ bool QgsWFSProvider::readAttributesFromSchema( QDomDocument& schemaDoc,
   for ( int i = 0; i < attributeNodeList.size(); ++i )
   {
     QDomElement attributeElement = attributeNodeList.at( i ).toElement();
+
     //attribute name
     QString name = attributeElement.attribute( "name" );
+    // Some servers like http://ogi.state.ok.us/geoserver/wfs on layer ogi:doq_centroids
+    // return attribute names padded with spaces. See http://hub.qgis.org/issues/3426
+    // I'm not completely sure how legal this
+    // is but this validates with Xerces 3.1, and its schema analyzer does also the trimming.
+    name = name.trimmed();
+
     //attribute type
     QString type = attributeElement.attribute( "type" );
     if ( type.isEmpty() )
@@ -1433,7 +1444,9 @@ bool QgsWFSProvider::getCapabilities()
   if ( mShared->mCaps.version.isEmpty() )
   {
     QgsWfsCapabilities getCapabilities( mShared->mURI.uri( false ) );
-    if ( !getCapabilities.requestCapabilities( true ) )
+    const bool synchronous = true;
+    const bool forceRefresh = false;
+    if ( !getCapabilities.requestCapabilities( synchronous, forceRefresh ) )
     {
       QgsMessageLog::logMessage( tr( "GetCapabilities failed for url %1: %2" ).
                                  arg( dataSourceUri() ).arg( getCapabilities.errorMessage() ), tr( "WFS" ) );

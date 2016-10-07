@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from builtins import str
 
 __author__ = 'Victor Olaya'
 __date__ = 'August 2012'
@@ -174,14 +175,14 @@ class OutputSelectionPanel(BASE, WIDGET):
             self, self.tr('Save Spatialite'), path, fileFilter, encoding)
         fileDialog.setFileMode(QFileDialog.AnyFile)
         fileDialog.setAcceptMode(QFileDialog.AcceptSave)
-        fileDialog.setConfirmOverwrite(False)
+        fileDialog.setOption(QFileDialog.DontConfirmOverwrite, True)
 
         if fileDialog.exec_() == QDialog.Accepted:
             files = fileDialog.selectedFiles()
-            encoding = unicode(fileDialog.encoding())
+            encoding = str(fileDialog.encoding())
             self.output.encoding = encoding
-            fileName = unicode(files[0])
-            selectedFileFilter = unicode(fileDialog.selectedNameFilter())
+            fileName = str(files[0])
+            selectedFileFilter = str(fileDialog.selectedNameFilter())
             if not fileName.lower().endswith(
                     tuple(re.findall("\*(\.[a-z]{1,10})", fileFilter))):
                 ext = re.search("\*(\.[a-z]{1,10})", selectedFileFilter)
@@ -211,14 +212,14 @@ class OutputSelectionPanel(BASE, WIDGET):
             self, self.tr('Save file'), path, fileFilter, encoding)
         fileDialog.setFileMode(QFileDialog.AnyFile)
         fileDialog.setAcceptMode(QFileDialog.AcceptSave)
-        fileDialog.setConfirmOverwrite(True)
+        fileDialog.setOption(QFileDialog.DontConfirmOverwrite, False)
 
         if fileDialog.exec_() == QDialog.Accepted:
             files = fileDialog.selectedFiles()
-            encoding = unicode(fileDialog.encoding())
+            encoding = str(fileDialog.encoding())
             self.output.encoding = encoding
-            fileName = unicode(files[0])
-            selectedFileFilter = unicode(fileDialog.selectedNameFilter())
+            fileName = str(files[0])
+            selectedFileFilter = str(fileDialog.selectedNameFilter())
             if not fileName.lower().endswith(
                     tuple(re.findall("\*(\.[a-z]{1,10})", fileFilter))):
                 ext = re.search("\*(\.[a-z]{1,10})", selectedFileFilter)
@@ -236,7 +237,7 @@ class OutputSelectionPanel(BASE, WIDGET):
         self.leText.setText(dirName)
 
     def getValue(self):
-        fileName = unicode(self.leText.text())
+        fileName = str(self.leText.text())
         context = self.expressionContext()
         exp = QgsExpression(fileName)
         if not exp.hasParserError():

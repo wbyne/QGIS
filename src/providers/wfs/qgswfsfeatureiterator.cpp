@@ -24,6 +24,7 @@
 #include "qgswfsprovider.h"
 #include "qgswfsshareddata.h"
 #include "qgswfsutils.h"
+#include "qgslogger.h"
 
 #include <QDir>
 #include <QProgressDialog>
@@ -309,7 +310,12 @@ QUrl QgsWFSFeatureDownloader::buildURL( int startIndex, int maxFeatures, bool fo
                         qgsDoubleToString( mShared->mRect.yMaximum() ) ) );
     // Some servers like Geomedia need the srsname to be explictly appended
     // otherwise they are confused and do not interpret it properly
-    bbox += "," + mShared->srsName();
+    if ( !mShared->mWFSVersion.startsWith( "1.0" ) )
+    {
+      // but it is illegal in WFS 1.0 and some servers definitely not like
+      // it. See #15464
+      bbox += "," + mShared->srsName();
+    }
     getFeatureUrl.addQueryItem( "BBOX",  bbox );
   }
   else if ( !mShared->mWFSFilter.isEmpty() )
@@ -903,7 +909,7 @@ void QgsWFSFeatureIterator::featureReceivedSynchronous( QVector<QgsWFSFeatureGml
     mWriterFilename = QDir( QgsWFSUtils::acquireCacheDirectory() ).filePath( QString( "iterator_%1_%2.bin" ).arg( thisStr ).arg( mCounter ) );
     QgsDebugMsg( QString( "Transferring feature iterator cache to %1" ).arg( mWriterFilename ) );
     mWriterFile = new QFile( mWriterFilename );
-    if ( !mWriterFile->open( QIODevice::WriteOnly ) )
+    if ( !mWriterFile->open( QIODevice::WriteOnly | QIODevice::Truncate ) )
     {
       QgsDebugMsg( QString( "Cannot open %1 for writing" ).arg( mWriterFilename ) );
       delete mWriterFile;
@@ -961,7 +967,7 @@ bool QgsWFSFeatureIterator::fetchFeature( QgsFeature& f )
       const QVariant &v = cachedFeature.attributes().value( idx );
       if ( !v.isNull() && v.type() == QVariant::String )
       {
-        QByteArray wkbGeom( QByteArray::fromHex( v.toString().toAscii() ) );
+        QByteArray wkbGeom( QByteArray::fromHex( v.toString().toLatin1() ) );
         QgsGeometry g;
         unsigned char* wkbClone = new unsigned char[wkbGeom.size()];
         memcpy( wkbClone, wkbGeom.data(), wkbGeom.size() );

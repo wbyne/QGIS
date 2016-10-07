@@ -28,7 +28,7 @@
 #include "qgseditorwidgetfactory.h"
 #include "qgsexpression.h"
 #include "qgsfeaturelistmodel.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgshighlight.h"
 #include "qgsmapcanvas.h"
@@ -103,7 +103,7 @@ QgsRelationReferenceWidget::QgsRelationReferenceWidget( QWidget* parent )
 
   // open form button
   mOpenFormButton = new QToolButton();
-  mOpenFormButton->setIcon( QgsApplication::getThemeIcon( "/mActionPropertyItem.png" ) );
+  mOpenFormButton->setIcon( QgsApplication::getThemeIcon( "/mActionPropertyItem.svg" ) );
   mOpenFormButton->setText( tr( "Open related feature form" ) );
   editLayout->addWidget( mOpenFormButton );
 
@@ -193,8 +193,8 @@ void QgsRelationReferenceWidget::setRelation( const QgsRelation& relation, bool 
     mReferencingLayer = relation.referencingLayer();
     mRelationName = relation.name();
     mReferencedLayer = relation.referencedLayer();
-    mReferencedFieldIdx = mReferencedLayer->fieldNameIndex( relation.fieldPairs().at( 0 ).second );
-    mReferencingFieldIdx = mReferencingLayer->fieldNameIndex( relation.fieldPairs().at( 0 ).first );
+    mReferencedFieldIdx = mReferencedLayer->fields().lookupField( relation.fieldPairs().at( 0 ).second );
+    mReferencingFieldIdx = mReferencingLayer->fields().lookupField( relation.fieldPairs().at( 0 ).first );
 
     QgsAttributeEditorContext context( mEditorContext, relation, QgsAttributeEditorContext::Single, QgsAttributeEditorContext::Embed );
 
@@ -251,7 +251,7 @@ void QgsRelationReferenceWidget::setForeignKey( const QVariant& value )
   // Attributes from the referencing layer
   QgsAttributes attrs = QgsAttributes( mReferencingLayer->fields().count() );
   // Set the value on the foreign key field of the referencing record
-  attrs[ mReferencingLayer->fieldNameIndex( mRelation.fieldPairs().at( 0 ).first )] = value;
+  attrs[ mReferencingLayer->fields().lookupField( mRelation.fieldPairs().at( 0 ).first )] = value;
 
   QgsFeatureRequest request = mRelation.getReferencedFeatureRequest( attrs );
 
@@ -468,15 +468,17 @@ void QgsRelationReferenceWidget::init()
       Q_FOREACH ( const QString& fieldName, mFilterFields )
       {
         QVariantList uniqueValues;
-        int idx = mReferencedLayer->fieldNameIndex( fieldName );
+        int idx = mReferencedLayer->fields().lookupField( fieldName );
         QComboBox* cb = new QComboBox();
         cb->setProperty( "Field", fieldName );
+        cb->setProperty( "FieldAlias", mReferencedLayer->attributeDisplayName( idx ) );
         mFilterComboBoxes << cb;
         mReferencedLayer->uniqueValues( idx, uniqueValues );
-        cb->addItem( mReferencedLayer->attributeAlias( idx ).isEmpty() ? fieldName : mReferencedLayer->attributeAlias( idx ) );
+        cb->addItem( mReferencedLayer->attributeDisplayName( idx ) );
         QVariant nullValue = QSettings().value( "qgis/nullValue", "NULL" );
         cb->addItem( nullValue.toString(), QVariant( mReferencedLayer->fields().at( idx ).type() ) );
 
+        qSort( uniqueValues.begin(), uniqueValues.end(), qgsVariantLessThan );
         Q_FOREACH ( const QVariant& v, uniqueValues )
         {
           cb->addItem( v.toString(), v );
@@ -500,8 +502,8 @@ void QgsRelationReferenceWidget::init()
         {
           for ( int i = 0; i < mFilterComboBoxes.count() - 1; ++i )
           {
-            QVariant cv = ft.attribute( mFilterFields[i] );
-            QVariant nv = ft.attribute( mFilterFields[i + 1] );
+            QVariant cv = ft.attribute( mFilterFields.at( i ) );
+            QVariant nv = ft.attribute( mFilterFields.at( i + 1 ) );
             QString cf = cv.isNull() ? nullValue.toString() : cv.toString();
             QString nf = nv.isNull() ? nullValue.toString() : nv.toString();
             mFilterCache[mFilterFields[i]][cf] << nf;
@@ -516,16 +518,16 @@ void QgsRelationReferenceWidget::init()
 
     QgsExpression exp( mReferencedLayer->displayExpression() );
 
-    requestedAttrs += exp.referencedColumns().toSet();
+    requestedAttrs += exp.referencedColumns();
     requestedAttrs << mRelation.fieldPairs().at( 0 ).second;
 
     QgsAttributeList attributes;
     Q_FOREACH ( const QString& attr, requestedAttrs )
-      attributes << mReferencedLayer->fieldNameIndex( attr );
+      attributes << mReferencedLayer->fields().lookupField( attr );
 
     layerCache->setCacheSubsetOfAttributes( attributes );
     mMasterModel = new QgsAttributeTableModel( layerCache );
-    mMasterModel->setRequest( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setSubsetOfAttributes( requestedAttrs.toList(), mReferencedLayer->fields() ) );
+    mMasterModel->setRequest( QgsFeatureRequest().setFlags( QgsFeatureRequest::NoGeometry ).setSubsetOfAttributes( requestedAttrs, mReferencedLayer->fields() ) );
     mFilterModel = new QgsAttributeTableFilterModel( mCanvas, mMasterModel, mMasterModel );
     mFeatureListModel = new QgsFeatureListModel( mFilterModel, this );
     mFeatureListModel->setDisplayExpression( mReferencedLayer->displayExpression() );
@@ -535,12 +537,7 @@ void QgsRelationReferenceWidget::init()
     mFeatureListModel->setInjectNull( mAllowNull );
     if ( mOrderByValue )
     {
-      const QStringList referencedColumns = QgsExpression( mReferencedLayer->displayExpression() ).referencedColumns();
-      if ( !referencedColumns.isEmpty() )
-      {
-        int sortIdx = mReferencedLayer->fieldNameIndex( referencedColumns.first() );
-        mFilterModel->sort( sortIdx );
-      }
+      mFilterModel->sort( mReferencedLayer->displayExpression() );
     }
 
     mComboBox->setModel( mFeatureListModel );
@@ -821,14 +818,17 @@ void QgsRelationReferenceWidget::filterChanged()
       {
         cb->blockSignals( true );
         cb->clear();
-        cb->addItem( cb->property( "Field" ).toString() );
+        cb->addItem( cb->property( "FieldAlias" ).toString() );
 
         // ccb = scb
         // cb = scb + 1
+        QStringList texts;
         Q_FOREACH ( const QString& txt, mFilterCache[ccb->property( "Field" ).toString()][ccb->currentText()] )
         {
-          cb->addItem( txt );
+          texts << txt;
         }
+        texts.sort();
+        cb->addItems( texts );
 
         cb->setEnabled( true );
         cb->blockSignals( false );
@@ -859,7 +859,7 @@ void QgsRelationReferenceWidget::filterChanged()
           filters << QString( "\"%1\" = %2" ).arg( fieldName, cb->currentText() );
         }
       }
-      attrs << mReferencedLayer->fieldNameIndex( fieldName );
+      attrs << mReferencedLayer->fields().lookupField( fieldName );
     }
   }
 
@@ -886,7 +886,7 @@ void QgsRelationReferenceWidget::addEntry()
   // if custom text is in the combobox and the displayExpression is simply a field, use the current text for the new feature
   if ( mComboBox->itemText( mComboBox->currentIndex() ) != mComboBox->currentText() )
   {
-    int fieldIdx = mReferencedLayer->fieldNameIndex( mReferencedLayer->displayExpression() );
+    int fieldIdx = mReferencedLayer->fields().lookupField( mReferencedLayer->displayExpression() );
 
     if ( fieldIdx != -1 )
     {

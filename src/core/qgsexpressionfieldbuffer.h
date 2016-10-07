@@ -22,7 +22,7 @@
 #include <QList>
 #include <QDomNode>
 
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsexpression.h"
 
 /** \ingroup core
@@ -35,17 +35,11 @@ class CORE_EXPORT QgsExpressionFieldBuffer
   public:
     typedef struct ExpressionField
     {
-      ExpressionField() : cachedExpression( expression ) {}
       ExpressionField( const QString& exp, const QgsField& fld )
-          : expression( exp )
-          , cachedExpression( exp )
+          : cachedExpression( exp )
           , field( fld )
       {}
 
-      /**
-       * @deprecated use cachedExpression instead
-       */
-      QString expression;
       QgsExpression cachedExpression;
       QgsField field;
     } ExpressionField;

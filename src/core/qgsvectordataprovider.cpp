@@ -26,7 +26,7 @@
 #include "qgsfeature.h"
 #include "qgsfeatureiterator.h"
 #include "qgsfeaturerequest.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgsgeometrycollection.h"
 #include "qgsgeometryfactory.h"
@@ -259,7 +259,7 @@ QString QgsVectorDataProvider::capabilitiesString() const
 
 int QgsVectorDataProvider::fieldNameIndex( const QString& fieldName ) const
 {
-  return fields().fieldNameIndex( fieldName );
+  return fields().lookupField( fieldName );
 }
 
 QMap<QString, int> QgsVectorDataProvider::fieldNameMap() const
@@ -390,7 +390,7 @@ void QgsVectorDataProvider::uniqueValues( int index, QList<QVariant> &values, in
   QgsFeature f;
   QgsAttributeList keys;
   keys.append( index );
-  QgsFeatureIterator fi = getFeatures( QgsFeatureRequest().setSubsetOfAttributes( keys ) );
+  QgsFeatureIterator fi = getFeatures( QgsFeatureRequest().setSubsetOfAttributes( keys ).setFlags( QgsFeatureRequest::NoGeometry ) );
 
   QSet<QString> set;
   values.clear();
@@ -458,7 +458,8 @@ void QgsVectorDataProvider::fillMinMaxCache() const
 
   QgsFeature f;
   QgsAttributeList keys = mCacheMinValues.keys();
-  QgsFeatureIterator fi = getFeatures( QgsFeatureRequest().setSubsetOfAttributes( keys ) );
+  QgsFeatureIterator fi = getFeatures( QgsFeatureRequest().setSubsetOfAttributes( keys )
+                                       .setFlags( QgsFeatureRequest::NoGeometry ) );
 
   while ( fi.nextFeature( f ) )
   {
@@ -612,9 +613,9 @@ void QgsVectorDataProvider::pushError( const QString& msg )
   emit raiseError( msg );
 }
 
-QSet<QString> QgsVectorDataProvider::layerDependencies() const
+QSet<QgsMapLayerDependency> QgsVectorDataProvider::dependencies() const
 {
-  return QSet<QString>();
+  return QSet<QgsMapLayerDependency>();
 }
 
 QgsGeometry* QgsVectorDataProvider::convertToProviderType( const QgsGeometry& geom ) const
@@ -717,3 +718,8 @@ QgsGeometry* QgsVectorDataProvider::convertToProviderType( const QgsGeometry& ge
 }
 
 QStringList QgsVectorDataProvider::smEncodings;
+
+QList<QgsRelation> QgsVectorDataProvider::discoverRelations( const QgsVectorLayer*, const QList<QgsVectorLayer*>& ) const
+{
+  return QList<QgsRelation>();
+}

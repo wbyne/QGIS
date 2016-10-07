@@ -70,7 +70,7 @@ void QgsMapRendererCustomPainterJob::start()
 #ifndef QT_NO_DEBUG
   QPaintDevice* thePaintDevice = mPainter->device();
   QString errMsg = QString( "pre-set DPI not equal to painter's DPI (%1 vs %2)" ).arg( thePaintDevice->logicalDpiX() ).arg( mSettings.outputDpi() );
-  Q_ASSERT_X( qgsDoubleNear( thePaintDevice->logicalDpiX(), mSettings.outputDpi() ), "Job::startRender()", errMsg.toAscii().data() );
+  Q_ASSERT_X( qgsDoubleNear( thePaintDevice->logicalDpiX(), mSettings.outputDpi() ), "Job::startRender()", errMsg.toLatin1().data() );
 #endif
 
   delete mLabelingEngineV2;
@@ -260,7 +260,9 @@ void QgsMapRendererCustomPainterJob::doRender()
     if ( job.img )
     {
       // If we flattened this layer for alternate blend modes, composite it now
+      mPainter->setOpacity( job.opacity );
       mPainter->drawImage( 0, 0, *job.img );
+      mPainter->setOpacity( 1.0 );
     }
 
   }
@@ -332,6 +334,12 @@ bool QgsMapRendererJob::needTemporaryImage( QgsMapLayer* ml )
       //layer properties require rasterisation
       return true;
     }
+  }
+  else if ( ml->type() == QgsMapLayer::RasterLayer )
+  {
+    // preview of intermediate raster rendering results requires a temporary output image
+    if ( mSettings.testFlag( QgsMapSettings::RenderPartialOutput ) )
+      return true;
   }
 
   return false;

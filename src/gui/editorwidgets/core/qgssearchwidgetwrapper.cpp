@@ -16,7 +16,7 @@
 #include "qgssearchwidgetwrapper.h"
 #include "qgsvectorlayer.h"
 #include "qgsvectordataprovider.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 
 #include <QWidget>
 
@@ -70,7 +70,7 @@ QString QgsSearchWidgetWrapper::toString( QgsSearchWidgetWrapper::FilterFlag fla
     case IsNull:
       return QObject::tr( "Is missing (null)" );
     case IsNotNull:
-      return QObject::tr( "Is not missing (null)" );
+      return QObject::tr( "Is not missing (not null)" );
     case IsNotBetween:
       return QObject::tr( "Is not between (inclusive)" );
 

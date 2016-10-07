@@ -62,6 +62,9 @@ QgsPanelWidget*QgsPanelWidget::findParentPanel( QWidget* widget )
 
 void QgsPanelWidget::openPanel( QgsPanelWidget* panel )
 {
+  //panel dock mode inherits from this panel
+  panel->setDockMode( dockMode() );
+
   if ( mDockMode )
   {
     emit showPanel( panel );
@@ -81,7 +84,7 @@ void QgsPanelWidget::openPanel( QgsPanelWidget* panel )
     dlg->layout()->addWidget( buttonBox );
     dlg->exec();
     settings.setValue( key, dlg->saveGeometry() );
-    emit panelAccepted( panel );
+    panel->acceptPanel();
   }
 }
 

@@ -35,7 +35,7 @@
 #include "qgsapplication.h"
 #include "qgsconfig.h"
 #include "qgscoordinatereferencesystem.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgslocalec.h"
 #include "qgslogger.h"
 #include "qgsproject.h"
@@ -1686,13 +1686,13 @@ bool QgsGrass::writeRegion( const QString& gisbase,
                             const QString& location, const QString& mapset,
                             const struct Cell_head *window )
 {
-  QgsDebugMsg( QString( "n = %1 s = %2" ).arg( window->north ).arg( window->south ) );
-  QgsDebugMsg( QString( "e = %1 w = %2" ).arg( window->east ).arg( window->west ) );
-
   if ( !window )
   {
     return false;
   }
+
+  QgsDebugMsg( QString( "n = %1 s = %2" ).arg( window->north ).arg( window->south ) );
+  QgsDebugMsg( QString( "e = %1 w = %2" ).arg( window->east ).arg( window->west ) );
 
   QgsGrass::setMapset( gisbase, location, mapset );
 
@@ -2984,7 +2984,7 @@ QgsGrass::ModuleOutput QgsGrass::parseModuleOutput( const QString & input, QStri
   QString ascii;
   for ( int i = 0; i < input.size(); i++ )
   {
-    int c = input.at( i ).toAscii();
+    int c = input.at( i ).toLatin1();
     ascii += QString().sprintf( "%2x ", c );
   }
   QgsDebugMsg( "ascii = " + ascii );

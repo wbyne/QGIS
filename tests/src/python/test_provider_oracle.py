@@ -33,7 +33,7 @@ class TestPyQgsOracleProvider(unittest.TestCase, ProviderTestCase):
     @classmethod
     def setUpClass(cls):
         """Run before all tests"""
-        cls.dbconn = u"host=localhost port=1521 user='QGIS' password='qgis'"
+        cls.dbconn = "host=localhost port=1521 user='QGIS' password='qgis'"
         if 'QGIS_ORACLETEST_DB' in os.environ:
             cls.dbconn = os.environ['QGIS_ORACLETEST_DB']
         # Create test layers
@@ -51,10 +51,10 @@ class TestPyQgsOracleProvider(unittest.TestCase, ProviderTestCase):
         """Run after all tests"""
 
     def enableCompiler(self):
-        QSettings().setValue(u'/qgis/compileExpressions', True)
+        QSettings().setValue('/qgis/compileExpressions', True)
 
     def disableCompiler(self):
-        QSettings().setValue(u'/qgis/compileExpressions', False)
+        QSettings().setValue('/qgis/compileExpressions', False)
 
     def uncompiledFilters(self):
         filters = set([
@@ -91,10 +91,10 @@ class TestPyQgsOracleProvider(unittest.TestCase, ProviderTestCase):
 
         f = next(vl.getFeatures(QgsFeatureRequest()))
 
-        date_idx = vl.fieldNameIndex('date_field')
+        date_idx = vl.fields().lookupField('date_field')
         self.assertTrue(isinstance(f.attributes()[date_idx], QDate))
         self.assertEqual(f.attributes()[date_idx], QDate(2004, 3, 4))
-        datetime_idx = vl.fieldNameIndex('datetime_field')
+        datetime_idx = vl.fields().lookupField('datetime_field')
         self.assertTrue(isinstance(f.attributes()[datetime_idx], QDateTime))
         self.assertEqual(f.attributes()[datetime_idx], QDateTime(
             QDate(2004, 3, 4), QTime(13, 41, 52)))

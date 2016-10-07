@@ -87,7 +87,7 @@ QList<QgsLabelFeature*> QgsVectorLayerDiagramProvider::labelFeatures( QgsRenderC
     return mFeatures;
   }
 
-  QStringList attributeNames;
+  QSet<QString> attributeNames;
   if ( !prepare( context, attributeNames ) )
     return QList<QgsLabelFeature*>();
 
@@ -155,7 +155,7 @@ void QgsVectorLayerDiagramProvider::drawLabel( QgsRenderContext& context, pal::L
 }
 
 
-bool QgsVectorLayerDiagramProvider::prepare( const QgsRenderContext& context, QStringList& attributeNames )
+bool QgsVectorLayerDiagramProvider::prepare( const QgsRenderContext& context, QSet<QString>& attributeNames )
 {
   QgsDiagramLayerSettings& s2 = mSettings;
   const QgsMapSettings& mapSettings = mEngine->mapSettings();
@@ -177,11 +177,7 @@ bool QgsVectorLayerDiagramProvider::prepare( const QgsRenderContext& context, QS
   s2.setRenderer( mDiagRenderer );
 
   //add attributes needed by the diagram renderer
-  Q_FOREACH ( const QString& field, s2.referencedFields( context.expressionContext(), mFields ) )
-  {
-    if ( !attributeNames.contains( field ) )
-      attributeNames << field;
-  }
+  attributeNames.unite( s2.referencedFields( context.expressionContext(), mFields ) );
 
   return true;
 }
@@ -229,13 +225,14 @@ QgsLabelFeature* QgsVectorLayerDiagramProvider::registerDiagram( QgsFeature& fea
   }
 
   const GEOSGeometry* geos_geom = nullptr;
-  QScopedPointer<QgsGeometry> preparedGeom;
+  QScopedPointer<QgsGeometry> scopedPreparedGeom;
   if ( QgsPalLabeling::geometryRequiresPreparation( geom, context, mSettings.coordinateTransform(), &extentGeom ) )
   {
-    QgsGeometry preparedGeom = QgsPalLabeling::prepareGeometry( geom, context, mSettings.coordinateTransform(), &extentGeom );
-    if ( preparedGeom.isEmpty() )
+    scopedPreparedGeom.reset( new QgsGeometry( QgsPalLabeling::prepareGeometry( geom, context, mSettings.coordinateTransform(), &extentGeom ) ) );
+    QgsGeometry* preparedGeom = scopedPreparedGeom.data();
+    if ( preparedGeom->isEmpty() )
       return nullptr;
-    geos_geom = preparedGeom.asGeos();
+    geos_geom = preparedGeom->asGeos();
   }
   else
   {

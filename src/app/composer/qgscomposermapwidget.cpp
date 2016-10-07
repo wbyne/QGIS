@@ -48,6 +48,7 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap )
     , mComposerMap( composerMap )
 {
   setupUi( this );
+  setPanelTitle( tr( "Map properties" ) );
 
   //add widget for general composer item properties
   QgsComposerItemWidget* itemPropertiesWidget = new QgsComposerItemWidget( this, composerMap );
@@ -135,7 +136,7 @@ QgsComposerMapWidget::QgsComposerMapWidget( QgsComposerMap* composerMap )
   // keep layers from preset button
   QMenu* menuKeepLayers = new QMenu( this );
   mLayerListFromPresetButton->setMenu( menuKeepLayers );
-  mLayerListFromPresetButton->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ) );
+  mLayerListFromPresetButton->setIcon( QgsApplication::getThemeIcon( "/mActionShowAllLayers.svg" ) );
   mLayerListFromPresetButton->setToolTip( tr( "Set layer list from a map theme" ) );
   connect( menuKeepLayers, SIGNAL( aboutToShow() ), this, SLOT( aboutToShowKeepLayersVisibilityPresetsMenu() ) );
 
@@ -1006,10 +1007,6 @@ void QgsComposerMapWidget::handleChangedAnnotationPosition( QgsComposerMapGrid::
   {
     grid->setAnnotationPosition( QgsComposerMapGrid::InsideMapFrame, border );
   }
-  else if ( text == tr( "Disabled" ) )
-  {
-    grid->setAnnotationPosition( QgsComposerMapGrid::Disabled, border );
-  }
   else //Outside frame
   {
     grid->setAnnotationPosition( QgsComposerMapGrid::OutsideMapFrame, border );
@@ -1733,7 +1730,7 @@ void QgsComposerMapWidget::on_mGridFramePenColorButton_colorChanged( const QColo
     return;
   }
 
-  mComposerMap->beginCommand( tr( "Grid frame color changed" ) );
+  mComposerMap->beginCommand( tr( "Grid frame color changed" ), QgsComposerMergeCommand::ComposerMapGridFramePenColor );
   grid->setFramePenColor( newColor );
   mComposerMap->update();
   mComposerMap->endCommand();
@@ -1747,7 +1744,7 @@ void QgsComposerMapWidget::on_mGridFrameFill1ColorButton_colorChanged( const QCo
     return;
   }
 
-  mComposerMap->beginCommand( tr( "Grid frame first fill color changed" ) );
+  mComposerMap->beginCommand( tr( "Grid frame first fill color changed" ), QgsComposerMergeCommand::ComposerMapGridFrameFill1Color );
   grid->setFrameFillColor1( newColor );
   mComposerMap->update();
   mComposerMap->endCommand();
@@ -1761,7 +1758,7 @@ void QgsComposerMapWidget::on_mGridFrameFill2ColorButton_colorChanged( const QCo
     return;
   }
 
-  mComposerMap->beginCommand( tr( "Grid frame second fill color changed" ) );
+  mComposerMap->beginCommand( tr( "Grid frame second fill color changed" ), QgsComposerMergeCommand::ComposerMapGridFrameFill2Color );
   grid->setFrameFillColor2( newColor );
   mComposerMap->update();
   mComposerMap->endCommand();
@@ -2080,7 +2077,7 @@ void QgsComposerMapWidget::on_mAnnotationFontColorButton_colorChanged( const QCo
     return;
   }
 
-  mComposerMap->beginCommand( tr( "Annotation color changed" ) );
+  mComposerMap->beginCommand( tr( "Annotation color changed" ), QgsComposerMergeCommand::ComposerMapGridAnnotationFontColor );
   grid->setAnnotationFontColor( color );
   mComposerMap->update();
   mComposerMap->endCommand();

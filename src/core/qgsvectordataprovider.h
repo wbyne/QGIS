@@ -27,6 +27,8 @@ class QTextCodec;
 #include "qgsdataprovider.h"
 #include "qgsfeature.h"
 #include "qgsaggregatecalculator.h"
+#include "qgsmaplayerdependency.h"
+#include "qgsrelation.h"
 
 typedef QList<int> QgsAttributeList;
 typedef QSet<int> QgsAttributeIds;
@@ -79,7 +81,7 @@ class CORE_EXPORT QgsVectorDataProvider : public QgsDataProvider
       ChangeGeometries =                            1 <<  8,
       /** Allows user to select encoding */
       SelectEncoding =                              1 << 13,
-      /** DEPRECATED - do not use */
+      /** Can create indexes on provider's fields */
       CreateAttributeIndex =                        1 << 12,
       /** Supports simplification of geometries on provider side according to a distance tolerance */
       SimplifyGeometries =                          1 << 14,
@@ -351,7 +353,7 @@ class CORE_EXPORT QgsVectorDataProvider : public QgsDataProvider
 
     struct NativeType
     {
-      NativeType( const QString& typeDesc, const QString& typeName, QVariant::Type type, int minLen = 0, int maxLen = 0, int minPrec = 0, int maxPrec = 0 )
+      NativeType( const QString& typeDesc, const QString& typeName, QVariant::Type type, int minLen = 0, int maxLen = 0, int minPrec = 0, int maxPrec = 0, QVariant::Type subType = QVariant::Invalid )
           : mTypeDesc( typeDesc )
           , mTypeName( typeName )
           , mType( type )
@@ -359,6 +361,7 @@ class CORE_EXPORT QgsVectorDataProvider : public QgsDataProvider
           , mMaxLen( maxLen )
           , mMinPrec( minPrec )
           , mMaxPrec( maxPrec )
+          , mSubType( subType )
       {}
 
       QString mTypeDesc;
@@ -368,6 +371,7 @@ class CORE_EXPORT QgsVectorDataProvider : public QgsDataProvider
       int mMaxLen;
       int mMinPrec;
       int mMaxPrec;
+      QVariant::Type mSubType;
     };
 
     /**
@@ -428,7 +432,16 @@ class CORE_EXPORT QgsVectorDataProvider : public QgsDataProvider
     /**
      * Get the list of layer ids on which this layer depends. This in particular determines the order of layer loading.
      */
-    virtual QSet<QString> layerDependencies() const;
+    virtual QSet<QgsMapLayerDependency> dependencies() const;
+
+    /**
+     * Discover the available relations with the given layers.
+     * @param self the layer using this data provider.
+     * @param layers the other layers.
+     * @return the list of N-1 relations from this provider.
+     * @note added in QGIS 3.0
+     */
+    virtual QList<QgsRelation> discoverRelations( const QgsVectorLayer* self, const QList<QgsVectorLayer*>& layers ) const;
 
   signals:
     /** Signals an error in this provider */

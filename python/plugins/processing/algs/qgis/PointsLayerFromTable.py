@@ -57,7 +57,7 @@ class PointsLayerFromTable(GeoAlgorithm):
                                               self.tr('Y field'), self.INPUT, ParameterTableField.DATA_TYPE_ANY))
         self.addParameter(ParameterCrs(self.TARGET_CRS,
                                        self.tr('Target CRS'), 'EPSG:4326'))
-        self.addOutput(OutputVector(self.OUTPUT, self.tr('Points from table')))
+        self.addOutput(OutputVector(self.OUTPUT, self.tr('Points from table'), datatype=[dataobjects.TYPE_VECTOR_POINT]))
 
     def processAlgorithm(self, progress):
         source = self.getParameterValue(self.INPUT)
@@ -65,8 +65,8 @@ class PointsLayerFromTable(GeoAlgorithm):
         output = self.getOutputFromName(self.OUTPUT)
         fields = vlayer.fields()
         writer = output.getVectorWriter(fields, QgsWkbTypes.Point, self.crs)
-        xfieldindex = vlayer.fieldNameIndex(self.getParameterValue(self.XFIELD))
-        yfieldindex = vlayer.fieldNameIndex(self.getParameterValue(self.YFIELD))
+        xfieldindex = vlayer.fields().lookupField(self.getParameterValue(self.XFIELD))
+        yfieldindex = vlayer.fields().lookupField(self.getParameterValue(self.YFIELD))
 
         crsId = self.getParameterValue(self.TARGET_CRS)
         targetCrs = QgsCoordinateReferenceSystem()

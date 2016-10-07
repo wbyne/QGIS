@@ -40,6 +40,7 @@ extern "C"
 #include "qgsgeometry.h"
 #include "qgsrectangle.h"
 #include "qgsconfig.h"
+#include "qgsunittypes.h"
 
 #include <QByteArray>
 #include <QFileDialog>
@@ -395,7 +396,7 @@ char GRASS_LIB_EXPORT *QgsGrassGisLib::G_find_cell2( const char * name, const ch
     return 0;
   }
   QString ms = "qgis";
-  return qstrdup( ms.toAscii() );  // memory lost
+  return qstrdup( ms.toLatin1() );  // memory lost
 }
 
 char GRASS_LIB_EXPORT *G__file_name( char *path, const char *element, const char *name, const char *mapset )
@@ -1060,7 +1061,7 @@ int GRASS_LIB_EXPORT G_get_cellhd( const char *name, const char *mapset, struct 
 
 double QgsGrassGisLib::G_database_units_to_meters_factor( void )
 {
-  return QGis::fromUnitToUnitFactor( mCrs.mapUnits(), Qgis::Meters );
+  return QgsUnitTypes::fromUnitToUnitFactor( mCrs.mapUnits(), QgsUnitTypes::DistanceMeters );
 }
 
 double QgsGrassGisLib::G_area_of_cell_at_row( int row )
@@ -1333,7 +1334,7 @@ char GRASS_LIB_EXPORT *G_tempfile( void )
   QTemporaryFile file( "qgis-grass-temp.XXXXXX" );
   QString name = file.fileName();
   file.open();
-  return name.toAscii().data();
+  return name.toLatin1().data();
 }
 
 char GRASS_LIB_EXPORT *G_mapset( void )

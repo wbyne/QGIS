@@ -44,7 +44,7 @@ class EquivalentNumField(GeoAlgorithm):
         self.name, self.i18n_name = self.trAlgorithm('Add unique value index field')
         self.group, self.i18n_group = self.trAlgorithm('Vector table tools')
         self.addParameter(ParameterVector(self.INPUT,
-                                          self.tr('Input layer'), [ParameterVector.VECTOR_TYPE_ANY]))
+                                          self.tr('Input layer')))
         self.addParameter(ParameterTableField(self.FIELD,
                                               self.tr('Class field'), self.INPUT))
         self.addOutput(OutputVector(self.OUTPUT, self.tr('Layer with index field')))
@@ -54,7 +54,7 @@ class EquivalentNumField(GeoAlgorithm):
         output = self.getOutputFromName(self.OUTPUT)
         vlayer = dataobjects.getObjectFromUri(
             self.getParameterValue(self.INPUT))
-        fieldindex = vlayer.fieldNameIndex(fieldname)
+        fieldindex = vlayer.fields().lookupField(fieldname)
         fields = vlayer.fields()
         fields.append(QgsField('NUM_FIELD', QVariant.Int))
         writer = output.getVectorWriter(fields, vlayer.wkbType(),
@@ -72,7 +72,7 @@ class EquivalentNumField(GeoAlgorithm):
             clazz = atMap[fieldindex]
 
             if clazz not in classes:
-                classes[clazz] = len(classes.keys())
+                classes[clazz] = len(list(classes.keys()))
 
             atMap.append(classes[clazz])
             outFeat.setAttributes(atMap)

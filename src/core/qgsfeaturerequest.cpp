@@ -14,7 +14,7 @@
  ***************************************************************************/
 #include "qgsfeaturerequest.h"
 
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 
 #include <QStringList>
@@ -208,7 +208,28 @@ QgsFeatureRequest& QgsFeatureRequest::setSubsetOfAttributes( const QStringList& 
 
   Q_FOREACH ( const QString& attrName, attrNames )
   {
-    int attrNum = fields.fieldNameIndex( attrName );
+    int attrNum = fields.lookupField( attrName );
+    if ( attrNum != -1 && !mAttrs.contains( attrNum ) )
+      mAttrs.append( attrNum );
+  }
+
+  return *this;
+}
+
+QgsFeatureRequest& QgsFeatureRequest::setSubsetOfAttributes( const QSet<QString>& attrNames, const QgsFields& fields )
+{
+  if ( attrNames.contains( QgsFeatureRequest::AllAttributes ) )
+  {
+    //attribute string list contains the all attributes flag, so we must fetch all attributes
+    return *this;
+  }
+
+  mFlags |= SubsetOfAttributes;
+  mAttrs.clear();
+
+  Q_FOREACH ( const QString& attrName, attrNames )
+  {
+    int attrNum = fields.lookupField( attrName );
     if ( attrNum != -1 && !mAttrs.contains( attrNum ) )
       mAttrs.append( attrNum );
   }
@@ -387,7 +408,7 @@ QSet<QString> QgsFeatureRequest::OrderBy::usedAttributes() const
   {
     const OrderByClause& clause = *it;
 
-    usedAttributes.unite( clause.expression().referencedColumns().toSet() );
+    usedAttributes.unite( clause.expression().referencedColumns() );
   }
 
   return usedAttributes;

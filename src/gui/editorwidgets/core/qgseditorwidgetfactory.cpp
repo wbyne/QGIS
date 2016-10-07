@@ -16,7 +16,7 @@
 #include "qgseditorwidgetfactory.h"
 #include "qgsdefaultsearchwidgetwrapper.h"
 #include "qgssearchwidgetwrapper.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsvectordataprovider.h"
 
 #include <QSettings>
@@ -116,10 +116,10 @@ QgsEditorWidgetConfig QgsEditorWidgetFactory::readConfig( const QDomElement& con
   return QgsEditorWidgetConfig();
 }
 
-bool QgsEditorWidgetFactory::isFieldSupported( QgsVectorLayer* vl, int fieldIdx )
+unsigned int QgsEditorWidgetFactory::fieldScore( const QgsVectorLayer* vl, int fieldIdx ) const
 {
   Q_UNUSED( vl )
   Q_UNUSED( fieldIdx )
-  return true;
+  return 5;
 }
 

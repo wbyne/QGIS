@@ -79,7 +79,7 @@ int QgsGml::getFeatures( const QString& uri, QgsWkbTypes::Type* wkbType, QgsRect
   }
   else if ( !userName.isNull() || !password.isNull() )
   {
-    request.setRawHeader( "Authorization", "Basic " + QString( "%1:%2" ).arg( userName, password ).toAscii().toBase64() );
+    request.setRawHeader( "Authorization", "Basic " + QString( "%1:%2" ).arg( userName, password ).toLatin1().toBase64() );
   }
   QNetworkReply* reply = QgsNetworkAccessManager::instance()->get( request );
 
@@ -453,7 +453,7 @@ QVector<QgsGmlStreamingParser::QgsGmlFeaturePtrGmlIdPair> QgsGmlStreamingParser:
 }
 
 #define LOCALNAME_EQUALS(string_constant) \
-  ( localNameLen == strlen( string_constant ) && memcmp(pszLocalName, string_constant, localNameLen) == 0 )
+  ( localNameLen == ( int )strlen( string_constant ) && memcmp(pszLocalName, string_constant, localNameLen) == 0 )
 
 void QgsGmlStreamingParser::startElement( const XML_Char* el, const XML_Char** attr )
 {
@@ -674,7 +674,7 @@ void QgsGmlStreamingParser::startElement( const XML_Char* el, const XML_Char** a
     isGeom = true;
   }
   else if ( isGMLNS &&
-            localNameLen == strlen( "Polygon" ) && memcmp( pszLocalName, "Polygon", localNameLen ) == 0 )
+            localNameLen == ( int )strlen( "Polygon" ) && memcmp( pszLocalName, "Polygon", localNameLen ) == 0 )
   {
     isGeom = true;
     mCurrentWKBFragments.push_back( QList<QgsWkbPtr>() );

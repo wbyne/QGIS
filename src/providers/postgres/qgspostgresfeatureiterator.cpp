@@ -93,13 +93,10 @@ QgsPostgresFeatureIterator::QgsPostgresFeatureIterator( QgsPostgresFeatureSource
     if ( mRequest.flags() & QgsFeatureRequest::SubsetOfAttributes )
     {
       QgsAttributeList attrs = mRequest.subsetOfAttributes();
-      Q_FOREACH ( const QString& field, request.filterExpression()->referencedColumns() )
-      {
-        int attrIdx = mSource->mFields.fieldNameIndex( field );
-        if ( !attrs.contains( attrIdx ) )
-          attrs << attrIdx;
-      }
-      mRequest.setSubsetOfAttributes( attrs );
+      //ensure that all fields required for filter expressions are prepared
+      QSet<int> attributeIndexes = request.filterExpression()->referencedAttributeIndexes( mSource->mFields );
+      attributeIndexes += attrs.toSet();
+      mRequest.setSubsetOfAttributes( attributeIndexes.toList() );
     }
     mFilterRequiresGeometry = request.filterExpression()->needsGeometry();
 
@@ -739,7 +736,7 @@ bool QgsPostgresFeatureIterator::getFeature( QgsPostgresResult &queryResult, int
       {
         QgsField fld = mSource->mFields.at( idx );
 
-        QVariant v = QgsPostgresProvider::convertValue( fld.type(), queryResult.PQgetvalue( row, col ) );
+        QVariant v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ) );
         primaryKeyVals << v;
 
         if ( !subsetOfAttributes || fetchAttributes.contains( idx ) )
@@ -781,7 +778,8 @@ void QgsPostgresFeatureIterator::getFeatureAttribute( int idx, QgsPostgresResult
   if ( mSource->mPrimaryKeyAttrs.contains( idx ) )
     return;
 
-  QVariant v = QgsPostgresProvider::convertValue( mSource->mFields.at( idx ).type(), queryResult.PQgetvalue( row, col ) );
+  const QgsField fld = mSource->mFields.at( idx );
+  QVariant v = QgsPostgresProvider::convertValue( fld.type(), fld.subType(), queryResult.PQgetvalue( row, col ) );
   feature.setAttribute( idx, v );
 
   col++;

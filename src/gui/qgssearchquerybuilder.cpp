@@ -25,7 +25,7 @@
 #include <QTextStream>
 #include "qgsfeature.h"
 #include "qgsfeatureiterator.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgssearchquerybuilder.h"
 #include "qgsexpression.h"
 #include "qgsvectorlayer.h"
@@ -379,7 +379,7 @@ void QgsSearchQueryBuilder::saveQuery()
   }
 
   QFile saveFile( saveFileName );
-  if ( !saveFile.open( QIODevice::WriteOnly ) )
+  if ( !saveFile.open( QIODevice::WriteOnly | QIODevice::Truncate ) )
   {
     QMessageBox::critical( nullptr, tr( "Error" ), tr( "Could not open file for writing" ) );
     return;

@@ -26,15 +26,13 @@
 #include <QSettings>
 #include <QRegExp>
 #include <QUrl>
-#if QT_VERSION >= 0x050000
 #include <QUrlQuery>
-#endif
 
 #include "qgsapplication.h"
 #include "qgsdataprovider.h"
 #include "qgsexpression.h"
 #include "qgsfeature.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsmessagelog.h"
@@ -94,7 +92,7 @@ QgsDelimitedTextProvider::QgsDelimitedTextProvider( const QString& uri )
 
   QgsDebugMsg( "Delimited text file uri is " + uri );
 
-  QUrl url = QUrl::fromEncoded( uri.toAscii() );
+  QUrl url = QUrl::fromEncoded( uri.toLatin1() );
   mFile = new QgsDelimitedTextFile();
   mFile->setFromUrl( url );
 
@@ -155,12 +153,8 @@ QgsDelimitedTextProvider::QgsDelimitedTextProvider( const QString& uri )
 
   if ( url.hasQueryItem( "subset" ) )
   {
-#if QT_VERSION < 0x050000
-    subset = url.queryItemValue( "subset" );
-#else
     // We need to specify FullyDecoded so that %25 is decoded as %
     subset = QUrlQuery( url ).queryItemValue( "subset" , QUrl::FullyDecoded );
-#endif
     QgsDebugMsg( "subset is: " + subset );
   }
 
@@ -1089,7 +1083,7 @@ bool QgsDelimitedTextProvider::setSubsetString( const QString& subset, bool upda
 
 void QgsDelimitedTextProvider::setUriParameter( const QString& parameter, const QString& value )
 {
-  QUrl url = QUrl::fromEncoded( dataSourceUri().toAscii() );
+  QUrl url = QUrl::fromEncoded( dataSourceUri().toLatin1() );
   if ( url.hasQueryItem( parameter ) ) url.removeAllQueryItems( parameter );
   if ( ! value.isEmpty() ) url.addQueryItem( parameter, value );
   setDataSourceUri( QString::fromAscii( url.toEncoded() ) );

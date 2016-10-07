@@ -24,10 +24,10 @@ class QgsNullSymbolRenderer : QgsFeatureRenderer
     virtual void stopRender( QgsRenderContext& context );
     virtual bool willRenderFeature( QgsFeature& feat, QgsRenderContext& context );
 
-    virtual QList<QString> usedAttributes();
+    virtual QSet<QString> usedAttributes() const;
     virtual QString dump() const;
     virtual QgsFeatureRenderer* clone() const /Factory/;
-    virtual QgsSymbolList symbols( QgsRenderContext& context ) /PyName=symbols2/;
+    virtual QgsSymbolList symbols( QgsRenderContext& context );
 
     /** Creates a null renderer from XML element.
      * @param element DOM element

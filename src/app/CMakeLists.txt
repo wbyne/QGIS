@@ -28,6 +28,7 @@ SET(QGIS_APP_SRCS
   qgsdecorationscalebardialog.cpp
   qgsdecorationgrid.cpp
   qgsdecorationgriddialog.cpp
+  qgsdiscoverrelationsdlg.cpp
   qgsdxfexportdialog.cpp
   qgsformannotationdialog.cpp
   qgsguivectorlayertools.cpp
@@ -114,6 +115,7 @@ SET(QGIS_APP_SRCS
   qgsrelationadddlg.cpp
   qgsselectbyformdialog.cpp
   qgsstatisticalsummarydockwidget.cpp
+  qgssubstitutionlistwidget.cpp
   qgstextannotationdialog.cpp
   qgssnappingdialog.cpp
   qgssvgannotationdialog.cpp
@@ -142,7 +144,6 @@ SET(QGIS_APP_SRCS
   composer/qgscomposershapewidget.cpp
   composer/qgscomposerpolygonwidget.cpp
   composer/qgscomposerpolylinewidget.cpp
-  composer/qgscomposertablewidget.cpp
   composer/qgscomposertablebackgroundcolorsdialog.cpp
   composer/qgscomposerlegenditemdialog.cpp
   composer/qgscomposerlegendlayersdialog.cpp
@@ -207,6 +208,7 @@ SET (QGIS_APP_MOC_HDRS
   qgsdecorationgriddialog.h
   qgsdelattrdialog.h
   qgsdiagramproperties.h
+  qgsdiscoverrelationsdlg.h
   qgsdisplayangle.h
   qgsdxfexportdialog.h
   qgsfeatureaction.h
@@ -290,6 +292,7 @@ SET (QGIS_APP_MOC_HDRS
   qgssnappingdialog.h
   qgssponsors.h
   qgsstatisticalsummarydockwidget.h
+  qgssubstitutionlistwidget.h
   qgssvgannotationdialog.h
   qgstextannotationdialog.h
   qgstipgui.h
@@ -314,7 +317,6 @@ SET (QGIS_APP_MOC_HDRS
   composer/qgscomposermapwidget.h
   composer/qgscomposerpicturewidget.h
   composer/qgscomposerscalebarwidget.h
-  composer/qgscomposertablewidget.h
   composer/qgscomposertablebackgroundcolorsdialog.h
   composer/qgscomposershapewidget.h
   composer/qgscomposerpolygonwidget.h
@@ -345,7 +347,7 @@ SET (QGIS_APP_MOC_HDRS
   qgsvariantdelegate.h
   )
 
-SET (WITH_QWTPOLAR TRUE CACHE BOOL "Determines whether QwtPolar should be built")
+SET (WITH_QWTPOLAR FALSE CACHE BOOL "Determines whether QwtPolar should be built")
 
 IF (WITH_QWTPOLAR)
   ADD_DEFINITIONS(-DWITH_QWTPOLAR)
@@ -465,13 +467,13 @@ ENDIF (POSTGRES_FOUND)
 
 SET(IMAGE_RCCS ../../images/images.qrc)
 
-QT4_ADD_RESOURCES(IMAGE_RCC_SRCS ${IMAGE_RCCS})
+QT5_ADD_RESOURCES(IMAGE_RCC_SRCS ${IMAGE_RCCS})
 
 # add test resources, e.g. standard test font
 SET(TEST_RCCS ../../tests/testdata/testdata.qrc)
-QT4_ADD_RESOURCES(TEST_RCC_SRCS ${TEST_RCCS})
+QT5_ADD_RESOURCES(TEST_RCC_SRCS ${TEST_RCCS})
 
-QT4_WRAP_CPP(QGIS_APP_MOC_SRCS ${QGIS_APP_MOC_HDRS})
+QT5_WRAP_CPP(QGIS_APP_MOC_SRCS ${QGIS_APP_MOC_HDRS})
 
 SET (QGIS_APPMAIN_SRCS main.cpp)
 

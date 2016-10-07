@@ -22,7 +22,7 @@
 #include "qgsgeometry.h"
 #include <QScopedPointer>
 
-class QgsVectorColorRamp;
+class QgsColorRamp;
 
 /** \ingroup core
  * \class QgsHeatmapRenderer
@@ -46,7 +46,7 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
     //! @note symbol2 in python bindings
     virtual QgsSymbolList symbols( QgsRenderContext &context ) override;
     virtual QString dump() const override;
-    virtual QList<QString> usedAttributes() override;
+    virtual QSet<QString> usedAttributes() const override;
     static QgsFeatureRenderer* create( QDomElement& element );
     virtual QDomElement save( QDomDocument& doc ) override;
     static QgsHeatmapRenderer* convertFromRenderer( const QgsFeatureRenderer* renderer );
@@ -61,12 +61,12 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
      * @returns color ramp for heatmap
      * @see setColorRamp
      */
-    QgsVectorColorRamp* colorRamp() const { return mGradientRamp; }
+    QgsColorRamp* colorRamp() const { return mGradientRamp; }
     /** Sets the color ramp to use for shading the heatmap.
      * @param ramp color ramp for heatmap. Ownership of ramp is transferred to the renderer.
      * @see colorRamp
      */
-    void setColorRamp( QgsVectorColorRamp* ramp );
+    void setColorRamp( QgsColorRamp* ramp );
 
     /** Returns whether the ramp is inverted
      * @returns true if color ramp is inverted
@@ -185,7 +185,7 @@ class CORE_EXPORT QgsHeatmapRenderer : public QgsFeatureRenderer
     int mWeightAttrNum;
     QScopedPointer<QgsExpression> mWeightExpression;
 
-    QgsVectorColorRamp* mGradientRamp;
+    QgsColorRamp* mGradientRamp;
     bool mInvertRamp;
 
     double mExplicitMax;

@@ -432,7 +432,6 @@ QWidget* QgsProviderRegistry::selectWidget( const QString & providerKey,
   return selectFactory( parent, fl );
 }
 
-#if QT_VERSION >= 0x050000
 QFunctionPointer QgsProviderRegistry::function( QString const & providerKey,
     QString const & functionName )
 {
@@ -442,7 +441,7 @@ QFunctionPointer QgsProviderRegistry::function( QString const & providerKey,
 
   if ( myLib.load() )
   {
-    return myLib.resolve( functionName.toAscii().data() );
+    return myLib.resolve( functionName.toLatin1().data() );
   }
   else
   {
@@ -450,25 +449,6 @@ QFunctionPointer QgsProviderRegistry::function( QString const & providerKey,
     return 0;
   }
 }
-#else
-void *QgsProviderRegistry::function( QString const & providerKey,
-                                     QString const & functionName )
-{
-  QLibrary myLib( library( providerKey ) );
-
-  QgsDebugMsg( "Library name is " + myLib.fileName() );
-
-  if ( myLib.load() )
-  {
-    return myLib.resolve( functionName.toAscii().data() );
-  }
-  else
-  {
-    QgsDebugMsg( "Cannot load library: " + myLib.errorString() );
-    return nullptr;
-  }
-}
-#endif
 
 QLibrary *QgsProviderRegistry::providerLibrary( QString const & providerKey ) const
 {

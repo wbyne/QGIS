@@ -128,6 +128,7 @@ QgsPalLayerSettings::QgsPalLayerSettings()
   // font processing info
   mTextFontFound = true;
   mTextFontFamily = QApplication::font().family();
+  useSubstitutions = false;
 
   // text formatting
   wrapChar = "";
@@ -149,7 +150,7 @@ QgsPalLayerSettings::QgsPalLayerSettings()
   bufferColor = Qt::white;
   bufferTransp = 0;
   bufferNoFill = false;
-  bufferJoinStyle = Qt::BevelJoin;
+  bufferJoinStyle = Qt::RoundJoin;
   bufferBlendMode = QPainter::CompositionMode_SourceOver;
 
   // shape background
@@ -387,6 +388,8 @@ QgsPalLayerSettings& QgsPalLayerSettings::operator=( const QgsPalLayerSettings &
   // font processing info
   mTextFontFound = s.mTextFontFound;
   mTextFontFamily = s.mTextFontFamily;
+  substitutions = s.substitutions;
+  useSubstitutions = s.useSubstitutions;
 
   // text formatting
   wrapChar = s.wrapChar;
@@ -847,7 +850,11 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   blendMode = QgsPainting::getCompositionMode(
                 static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/blendMode", QVariant( QgsPainting::BlendNormal ) ).toUInt() ) );
   previewBkgrdColor = QColor( layer->customProperty( "labeling/previewBkgrdColor", QVariant( "#ffffff" ) ).toString() );
-
+  QDomDocument doc( "substitutions" );
+  doc.setContent( layer->customProperty( "labeling/substitutions" ).toString() );
+  QDomElement replacementElem = doc.firstChildElement( "substitutions" );
+  substitutions.readXml( replacementElem );
+  useSubstitutions = layer->customProperty( "labeling/useSubstitutions" ).toBool();
 
   // text formatting
   wrapChar = layer->customProperty( "labeling/wrapChar" ).toString();
@@ -898,7 +905,7 @@ void QgsPalLayerSettings::readFromLayer( QgsVectorLayer* layer )
   bufferTransp = layer->customProperty( "labeling/bufferTransp" ).toInt();
   bufferBlendMode = QgsPainting::getCompositionMode(
                       static_cast< QgsPainting::BlendMode >( layer->customProperty( "labeling/bufferBlendMode", QVariant( QgsPainting::BlendNormal ) ).toUInt() ) );
-  bufferJoinStyle = static_cast< Qt::PenJoinStyle >( layer->customProperty( "labeling/bufferJoinStyle", QVariant( Qt::BevelJoin ) ).toUInt() );
+  bufferJoinStyle = static_cast< Qt::PenJoinStyle >( layer->customProperty( "labeling/bufferJoinStyle", QVariant( Qt::RoundJoin ) ).toUInt() );
   bufferNoFill = layer->customProperty( "labeling/bufferNoFill", QVariant( false ) ).toBool();
 
   // background
@@ -1127,6 +1134,14 @@ void QgsPalLayerSettings::writeToLayer( QgsVectorLayer* layer )
   layer->setCustomProperty( "labeling/textTransp", textTransp );
   layer->setCustomProperty( "labeling/blendMode", QgsPainting::getBlendModeEnum( blendMode ) );
   layer->setCustomProperty( "labeling/previewBkgrdColor", previewBkgrdColor.name() );
+  QDomDocument doc( "substitutions" );
+  QDomElement replacementElem = doc.createElement( "substitutions" );
+  substitutions.writeXml( replacementElem, doc );
+  QString replacementProps;
+  QTextStream stream( &replacementProps );
+  replacementElem.save( stream, -1 );
+  layer->setCustomProperty( "labeling/substitutions", replacementProps );
+  layer->setCustomProperty( "labeling/useSubstitutions", useSubstitutions );
 
   // text formatting
   layer->setCustomProperty( "labeling/wrapChar", wrapChar );
@@ -1298,7 +1313,8 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   blendMode = QgsPainting::getCompositionMode(
                 static_cast< QgsPainting::BlendMode >( textStyleElem.attribute( "blendMode", QString::number( QgsPainting::BlendNormal ) ).toUInt() ) );
   previewBkgrdColor = QColor( textStyleElem.attribute( "previewBkgrdColor", "#ffffff" ) );
-
+  substitutions.readXml( textStyleElem.firstChildElement( "substitutions" ) );
+  useSubstitutions = textStyleElem.attribute( "useSubstitutions" ).toInt();
 
   // text formatting
   QDomElement textFormatElem = elem.firstChildElement( "text-format" );
@@ -1351,7 +1367,7 @@ void QgsPalLayerSettings::readXml( QDomElement& elem )
   bufferTransp = textBufferElem.attribute( "bufferTransp" ).toInt();
   bufferBlendMode = QgsPainting::getCompositionMode(
                       static_cast< QgsPainting::BlendMode >( textBufferElem.attribute( "bufferBlendMode", QString::number( QgsPainting::BlendNormal ) ).toUInt() ) );
-  bufferJoinStyle = static_cast< Qt::PenJoinStyle >( textBufferElem.attribute( "bufferJoinStyle", QString::number( Qt::BevelJoin ) ).toUInt() );
+  bufferJoinStyle = static_cast< Qt::PenJoinStyle >( textBufferElem.attribute( "bufferJoinStyle", QString::number( Qt::RoundJoin ) ).toUInt() );
   bufferNoFill = textBufferElem.attribute( "bufferNoFill", "0" ).toInt();
 
   // background
@@ -1564,6 +1580,10 @@ QDomElement QgsPalLayerSettings::writeXml( QDomDocument& doc )
   textStyleElem.setAttribute( "textTransp", textTransp );
   textStyleElem.setAttribute( "blendMode", QgsPainting::getBlendModeEnum( blendMode ) );
   textStyleElem.setAttribute( "previewBkgrdColor", previewBkgrdColor.name() );
+  QDomElement replacementElem = doc.createElement( "substitutions" );
+  substitutions.writeXml( replacementElem, doc );
+  textStyleElem.appendChild( replacementElem );
+  textStyleElem.setAttribute( "useSubstitutions", useSubstitutions );
 
   // text formatting
   QDomElement textFormatElem = doc.createElement( "text-format" );
@@ -2282,6 +2302,7 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
 
   // calculate rest of font attributes and store any data defined values
   // this is done here for later use in making label backgrounds part of collision management (when implemented)
+  labelFont.setCapitalization( QFont::MixedCase ); // reset this - we don't use QFont's handling as it breaks with curved labels
   parseTextStyle( labelFont, fontunits, context );
   parseTextFormatting( context );
   parseTextBuffer( context );
@@ -2313,6 +2334,47 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
     const QVariant &v = f.attribute( fieldIndex );
     labelText = v.isNull() ? "" : v.toString();
   }
+
+  // apply text replacements
+  if ( useSubstitutions )
+  {
+    labelText = substitutions.process( labelText );
+  }
+
+  // apply capitalization
+  QgsStringUtils::Capitalization capitalization = QgsStringUtils::MixedCase;
+  // maintain API - capitalization may have been set in textFont
+  if ( textFont.capitalization() != QFont::MixedCase )
+  {
+    capitalization = static_cast< QgsStringUtils::Capitalization >( textFont.capitalization() );
+  }
+  // data defined font capitalization?
+  if ( dataDefinedEvaluate( QgsPalLayerSettings::FontCase, exprVal, &context.expressionContext() ) )
+  {
+    QString fcase = exprVal.toString().trimmed();
+    QgsDebugMsgLevel( QString( "exprVal FontCase:%1" ).arg( fcase ), 4 );
+
+    if ( !fcase.isEmpty() )
+    {
+      if ( fcase.compare( "NoChange", Qt::CaseInsensitive ) == 0 )
+      {
+        capitalization = QgsStringUtils::MixedCase;
+      }
+      else if ( fcase.compare( "Upper", Qt::CaseInsensitive ) == 0 )
+      {
+        capitalization = QgsStringUtils::AllUppercase;
+      }
+      else if ( fcase.compare( "Lower", Qt::CaseInsensitive ) == 0 )
+      {
+        capitalization = QgsStringUtils::AllLowercase;
+      }
+      else if ( fcase.compare( "Capitalize", Qt::CaseInsensitive ) == 0 )
+      {
+        capitalization = QgsStringUtils::ForceFirstLetterToCapital;
+      }
+    }
+  }
+  labelText = QgsStringUtils::capitalize( labelText, capitalization );
 
   // data defined format numbers?
   bool formatnum = formatNumbers;
@@ -2428,11 +2490,8 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
     int simplifyHints = simplifyMethod.simplifyHints() | QgsMapToPixelSimplifier::SimplifyEnvelope;
     QgsMapToPixelSimplifier::SimplifyAlgorithm simplifyAlgorithm = static_cast< QgsMapToPixelSimplifier::SimplifyAlgorithm >( simplifyMethod.simplifyAlgorithm() );
     QgsGeometry g = geom;
-
-    if ( QgsMapToPixelSimplifier::simplifyGeometry( &g, simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm ) )
-    {
-      geom = g;
-    }
+    QgsMapToPixelSimplifier simplifier( simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm );
+    geom = simplifier.simplify( geom );
   }
 
   // whether we're going to create a centroid for polygon
@@ -2751,35 +2810,13 @@ void QgsPalLayerSettings::registerFeature( QgsFeature& f, QgsRenderContext &cont
           ydiff = yd;
         }
 
-        //project xPos and yPos from layer to map CRS
-        double z = 0;
-        if ( ct.isValid() && !ct.isShortCircuited() )
+        //project xPos and yPos from layer to map CRS, handle rotation
+        QgsGeometry ddPoint( new QgsPointV2( xPos, yPos ) );
+        if ( QgsPalLabeling::geometryRequiresPreparation( ddPoint, context, ct ) )
         {
-          try
-          {
-            ct.transformInPlace( xPos, yPos, z );
-          }
-          catch ( QgsCsException &e )
-          {
-            Q_UNUSED( e );
-            QgsDebugMsgLevel( QString( "Ignoring feature %1 due transformation exception on data-defined position" ).arg( f.id() ), 4 );
-            return;
-          }
-        }
-
-        //rotate position with map if data-defined
-        if ( dataDefinedPosition && m2p.mapRotation() )
-        {
-          const QgsPoint& center = context.extent().center();
-          QTransform t = QTransform::fromTranslate( center.x(), center.y() );
-          t.rotate( -m2p.mapRotation() );
-          t.translate( -center.x(), -center.y() );
-          qreal xPosR, yPosR;
-          qreal xPos_qreal = xPos, yPos_qreal = yPos;
-          t.map( xPos_qreal, yPos_qreal, &xPosR, &yPosR );
-          xPos = xPosR;
-          yPos = yPosR;
-
+          ddPoint = QgsPalLabeling::prepareGeometry( ddPoint, context, ct );
+          xPos = static_cast< QgsPointV2* >( ddPoint.geometry() )->x();
+          yPos = static_cast< QgsPointV2* >( ddPoint.geometry() )->y();
         }
 
         xPos += xdiff;
@@ -3019,12 +3056,8 @@ void QgsPalLayerSettings::registerObstacleFeature( QgsFeature& f, QgsRenderConte
   {
     int simplifyHints = simplifyMethod.simplifyHints() | QgsMapToPixelSimplifier::SimplifyEnvelope;
     QgsMapToPixelSimplifier::SimplifyAlgorithm simplifyAlgorithm = static_cast< QgsMapToPixelSimplifier::SimplifyAlgorithm >( simplifyMethod.simplifyAlgorithm() );
-    QgsGeometry g = geom;
-
-    if ( QgsMapToPixelSimplifier::simplifyGeometry( &g, simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm ) )
-    {
-      geom = g;
-    }
+    QgsMapToPixelSimplifier simplifier( simplifyHints, simplifyMethod.tolerance(), simplifyAlgorithm );
+    geom = simplifier.simplify( geom );
   }
 
   const GEOSGeometry* geos_geom = nullptr;
@@ -3339,7 +3372,6 @@ void QgsPalLayerSettings::parseTextStyle( QFont& labelFont,
     // copy over existing font settings
     //newFont = newFont.resolve( labelFont ); // should work, but let's be sure what's being copied
     newFont.setPixelSize( labelFont.pixelSize() );
-    newFont.setCapitalization( labelFont.capitalization() );
     newFont.setUnderline( labelFont.underline() );
     newFont.setStrikeOut( labelFont.strikeOut() );
     newFont.setWordSpacing( labelFont.wordSpacing() );
@@ -3375,39 +3407,6 @@ void QgsPalLayerSettings::parseTextStyle( QFont& labelFont,
     }
   }
   labelFont.setLetterSpacing( QFont::AbsoluteSpacing, scaleToPixelContext( letterspace, context, fontunits, false, fontSizeMapUnitScale ) );
-
-  // data defined font capitalization?
-  QFont::Capitalization fontcaps = labelFont.capitalization();
-  if ( dataDefinedEvaluate( QgsPalLayerSettings::FontCase, exprVal, &context.expressionContext() ) )
-  {
-    QString fcase = exprVal.toString().trimmed();
-    QgsDebugMsgLevel( QString( "exprVal FontCase:%1" ).arg( fcase ), 4 );
-
-    if ( !fcase.isEmpty() )
-    {
-      if ( fcase.compare( "NoChange", Qt::CaseInsensitive ) == 0 )
-      {
-        fontcaps = QFont::MixedCase;
-      }
-      else if ( fcase.compare( "Upper", Qt::CaseInsensitive ) == 0 )
-      {
-        fontcaps = QFont::AllUppercase;
-      }
-      else if ( fcase.compare( "Lower", Qt::CaseInsensitive ) == 0 )
-      {
-        fontcaps = QFont::AllLowercase;
-      }
-      else if ( fcase.compare( "Capitalize", Qt::CaseInsensitive ) == 0 )
-      {
-        fontcaps = QFont::Capitalize;
-      }
-
-      if ( fontcaps != labelFont.capitalization() )
-      {
-        labelFont.setCapitalization( fontcaps );
-      }
-    }
-  }
 
   // data defined strikeout font style?
   if ( dataDefinedEvaluate( QgsPalLayerSettings::Strikeout, exprVal, &context.expressionContext(), labelFont.strikeOut() ) )
@@ -3947,7 +3946,7 @@ void QgsPalLabeling::clearActiveLayer( const QString &layerID )
 }
 
 
-int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QStringList& attrNames, QgsRenderContext& ctx )
+int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QSet<QString>& attrNames, QgsRenderContext& ctx )
 {
   if ( !willUseLayer( layer ) )
   {
@@ -3975,7 +3974,7 @@ int QgsPalLabeling::prepareLayer( QgsVectorLayer* layer, QStringList& attrNames,
   return 1; // init successful
 }
 
-int QgsPalLabeling::prepareDiagramLayer( QgsVectorLayer* layer, QStringList& attrNames, QgsRenderContext& ctx )
+int QgsPalLabeling::prepareDiagramLayer( QgsVectorLayer* layer, QSet<QString>& attrNames, QgsRenderContext& ctx )
 {
   QgsVectorLayerDiagramProvider* dp = new QgsVectorLayerDiagramProvider( layer, false );
   // need to be added before calling prepare() - uses map settings from engine
@@ -3989,14 +3988,6 @@ int QgsPalLabeling::prepareDiagramLayer( QgsVectorLayer* layer, QStringList& att
   }
 
   return 1;
-}
-
-int QgsPalLabeling::addDiagramLayer( QgsVectorLayer* layer, const QgsDiagramLayerSettings *s )
-{
-  QgsDebugMsg( "Called addDiagramLayer()... need to use prepareDiagramLayer() instead!" );
-  Q_UNUSED( layer );
-  Q_UNUSED( s );
-  return 0;
 }
 
 void QgsPalLabeling::registerFeature( const QString& layerID, QgsFeature& f, QgsRenderContext &context )
@@ -4200,12 +4191,6 @@ void QgsPalLabeling::exit()
 {
   delete mEngine;
   mEngine = new QgsLabelingEngine();
-}
-
-QgsPalLayerSettings& QgsPalLabeling::layer( const QString& layerName )
-{
-  Q_UNUSED( layerName );
-  return mInvalidLayerSettings;
 }
 
 void QgsPalLabeling::dataDefinedTextStyle( QgsPalLayerSettings& tmpLyr,
@@ -4529,16 +4514,6 @@ void QgsPalLabeling::drawLabeling( QgsRenderContext& context )
 
 void QgsPalLabeling::deleteTemporaryData()
 {
-}
-
-QList<QgsLabelPosition> QgsPalLabeling::labelsAtPosition( const QgsPoint& p )
-{
-  return mEngine->results() ? mEngine->results()->labelsAtPosition( p ) : QList<QgsLabelPosition>();
-}
-
-QList<QgsLabelPosition> QgsPalLabeling::labelsWithinRect( const QgsRectangle& r )
-{
-  return mEngine->results() ? mEngine->results()->labelsWithinRect( r ) : QList<QgsLabelPosition>();
 }
 
 QgsLabelingResults *QgsPalLabeling::takeResults()

@@ -20,6 +20,7 @@ Based on qgis_pgis_topoview by Sandro Santilli <strk@keybit.net>
  *                                                                         *
  ***************************************************************************/
 """
+from builtins import str
 
 from qgis.PyQt.QtWidgets import QAction
 from qgis.PyQt.QtGui import QIcon
@@ -91,7 +92,7 @@ def run(item, action, mainwindow):
         mainwindow.infoBar.pushMessage("WARNING", u'Topology "{0}" is registered as having a srid of {1} in topology.topology, we will assume 0 (for unknown)'.format(item.schema().name, res[0]), QgsMessageBar.WARNING, mainwindow.iface.messageTimeout())
         toposrid = '0'
     else:
-        toposrid = unicode(res[0])
+        toposrid = str(res[0])
 
     # load layers into the current project
     toponame = item.schema().name
@@ -106,6 +107,9 @@ def run(item, action, mainwindow):
         supergroup = legend.addGroup(u'Topology "%s"' % toponame, False)
         provider = db.dbplugin().providerName()
         uri = db.uri()
+
+        # Force use of estimated metadata (topologies can be big)
+        uri.setUseEstimatedMetadata( True )
 
         # FACES
         group = legend.addGroup(u'Faces', False, supergroup)

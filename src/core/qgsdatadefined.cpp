@@ -18,7 +18,7 @@
 
 #include "qgslogger.h"
 #include "qgsexpression.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsvectorlayer.h"
 
 QgsDataDefined::QgsDataDefined( bool active,
@@ -142,25 +142,6 @@ QString QgsDataDefined::expressionOrField() const
   return d->useExpression ? d->expressionString : QString( "\"%1\"" ).arg( d->field );
 }
 
-bool QgsDataDefined::prepareExpression( QgsVectorLayer* layer )
-{
-  if ( layer )
-  {
-    return prepareExpression( QgsExpressionContextUtils::createFeatureBasedContext( QgsFeature(), layer->fields() ) );
-  }
-  else
-  {
-    //preparing expression without a layer set, so pass empty context
-    QgsExpressionContext empty;
-    return prepareExpression( empty );
-  }
-}
-
-bool QgsDataDefined::prepareExpression( const QgsFields &fields )
-{
-  return prepareExpression( QgsExpressionContextUtils::createFeatureBasedContext( QgsFeature(), fields ) );
-}
-
 bool QgsDataDefined::prepareExpression( const QgsExpressionContext& context )
 {
   if ( !d->useExpression || d->expressionString.isEmpty() )
@@ -206,25 +187,7 @@ QgsExpression *QgsDataDefined::expression()
   return d->expression;
 }
 
-QStringList QgsDataDefined::referencedColumns( QgsVectorLayer* layer )
-{
-  if ( layer )
-  {
-    return referencedColumns( QgsExpressionContextUtils::createFeatureBasedContext( QgsFeature(), layer->fields() ) );
-  }
-  else
-  {
-    QgsExpressionContext empty;
-    return referencedColumns( empty );
-  }
-}
-
-QStringList QgsDataDefined::referencedColumns( const QgsFields &fields )
-{
-  return referencedColumns( QgsExpressionContextUtils::createFeatureBasedContext( QgsFeature(), fields ) );
-}
-
-QStringList QgsDataDefined::referencedColumns( const QgsExpressionContext& context )
+QSet<QString> QgsDataDefined::referencedColumns( const QgsExpressionContext& context )
 {
   if ( !d->exprRefColumns.isEmpty() )
   {

@@ -26,6 +26,7 @@ QgsComposerPolygonWidget::QgsComposerPolygonWidget( QgsComposerPolygon* composer
     , mComposerPolygon( composerPolygon )
 {
   setupUi( this );
+  setPanelTitle( tr( "Polygon properties" ) );
 
   //add widget for general composer item properties
   QgsComposerItemWidget* itemPropertiesWidget = new QgsComposerItemWidget( this, composerPolygon );
@@ -64,7 +65,9 @@ void QgsComposerPolygonWidget::on_mPolygonStyleButton_clicked()
   QgsExpressionContext context = mComposerPolygon->createExpressionContext();
   QgsSymbolSelectorDialog d( newSymbol.data(), QgsStyle::defaultStyle(),
                              coverageLayer, this );
-  d.setExpressionContext( &context );
+  QgsSymbolWidgetContext symbolContext;
+  symbolContext.setExpressionContext( &context );
+  d.setContext( symbolContext );
 
   if ( d.exec() == QDialog::Accepted )
   {

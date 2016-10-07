@@ -312,58 +312,6 @@ void QgsComposerAttributeTableV2::setFeatureFilter( const QString& expression )
   emit changed();
 }
 
-void QgsComposerAttributeTableV2::setDisplayAttributes( const QSet<int>& attr, bool refresh )
-{
-  QgsVectorLayer* source = sourceLayer();
-  if ( !source )
-  {
-    return;
-  }
-
-  //rebuild columns list, taking only attributes with index in supplied QSet
-  qDeleteAll( mColumns );
-  mColumns.clear();
-
-  const QgsFields& fields = source->fields();
-
-  if ( !attr.empty() )
-  {
-    QSet<int>::const_iterator attIt = attr.constBegin();
-    for ( ; attIt != attr.constEnd(); ++attIt )
-    {
-      int attrIdx = ( *attIt );
-      if ( !fields.exists( attrIdx ) )
-      {
-        continue;
-      }
-      QString currentAlias = source->attributeDisplayName( attrIdx );
-      QgsComposerTableColumn* col = new QgsComposerTableColumn;
-      col->setAttribute( fields.at( attrIdx ).name() );
-      col->setHeading( currentAlias );
-      mColumns.append( col );
-    }
-  }
-  else
-  {
-    //resetting, so add all attributes to columns
-    int idx = 0;
-    Q_FOREACH ( const QgsField& field, fields )
-    {
-      QString currentAlias = source->attributeDisplayName( idx );
-      QgsComposerTableColumn* col = new QgsComposerTableColumn;
-      col->setAttribute( field.name() );
-      col->setHeading( currentAlias );
-      mColumns.append( col );
-      idx++;
-    }
-  }
-
-  if ( refresh )
-  {
-    refreshAttributes();
-  }
-}
-
 void QgsComposerAttributeTableV2::setDisplayedFields( const QStringList& fields, bool refresh )
 {
   QgsVectorLayer* source = sourceLayer();
@@ -382,7 +330,7 @@ void QgsComposerAttributeTableV2::setDisplayedFields( const QStringList& fields,
   {
     Q_FOREACH ( const QString& field, fields )
     {
-      int attrIdx = layerFields.fieldNameIndex( field );
+      int attrIdx = layerFields.lookupField( field );
       if ( attrIdx < 0 )
         continue;
 
@@ -425,7 +373,7 @@ void QgsComposerAttributeTableV2::restoreFieldAliasMap( const QMap<int, QString>
   QList<QgsComposerTableColumn*>::const_iterator columnIt = mColumns.constBegin();
   for ( ; columnIt != mColumns.constEnd(); ++columnIt )
   {
-    int attrIdx = source->fieldNameIndex(( *columnIt )->attribute() );
+    int attrIdx = source->fields().lookupField(( *columnIt )->attribute() );
     if ( map.contains( attrIdx ) )
     {
       ( *columnIt )->setHeading( map.value( attrIdx ) );
@@ -551,7 +499,7 @@ bool QgsComposerAttributeTableV2::getTableContents( QgsComposerTableContents &co
     QList<QgsComposerTableColumn*>::const_iterator columnIt = mColumns.constBegin();
     for ( ; columnIt != mColumns.constEnd(); ++columnIt )
     {
-      int idx = layer->fieldNameIndex(( *columnIt )->attribute() );
+      int idx = layer->fields().lookupField(( *columnIt )->attribute() );
       if ( idx != -1 )
       {
         currentRow << replaceWrapChar( f.attributes().at( idx ) );

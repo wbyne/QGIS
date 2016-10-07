@@ -46,7 +46,7 @@
 #include "qgsexpressionselectiondialog.h"
 #include "qgsfeaturelistmodel.h"
 #include "qgsrubberband.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgseditorwidgetregistry.h"
 #include "qgsfieldproxymodel.h"
 
@@ -68,7 +68,7 @@ QgsExpressionContext QgsAttributeTableDialog::createExpressionContext() const
 
 void QgsAttributeTableDialog::updateMultiEditButtonState()
 {
-  if ( mLayer->editFormConfig()->layout() == QgsEditFormConfig::UiFileLayout )
+  if ( mLayer->editFormConfig().layout() == QgsEditFormConfig::UiFileLayout )
     return;
 
   mActionToggleMultiEdit->setEnabled( mLayer->isEditable() );
@@ -185,6 +185,7 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   connect( mLayer, SIGNAL( featuresDeleted( QgsFeatureIds ) ), this, SLOT( updateTitle() ) );
   connect( mLayer, SIGNAL( attributeAdded( int ) ), this, SLOT( columnBoxInit() ) );
   connect( mLayer, SIGNAL( attributeDeleted( int ) ), this, SLOT( columnBoxInit() ) );
+  connect( mLayer, &QgsVectorLayer::readOnlyChanged, this, &QgsAttributeTableDialog::editingToggled );
 
   // connect table info to window
   connect( mMainView, SIGNAL( filterChanged() ), this, SLOT( updateTitle() ) );
@@ -235,7 +236,6 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   mActionToggleEditing->blockSignals( true );
   mActionToggleEditing->setCheckable( true );
   mActionToggleEditing->setChecked( mLayer->isEditable() );
-  mActionToggleEditing->setEnabled(( canChangeAttributes || canDeleteFeatures || canAddAttributes || canDeleteAttributes || canAddFeatures ) && !mLayer->readOnly() );
   mActionToggleEditing->blockSignals( false );
 
   mActionSaveEdits->setEnabled( mActionToggleEditing->isEnabled() && mLayer->isEditable() );
@@ -275,7 +275,7 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   }
 
   mUpdateExpressionText->registerExpressionContextGenerator( this );
-  mFieldCombo->setFilters( QgsFieldProxyModel::All | QgsFieldProxyModel::HideReadOnly );
+  mFieldCombo->setFilters( QgsFieldProxyModel::AllTypes | QgsFieldProxyModel::HideReadOnly );
   mFieldCombo->setLayer( mLayer );
 
   connect( mRunFieldCalc, SIGNAL( clicked() ), this, SLOT( updateFieldFromExpression() ) );
@@ -298,7 +298,7 @@ QgsAttributeTableDialog::QgsAttributeTableDialog( QgsVectorLayer *theLayer, QWid
   connect( mActionSearchForm, SIGNAL( toggled( bool ) ), mMainView, SLOT( toggleSearchMode( bool ) ) );
   updateMultiEditButtonState();
 
-  if ( mLayer->editFormConfig()->layout() == QgsEditFormConfig::UiFileLayout )
+  if ( mLayer->editFormConfig().layout() == QgsEditFormConfig::UiFileLayout )
   {
     //not supported with custom UI
     mActionToggleMultiEdit->setEnabled( false );
@@ -387,11 +387,11 @@ void QgsAttributeTableDialog::columnBoxInit()
 
   Q_FOREACH ( const QgsField& field, fields )
   {
-    int idx = mLayer->fieldNameIndex( field.name() );
+    int idx = mLayer->fields().lookupField( field.name() );
     if ( idx < 0 )
       continue;
 
-    if ( mLayer->editFormConfig()->widgetType( idx ) != "Hidden" )
+    if ( QgsEditorWidgetRegistry::instance()->findBest( mLayer, field.name() ).type() != "Hidden" )
     {
       QIcon icon = mLayer->fields().iconForField( idx );
       QString alias = mLayer->attributeDisplayName( idx );
@@ -524,13 +524,12 @@ void QgsAttributeTableDialog::filterColumnChanged( QObject* filterAction )
   }
   QString fieldName = mFilterButton->defaultAction()->data().toString();
   // get the search widget
-  int fldIdx = mLayer->fieldNameIndex( fieldName );
+  int fldIdx = mLayer->fields().lookupField( fieldName );
   if ( fldIdx < 0 )
     return;
-  const QString widgetType = mLayer->editFormConfig()->widgetType( fldIdx );
-  const QgsEditorWidgetConfig widgetConfig = mLayer->editFormConfig()->widgetConfig( fldIdx );
+  const QgsEditorWidgetSetup setup = QgsEditorWidgetRegistry::instance()->findBest( mLayer, fieldName );
   mCurrentSearchWidgetWrapper = QgsEditorWidgetRegistry::instance()->
-                                createSearchWidget( widgetType, mLayer, fldIdx, widgetConfig, mFilterContainer, mEditorContext );
+                                createSearchWidget( setup.type(), mLayer, fldIdx, setup.config(), mFilterContainer, mEditorContext );
   if ( mCurrentSearchWidgetWrapper->applyDirectly() )
   {
     connect( mCurrentSearchWidgetWrapper, SIGNAL( expressionChanged( QString ) ), SLOT( filterQueryChanged( QString ) ) );
@@ -762,6 +761,7 @@ void QgsAttributeTableDialog::editingToggled()
   mActionRemoveAttribute->setEnabled( canDeleteAttributes && mLayer->isEditable() );
   mActionDeleteSelected->setEnabled( canDeleteFeatures && mLayer->isEditable() );
   mActionAddFeature->setEnabled( canAddFeatures && mLayer->isEditable() );
+  mActionToggleEditing->setEnabled(( canChangeAttributes || canDeleteFeatures || canAddAttributes || canDeleteAttributes || canAddFeatures ) && !mLayer->readOnly() );
 
   mUpdateExpressionBox->setVisible( mLayer->isEditable() );
   if ( mLayer->isEditable() && mFieldCombo->currentIndex() == -1 )

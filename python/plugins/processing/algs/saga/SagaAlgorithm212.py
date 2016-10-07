@@ -16,6 +16,10 @@
 *                                                                         *
 ***************************************************************************
 """
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 
 
 __author__ = 'Victor Olaya'
@@ -68,6 +72,7 @@ class SagaAlgorithm212(GeoAlgorithm):
         self.allowUnmatchingGridExtents = False
         self.descriptionFile = descriptionfile
         self.defineCharacteristicsFromFile()
+        self._icon = None
 
     def getCopy(self):
         newone = SagaAlgorithm212(self.descriptionFile)
@@ -75,7 +80,9 @@ class SagaAlgorithm212(GeoAlgorithm):
         return newone
 
     def getIcon(self):
-        return QIcon(os.path.join(pluginPath, 'images', 'saga.png'))
+        if self._icon is None:
+            self._icon = QIcon(os.path.join(pluginPath, 'images', 'saga.png'))
+        return self._icon
 
     def defineCharacteristicsFromFile(self):
         lines = open(self.descriptionFile)
@@ -89,13 +96,13 @@ class SagaAlgorithm212(GeoAlgorithm):
 
         else:
             self.cmdname = self.name
-            self.i18n_name = QCoreApplication.translate("SAGAAlgorithm", unicode(self.name))
+            self.i18n_name = QCoreApplication.translate("SAGAAlgorithm", str(self.name))
         #_commandLineName is the name used in processing to call the algorithm
         #Most of the time will be equal to the cmdname, but in same cases, several processing algorithms
         #call the same SAGA one
         self._commandLineName = self.createCommandLineName(self.name)
         self.name = decoratedAlgorithmName(self.name)
-        self.i18n_name = QCoreApplication.translate("SAGAAlgorithm", unicode(self.name))
+        self.i18n_name = QCoreApplication.translate("SAGAAlgorithm", str(self.name))
         line = lines.readline().strip('\n').strip()
         self.undecoratedGroup = line
         self.group = decoratedGroupName(self.undecoratedGroup)
@@ -162,7 +169,7 @@ class SagaAlgorithm212(GeoAlgorithm):
                 layers = param.value.split(';')
                 if layers is None or len(layers) == 0:
                     continue
-                if param.datatype == ParameterMultipleInput.TYPE_RASTER:
+                if param.datatype == dataobjects.TYPE_RASTER:
                     for i, layerfile in enumerate(layers):
                         if layerfile.endswith('sdat'):
                             layerfile = param.value[:-4] + "sgrd"
@@ -172,10 +179,10 @@ class SagaAlgorithm212(GeoAlgorithm):
                             if exportCommand is not None:
                                 commands.append(exportCommand)
                         param.value = ";".join(layers)
-                elif param.datatype in [ParameterMultipleInput.TYPE_VECTOR_ANY,
-                                        ParameterMultipleInput.TYPE_VECTOR_LINE,
-                                        ParameterMultipleInput.TYPE_VECTOR_POLYGON,
-                                        ParameterMultipleInput.TYPE_VECTOR_POINT]:
+                elif param.datatype in [dataobjects.TYPE_VECTOR_ANY,
+                                        dataobjects.TYPE_VECTOR_LINE,
+                                        dataobjects.TYPE_VECTOR_POLYGON,
+                                        dataobjects.TYPE_VECTOR_POINT]:
                     for layerfile in layers:
                         layer = dataobjects.getObjectFromUri(layerfile, False)
                         if layer:
@@ -194,14 +201,14 @@ class SagaAlgorithm212(GeoAlgorithm):
                 continue
             if isinstance(param, (ParameterRaster, ParameterVector, ParameterTable)):
                 value = param.value
-                if value in self.exportedLayers.keys():
+                if value in list(self.exportedLayers.keys()):
                     command += ' -' + param.name + ' "' \
                         + self.exportedLayers[value] + '"'
                 else:
                     command += ' -' + param.name + ' "' + value + '"'
             elif isinstance(param, ParameterMultipleInput):
                 s = param.value
-                for layer in self.exportedLayers.keys():
+                for layer in list(self.exportedLayers.keys()):
                     s = s.replace(layer, self.exportedLayers[layer])
                 command += ' -' + param.name + ' "' + s + '"'
             elif isinstance(param, ParameterBoolean):
@@ -225,11 +232,11 @@ class SagaAlgorithm212(GeoAlgorithm):
                 values = param.value.split(',')
                 for i in range(4):
                     command += ' -' + self.extentParamNames[i] + ' ' \
-                        + unicode(float(values[i]) + offset[i])
+                        + str(float(values[i]) + offset[i])
             elif isinstance(param, (ParameterNumber, ParameterSelection)):
-                command += ' -' + param.name + ' ' + unicode(param.value)
+                command += ' -' + param.name + ' ' + str(param.value)
             else:
-                command += ' -' + param.name + ' "' + unicode(param.value) + '"'
+                command += ' -' + param.name + ' "' + str(param.value) + '"'
 
         for out in self.outputs:
             command += ' -' + out.name + ' "' + out.getCompatibleFileName(self) + '"'
@@ -310,7 +317,7 @@ class SagaAlgorithm212(GeoAlgorithm):
                 del sessionExportedLayers[source]
         layer = dataobjects.getObjectFromUri(source, False)
         if layer:
-            filename = unicode(layer.name())
+            filename = str(layer.name())
         else:
             filename = os.path.basename(source)
         validChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:'
@@ -333,7 +340,7 @@ class SagaAlgorithm212(GeoAlgorithm):
             if isinstance(param, ParameterRaster):
                 files = [param.value]
             elif (isinstance(param, ParameterMultipleInput) and
-                    param.datatype == ParameterMultipleInput.TYPE_RASTER):
+                    param.datatype == dataobjects.TYPE_RASTER):
                 if param.value is not None:
                     files = param.value.split(";")
             for f in files:
@@ -342,7 +349,7 @@ class SagaAlgorithm212(GeoAlgorithm):
                     continue
                 if layer.bandCount() > 1:
                     return self.tr('Input layer %s has more than one band.\n'
-                                   'Multiband layers are not supported by SAGA' % unicode(layer.name()))
+                                   'Multiband layers are not supported by SAGA' % str(layer.name()))
                 if not self.allowUnmatchingGridExtents:
                     if extent is None:
                         extent = (layer.extent(), layer.height(), layer.width())

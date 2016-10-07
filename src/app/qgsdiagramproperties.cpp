@@ -19,7 +19,6 @@
 #include "diagram/qgspiediagram.h"
 #include "diagram/qgstextdiagram.h"
 
-#include "qgisapp.h"
 #include "qgsproject.h"
 #include "qgsapplication.h"
 #include "qgsdiagramproperties.h"
@@ -35,10 +34,14 @@
 #include "qgsstyle.h"
 #include "qgsmapcanvas.h"
 #include "qgsexpressionbuilderdialog.h"
+#include "qgslogger.h"
+#include "qgisapp.h"
 
 #include <QList>
 #include <QMessageBox>
 #include <QSettings>
+
+
 
 QgsExpressionContext QgsDiagramProperties::createExpressionContext() const
 {
@@ -46,7 +49,7 @@ QgsExpressionContext QgsDiagramProperties::createExpressionContext() const
   expContext << QgsExpressionContextUtils::globalScope()
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::atlasScope( nullptr )
-  << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() )
+  << QgsExpressionContextUtils::mapSettingsScope( mMapCanvas->mapSettings() )
   << QgsExpressionContextUtils::layerScope( mLayer );
 
   return expContext;
@@ -78,7 +81,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
   mDiagramTypeComboBox->addItem( pix, tr( "Histogram" ), DIAGRAM_NAME_HISTOGRAM );
   mDiagramTypeComboBox->blockSignals( false );
 
-  mScaleRangeWidget->setMapCanvas( QgisApp::instance()->mapCanvas() );
+  mScaleRangeWidget->setMapCanvas( mMapCanvas );
   mSizeFieldExpressionWidget->registerExpressionContextGenerator( this );
 
   mBackgroundColorButton->setColorDialogTitle( tr( "Select background color" ) );
@@ -93,6 +96,9 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
   mDiagramPenColorButton->setNoColorString( tr( "Transparent outline" ) );
 
   mMaxValueSpinBox->setShowClearButton( false );
+
+  mDiagramAttributesTreeWidget->setItemDelegateForColumn( ColumnAttributeExpression, new EditBlockerDelegate( this ) );
+  mDiagramAttributesTreeWidget->setItemDelegateForColumn( ColumnColor, new EditBlockerDelegate( this ) );
 
   connect( mFixedSizeRadio, SIGNAL( toggled( bool ) ), this, SLOT( scalingTypeChanged() ) );
   connect( mAttributeBasedScalingRadio, SIGNAL( toggled( bool ) ), this, SLOT( scalingTypeChanged() ) );
@@ -171,7 +177,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
   mSizeFieldExpressionWidget->setLayer( mLayer );
   QgsDistanceArea myDa;
   myDa.setSourceCrs( mLayer->crs().srsid() );
-  myDa.setEllipsoidalMode( QgisApp::instance()->mapCanvas()->mapSettings().hasCrsTransformEnabled() );
+  myDa.setEllipsoidalMode( mMapCanvas->mapSettings().hasCrsTransformEnabled() );
   myDa.setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
   mSizeFieldExpressionWidget->setGeomCalculator( myDa );
 
@@ -182,7 +188,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
     QTreeWidgetItem *newItem = new QTreeWidgetItem( mAttributesTreeWidget );
     QString name = QString( "\"%1\"" ).arg( layerFields.at( idx ).name() );
     newItem->setText( 0, name );
-    newItem->setData( 0, Qt::UserRole, name );
+    newItem->setData( 0, RoleAttributeExpression, name );
     newItem->setFlags( newItem->flags() & ~Qt::ItemIsDropEnabled );
 
     mDataDefinedXComboBox->addItem( layerFields.at( idx ).name(), idx );
@@ -339,7 +345,7 @@ QgsDiagramProperties::QgsDiagramProperties( QgsVectorLayer* layer, QWidget* pare
       {
         QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
         newItem->setText( 0, *catIt );
-        newItem->setData( 0, Qt::UserRole, *catIt );
+        newItem->setData( 0, RoleAttributeExpression, *catIt );
         newItem->setFlags( newItem->flags() & ~Qt::ItemIsDropEnabled );
         QColor col( *coIt );
         col.setAlpha( 255 );
@@ -517,7 +523,7 @@ void QgsDiagramProperties::addAttribute( QTreeWidgetItem * item )
 
   newItem->setText( 0, item->text( 0 ) );
   newItem->setText( 2, guessLegendText( item->text( 0 ) ) );
-  newItem->setData( 0, Qt::UserRole, item->data( 0, Qt::UserRole ) );
+  newItem->setData( 0, RoleAttributeExpression, item->data( 0, RoleAttributeExpression ) );
   newItem->setFlags(( newItem->flags() | Qt::ItemIsEditable ) & ~Qt::ItemIsDropEnabled );
 
   //set initial color for diagram category
@@ -566,7 +572,7 @@ void QgsDiagramProperties::on_mFindMaximumValueButton_clicked()
     QgsExpressionContext context;
     context << QgsExpressionContextUtils::globalScope()
     << QgsExpressionContextUtils::projectScope()
-    << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() )
+    << QgsExpressionContextUtils::mapSettingsScope( mMapCanvas->mapSettings() )
     << QgsExpressionContextUtils::layerScope( mLayer );
 
     exp.prepare( &context );
@@ -587,7 +593,7 @@ void QgsDiagramProperties::on_mFindMaximumValueButton_clicked()
   }
   else
   {
-    int attributeNumber = mLayer->fields().fieldNameIndex( sizeFieldNameOrExp );
+    int attributeNumber = mLayer->fields().lookupField( sizeFieldNameOrExp );
     maxValue = mLayer->maximumValue( attributeNumber ).toFloat();
   }
 
@@ -603,13 +609,33 @@ void QgsDiagramProperties::on_mDiagramFontButton_clicked()
 
 void QgsDiagramProperties::on_mDiagramAttributesTreeWidget_itemDoubleClicked( QTreeWidgetItem * item, int column )
 {
-  if ( column == 1 ) //change color
+  switch ( column )
   {
-    QColor newColor = QgsColorDialog::getColor( item->background( 1 ).color(), nullptr );
-    if ( newColor.isValid() )
+    case ColumnAttributeExpression:
     {
-      item->setBackground( 1, QBrush( newColor ) );
+      QString currentExpression = item->data( 0, RoleAttributeExpression ).toString();
+
+      QString newExpression = showExpressionBuilder( currentExpression );
+      if ( !newExpression.isEmpty() )
+      {
+        item->setData( 0, Qt::DisplayRole, newExpression );
+        item->setData( 0, RoleAttributeExpression, newExpression );
+      }
+      break;
     }
+
+    case ColumnColor:
+    {
+      QColor newColor = QgsColorDialog::getColor( item->background( 1 ).color(), nullptr );
+      if ( newColor.isValid() )
+      {
+        item->setBackground( 1, QBrush( newColor ) );
+      }
+      break;
+    }
+
+    case ColumnLegendText:
+      break;
   }
 }
 
@@ -666,7 +692,7 @@ void QgsDiagramProperties::apply()
       }
       else
       {
-        maxVal = provider->maximumValue( mSizeAttributeComboBox->itemData( mSizeAttributeComboBox->currentIndex() ).toInt() ).toDouble();
+        maxVal = provider->maximumValue( mSizeAttributeComboBox->currentData().toInt() ).toDouble();
       }
     }
 
@@ -712,7 +738,7 @@ void QgsDiagramProperties::apply()
     QColor color = mDiagramAttributesTreeWidget->topLevelItem( i )->background( 1 ).color();
     color.setAlpha( 255 - ds.transparency );
     categoryColors.append( color );
-    categoryAttributes.append( mDiagramAttributesTreeWidget->topLevelItem( i )->data( 0, Qt::UserRole ).toString() );
+    categoryAttributes.append( mDiagramAttributesTreeWidget->topLevelItem( i )->data( 0, RoleAttributeExpression ).toString() );
     categoryLabels.append( mDiagramAttributesTreeWidget->topLevelItem( i )->text( 2 ) );
   }
   ds.categoryColors = categoryColors;
@@ -723,8 +749,8 @@ void QgsDiagramProperties::apply()
   ds.sizeScale = mDiagramUnitComboBox->getMapUnitScale();
   ds.lineSizeUnit = mDiagramLineUnitComboBox->unit();
   ds.lineSizeScale = mDiagramLineUnitComboBox->getMapUnitScale();
-  ds.labelPlacementMethod = static_cast<QgsDiagramSettings::LabelPlacementMethod>( mLabelPlacementComboBox->itemData( mLabelPlacementComboBox->currentIndex() ).toInt() );
-  ds.scaleByArea = mScaleDependencyComboBox->itemData( mScaleDependencyComboBox->currentIndex() ).toBool();
+  ds.labelPlacementMethod = static_cast<QgsDiagramSettings::LabelPlacementMethod>( mLabelPlacementComboBox->currentData().toInt() );
+  ds.scaleByArea = mScaleDependencyComboBox->currentData().toBool();
 
   if ( mIncreaseSmallDiagramsCheck->isChecked() )
   {
@@ -744,7 +770,7 @@ void QgsDiagramProperties::apply()
   ds.scaleBasedVisibility = mScaleVisibilityGroupBox->isChecked();
 
   // Diagram angle offset (pie)
-  ds.angleOffset = mAngleOffsetComboBox->itemData( mAngleOffsetComboBox->currentIndex() ).toInt();
+  ds.angleOffset = mAngleOffsetComboBox->currentData().toInt();
 
   // Diagram orientation (histogram)
   ds.diagramOrientation = static_cast<QgsDiagramSettings::DiagramOrientation>( mOrientationButtonGroup->checkedButton()->property( "direction" ).toInt() );
@@ -775,7 +801,7 @@ void QgsDiagramProperties::apply()
     }
     else
     {
-      int attributeNumber = mLayer->fields().fieldNameIndex( sizeFieldNameOrExp );
+      int attributeNumber = mLayer->fields().lookupField( sizeFieldNameOrExp );
       dr->setClassificationAttribute( attributeNumber );
     }
     dr->setDiagramSettings( ds );
@@ -794,7 +820,7 @@ void QgsDiagramProperties::apply()
   dls.setShowAllDiagrams( mShowAllCheckBox->isChecked() );
   if ( mDataDefinedVisibilityGroupBox->isChecked() )
   {
-    dls.showColumn = mDataDefinedVisibilityComboBox->itemData( mDataDefinedVisibilityComboBox->currentIndex() ).toInt();
+    dls.showColumn = mDataDefinedVisibilityComboBox->currentData().toInt();
   }
   else
   {
@@ -802,15 +828,15 @@ void QgsDiagramProperties::apply()
   }
   if ( mDataDefinedPositionGroupBox->isChecked() )
   {
-    dls.xPosColumn = mDataDefinedXComboBox->itemData( mDataDefinedXComboBox->currentIndex() ).toInt();
-    dls.yPosColumn = mDataDefinedYComboBox->itemData( mDataDefinedYComboBox->currentIndex() ).toInt();
+    dls.xPosColumn = mDataDefinedXComboBox->currentData().toInt();
+    dls.yPosColumn = mDataDefinedYComboBox->currentData().toInt();
   }
   else
   {
     dls.xPosColumn = -1;
     dls.yPosColumn = -1;
   }
-  dls.setPlacement(( QgsDiagramLayerSettings::Placement )mPlacementComboBox->itemData( mPlacementComboBox->currentIndex() ).toInt() );
+  dls.setPlacement(( QgsDiagramLayerSettings::Placement )mPlacementComboBox->currentData().toInt() );
 
   unsigned int flags = 0;
   if ( chkLineAbove->isChecked() )
@@ -826,8 +852,36 @@ void QgsDiagramProperties::apply()
   mLayer->setDiagramLayerSettings( dls );
 
   // refresh
-  QgisApp::instance()->markDirty();
+  QgsProject::instance()->setDirty( true );
   mLayer->triggerRepaint();
+}
+
+QString QgsDiagramProperties::showExpressionBuilder( const QString& initialExpression )
+{
+  QgsExpressionContext context;
+  context << QgsExpressionContextUtils::globalScope()
+  << QgsExpressionContextUtils::projectScope()
+  << QgsExpressionContextUtils::atlasScope( nullptr )
+  << QgsExpressionContextUtils::mapSettingsScope( mMapCanvas->mapSettings() )
+  << QgsExpressionContextUtils::layerScope( mLayer );
+
+  QgsExpressionBuilderDialog dlg( mLayer, initialExpression, this, "generic", context );
+  dlg.setWindowTitle( tr( "Expression based attribute" ) );
+
+  QgsDistanceArea myDa;
+  myDa.setSourceCrs( mLayer->crs().srsid() );
+  myDa.setEllipsoidalMode( mMapCanvas->mapSettings().hasCrsTransformEnabled() );
+  myDa.setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
+  dlg.setGeomCalculator( myDa );
+
+  if ( dlg.exec() == QDialog::Accepted )
+  {
+    return dlg.expressionText();
+  }
+  else
+  {
+    return QString();
+  }
 }
 
 void QgsDiagramProperties::showAddAttributeExpressionDialog()
@@ -839,43 +893,25 @@ void QgsDiagramProperties::showAddAttributeExpressionDialog()
     expression = selections[0]->text( 0 );
   }
 
-  QgsExpressionContext context;
-  context << QgsExpressionContextUtils::globalScope()
-  << QgsExpressionContextUtils::projectScope()
-  << QgsExpressionContextUtils::atlasScope( nullptr )
-  << QgsExpressionContextUtils::mapSettingsScope( QgisApp::instance()->mapCanvas()->mapSettings() )
-  << QgsExpressionContextUtils::layerScope( mLayer );
+  QString newExpression = showExpressionBuilder( expression );
 
-  QgsExpressionBuilderDialog dlg( mLayer, expression, this, "generic", context );
-  dlg.setWindowTitle( tr( "Expression based attribute" ) );
-
-  QgsDistanceArea myDa;
-  myDa.setSourceCrs( mLayer->crs().srsid() );
-  myDa.setEllipsoidalMode( QgisApp::instance()->mapCanvas()->mapSettings().hasCrsTransformEnabled() );
-  myDa.setEllipsoid( QgsProject::instance()->readEntry( "Measure", "/Ellipsoid", GEO_NONE ) );
-  dlg.setGeomCalculator( myDa );
-
-  if ( dlg.exec() == QDialog::Accepted )
+  //Only add the expression if the user has entered some text.
+  if ( !newExpression.isEmpty() )
   {
-    QString expression =  dlg.expressionText();
-    //Only add the expression if the user has entered some text.
-    if ( !expression.isEmpty() )
-    {
-      QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
+    QTreeWidgetItem *newItem = new QTreeWidgetItem( mDiagramAttributesTreeWidget );
 
-      newItem->setText( 0, expression );
-      newItem->setText( 2, expression );
-      newItem->setData( 0, Qt::UserRole, expression );
-      newItem->setFlags(( newItem->flags() | Qt::ItemIsEditable ) & ~Qt::ItemIsDropEnabled );
+    newItem->setText( 0, newExpression );
+    newItem->setText( 2, newExpression );
+    newItem->setData( 0, RoleAttributeExpression, newExpression );
+    newItem->setFlags(( newItem->flags() | Qt::ItemIsEditable ) & ~Qt::ItemIsDropEnabled );
 
-      //set initial color for diagram category
-      int red = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
-      int green = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
-      int blue = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
-      QColor randomColor( red, green, blue );
-      newItem->setBackground( 1, QBrush( randomColor ) );
-      mDiagramAttributesTreeWidget->addTopLevelItem( newItem );
-    }
+    //set initial color for diagram category
+    int red = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
+    int green = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
+    int blue = 1 + ( int )( 255.0 * qrand() / ( RAND_MAX + 1.0 ) );
+    QColor randomColor( red, green, blue );
+    newItem->setBackground( 1, QBrush( randomColor ) );
+    mDiagramAttributesTreeWidget->addTopLevelItem( newItem );
   }
   activateWindow(); // set focus back parent
 }

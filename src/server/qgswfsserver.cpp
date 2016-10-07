@@ -15,7 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 #include "qgswfsserver.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsexpression.h"
 #include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
@@ -484,11 +484,11 @@ int QgsWfsServer::getFeature( QgsRequestHandler& request, const QString& format 
 
         //is there alias info for this vector layer?
         QMap< int, QString > layerAliasInfo;
-        const QMap< QString, QString >& aliasMap = layer->attributeAliases();
-        QMap< QString, QString >::const_iterator aliasIt = aliasMap.constBegin();
+        QgsStringMap aliasMap = layer->attributeAliases();
+        QgsStringMap::const_iterator aliasIt = aliasMap.constBegin();
         for ( ; aliasIt != aliasMap.constEnd(); ++aliasIt )
         {
-          int attrIndex = layer->fieldNameIndex( aliasIt.key() );
+          int attrIndex = layer->fields().lookupField( aliasIt.key() );
           if ( attrIndex != -1 )
           {
             layerAliasInfo.insert( attrIndex, aliasIt.value() );
@@ -534,7 +534,7 @@ int QgsWfsServer::getFeature( QgsRequestHandler& request, const QString& format 
               {
                 fieldName = fieldName.section( ":", 1, 1 );
               }
-              int fieldNameIdx = fields.fieldNameIndex( fieldName );
+              int fieldNameIdx = fields.lookupField( fieldName );
               if ( fieldNameIdx > -1 )
               {
                 idxList.append( fieldNameIdx );
@@ -870,11 +870,11 @@ int QgsWfsServer::getFeature( QgsRequestHandler& request, const QString& format 
 
       //is there alias info for this vector layer?
       QMap< int, QString > layerAliasInfo;
-      const QMap< QString, QString >& aliasMap = layer->attributeAliases();
-      QMap< QString, QString >::const_iterator aliasIt = aliasMap.constBegin();
+      QgsStringMap aliasMap = layer->attributeAliases();
+      QgsStringMap::const_iterator aliasIt = aliasMap.constBegin();
       for ( ; aliasIt != aliasMap.constEnd(); ++aliasIt )
       {
-        int attrIndex = layer->fieldNameIndex( aliasIt.key() );
+        int attrIndex = layer->fields().lookupField( aliasIt.key() );
         if ( attrIndex != -1 )
         {
           layerAliasInfo.insert( attrIndex, aliasIt.value() );
@@ -914,7 +914,7 @@ int QgsWfsServer::getFeature( QgsRequestHandler& request, const QString& format 
           for ( alstIt = attrList.begin(); alstIt != attrList.end(); ++alstIt )
           {
             fieldName = *alstIt;
-            int fieldNameIdx = fields.fieldNameIndex( fieldName );
+            int fieldNameIdx = fields.lookupField( fieldName );
             if ( fieldNameIdx > -1 )
             {
               idxList.append( fieldNameIdx );

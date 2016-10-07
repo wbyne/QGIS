@@ -17,13 +17,14 @@
 
 #include "qgssymbol.h"
 #include "qgssymbollayerutils.h"
-#include "qgsvectorcolorramp.h"
+#include "qgscolorramp.h"
 #include "qgsstyle.h"
 
 #include "qgsvectorlayer.h"
 
 #include "qgssymbolselectordialog.h"
 #include "qgsexpressionbuilderdialog.h"
+#include "qgslogger.h"
 
 #include "qgsludialog.h"
 
@@ -395,10 +396,10 @@ QgsExpressionContext QgsGraduatedSymbolRendererWidget::createExpressionContext()
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::atlasScope( nullptr );
 
-  if ( mapCanvas() )
+  if ( mContext.mapCanvas() )
   {
-    expContext << QgsExpressionContextUtils::mapSettingsScope( mapCanvas()->mapSettings() )
-    << new QgsExpressionContextScope( mapCanvas()->expressionContextScope() );
+    expContext << QgsExpressionContextUtils::mapSettingsScope( mContext.mapCanvas()->mapSettings() )
+    << new QgsExpressionContextScope( mContext.mapCanvas()->expressionContextScope() );
   }
   else
   {
@@ -407,6 +408,12 @@ QgsExpressionContext QgsGraduatedSymbolRendererWidget::createExpressionContext()
 
   if ( vectorLayer() )
     expContext << QgsExpressionContextUtils::layerScope( vectorLayer() );
+
+  // additional scopes
+  Q_FOREACH ( const QgsExpressionContextScope& scope, mContext.additionalExpressionContextScopes() )
+  {
+    expContext.appendScope( new QgsExpressionContextScope( scope ) );
+  }
 
   return expContext;
 }
@@ -656,7 +663,7 @@ void QgsGraduatedSymbolRendererWidget::on_methodComboBox_currentIndexChanged( in
   if ( idx == 0 )
   {
     mRenderer->setGraduatedMethod( QgsGraduatedSymbolRenderer::GraduatedColor );
-    QgsVectorColorRamp* ramp = cboGraduatedColorRamp->currentColorRamp();
+    QgsColorRamp* ramp = cboGraduatedColorRamp->currentColorRamp();
 
     if ( !ramp )
     {
@@ -687,11 +694,11 @@ void QgsGraduatedSymbolRendererWidget::refreshRanges( bool reset )
 
 void QgsGraduatedSymbolRendererWidget::cleanUpSymbolSelector( QgsPanelWidget *container )
 {
-  if ( container )
-  {
-    QgsSymbolSelectorWidget* dlg = qobject_cast<QgsSymbolSelectorWidget*>( container );
-    delete dlg->symbol();
-  }
+  QgsSymbolSelectorWidget *dlg = qobject_cast<QgsSymbolSelectorWidget*>( container );
+  if ( !dlg )
+    return;
+
+  delete dlg->symbol();
 }
 
 void QgsGraduatedSymbolRendererWidget::updateSymbolsFromWidget()
@@ -741,7 +748,7 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduated()
 
   int nclasses = spinGraduatedClasses->value();
 
-  QSharedPointer<QgsVectorColorRamp> ramp( cboGraduatedColorRamp->currentColorRamp() );
+  QScopedPointer<QgsColorRamp> ramp( cboGraduatedColorRamp->currentColorRamp() );
   if ( !ramp )
   {
     if ( cboGraduatedColorRamp->count() == 0 )
@@ -778,8 +785,6 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduated()
 
   if ( methodComboBox->currentIndex() == 0 )
   {
-    QgsVectorColorRamp* ramp = cboGraduatedColorRamp->currentColorRamp();
-
     if ( !ramp )
     {
       if ( cboGraduatedColorRamp->count() == 0 )
@@ -788,7 +793,7 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduated()
         QMessageBox::critical( this, tr( "Error" ), tr( "The selected color ramp is not available." ) );
       return;
     }
-    mRenderer->setSourceColorRamp( ramp );
+    mRenderer->setSourceColorRamp( ramp.take() );
   }
   else
   {
@@ -810,11 +815,11 @@ void QgsGraduatedSymbolRendererWidget::classifyGraduated()
 
 void QgsGraduatedSymbolRendererWidget::reapplyColorRamp()
 {
-  QgsVectorColorRamp* ramp = cboGraduatedColorRamp->currentColorRamp();
+  QScopedPointer< QgsColorRamp > ramp( cboGraduatedColorRamp->currentColorRamp() );
   if ( !ramp )
     return;
 
-  mRenderer->updateColorRamp( ramp, cbxInvertedColorRamp->isChecked() );
+  mRenderer->updateColorRamp( ramp.take(), cbxInvertedColorRamp->isChecked() );
   mRenderer->updateSymbols( mGraduatedSymbol );
   refreshSymbolView();
 }
@@ -830,7 +835,7 @@ void QgsGraduatedSymbolRendererWidget::changeGraduatedSymbol()
 {
   QgsSymbol* newSymbol = mGraduatedSymbol->clone();
   QgsSymbolSelectorWidget* dlg = new QgsSymbolSelectorWidget( newSymbol, mStyle, mLayer, nullptr );
-  dlg->setMapCanvas( mMapCanvas );
+  dlg->setContext( mContext );
 
   connect( dlg, SIGNAL( widgetChanged() ), this, SLOT( updateSymbolsFromWidget() ) );
   connect( dlg, SIGNAL( accepted( QgsPanelWidget* ) ), this, SLOT( cleanUpSymbolSelector( QgsPanelWidget* ) ) );
@@ -908,8 +913,7 @@ void QgsGraduatedSymbolRendererWidget::changeRangeSymbol( int rangeIdx )
 {
   QgsSymbol* newSymbol = mRenderer->ranges()[rangeIdx].symbol()->clone();
   QgsSymbolSelectorWidget* dlg = new QgsSymbolSelectorWidget( newSymbol, mStyle, mLayer, nullptr );
-  dlg->setDockMode( this->dockMode() );
-  dlg->setMapCanvas( mMapCanvas );
+  dlg->setContext( mContext );
 
   connect( dlg, SIGNAL( widgetChanged() ), this, SLOT( updateSymbolsFromWidget() ) );
   connect( dlg, SIGNAL( accepted( QgsPanelWidget* ) ), this, SLOT( cleanUpSymbolSelector( QgsPanelWidget* ) ) );
@@ -1025,16 +1029,6 @@ void QgsGraduatedSymbolRendererWidget::changeCurrentValue( QStandardItem * item 
     int idx = item->row();
     mRenderer->updateRangeLabel( idx, label );
   }
-}
-
-void QgsGraduatedSymbolRendererWidget::sizeScaleFieldChanged( const QString& fldName )
-{
-  mRenderer->setSizeScaleField( fldName );
-}
-
-void QgsGraduatedSymbolRendererWidget::scaleMethodChanged( QgsSymbol::ScaleMethod scaleMethod )
-{
-  mRenderer->setScaleMethod( scaleMethod );
 }
 
 void QgsGraduatedSymbolRendererWidget::labelFormatChanged()

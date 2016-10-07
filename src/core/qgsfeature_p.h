@@ -33,7 +33,7 @@ email                : nyall dot dawson at gmail dot com
  * See details in QEP #17
  ****************************************************************************/
 
-#include "qgsfield.h"
+#include "qgsfields.h"
 
 #include "qgsgeometry.h"
 

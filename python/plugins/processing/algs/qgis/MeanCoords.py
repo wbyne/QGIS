@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from builtins import str
 
 __author__ = 'Victor Olaya'
 __date__ = 'August 2012'
@@ -57,15 +58,18 @@ class MeanCoords(GeoAlgorithm):
         self.group, self.i18n_group = self.trAlgorithm('Vector analysis tools')
 
         self.addParameter(ParameterVector(self.POINTS,
-                                          self.tr('Input layer'), [ParameterVector.VECTOR_TYPE_ANY]))
+                                          self.tr('Input layer')))
         self.addParameter(ParameterTableField(self.WEIGHT,
-                                              self.tr('Weight field'), MeanCoords.POINTS,
-                                              ParameterTableField.DATA_TYPE_NUMBER, optional=True))
+                                              self.tr('Weight field'),
+                                              MeanCoords.POINTS,
+                                              ParameterTableField.DATA_TYPE_NUMBER,
+                                              optional=True))
         self.addParameter(ParameterTableField(self.UID,
-                                              self.tr('Unique ID field'), MeanCoords.POINTS,
-                                              ParameterTableField.DATA_TYPE_NUMBER, optional=True))
+                                              self.tr('Unique ID field'),
+                                              MeanCoords.POINTS,
+                                              optional=True))
 
-        self.addOutput(OutputVector(MeanCoords.OUTPUT, self.tr('Mean coordinates')))
+        self.addOutput(OutputVector(MeanCoords.OUTPUT, self.tr('Mean coordinates'), datatype=[dataobjects.TYPE_VECTOR_POINT]))
 
     def processAlgorithm(self, progress):
         layer = dataobjects.getObjectFromUri(self.getParameterValue(self.POINTS))
@@ -75,12 +79,12 @@ class MeanCoords(GeoAlgorithm):
         if weightField is None:
             weightIndex = -1
         else:
-            weightIndex = layer.fieldNameIndex(weightField)
+            weightIndex = layer.fields().lookupField(weightField)
 
         if uniqueField is None:
             uniqueIndex = -1
         else:
-            uniqueIndex = layer.fieldNameIndex(uniqueField)
+            uniqueIndex = layer.fields().lookupField(uniqueField)
 
         fieldList = [QgsField('MEAN_X', QVariant.Double, '', 24, 15),
                      QgsField('MEAN_Y', QVariant.Double, '', 24, 15),
@@ -98,7 +102,7 @@ class MeanCoords(GeoAlgorithm):
             if uniqueIndex == -1:
                 clazz = "Single class"
             else:
-                clazz = unicode(feat.attributes()[uniqueIndex]).strip()
+                clazz = str(feat.attributes()[uniqueIndex]).strip()
             if weightIndex == -1:
                 weight = 1.00
             else:
@@ -120,7 +124,7 @@ class MeanCoords(GeoAlgorithm):
 
         current = 0
         total = 100.0 / len(means)
-        for (clazz, values) in means.iteritems():
+        for (clazz, values) in means.items():
             outFeat = QgsFeature()
             cx = values[0] / values[2]
             cy = values[1] / values[2]

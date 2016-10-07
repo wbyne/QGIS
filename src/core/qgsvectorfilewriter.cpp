@@ -17,7 +17,7 @@
  ***************************************************************************/
 
 #include "qgsapplication.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsfeature.h"
 #include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
@@ -363,7 +363,7 @@ void QgsVectorFileWriter::init( QString vectorFileName,
     {
       QString layerName = vectorFileName.left( vectorFileName.indexOf( ".shp", Qt::CaseInsensitive ) );
       QFile prjFile( layerName + ".qpj" );
-      if ( prjFile.open( QIODevice::WriteOnly ) )
+      if ( prjFile.open( QIODevice::WriteOnly  | QIODevice::Truncate ) )
       {
         QTextStream prjStream( &prjFile );
         prjStream << srs.toWkt().toLocal8Bit().constData() << endl;
@@ -2863,13 +2863,13 @@ void QgsVectorFileWriter::addRendererAttributes( QgsVectorLayer* vl, QgsAttribut
   QgsFeatureRenderer* renderer = symbologyRenderer( vl );
   if ( renderer )
   {
-    QList<QString> rendererAttributes = renderer->usedAttributes();
-    for ( int i = 0; i < rendererAttributes.size(); ++i )
+    const QSet<QString> rendererAttributes = renderer->usedAttributes();
+  for ( const QString& attr : rendererAttributes )
     {
-      int index = vl->fieldNameIndex( rendererAttributes.at( i ) );
+      int index = vl->fields().lookupField( attr );
       if ( index != -1 )
       {
-        attList.push_back( vl->fieldNameIndex( rendererAttributes.at( i ) ) );
+        attList.append( index );
       }
     }
   }

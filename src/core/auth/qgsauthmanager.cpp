@@ -1365,8 +1365,8 @@ bool QgsAuthManager::updateNetworkRequest( QNetworkRequest &request, const QStri
   {
     if ( !( authmethod->supportedExpansions() & QgsAuthMethod::NetworkRequest ) )
     {
-      QgsDebugMsg( QString( "Data source URI updating not supported by authcfg: %1" ).arg( authcfg ) );
-      return false;
+      QgsDebugMsg( QString( "Network request updating not supported by authcfg: %1" ).arg( authcfg ) );
+      return true;
     }
 
     if ( !authmethod->updateNetworkRequest( request, authcfg, dataprovider.toLower() ) )
@@ -1392,7 +1392,7 @@ bool QgsAuthManager::updateNetworkReply( QNetworkReply *reply, const QString& au
     if ( !( authmethod->supportedExpansions() & QgsAuthMethod::NetworkReply ) )
     {
       QgsDebugMsg( QString( "Network reply updating not supported by authcfg: %1" ).arg( authcfg ) );
-      return false;
+      return true;
     }
 
     if ( !authmethod->updateNetworkReply( reply, authcfg, dataprovider.toLower() ) )
@@ -1418,7 +1418,7 @@ bool QgsAuthManager::updateDataSourceUriItems( QStringList &connectionItems, con
     if ( !( authmethod->supportedExpansions() & QgsAuthMethod::DataSourceUri ) )
     {
       QgsDebugMsg( QString( "Data source URI updating not supported by authcfg: %1" ).arg( authcfg ) );
-      return false;
+      return true;
     }
 
     if ( !authmethod->updateDataSourceUriItems( connectionItems, authcfg, dataprovider.toLower() ) )
@@ -1688,7 +1688,7 @@ const QPair<QSslCertificate, QSslKey> QgsAuthManager::getCertIdentityBundle( con
     QSslKey key;
     if ( query.first() )
     {
-      key =  QSslKey( QgsAuthCrypto::decrypt( mMasterPass, masterPasswordCiv(), query.value( 0 ).toString() ).toAscii(),
+      key =  QSslKey( QgsAuthCrypto::decrypt( mMasterPass, masterPasswordCiv(), query.value( 0 ).toString() ).toLatin1(),
                       QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey );
       if ( key.isNull() )
       {
@@ -2714,7 +2714,7 @@ const QByteArray QgsAuthManager::getTrustedCaCertsPemText()
     {
       certslist << cert.toPem();
     }
-    capem = certslist.join( "\n" ).toAscii(); //+ "\n";
+    capem = certslist.join( "\n" ).toLatin1(); //+ "\n";
   }
   return capem;
 }

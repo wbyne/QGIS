@@ -34,7 +34,7 @@ class QgsSingleSymbolRenderer;
 typedef QList<int> QgsAttributeList;
 
 #include "qgis.h"
-#include "qgsfield.h"  // QgsFields
+#include "qgsfields.h"  // QgsFields
 #include "qgsfeature.h"  // QgsFeatureIds
 #include "qgsfeatureiterator.h"
 #include "qgsvectorsimplifymethod.h"
@@ -82,8 +82,8 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
       @param layer diagram layer
       @param attributeNames attributes needed for labeling and diagrams will be added to the list
      */
-    void prepareLabeling( QgsVectorLayer* layer, QStringList& attributeNames );
-    void prepareDiagrams( QgsVectorLayer* layer, QStringList& attributeNames );
+    void prepareLabeling( QgsVectorLayer* layer, QSet<QString>& attributeNames );
+    void prepareDiagrams( QgsVectorLayer* layer, QSet<QString>& attributeNames );
 
     /** Draw layer with renderer V2. QgsFeatureRenderer::startRender() needs to be called before using this method
      */
@@ -122,7 +122,7 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
 
     QgsWkbTypes::GeometryType mGeometryType;
 
-    QStringList mAttrNames;
+    QSet<QString> mAttrNames;
 
     //! used with old labeling engine (QgsPalLabeling): whether labeling is enabled
     bool mLabeling;
@@ -136,7 +136,6 @@ class QgsVectorLayerRenderer : public QgsMapLayerRenderer
     //! may be null. no need to delete: if exists it is owned by labeling engine
     QgsVectorLayerDiagramProvider* mDiagramProvider;
 
-    int mLayerTransparency;
     QPainter::CompositionMode mFeatureBlendMode;
 
     QgsVectorSimplifyMethod mSimplifyMethod;

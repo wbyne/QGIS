@@ -18,6 +18,7 @@
 #define QGSCOMPOSER_H
 #include "ui_qgscomposerbase.h"
 
+#include "qgspanelwidget.h"
 class QgisApp;
 class QgsComposerArrow;
 class QgsComposerPolygon;
@@ -44,6 +45,7 @@ class QgsDockWidget;
 class QgsMapLayer;
 class QgsFeature;
 class QgsVectorLayer;
+class QgsPanelWidgetStack;
 
 class QGridLayout;
 class QDomNode;
@@ -414,9 +416,6 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
     /** Adds a composer shape to the item/widget map and creates a configuration widget*/
     void addComposerShape( QgsComposerShape* shape );
 
-    /** Adds a composer table to the item/widget map and creates a configuration widget*/
-    void addComposerTable( QgsComposerAttributeTable* table );
-
     /** Adds a composer table v2 to the item/widget map and creates a configuration widget*/
     void addComposerTableV2( QgsComposerAttributeTableV2* table, QgsComposerFrame* frame );
 
@@ -571,7 +570,7 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
     QSizeGrip *mSizeGrip;
 
     //! To know which item to show if selection changes
-    QMap<QgsComposerItem*, QWidget*> mItemWidgetMap;
+    QMap<QgsComposerItem*, QgsPanelWidget*> mItemWidgetMap;
 
     //! Window menu action to select this window
     QAction *mWindowAction;
@@ -600,6 +599,7 @@ class QgsComposer: public QMainWindow, private Ui::QgsComposerBase
     QMap< QgsComposerMap*, int > mMapsToRestore;
 
     QgsDockWidget* mItemDock;
+    QgsPanelWidgetStack* mItemPropertiesStack;
     QgsDockWidget* mUndoDock;
     QgsDockWidget* mGeneralDock;
     QgsDockWidget* mAtlasDock;

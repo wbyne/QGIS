@@ -88,7 +88,7 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
         bool needsGeometry() const;
 
 	//! @note available in python bindings as symbol2
-        QgsSymbolList symbols( const QgsRenderContext& context = QgsRenderContext() ) /PyName=symbols2/;
+        QgsSymbolList symbols( const QgsRenderContext& context = QgsRenderContext() );
 
         //! @note not available in python bindings
         // QgsLegendSymbolList legendSymbolItems( double scaleDenominator = -1, const QString& rule = "" ) const;
@@ -138,10 +138,6 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
          */
         QString description() const;
 
-        //! @note added in 2.6
-        //! @deprecated use active instead
-        bool checkState() const /Deprecated/;
-
         /**
          * Returns if this rule is active
          *
@@ -190,10 +186,6 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
          */
         void setDescription( const QString& description );
 
-        //! @note added in 2.6
-        //! @deprecated use setActive instead
-        void setCheckState( bool state ) /Deprecated/;
-
         /**
          * Sets if this rule is active
          * @param state Determines if the rule should be activated or deactivated
@@ -207,11 +199,6 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
         static QgsRuleBasedRenderer::Rule* createFromSld( QDomElement& element, QgsWkbTypes::GeometryType geomType ) /Factory/;
 
         QDomElement save( QDomDocument& doc, QgsSymbolMap& symbolMap );
-
-        /** Prepare the rule for rendering and its children (build active children array)
-         * @deprecated use startRender( QgsRenderContext& context, const QgsFields& fields, QString& filter ) instead
-         */
-        bool startRender( QgsRenderContext& context, const QgsFields& fields ) /Deprecated/;
 
         //! prepare the rule for rendering and its children (build active children array)
         bool startRender( QgsRenderContext& context, const QgsFields& fields, QString& filter );
@@ -309,13 +296,6 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
         QgsRuleBasedRenderer::Rule* findRuleByKey( const QString& key );
 
         /**
-         * Check which child rules are else rules and update the internal list of else rules
-         *
-         * TODO QGIS 3: Does this need to be public?
-         */
-        void updateElseRules();
-
-        /**
          * Sets if this rule is an ELSE rule
          *
          * @param iselse If true, this rule is an ELSE rule
@@ -360,7 +340,7 @@ class QgsRuleBasedRenderer : QgsFeatureRenderer
 
     virtual QString filter( const QgsFields& fields = QgsFields() );
 
-    virtual QList<QString> usedAttributes();
+    virtual QSet<QString> usedAttributes() const;
 
     virtual bool filterNeedsGeometry() const;
 

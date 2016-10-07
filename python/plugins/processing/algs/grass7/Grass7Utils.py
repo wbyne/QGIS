@@ -16,6 +16,8 @@
 *                                                                         *
 ***************************************************************************
 """
+from builtins import str
+from builtins import object
 
 __author__ = 'Victor Olaya'
 __date__ = 'February 2015'
@@ -37,7 +39,7 @@ from processing.tools.system import userFolder, isWindows, isMac, tempFolder, mk
 from processing.tests.TestData import points
 
 
-class Grass7Utils:
+class Grass7Utils(object):
 
     GRASS_REGION_XMIN = 'GRASS7_REGION_XMIN'
     GRASS_REGION_YMIN = 'GRASS7_REGION_YMIN'
@@ -60,7 +62,7 @@ class Grass7Utils:
         GRASS_BATCH_JOB and then call GRASS and let it do the work
         '''
         filename = 'grass7_batch_job.sh'
-        batchfile = userFolder() + os.sep + filename
+        batchfile = os.path.join(userFolder(), filename)
         return batchfile
 
     @staticmethod
@@ -69,7 +71,7 @@ class Grass7Utils:
         GRASS and then uses grass commands
         '''
         filename = 'grass7_script.bat'
-        filename = userFolder() + os.sep + filename
+        filename = os.path.join(userFolder(), filename)
         return filename
 
     @staticmethod
@@ -89,9 +91,9 @@ class Grass7Utils:
         if folder is None:
             if isWindows():
                 if "OSGEO4W_ROOT" in os.environ:
-                    testfolder = os.path.join(unicode(os.environ['OSGEO4W_ROOT']), "apps")
+                    testfolder = os.path.join(str(os.environ['OSGEO4W_ROOT']), "apps")
                 else:
-                    testfolder = unicode(QgsApplication.prefixPath())
+                    testfolder = str(QgsApplication.prefixPath())
                 testfolder = os.path.join(testfolder, 'grass')
                 if os.path.isdir(testfolder):
                     for subfolder in os.listdir(testfolder):
@@ -99,7 +101,7 @@ class Grass7Utils:
                             folder = os.path.join(testfolder, subfolder)
                             break
             else:
-                folder = os.path.join(unicode(QgsApplication.prefixPath()), 'grass7')
+                folder = os.path.join(str(QgsApplication.prefixPath()), 'grass7')
                 if not os.path.isdir(folder):
                     folder = '/Applications/GRASS-7.0.app/Contents/MacOS'
 
@@ -131,8 +133,7 @@ class Grass7Utils:
             output.write('set GISRC=' + gisrc + '\n')
             output.write('set WINGISBASE=' + folder + '\n')
             output.write('set GISBASE=' + folder + '\n')
-            output.write('set GRASS_PROJSHARE=' + folder + os.sep + 'share'
-                         + os.sep + 'proj' + '\n')
+            output.write('set GRASS_PROJSHARE=' + os.path.join(folder, 'share', 'proj') + '\n')
             output.write('set GRASS_MESSAGE_FORMAT=plain\n')
 
             # Replacement code for etc/Init.bat
@@ -234,7 +235,7 @@ class Grass7Utils:
             Grass7Utils.createGrass7Script(commands)
             command = ['cmd.exe', '/C ', Grass7Utils.grassScriptFilename()]
         else:
-            gisrc = userFolder() + os.sep + 'processing.gisrc7'
+            gisrc = os.path.join(userFolder(), 'processing.gisrc7')
             env['GISRC'] = gisrc
             env['GRASS_MESSAGE_FORMAT'] = 'plain'
             env['GRASS_BATCH_JOB'] = Grass7Utils.grassBatchJobFilename()
@@ -243,12 +244,11 @@ class Grass7Utils:
             Grass7Utils.createGrass7BatchJobFileFromGrass7Commands(commands)
             os.chmod(Grass7Utils.grassBatchJobFilename(), stat.S_IEXEC
                      | stat.S_IREAD | stat.S_IWRITE)
-            if isMac() and os.path.exists(Grass7Utils.grassPath() + os.sep + '*grass.sh*'):
-                command = Grass7Utils.grassPath() + os.sep + '*grass.sh* ' \
-                    + Grass7Utils.grassMapsetFolder() + '/PERMANENT'
+            if isMac() and os.path.exists(os.path.join(Grass7Utils.grassPath(), 'grass.sh')):
+                command = os.path.join(Grass7Utils.grassPath(), 'grass.sh') + ' ' \
+                    + os.path.join(Grass7Utils.grassMapsetFolder(), 'PERMANENT')
             else:
-                command = 'grass70 ' + Grass7Utils.grassMapsetFolder() \
-                    + '/PERMANENT'
+                command = 'grass70 ' + os.path.join(Grass7Utils.grassMapsetFolder(), 'PERMANENT')
 
         return command, env
 
@@ -338,8 +338,8 @@ class Grass7Utils:
     @staticmethod
     def addSessionLayers(exportedLayers):
         Grass7Utils.sessionLayers = dict(
-            Grass7Utils.sessionLayers.items()
-            + exportedLayers.items())
+            list(Grass7Utils.sessionLayers.items())
+            + list(exportedLayers.items()))
 
     @staticmethod
     def checkGrass7IsInstalled(ignorePreviousState=False):

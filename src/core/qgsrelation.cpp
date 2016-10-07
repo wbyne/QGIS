@@ -248,6 +248,16 @@ QString QgsRelation::id() const
   return mRelationId;
 }
 
+void QgsRelation::generateId()
+{
+  mRelationId = QString( "%1_%2_%3_%4" )
+                .arg( referencingLayerId(),
+                      mFieldPairs.at( 0 ).referencingField(),
+                      referencedLayerId(),
+                      mFieldPairs.at( 0 ).referencedField() );
+  updateRelationStatus();
+}
+
 QString QgsRelation::referencingLayerId() const
 {
   return mReferencingLayerId;
@@ -279,7 +289,7 @@ QgsAttributeList QgsRelation::referencedFields() const
 
   Q_FOREACH ( const FieldPair& pair, mFieldPairs )
   {
-    attrs << mReferencedLayer->fieldNameIndex( pair.second );
+    attrs << mReferencedLayer->fields().lookupField( pair.second );
   }
   return attrs;
 }
@@ -290,7 +300,7 @@ QgsAttributeList QgsRelation::referencingFields() const
 
   Q_FOREACH ( const FieldPair& pair, mFieldPairs )
   {
-    attrs << mReferencingLayer->fieldNameIndex( pair.first );
+    attrs << mReferencingLayer->fields().lookupField( pair.first );
   }
   return attrs;
 
@@ -299,6 +309,11 @@ QgsAttributeList QgsRelation::referencingFields() const
 bool QgsRelation::isValid() const
 {
   return mValid;
+}
+
+bool QgsRelation::hasEqualDefinition( const QgsRelation& other ) const
+{
+  return mReferencedLayerId == other.mReferencedLayerId && mReferencingLayerId == other.mReferencingLayerId && mFieldPairs == other.mFieldPairs;
 }
 
 void QgsRelation::updateRelationStatus()
@@ -314,17 +329,17 @@ void QgsRelation::updateRelationStatus()
   {
     QgsDebugMsg( "Invalid relation: no ID" );
     mValid = false;
-      }
+  }
   else
   {
     if ( !mReferencedLayer )
     {
-      QgsDebugMsg( QString("Invalid relation: referenced layer does not exist. ID: %1").arg(mReferencedLayerId) );
+      QgsDebugMsg( QString( "Invalid relation: referenced layer does not exist. ID: %1" ).arg( mReferencedLayerId ) );
       mValid = false;
     }
     else if ( !mReferencingLayer )
     {
-      QgsDebugMsg( QString("Invalid relation: referencing layer does not exist. ID: %2").arg(mReferencingLayerId) );
+      QgsDebugMsg( QString( "Invalid relation: referencing layer does not exist. ID: %2" ).arg( mReferencingLayerId ) );
       mValid = false;
     }
     else
@@ -337,15 +352,15 @@ void QgsRelation::updateRelationStatus()
 
       Q_FOREACH ( const FieldPair& fieldPair, mFieldPairs )
       {
-        if ( -1 == mReferencingLayer->fieldNameIndex( fieldPair.first ))
+        if ( -1 == mReferencingLayer->fields().lookupField( fieldPair.first ) )
         {
-          QgsDebugMsg( QString("Invalid relation: field %1 does not exist in referencing layer %2").arg(fieldPair.first, mReferencingLayer->name()) );
+          QgsDebugMsg( QString( "Invalid relation: field %1 does not exist in referencing layer %2" ).arg( fieldPair.first, mReferencingLayer->name() ) );
           mValid = false;
           break;
         }
-        else if ( -1 == mReferencedLayer->fieldNameIndex( fieldPair.second ) )
+        else if ( -1 == mReferencedLayer->fields().lookupField( fieldPair.second ) )
         {
-          QgsDebugMsg( QString("Invalid relation: field %1 does not exist in referencedg layer %2").arg(fieldPair.second, mReferencedLayer->name()) );
+          QgsDebugMsg( QString( "Invalid relation: field %1 does not exist in referencedg layer %2" ).arg( fieldPair.second, mReferencedLayer->name() ) );
           mValid = false;
           break;
         }

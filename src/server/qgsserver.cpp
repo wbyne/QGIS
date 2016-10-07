@@ -68,22 +68,19 @@ bool QgsServer::sInitPython = true;
 #endif
 // Initialization must run once for all servers
 bool QgsServer::sInitialised =  false;
-char* QgsServer::sArgv[1];
-int QgsServer::sArgc;
-QgsApplication* QgsServer::sQgsApplication = nullptr;
-bool QgsServer::sCaptureOutput = false;
+bool QgsServer::sCaptureOutput = true;
 
 
 
-QgsServer::QgsServer( int &argc, char **argv )
+QgsServer::QgsServer( bool captureOutput )
 {
-  init( argc, argv );
-  saveEnvVars();
-}
-
-
-QgsServer::QgsServer()
-{
+  // QgsApplication must exist
+  if ( qobject_cast<QgsApplication*>( qApp ) == nullptr )
+  {
+    qFatal( "A QgsApplication must exist before a QgsServer instance can be created." );
+    abort();
+  }
+  sCaptureOutput = captureOutput;
   init();
   saveEnvVars();
 }
@@ -115,7 +112,9 @@ void QgsServer::setupNetworkAccessManager()
   QSettings settings;
   QgsNetworkAccessManager *nam = QgsNetworkAccessManager::instance();
   QNetworkDiskCache *cache = new QNetworkDiskCache( nullptr );
-  QString cacheDirectory = settings.value( "cache/directory", QgsApplication::qgisSettingsDirPath() + "cache" ).toString();
+  QString cacheDirectory = settings.value( "cache/directory" ).toString();
+  if ( cacheDirectory.isEmpty() )
+    cacheDirectory = QgsApplication::qgisSettingsDirPath() + "cache";
   qint64 cacheSize = settings.value( "cache/size", 50 * 1024 * 1024 ).toULongLong();
   QgsMessageLog::logMessage( QString( "setCacheDirectory: %1" ).arg( cacheDirectory ), "Server", QgsMessageLog::INFO );
   QgsMessageLog::logMessage( QString( "setMaximumCacheSize: %1" ).arg( cacheSize ), "Server", QgsMessageLog::INFO );
@@ -308,34 +307,18 @@ QString QgsServer::configPath( const QString& defaultConfigPath, const QMap<QStr
 
 
 /**
- * This is used in python bindings only
+ * Server initialization
  */
-bool QgsServer::init()
+bool QgsServer::init( )
 {
   if ( sInitialised )
   {
     return false;
   }
 
-  sArgv[0] = serverName().toUtf8().data();
-  sArgc = 1;
-  sCaptureOutput = true;
 #ifdef HAVE_SERVER_PYTHON_PLUGINS
   sInitPython = false;
 #endif
-  return init( sArgc , sArgv );
-}
-
-
-/**
- * Server initialization
- */
-bool QgsServer::init( int & argc, char ** argv )
-{
-  if ( sInitialised )
-  {
-    return false;
-  }
 
   QgsServerLogger::instance();
 
@@ -350,8 +333,6 @@ bool QgsServer::init( int & argc, char ** argv )
     QSettings::setDefaultFormat( QSettings::IniFormat );
     QSettings::setPath( QSettings::IniFormat, QSettings::UserScope, optionsPath );
   }
-
-  sQgsApplication = new QgsApplication( argc, argv, getenv( "DISPLAY" ), QString(), "server" );
 
   QCoreApplication::setOrganizationName( QgsApplication::QGIS_ORGANIZATION_NAME );
   QCoreApplication::setOrganizationDomain( QgsApplication::QGIS_ORGANIZATION_DOMAIN );
@@ -385,7 +366,7 @@ bool QgsServer::init( int & argc, char ** argv )
   QgsApplication::createDB(); //init qgis.db (e.g. necessary for user crs)
 
   // Instantiate authentication system
-  //   creates or uses qgis-auth.db in ~/.qgis2/ or directory defined by QGIS_AUTH_DB_DIR_PATH env variable
+  //   creates or uses qgis-auth.db in ~/.qgis3/ or directory defined by QGIS_AUTH_DB_DIR_PATH env variable
   //   set the master password as first line of file defined by QGIS_AUTH_PASSWORD_FILE env variable
   //   (QGIS_AUTH_PASSWORD_FILE variable removed from environment after accessing)
   QgsAuthManager::instance()->init( QgsApplication::pluginPath() );
@@ -407,7 +388,6 @@ bool QgsServer::init( int & argc, char ** argv )
   }
   // Store the config file path
   sConfigFilePath = new QString( defaultConfigFilePath );
-
 
   //create cache for capabilities XML
   sCapabilitiesCache = new QgsCapabilitiesCache();
@@ -480,7 +460,8 @@ QPair<QByteArray, QByteArray> QgsServer::handleRequest( const QString& queryStri
   // performances and memory in the long run
   sMapRenderer->rendererContext()->setExpressionContext( QgsExpressionContext() );
 
-  sQgsApplication->processEvents();
+  qApp->processEvents();
+
   if ( logLevel < 1 )
   {
     time.start();

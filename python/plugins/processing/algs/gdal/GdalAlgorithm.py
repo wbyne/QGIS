@@ -26,6 +26,7 @@ __copyright__ = '(C) 2012, Victor Olaya'
 __revision__ = '$Format:%H$'
 
 import os
+import re
 
 from qgis.PyQt.QtGui import QIcon
 
@@ -40,8 +41,14 @@ pluginPath = os.path.normpath(os.path.join(
 
 class GdalAlgorithm(GeoAlgorithm):
 
+    def __init__(self):
+        GeoAlgorithm.__init__(self)
+        self._icon = None
+
     def getIcon(self):
-        return QIcon(os.path.join(pluginPath, 'images', 'gdal.svg'))
+        if self._icon is None:
+            self._icon = QIcon(os.path.join(pluginPath, 'images', 'gdal.svg'))
+        return self._icon
 
     def getCustomParametersDialog(self):
         return GdalAlgorithmDialog(self)
@@ -58,7 +65,9 @@ class GdalAlgorithm(GeoAlgorithm):
                     c = c.replace(layer.source(), exported)
                     if os.path.isfile(layer.source()):
                         fileName = os.path.splitext(os.path.split(layer.source())[1])[0]
-                        c = c.replace(' ' + fileName + ' ', ' ' + exportedFileName + ' ')
+                        c = re.sub('[\s]{}[\s]'.format(fileName), ' ' + exportedFileName + ' ', c)
+                        c = re.sub('[\s]{}'.format(fileName), ' ' + exportedFileName, c)
+                        c = re.sub('["\']{}["\']'.format(fileName), "'" + exportedFileName + "'", c)
 
             commands[i] = c
         GdalUtils.runGdal(commands, progress)

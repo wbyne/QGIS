@@ -323,45 +323,6 @@ class QgsVectorLayer : QgsMapLayer
 %End
 
   public:
-    struct GroupData
-    {
-      GroupData();
-      GroupData( const QString& name, const QList<QString>& fields );
-      QString mName;
-      QList<QString> mFields;
-    };
-
-    struct TabData
-    {
-      TabData();
-      TabData( const QString& name, const QList<QString>& fields, const QList<QgsVectorLayer::GroupData>& groups );
-      QString mName;
-      QList<QString> mFields;
-      QList<QgsVectorLayer::GroupData> mGroups;
-    };
-
-    enum EditorLayout
-    {
-      GeneratedLayout,
-      TabLayout,
-      UiFileLayout
-    };
-
-    struct ValueRelationData
-    {
-      ValueRelationData();
-      ValueRelationData( const QString& layer, const QString& key, const QString& value, bool allowNull, bool orderByValue,
-                         bool allowMulti = false,
-                         const QString& filterExpression = QString::null );
-
-      QString mLayer;
-      QString mKey;
-      QString mValue;
-      QString mFilterExpression;
-      bool mAllowNull;
-      bool mOrderByValue;
-      bool mAllowMulti;  /* allow selection of multiple keys */
-    };
 
     //! Result of an edit operation
     enum EditResult
@@ -461,9 +422,23 @@ class QgsVectorLayer : QgsMapLayer
     const QList<QgsVectorJoinInfo> vectorJoins() const;
 
     /**
-     * Get the list of layer ids on which this layer depends. This in particular determines the order of layer loading.
+     * Sets the list of dependencies.
+     * @see dependencies()
+     *
+     * @param layers set of QgsMapLayerDependency. Only user-defined dependencies will be added
+     * @returns false if a dependency cycle has been detected
+     * @note added in QGIS 3.0
      */
-    virtual QSet<QString> layerDependencies() const;
+    virtual bool setDependencies( const QSet<QgsMapLayerDependency>& layers );
+
+    /**
+     * Gets the list of dependencies. This includes data dependencies set by the user (@see setDataDependencies)
+     * as well as dependencies given by the provider
+     *
+     * @returns a set of QgsMapLayerDependency
+     * @note added in QGIS 3.0
+     */
+    virtual QSet<QgsMapLayerDependency> dependencies() const;
 
     /**
      * Add a new field which is calculated by the expression specified
@@ -718,12 +693,6 @@ class QgsVectorLayer : QgsMapLayer
      */
     virtual QString loadNamedStyle( const QString &theURI, bool &theResultFlag );
 
-    /** Convert a saved attribute editor element into a AttributeEditor structure as it's used internally.
-     * @param elem the DOM element
-     * @param parent the QObject which will own this object
-     */
-    QgsAttributeEditorElement* attributeEditorElementFromDomElement( QDomElement &elem, QObject* parent );
-
     /** Read the symbology for the current layer from the Dom node supplied.
      * @param node node that will contain the symbology definition for this layer.
      * @param errorMessage reference to string that will be updated with any error messages
@@ -754,7 +723,7 @@ class QgsVectorLayer : QgsMapLayer
      */
     bool writeStyle( QDomNode& node, QDomDocument& doc, QString& errorMessage ) const;
 
-    bool writeSld( QDomNode& node, QDomDocument& doc, QString& errorMessage ) const;
+    bool writeSld( QDomNode& node, QDomDocument& doc, QString& errorMessage, QgsStringMap& props ) const;
     bool readSld( const QDomNode& node, QString& errorMessage );
 
     /**
@@ -1026,11 +995,6 @@ class QgsVectorLayer : QgsMapLayer
      */
     virtual QgsMapLayerRenderer* createMapRenderer( QgsRenderContext& rendererContext ) /Factory/;
 
-    /** Draws the layer
-     *  @return false if an error occurred during drawing
-     */
-    bool draw( QgsRenderContext& rendererContext );
-
     /** Return the extent of the layer */
     QgsRectangle extent() const;
 
@@ -1109,33 +1073,26 @@ class QgsVectorLayer : QgsMapLayer
      */
     bool addAttribute( const QgsField &field );
 
-    /** Sets an alias (a display name) for attributes to display in dialogs */
-    void addAttributeAlias( int attIndex, const QString& aliasString );
+    /**
+     * Sets an alias (a display name) for attributes to display in dialogs
+     *
+     * @note Added in QGIS 3.0
+     */
+    void setFieldAlias( int index, const QString& aliasString );
 
-    /** Removes an alias (a display name) for attributes to display in dialogs */
-    void remAttributeAlias( int attIndex );
+    /**
+     * Removes an alias (a display name) for attributes to display in dialogs
+     *
+     * @note Added in QGIS 3.0
+     */
+    void removeFieldAlias( int index );
 
     /** Renames an attribute field  (but does not commit it).
      * @param attIndex attribute index
      * @param newName new name of field
      * @note added in QGIS 2.16
-    */
-    bool renameAttribute( int attIndex, const QString& newName );
-
-    /**
-     * Get the configuration of the form used to represent this vector layer.
-     * This is a writable configuration that can directly be changed in place.
-     *
-     * @return The configuration of this layers' form
-     *
-     * @note Added in QGIS 2.14
      */
-    QgsEditFormConfig* editFormConfig() const;
-
-    /**
-     * Clears all the tabs for the attribute editor form
-     */
-    void clearAttributeEditorWidgets();
+    bool renameAttribute( int index, const QString& newName );
 
     /**
      * Returns the alias of an attribute name or a null string if there is no alias.
@@ -1143,10 +1100,10 @@ class QgsVectorLayer : QgsMapLayer
      * @see {attributeDisplayName( int attributeIndex )} which returns the field name
      *      if no alias is defined.
      */
-    QString attributeAlias( int attributeIndex ) const;
+    QString attributeAlias( int index ) const;
 
     /** Convenience function that returns the attribute alias if defined or the field name else */
-    QString attributeDisplayName( int attributeIndex ) const;
+    QString attributeDisplayName( int index ) const;
 
     const QMap< QString, QString >& attributeAliases() const;
 
@@ -1218,9 +1175,6 @@ class QgsVectorLayer : QgsMapLayer
     /** Set annotation form for layer */
     void setAnnotationForm( const QString& ui );
 
-    /** Access value relation widget data */
-    ValueRelationData valueRelation( int idx ) const;
-
     /**
      * Get relations, where the foreign key is on this layer
      *
@@ -1244,9 +1198,6 @@ class QgsVectorLayer : QgsMapLayer
     /** Destroy active command and reverts all changes in it */
     void destroyEditCommand();
 
-    /** Returns the index of a field name or -1 if the field does not exist */
-    int fieldNameIndex( const QString& fieldName ) const;
-
     /** Editing vertex markers */
     enum VertexMarkerType
     {
@@ -1264,6 +1215,42 @@ class QgsVectorLayer : QgsMapLayer
     /** Caches joined attributes if required (and not already done) */
     // marked as const as these are just caches, and need to be created from const accessors
     void createJoinCaches() const;
+
+    /** Returns the calculated default value for the specified field index. The default
+     * value may be taken from a client side default value expression (see setDefaultValueExpression())
+     * or taken from the underlying data provider.
+     * @param index field index
+     * @param feature optional feature to use for default value evaluation. If passed,
+     * then properties from the feature (such as geometry) can be used when calculating
+     * the default value.
+     * @param context optional expression context to evaluate expressions again. If not
+     * specified, a default context will be created
+     * @return calculated default value
+     * @note added in QGIS 3.0
+     * @see setDefaultValueExpression()
+     */
+    QVariant defaultValue( int index, const QgsFeature& feature = QgsFeature(),
+                           QgsExpressionContext* context = nullptr ) const;
+
+    /** Sets an expression to use when calculating the default value for a field.
+     * @param index field index
+     * @param expression expression to evaluate when calculating default values for field. Pass
+     * an empty expression to clear the default.
+     * @note added in QGIS 3.0
+     * @see defaultValue()
+     * @see defaultValueExpression()
+     */
+    void setDefaultValueExpression( int index, const QString& expression );
+
+    /** Returns the expression used when calculating the default value for a field.
+     * @param index field index
+     * @returns expression evaluated when calculating default values for field, or an
+     * empty string if no default is set
+     * @note added in QGIS 3.0
+     * @see defaultValue()
+     * @see setDefaultValueExpression()
+     */
+    QString defaultValueExpression( int index ) const;
 
     /** Calculates a list of unique values contained within an attribute in the layer. Note that
      * in some circumstances when unsaved changes are present for the layer then the returned list
@@ -1404,6 +1391,26 @@ class QgsVectorLayer : QgsMapLayer
     void setMapTipTemplate( const QString& mapTipTemplate );
 
     QgsExpressionContext createExpressionContext() const;
+
+    /**
+     * Get the configuration of the form used to represent this vector layer.
+     * This is a writable configuration that can directly be changed in place.
+     *
+     * @return The configuration of this layers' form
+     *
+     * @note Added in QGIS 2.14
+     */
+    QgsEditFormConfig editFormConfig() const;
+
+    /**
+     * Get the configuration of the form used to represent this vector layer.
+     * This is a writable configuration that can directly be changed in place.
+     *
+     * @return The configuration of this layers' form
+     *
+     * @note Added in QGIS 3.0
+     */
+    void setEditFormConfig( const QgsEditFormConfig& editFormConfig );
 
   public slots:
     /**
@@ -1678,6 +1685,20 @@ class QgsVectorLayer : QgsMapLayer
      */
     void raiseError( const QString& msg );
 
+    /**
+     * Will be emitted whenever the edit form configuration of this layer changes.
+     *
+     * @Note added in QGIS 3.0
+     */
+    void editFormConfigChanged();
+
+    /**
+     * Emitted when the read only state of this layer is changed.
+     * Only applies to manually set readonly state, not to the edit mode.
+     *
+     * @note Added in QGIS 3.0
+     */
+    void readOnlyChanged();
   protected:
     /** Set the extent */
     void setExtent( const QgsRectangle &rect );
@@ -1689,4 +1710,3 @@ class QgsVectorLayer : QgsMapLayer
 
 
 };
-

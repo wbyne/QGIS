@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from builtins import str
 
 __author__ = 'Alexander Bruy'
 __date__ = 'October 2013'
@@ -145,13 +146,13 @@ class FieldsCalculatorDialog(BASE, WIDGET):
                                            lastEncoding)
         fileDialog.setFileMode(QFileDialog.AnyFile)
         fileDialog.setAcceptMode(QFileDialog.AcceptSave)
-        fileDialog.setConfirmOverwrite(True)
+        fileDialog.setOption(QFileDialog.DontConfirmOverwrite, False)
         if fileDialog.exec_() == QDialog.Accepted:
             files = fileDialog.selectedFiles()
-            encoding = unicode(fileDialog.encoding())
+            encoding = str(fileDialog.encoding())
             output.encoding = encoding
-            filename = unicode(files[0])
-            selectedFileFilter = unicode(fileDialog.selectedNameFilter())
+            filename = str(files[0])
+            selectedFileFilter = str(fileDialog.selectedNameFilter())
             if not filename.lower().endswith(
                     tuple(re.findall("\*(\.[a-z]{1,10})", fileFilter))):
                 ext = re.search("\*(\.[a-z]{1,10})", selectedFileFilter)

@@ -34,20 +34,21 @@ class GUI_EXPORT QgsInvertedPolygonRendererWidget : public QgsRendererWidget, pr
     /** Static creation method
      * @param layer the layer where this renderer is applied
      * @param style
-     * @param renderer the mask renderer (will take ownership)
+     * @param renderer the mask renderer (will not take ownership)
      */
     static QgsRendererWidget* create( QgsVectorLayer* layer, QgsStyle* style, QgsFeatureRenderer* renderer );
 
     /** Constructor
      * @param layer the layer where this renderer is applied
      * @param style
-     * @param renderer the mask renderer (will take ownership)
+     * @param renderer the mask renderer (will not take ownership)
      */
     QgsInvertedPolygonRendererWidget( QgsVectorLayer* layer, QgsStyle* style, QgsFeatureRenderer* renderer );
 
     /** @returns the current feature renderer */
     virtual QgsFeatureRenderer* renderer() override;
-    void setMapCanvas( QgsMapCanvas* canvas ) override;
+
+    void setContext( const QgsSymbolWidgetContext& context ) override;
 
   protected:
     /** The mask renderer */

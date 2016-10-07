@@ -21,7 +21,7 @@
 #include "ui_qgsidentifyresultsbase.h"
 #include "qgscontexthelp.h"
 #include "qgsfeature.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgscoordinatereferencesystem.h"
 #include "qgsmaptoolidentify.h"
 #include "qgswebview.h"
@@ -41,6 +41,7 @@ class QgsHighlight;
 class QgsMapCanvas;
 class QgsDockWidget;
 class QgsMapLayerAction;
+class QgsEditorWidgetSetup;
 
 class QwtPlotCurve;
 
@@ -217,7 +218,7 @@ class APP_EXPORT QgsIdentifyResultsDialog: public QDialog, private Ui::QgsIdenti
     void mapLayerActionDestroyed();
 
   private:
-    QString representValue( QgsVectorLayer* vlayer, const QString& fieldName, const QVariant& value );
+    QString representValue( QgsVectorLayer* vlayer, const QgsEditorWidgetSetup& setup, const QString& fieldName, const QVariant& value );
 
     enum ItemDataRole
     {

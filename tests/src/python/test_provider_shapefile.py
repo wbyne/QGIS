@@ -30,6 +30,19 @@ start_app()
 TEST_DATA_DIR = unitTestDataPath()
 
 
+def GDAL_COMPUTE_VERSION(maj, min, rev):
+    return ((maj) * 1000000 + (min) * 10000 + (rev) * 100)
+
+
+class ErrorReceiver():
+
+    def __init__(self):
+        self.msg = None
+
+    def receiveError(self, msg):
+        self.msg = msg
+
+
 class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
     @classmethod
@@ -48,10 +61,10 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         cls.basetestfile = os.path.join(cls.basetestpath, 'shapefile.shp')
         cls.repackfile = os.path.join(cls.repackfilepath, 'shapefile.shp')
         cls.basetestpolyfile = os.path.join(cls.basetestpath, 'shapefile_poly.shp')
-        cls.vl = QgsVectorLayer(u'{}|layerid=0'.format(cls.basetestfile), u'test', u'ogr')
+        cls.vl = QgsVectorLayer('{}|layerid=0'.format(cls.basetestfile), 'test', 'ogr')
         assert(cls.vl.isValid())
         cls.provider = cls.vl.dataProvider()
-        cls.vl_poly = QgsVectorLayer(u'{}|layerid=0'.format(cls.basetestpolyfile), u'test', u'ogr')
+        cls.vl_poly = QgsVectorLayer('{}|layerid=0'.format(cls.basetestpolyfile), 'test', 'ogr')
         assert (cls.vl_poly.isValid())
         cls.poly_provider = cls.vl_poly.dataProvider()
 
@@ -64,10 +77,10 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.rmtree(dirname, True)
 
     def enableCompiler(self):
-        QSettings().setValue(u'/qgis/compileExpressions', True)
+        QSettings().setValue('/qgis/compileExpressions', True)
 
     def disableCompiler(self):
-        QSettings().setValue(u'/qgis/compileExpressions', False)
+        QSettings().setValue('/qgis/compileExpressions', False)
 
     def uncompiledFilters(self):
         filters = set(['name ILIKE \'QGIS\'',
@@ -120,7 +133,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
                     '"name"="name2"'])
 
     def testRepack(self):
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(self.repackfile), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(self.repackfile), 'test', 'ogr')
 
         ids = [f.id() for f in vl.getFeatures(QgsFeatureRequest().setFilterExpression('pk=1'))]
         vl.selectByIds(ids)
@@ -141,7 +154,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         caps = vl.dataProvider().capabilities()
         self.assertTrue(caps & QgsVectorDataProvider.AddFeatures)
         self.assertTrue(caps & QgsVectorDataProvider.DeleteFeatures)
@@ -154,23 +167,23 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         #self.assertTrue(caps & QgsVectorDataProvider.ChangeFeatures)
 
         # We should be really opened in read-only mode even if write capabilities are declared
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-only")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-only")
 
         # Unbalanced call to leaveUpdateMode()
         self.assertFalse(vl.dataProvider().leaveUpdateMode())
 
         # Test that startEditing() / commitChanges() plays with enterUpdateMode() / leaveUpdateMode()
         self.assertTrue(vl.startEditing())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
         self.assertTrue(vl.dataProvider().isValid())
 
         self.assertTrue(vl.commitChanges())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-only")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-only")
         self.assertTrue(vl.dataProvider().isValid())
 
         # Manual enterUpdateMode() / leaveUpdateMode() with 2 depths
         self.assertTrue(vl.dataProvider().enterUpdateMode())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
         caps = vl.dataProvider().capabilities()
         self.assertTrue(caps & QgsVectorDataProvider.AddFeatures)
 
@@ -183,10 +196,10 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
 
         features = [f_iter for f_iter in vl.getFeatures(QgsFeatureRequest().setFilterFid(fid))]
         values = [f_iter['pk'] for f_iter in features]
-        self.assertEquals(values, [200])
+        self.assertEqual(values, [200])
 
         got_geom = [f_iter.geometry() for f_iter in features][0].geometry()
-        self.assertEquals((got_geom.x(), got_geom.y()), (2.0, 49.0))
+        self.assertEqual((got_geom.x(), got_geom.y()), (2.0, 49.0))
 
         self.assertTrue(vl.dataProvider().changeGeometryValues({fid: QgsGeometry.fromWkt('Point (3 50)')}))
         self.assertTrue(vl.dataProvider().changeAttributeValues({fid: {0: 100}}))
@@ -195,7 +208,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         values = [f_iter['pk'] for f_iter in features]
 
         got_geom = [f_iter.geometry() for f_iter in features][0].geometry()
-        self.assertEquals((got_geom.x(), got_geom.y()), (3.0, 50.0))
+        self.assertEqual((got_geom.x(), got_geom.y()), (3.0, 50.0))
 
         self.assertTrue(vl.dataProvider().deleteFeatures([fid]))
 
@@ -203,31 +216,31 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         osgeo.gdal.PushErrorHandler('CPLQuietErrorHandler')
         features = [f_iter for f_iter in vl.getFeatures(QgsFeatureRequest().setFilterFid(fid))]
         osgeo.gdal.PopErrorHandler()
-        self.assertEquals(features, [])
+        self.assertEqual(features, [])
 
         self.assertTrue(vl.dataProvider().addAttributes([QgsField("new_field", QVariant.Int, "integer")]))
         self.assertTrue(vl.dataProvider().deleteAttributes([len(vl.dataProvider().fields()) - 1]))
 
         self.assertTrue(vl.startEditing())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
 
         self.assertTrue(vl.commitChanges())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
 
         self.assertTrue(vl.dataProvider().enterUpdateMode())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
 
         self.assertTrue(vl.dataProvider().leaveUpdateMode())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
 
         self.assertTrue(vl.dataProvider().leaveUpdateMode())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-only")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-only")
 
         # Test that update mode will be implictly enabled if doing an action
         # that requires update mode
         (ret, _) = vl.dataProvider().addFeatures([QgsFeature()])
         self.assertTrue(ret)
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "read-write")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "read-write")
 
     def testUpdateModeFailedReopening(self):
         ''' Test that methods on provider don't crash after a failed reopening '''
@@ -244,17 +257,17 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
 
         os.unlink(datasource)
 
         self.assertFalse(vl.dataProvider().enterUpdateMode())
         self.assertFalse(vl.dataProvider().enterUpdateMode())
-        self.assertEquals(vl.dataProvider().property("_debug_open_mode"), "invalid")
+        self.assertEqual(vl.dataProvider().property("_debug_open_mode"), "invalid")
 
         self.assertFalse(vl.dataProvider().isValid())
-        self.assertEquals(len([f for f in vl.dataProvider().getFeatures()]), 0)
-        self.assertEquals(len(vl.dataProvider().subLayers()), 0)
+        self.assertEqual(len([f for f in vl.dataProvider().getFeatures()]), 0)
+        self.assertEqual(len(vl.dataProvider().subLayers()), 0)
         self.assertFalse(vl.dataProvider().setSubsetString('TRUE'))
         (ret, _) = vl.dataProvider().addFeatures([QgsFeature()])
         self.assertFalse(ret)
@@ -276,16 +289,16 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl1 = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
-        vl2 = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl1 = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        vl2 = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         self.assertTrue(vl1.startEditing())
         self.assertTrue(vl1.deleteAttributes([1]))
         self.assertTrue(vl1.commitChanges())
-        self.assertEquals(len(vl1.fields()) + 1, len(vl2.fields()))
+        self.assertEqual(len(vl1.fields()) + 1, len(vl2.fields()))
         # Reload
         vl2.reload()
         # And now check that fields are up-to-date
-        self.assertEquals(len(vl1.fields()), len(vl2.fields()))
+        self.assertEqual(len(vl1.fields()), len(vl2.fields()))
 
     def testRenameAttributes(self):
         ''' Test renameAttributes() '''
@@ -297,7 +310,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         provider = vl.dataProvider()
 
         # bad rename
@@ -325,7 +338,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         # close file and reopen, then recheck to confirm that changes were saved to file
         del vl
         vl = None
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         provider = vl.dataProvider()
         self.assertEqual(provider.fields().at(2).name(), 'newname2')
         self.assertEqual(provider.fields().at(3).name(), 'another')
@@ -343,11 +356,11 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         self.assertTrue(vl.dataProvider().changeGeometryValues({0: QgsGeometry()}))
         vl = None
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         fet = next(vl.getFeatures())
         self.assertFalse(fet.hasGeometry())
 
@@ -361,7 +374,7 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
             shutil.copy(os.path.join(srcpath, file), tmpdir)
         datasource = os.path.join(tmpdir, 'shapefile.shp')
 
-        vl = QgsVectorLayer(u'{}|layerid=0'.format(datasource), u'test', u'ogr')
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
         feature_count = vl.featureCount()
         # Start an iterator that will open a new connection
         iterator = vl.getFeatures()
@@ -379,6 +392,94 @@ class TestPyQgsShapefileProvider(unittest.TestCase, ProviderTestCase):
         ds = None
 
         vl = None
+
+    def testRepackUnderFileLocks(self):
+        ''' Test fix for #15570 and #15393 '''
+
+        # This requires a GDAL fix done per https://trac.osgeo.org/gdal/ticket/6672
+        # but on non-Windows version the test would succeed
+        if int(osgeo.gdal.VersionInfo('VERSION_NUM')) < GDAL_COMPUTE_VERSION(2, 1, 2):
+            return
+
+        tmpdir = tempfile.mkdtemp()
+        self.dirs_to_cleanup.append(tmpdir)
+        srcpath = os.path.join(TEST_DATA_DIR, 'provider')
+        for file in glob.glob(os.path.join(srcpath, 'shapefile.*')):
+            shutil.copy(os.path.join(srcpath, file), tmpdir)
+        datasource = os.path.join(tmpdir, 'shapefile.shp')
+
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+        feature_count = vl.featureCount()
+
+        # Keep a file descriptor opened on the .dbf, .shp and .shx
+        f_shp = open(os.path.join(tmpdir, 'shapefile.shp'), 'rb')
+        f_shx = open(os.path.join(tmpdir, 'shapefile.shx'), 'rb')
+        f_dbf = open(os.path.join(tmpdir, 'shapefile.dbf'), 'rb')
+
+        # Delete a feature
+        self.assertTrue(vl.startEditing())
+        self.assertTrue(vl.deleteFeature(1))
+
+        # Commit changes and check no error is emitted
+        cbk = ErrorReceiver()
+        vl.dataProvider().raiseError.connect(cbk.receiveError)
+        self.assertTrue(vl.commitChanges())
+        self.assertIsNone(cbk.msg)
+
+        vl = None
+
+        del f_shp
+        del f_shx
+        del f_dbf
+
+        # Test repacking has been done
+        ds = osgeo.ogr.Open(datasource)
+        self.assertTrue(ds.GetLayer(0).GetFeatureCount(), feature_count - 1)
+        ds = None
+
+    def testRepackAtFirstSave(self):
+        ''' Test fix for #15407 '''
+
+        # This requires a GDAL fix done per https://trac.osgeo.org/gdal/ticket/6672
+        # but on non-Windows version the test would succeed
+        if int(osgeo.gdal.VersionInfo('VERSION_NUM')) < GDAL_COMPUTE_VERSION(2, 1, 2):
+            return
+
+        tmpdir = tempfile.mkdtemp()
+        self.dirs_to_cleanup.append(tmpdir)
+        srcpath = os.path.join(TEST_DATA_DIR, 'provider')
+        for file in glob.glob(os.path.join(srcpath, 'shapefile.*')):
+            shutil.copy(os.path.join(srcpath, file), tmpdir)
+        datasource = os.path.join(tmpdir, 'shapefile.shp')
+
+        ds = osgeo.ogr.Open(datasource)
+        lyr = ds.GetLayer(0)
+        original_feature_count = lyr.GetFeatureCount()
+        lyr.DeleteFeature(2)
+        ds = None
+
+        vl = QgsVectorLayer('{}|layerid=0'.format(datasource), 'test', 'ogr')
+
+        self.assertTrue(vl.featureCount(), original_feature_count)
+
+        # Edit a feature (attribute change only)
+        self.assertTrue(vl.startEditing())
+        self.assertTrue(vl.dataProvider().changeAttributeValues({0: {0: 100}}))
+
+        # Commit changes and check no error is emitted
+        cbk = ErrorReceiver()
+        vl.dataProvider().raiseError.connect(cbk.receiveError)
+        self.assertTrue(vl.commitChanges())
+        self.assertIsNone(cbk.msg)
+
+        self.assertTrue(vl.featureCount(), original_feature_count - 1)
+
+        vl = None
+
+        # Test repacking has been done
+        ds = osgeo.ogr.Open(datasource)
+        self.assertTrue(ds.GetLayer(0).GetFeatureCount(), original_feature_count - 1)
+        ds = None
 
 if __name__ == '__main__':
     unittest.main()

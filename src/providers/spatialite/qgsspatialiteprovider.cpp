@@ -17,7 +17,7 @@ email                : a.furieri@lqt.it
 #include "qgis.h"
 #include "qgsapplication.h"
 #include "qgsfeature.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgsmessageoutput.h"
 #include "qgsrectangle.h"
@@ -30,6 +30,9 @@ email                : a.furieri@lqt.it
 #include "qgsspatialiteconnpool.h"
 #include "qgsspatialitefeatureiterator.h"
 
+#include <qgsjsonutils.h>
+#include <qgsvectorlayer.h>
+
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QDir>
@@ -37,6 +40,8 @@ email                : a.furieri@lqt.it
 
 const QString SPATIALITE_KEY = "spatialite";
 const QString SPATIALITE_DESCRIPTION = "SpatiaLite data provider";
+static const QString SPATIALITE_ARRAY_PREFIX = "json";
+static const QString SPATIALITE_ARRAY_SUFFIX = "list";
 
 
 bool QgsSpatiaLiteProvider::convertField( QgsField &field )
@@ -79,6 +84,19 @@ bool QgsSpatiaLiteProvider::convertField( QgsField &field )
         fieldType = "NUMERIC";
       }
       break;
+
+    case QVariant::List:
+    case QVariant::StringList:
+    {
+      QgsField subField = field;
+      subField.setType( field.subType() );
+      subField.setSubType( QVariant::Invalid );
+      if ( !convertField( subField ) ) return false;
+      fieldType = SPATIALITE_ARRAY_PREFIX + subField.typeName() + SPATIALITE_ARRAY_SUFFIX;
+      fieldSize = subField.length();
+      fieldPrec = subField.precision();
+      break;
+    }
 
     default:
       return false;
@@ -159,7 +177,7 @@ QgsSpatiaLiteProvider::createEmptyLayer( const QString& uri,
       {
         if ( fields.at( fldIdx ).name() == primaryKey )
         {
-          // found, get the field type
+          // found it, get the field type
           QgsField fld = fields.at( fldIdx );
           if ( convertField( fld ) )
           {
@@ -487,7 +505,7 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri )
       lyr = list->First;
 
     ret = lyr && checkLayerTypeAbstractInterface( lyr );
-
+    QgsDebugMsg( "Using checkLayerTypeAbstractInterface" );
     alreadyDone = true;
   }
 #endif
@@ -591,6 +609,10 @@ QgsSpatiaLiteProvider::QgsSpatiaLiteProvider( QString const &uri )
   << QgsVectorDataProvider::NativeType( tr( "Text" ), "TEXT", QVariant::String )
   << QgsVectorDataProvider::NativeType( tr( "Decimal number (double)" ), "FLOAT", QVariant::Double )
   << QgsVectorDataProvider::NativeType( tr( "Whole number (integer)" ), "INTEGER", QVariant::LongLong )
+
+  << QgsVectorDataProvider::NativeType( tr( "Array of text" ), SPATIALITE_ARRAY_PREFIX.toUpper() + "TEXT" + SPATIALITE_ARRAY_SUFFIX.toUpper(), QVariant::StringList, 0, 0, 0, 0, QVariant::String )
+  << QgsVectorDataProvider::NativeType( tr( "Array of decimal numbers (double)" ), SPATIALITE_ARRAY_PREFIX.toUpper() + "REAL" + SPATIALITE_ARRAY_SUFFIX.toUpper(), QVariant::List, 0, 0, 0, 0, QVariant::Double )
+  << QgsVectorDataProvider::NativeType( tr( "Array of whole numbers (integer)" ), SPATIALITE_ARRAY_PREFIX.toUpper() + "INTEGER" + SPATIALITE_ARRAY_SUFFIX.toUpper(), QVariant::List, 0, 0, 0, 0, QVariant::LongLong )
   ;
   mValid = true;
 }
@@ -616,6 +638,38 @@ void QgsSpatiaLiteProvider::updatePrimaryKeyCapabilities()
   {
     mEnabledCapabilities |= QgsVectorDataProvider::SelectAtId;
   }
+}
+
+typedef QPair<QVariant::Type, QVariant::Type> TypeSubType;
+
+static TypeSubType getVariantType( const QString& type )
+{
+  // making some assumptions in order to guess a more realistic type
+  if ( type == "int" ||
+       type == "integer" ||
+       type == "integer64" ||
+       type == "bigint" ||
+       type == "smallint" ||
+       type == "tinyint" ||
+       type == "boolean" )
+    return TypeSubType( QVariant::LongLong, QVariant::Invalid );
+  else if ( type == "real" ||
+            type == "double" ||
+            type == "double precision" ||
+            type == "float" )
+    return TypeSubType( QVariant::Double, QVariant::Invalid );
+  else if ( type.startsWith( SPATIALITE_ARRAY_PREFIX ) && type.endsWith( SPATIALITE_ARRAY_SUFFIX ) )
+  {
+    // New versions of OGR convert list types (StringList, IntegerList, Integer64List and RealList)
+    // to JSON when it stores a Spatialite table. It sets the column type as JSONSTRINGLIST,
+    // JSONINTEGERLIST, JSONINTEGER64LIST or JSONREALLIST
+    TypeSubType subType = getVariantType( type.mid( SPATIALITE_ARRAY_PREFIX.length(),
+                                          type.length() - SPATIALITE_ARRAY_PREFIX.length() - SPATIALITE_ARRAY_SUFFIX.length() ) );
+    return TypeSubType( subType.first == QVariant::String ? QVariant::StringList : QVariant::List, subType.first );
+  }
+  else
+    // for sure any SQLite value can be represented as SQLITE_TEXT
+    return TypeSubType( QVariant::String, QVariant::Invalid );
 }
 
 #ifdef SPATIALITE_VERSION_GE_4_0_0
@@ -675,6 +729,23 @@ void QgsSpatiaLiteProvider::loadFieldsAbstractInterface( gaiaVectorLayerPtr lyr 
     {
       QString name = QString::fromUtf8( results[( i * columns ) + 1] );
       QString pk = results[( i * columns ) + 5];
+      QString type = results[( i * columns ) + 2];
+      type = type.toLower();
+
+      const int fieldIndex = mAttributeFields.indexFromName( name );
+      if ( fieldIndex >= 0 )
+      { // set the actual type name, as given by sqlite
+        QgsField& field = mAttributeFields[fieldIndex];
+        field.setTypeName( type );
+        // TODO: column 4 tells us if the field is nullable. Should use that info...
+        if ( field.type() == QVariant::String )
+        { // if the type seems unknown, fix it with what we actually have
+          TypeSubType typeSubType = getVariantType( type );
+          field.setType( typeSubType.first );
+          field.setSubType( typeSubType.second );
+        }
+      }
+
       if ( pk.toInt() == 0 )
         continue;
 
@@ -788,28 +859,8 @@ void QgsSpatiaLiteProvider::loadFields()
 
         if ( name.toLower() != mGeometryColumn )
         {
-          // for sure any SQLite value can be represented as SQLITE_TEXT
-          QVariant::Type fieldType = QVariant::String;
-
-          // making some assumptions in order to guess a more realistic type
-          if ( type == "int" ||
-               type == "integer" ||
-               type == "bigint" ||
-               type == "smallint" ||
-               type == "tinyint" ||
-               type == "boolean" )
-          {
-            fieldType = QVariant::LongLong;
-          }
-          else if ( type == "real" ||
-                    type == "double" ||
-                    type == "double precision" ||
-                    type == "float" )
-          {
-            fieldType = QVariant::Double;
-          }
-
-          mAttributeFields.append( QgsField( name, fieldType, type, 0, 0, QString() ) );
+          const TypeSubType fieldType = getVariantType( type );
+          mAttributeFields.append( QgsField( name, fieldType.first, type, 0, 0, QString(), fieldType.second ) );
         }
       }
     }
@@ -866,28 +917,8 @@ void QgsSpatiaLiteProvider::loadFields()
 
         if ( name.toLower() != mGeometryColumn )
         {
-          // for sure any SQLite value can be represented as SQLITE_TEXT
-          QVariant::Type fieldType = QVariant::String;
-
-          // making some assumptions in order to guess a more realistic type
-          if ( type == "int" ||
-               type == "integer" ||
-               type == "bigint" ||
-               type == "smallint" ||
-               type == "tinyint" ||
-               type == "boolean" )
-          {
-            fieldType = QVariant::LongLong;
-          }
-          else if ( type == "real" ||
-                    type == "double" ||
-                    type == "double precision" ||
-                    type == "float" )
-          {
-            fieldType = QVariant::Double;
-          }
-
-          mAttributeFields.append( QgsField( name, fieldType, type, 0, 0, QString() ) );
+          const TypeSubType fieldType = getVariantType( type );
+          mAttributeFields.append( QgsField( name, fieldType.first, type, 0, 0, QString(), fieldType.second ) );
         }
       }
     }
@@ -931,7 +962,7 @@ void QgsSpatiaLiteProvider::determineViewPrimaryKey()
     if ( rows > 0 )
     {
       mPrimaryKey = results[1 * columns];
-      int idx = mAttributeFields.fieldNameIndex( mPrimaryKey );
+      int idx = mAttributeFields.lookupField( mPrimaryKey );
       if ( idx != -1 )
         mPrimaryKeyAttrs << idx;
     }
@@ -959,7 +990,7 @@ bool QgsSpatiaLiteProvider::hasTriggers()
 
 bool QgsSpatiaLiteProvider::hasRowid()
 {
-  if ( mAttributeFields.fieldNameIndex( "ROWID" ) >= 0 )
+  if ( mAttributeFields.lookupField( "ROWID" ) >= 0 )
     return false;
 
   // table without rowid column
@@ -3732,6 +3763,11 @@ bool QgsSpatiaLiteProvider::addFeatures( QgsFeatureList & flist )
             QByteArray ba = v.toString().toUtf8();
             sqlite3_bind_text( stmt, ++ia, ba.constData(), ba.size(), SQLITE_TRANSIENT );
           }
+          else if ( type == QVariant::StringList || type == QVariant::List )
+          {
+            const QByteArray ba = QgsJSONUtils::encodeValue( v ).toUtf8();
+            sqlite3_bind_text( stmt, ++ia, ba.constData(), ba.size(), SQLITE_TRANSIENT );
+          }
           else
           {
             // Unknown type: bind a NULL value
@@ -3990,6 +4026,11 @@ bool QgsSpatiaLiteProvider::changeAttributeValues( const QgsChangedAttributesMap
         {
           // binding a NUMERIC value
           sql += QString( "%1=%2" ).arg( quotedIdentifier( fld.name() ) , val.toString() );
+        }
+        else if ( type == QVariant::StringList || type == QVariant::List )
+        {
+          // binding an array value
+          sql += QString( "%1=%2" ).arg( quotedIdentifier( fld.name() ), quotedValue( QgsJSONUtils::encodeValue( val ) ) );
         }
         else
         {
@@ -5224,6 +5265,80 @@ QgsAttributeList QgsSpatiaLiteProvider::pkAttributeIndexes() const
   return mPrimaryKeyAttrs;
 }
 
+QList<QgsVectorLayer*> QgsSpatiaLiteProvider::searchLayers( const QList<QgsVectorLayer*>& layers, const QString& connectionInfo, const QString& tableName )
+{
+  QList<QgsVectorLayer*> result;
+  Q_FOREACH ( QgsVectorLayer* layer, layers )
+  {
+    const QgsSpatiaLiteProvider* slProvider = qobject_cast<QgsSpatiaLiteProvider*>( layer->dataProvider() );
+    if ( slProvider && slProvider->mSqlitePath == connectionInfo && slProvider->mTableName == tableName )
+    {
+      result.append( layer );
+    }
+  }
+  return result;
+}
+
+
+QList<QgsRelation> QgsSpatiaLiteProvider::discoverRelations( const QgsVectorLayer* self, const QList<QgsVectorLayer*>& layers ) const
+{
+  QList<QgsRelation> output;
+  const QString sql = QString( "PRAGMA foreign_key_list(%1)" ).arg( QgsSpatiaLiteProvider::quotedIdentifier( mTableName ) );
+  char **results;
+  int rows;
+  int columns;
+  char *errMsg = nullptr;
+  int ret = sqlite3_get_table( mSqliteHandle, sql.toUtf8().constData(), &results, &rows, &columns, &errMsg );
+  if ( ret == SQLITE_OK )
+  {
+    int nbFound = 0;
+    for ( int row = 1; row <= rows; ++row )
+    {
+      const QString name = "fk_" + mTableName + "_" + QString::fromUtf8( results[row * columns + 0] );
+      const QString position = QString::fromUtf8( results[row * columns + 1] );
+      const QString refTable = QString::fromUtf8( results[row * columns + 2] );
+      const QString fkColumn = QString::fromUtf8( results[row * columns + 3] );
+      const QString refColumn = QString::fromUtf8( results[row * columns + 4] );
+      if ( position == "0" )
+      { // first reference field => try to find if we have layers for the referenced table
+        const QList<QgsVectorLayer*> foundLayers = searchLayers( layers, mSqlitePath, refTable );
+        Q_FOREACH ( const QgsVectorLayer* foundLayer, foundLayers )
+        {
+          QgsRelation relation;
+          relation.setRelationName( name );
+          relation.setReferencingLayer( self->id() );
+          relation.setReferencedLayer( foundLayer->id() );
+          relation.addFieldPair( fkColumn, refColumn );
+          relation.generateId();
+          if ( relation.isValid() )
+          {
+            output.append( relation );
+            ++nbFound;
+          }
+          else
+          {
+            QgsLogger::warning( "Invalid relation for " + name );
+          }
+        }
+      }
+      else
+      { // multi reference field => add the field pair to all the referenced layers found
+        for ( int i = 0; i < nbFound; ++i )
+        {
+          output[output.size() - 1 - i].addFieldPair( fkColumn, refColumn );
+        }
+      }
+    }
+    sqlite3_free_table( results );
+  }
+  else
+  {
+    QgsLogger::warning( QString( "SQLite error discovering relations: %1" ).arg( errMsg ) );
+    sqlite3_free( errMsg );
+  }
+  return output;
+}
+
 // ---------------------------------------------------------------------------
 
 QGISEXTERN bool saveStyle( const QString& uri, const QString& qmlStyle, const QString& sldStyle,
@@ -5607,3 +5722,4 @@ QGISEXTERN void cleanupProvider()
 {
   QgsSqliteHandle::closeAll();
 }
+

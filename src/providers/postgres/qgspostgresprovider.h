@@ -22,7 +22,7 @@
 #include "qgsrectangle.h"
 #include "qgsvectorlayerimport.h"
 #include "qgspostgresconn.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include <QSharedPointer>
 
 class QgsFeature;
@@ -249,6 +249,17 @@ class QgsPostgresProvider : public QgsVectorDataProvider
      */
     virtual QgsTransaction* transaction() const override;
 
+    /**
+     * Convert the postgres string representation into the given QVariant type.
+     * @param type the wanted type
+     * @param subType if type is a collection, the wanted element type
+     * @param value the value to convert
+     * @return a QVariant of the given type or a null QVariant
+     */
+    static QVariant convertValue( QVariant::Type type, QVariant::Type subType, const QString& value );
+
+    virtual QList<QgsRelation> discoverRelations( const QgsVectorLayer* self, const QList<QgsVectorLayer*>& layers ) const override;
+
   signals:
     /**
      *   This is emitted whenever the worker thread has fully calculated the
@@ -300,6 +311,10 @@ class QgsPostgresProvider : public QgsVectorDataProvider
      */
     bool loadFields();
 
+    /** Set the default widget type for the fields
+     */
+    void setEditorWidgets();
+
     /** Convert a QgsField to work with PG */
     static bool convertField( QgsField &field, const QMap<QString, QVariant> *options = nullptr );
 
@@ -326,6 +341,11 @@ class QgsPostgresProvider : public QgsVectorDataProvider
      *       primary key type.
      */
     QgsPostgresPrimaryKeyType pkType( const QgsField& fld ) const;
+
+    /**
+     * Search all the layers using the given table.
+     */
+    static QList<QgsVectorLayer*> searchLayers( const QList<QgsVectorLayer*>& layers, const QString& connectionInfo, const QString& schema, const QString& tableName );
 
     QgsFields mAttributeFields;
     QString mDataComment;

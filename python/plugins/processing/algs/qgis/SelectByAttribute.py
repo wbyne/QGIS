@@ -68,7 +68,7 @@ class SelectByAttribute(GeoAlgorithm):
                                self.tr('contains')]
 
         self.addParameter(ParameterVector(self.INPUT,
-                                          self.tr('Input Layer'), [ParameterVector.VECTOR_TYPE_ANY]))
+                                          self.tr('Input Layer')))
         self.addParameter(ParameterTableField(self.FIELD,
                                               self.tr('Selection attribute'), self.INPUT))
         self.addParameter(ParameterSelection(self.OPERATOR,
@@ -86,7 +86,7 @@ class SelectByAttribute(GeoAlgorithm):
 
         fields = layer.fields()
 
-        idx = layer.fieldNameIndex(fieldName)
+        idx = layer.fields().lookupField(fieldName)
         fieldType = fields[idx].type()
 
         if fieldType != QVariant.String and operator in self.OPERATORS[-2:]:

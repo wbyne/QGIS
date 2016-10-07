@@ -26,6 +26,7 @@
 #include "qgspolygon.h"
 #include "qgslinestring.h"
 #include "qgsmultipolygon.h"
+#include "qgslogger.h"
 
 #include "feature.h"
 #include "labelposition.h"
@@ -127,7 +128,7 @@ QgsVectorLayerLabelProvider::~QgsVectorLayerLabelProvider()
 }
 
 
-bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStringList& attributeNames )
+bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QSet<QString>& attributeNames )
 {
   QgsPalLayerSettings& lyr = mSettings;
   const QgsMapSettings& mapSettings = mEngine->mapSettings();
@@ -153,7 +154,7 @@ bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStr
     else
     {
       // If we aren't an expression, we check to see if we can find the column.
-      if ( mFields.fieldNameIndex( lyr.fieldName ) == -1 )
+      if ( mFields.lookupField( lyr.fieldName ) == -1 )
       {
         return false;
       }
@@ -177,12 +178,12 @@ bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStr
       Q_FOREACH ( const QString& name, exp->referencedColumns() )
       {
         QgsDebugMsgLevel( "REFERENCED COLUMN = " + name, 4 );
-        attributeNames.append( name );
+        attributeNames.insert( name );
       }
     }
     else
     {
-      attributeNames.append( lyr.fieldName );
+      attributeNames.insert( lyr.fieldName );
     }
 
     // add field indices of data defined expression or field
@@ -197,12 +198,12 @@ bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStr
 
       // this will return columns for expressions or field name, depending upon what is set to be used
       // this also prepares any expressions, too
-      QStringList cols = dd->referencedColumns( context.expressionContext() );
+      QSet<QString> cols = dd->referencedColumns( context.expressionContext() );
 
       //QgsDebugMsgLevel( QString( "Data defined referenced columns:" ) + cols.join( "," ), 4 );
       Q_FOREACH ( const QString& name, cols )
       {
-        attributeNames.append( name );
+        attributeNames.insert( name );
       }
     }
   }
@@ -217,7 +218,7 @@ bool QgsVectorLayerLabelProvider::prepare( const QgsRenderContext& context, QStr
   lyr.rasterCompressFactor = context.rasterScaleFactor();
 
   // save the pal layer to our layer context (with some additional info)
-  lyr.fieldIndex = mFields.fieldNameIndex( lyr.fieldName );
+  lyr.fieldIndex = mFields.lookupField( lyr.fieldName );
 
   lyr.xform = &mapSettings.mapToPixel();
   lyr.ct = QgsCoordinateTransform();
@@ -257,7 +258,7 @@ QList<QgsLabelFeature*> QgsVectorLayerLabelProvider::labelFeatures( QgsRenderCon
     return mLabels;
   }
 
-  QStringList attrNames;
+  QSet<QString> attrNames;
   if ( !prepare( ctx, attrNames ) )
     return QList<QgsLabelFeature*>();
 

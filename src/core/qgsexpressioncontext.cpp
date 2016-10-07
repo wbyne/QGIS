@@ -17,7 +17,7 @@
 
 #include "qgslogger.h"
 #include "qgsexpression.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsvectorlayer.h"
 #include "qgsproject.h"
 #include "qgssymbollayerutils.h"
@@ -40,6 +40,8 @@ const QString QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT( "geometry_part_cou
 const QString QgsExpressionContext::EXPR_GEOMETRY_PART_NUM( "geometry_part_num" );
 const QString QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT( "geometry_point_count" );
 const QString QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM( "geometry_point_num" );
+const QString QgsExpressionContext::EXPR_CLUSTER_SIZE( "cluster_size" );
+const QString QgsExpressionContext::EXPR_CLUSTER_COLOR( "cluster_color" );
 
 //
 // QgsExpressionContextScope
@@ -217,6 +219,7 @@ QgsExpressionContext::QgsExpressionContext( const QgsExpressionContext& other )
   mCachedValues = other.mCachedValues;
 }
 
+#ifdef HAS_MOVE_SEMANTICS
 QgsExpressionContext& QgsExpressionContext::operator=( QgsExpressionContext && other )
 {
   if ( this != &other )
@@ -231,6 +234,7 @@ QgsExpressionContext& QgsExpressionContext::operator=( QgsExpressionContext && o
   }
   return *this;
 }
+#endif
 
 QgsExpressionContext& QgsExpressionContext::operator=( const QgsExpressionContext & other )
 {

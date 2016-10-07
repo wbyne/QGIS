@@ -18,6 +18,11 @@ import sys
 import glob
 import platform
 import tempfile
+try:
+    from urllib2 import urlopen, HTTPError
+except ImportError:
+    from urllib.request import urlopen, HTTPError
+
 
 from qgis.PyQt.QtCore import QDir
 
@@ -340,7 +345,7 @@ def printImportant(info):
 
     print(info)
     with open(os.path.join(tempfile.gettempdir(), 'ctest-important.log'), 'a+') as f:
-        f.write(u'{}\n'.format(info))
+        f.write('{}\n'.format(info))
 
 
 class DoxygenParser():
@@ -477,7 +482,7 @@ class DoxygenParser():
                         line = l
                         break
             caret = '{:=>{}}'.format('^', col)
-            print('ParseError in {}\n{}\n{}\n{}'.format(f, e, line, caret))
+            print(('ParseError in {}\n{}\n{}\n{}'.format(f, e, line, caret)))
 
         self.documentable_members += documentable_members
         self.documented_members += documented_members
@@ -538,9 +543,7 @@ class DoxygenParser():
         d = e.find('briefdescription')
         has_brief_description = False
         if d:
-            p = d.find('para')
-            if p.text and len(p.text) > 0:
-                has_brief_description = True
+            has_brief_description = True
 
         # test for "added in QGIS xxx" string
         d = e.find('detaileddescription')
@@ -830,3 +833,22 @@ class DoxygenParser():
             if doc is not None and list(doc):
                 return True
         return False
+
+
+def waitServer(url, timeout=10):
+    """ Wait for a server to be online and to respond
+        HTTP errors are ignored
+        @param timeout: in seconds
+        @return: True of False
+    """
+    from time import time as now
+    end = now() + timeout
+    while True:
+        try:
+            urlopen(url, timeout=1)
+            return True
+        except HTTPError:
+            return True
+        except Exception as e:
+            if now() > end:
+                return False

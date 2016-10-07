@@ -19,6 +19,7 @@
 #include "qgslogger.h"
 #include "qgsmaplayerregistry.h"
 #include "qgsproject.h"
+#include "qgsvectordataprovider.h"
 #include "qgsvectorlayer.h"
 
 QgsRelationManager::QgsRelationManager( QgsProject* project )
@@ -111,7 +112,7 @@ QList<QgsRelation> QgsRelationManager::referencingRelations( const QgsVectorLaye
         bool containsField = false;
         Q_FOREACH ( const QgsRelation::FieldPair& fp, rel.fieldPairs() )
         {
-          if ( fieldIdx == layer->fieldNameIndex( fp.referencingField() ) )
+          if ( fieldIdx == layer->fields().lookupField( fp.referencingField() ) )
           {
             containsField = true;
             break;
@@ -216,4 +217,29 @@ void QgsRelationManager::layersRemoved( const QStringList& layers )
   {
     emit changed();
   }
+}
+
+static bool hasRelationWithEqualDefinition( const QList<QgsRelation>& existingRelations, const QgsRelation& relation )
+{
+  Q_FOREACH ( const QgsRelation& cur, existingRelations )
+  {
+    if ( cur.hasEqualDefinition( relation ) ) return true;
+  }
+  return false;
+}
+
+QList<QgsRelation> QgsRelationManager::discoverRelations( const QList<QgsRelation>& existingRelations, const QList<QgsVectorLayer*>& layers )
+{
+  QList<QgsRelation> result;
+  Q_FOREACH ( const QgsVectorLayer* layer, layers )
+  {
+    Q_FOREACH ( const QgsRelation& relation, layer->dataProvider()->discoverRelations( layer, layers ) )
+    {
+      if ( !hasRelationWithEqualDefinition( existingRelations, relation ) )
+      {
+        result.append( relation );
+      }
+    }
+  }
+  return result;
 }

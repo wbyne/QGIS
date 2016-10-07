@@ -342,7 +342,9 @@ void GlobePlugin::run()
   }
   else
   {
-    QString cacheDirectory = settings.value( "cache/directory", QgsApplication::qgisSettingsDirPath() + "cache" ).toString();
+    QString cacheDirectory = settings.value( "cache/directory" ).toString();
+    if ( cacheDirectory.isEmpty() )
+      cacheDirectory = QgsApplication::qgisSettingsDirPath() + "cache";
     osgEarth::Drivers::FileSystemCacheOptions cacheOptions;
     cacheOptions.rootPath() = cacheDirectory.toStdString();
 
@@ -777,9 +779,10 @@ void GlobePlugin::addModelLayer( QgsVectorLayer* vLayer, QgsGlobeVectorLayerConf
   featureOpt.setLayer( vLayer );
   osgEarth::Style style;
 
-  if ( !vLayer->renderer()->symbols().isEmpty() )
+  QgsRenderContext ctx;
+  if ( !vLayer->renderer()->symbols( ctx ).isEmpty() )
   {
-    Q_FOREACH ( QgsSymbol* sym, vLayer->renderer()->symbols() )
+    Q_FOREACH ( QgsSymbol* sym, vLayer->renderer()->symbols( ctx ) )
     {
       if ( sym->type() == QgsSymbol::Line )
       {

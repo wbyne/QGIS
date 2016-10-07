@@ -106,7 +106,7 @@ QgsSvgCache::QgsSvgCache( QObject *parent )
     , mLeastRecentEntry( nullptr )
     , mMostRecentEntry( nullptr )
 {
-  mMissingSvg = QString( "<svg width='10' height='10'><text x='5' y='10' font-size='10' text-anchor='middle'>?</text></svg>" ).toAscii();
+  mMissingSvg = QString( "<svg width='10' height='10'><text x='5' y='10' font-size='10' text-anchor='middle'>?</text></svg>" ).toLatin1();
 }
 
 QgsSvgCache::~QgsSvgCache()
@@ -243,26 +243,6 @@ void QgsSvgCache::containsParams( const QString& path, bool& hasFillParam, QColo
   double defaultOutlineOpacity = 1.0;
 
   containsParams( path, hasFillParam, hasDefaultFillColor, defaultFillColor,
-                  hasFillOpacityParam, hasDefaultFillOpacity, defaultFillOpacity,
-                  hasOutlineParam, hasDefaultOutlineColor, defaultOutlineColor,
-                  hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth,
-                  hasOutlineOpacityParam, hasDefaultOutlineOpacity, defaultOutlineOpacity );
-}
-
-
-void QgsSvgCache::containsParams( const QString& path,
-                                  bool& hasFillParam, bool& hasDefaultFillParam, QColor& defaultFillColor,
-                                  bool& hasOutlineParam, bool& hasDefaultOutlineColor, QColor& defaultOutlineColor,
-                                  bool& hasOutlineWidthParam, bool& hasDefaultOutlineWidth, double& defaultOutlineWidth ) const
-{
-  bool hasFillOpacityParam = false;
-  bool hasDefaultFillOpacity = false;
-  double defaultFillOpacity = 1.0;
-  bool hasOutlineOpacityParam = false;
-  bool hasDefaultOutlineOpacity = false;
-  double defaultOutlineOpacity = 1.0;
-
-  containsParams( path, hasFillParam, hasDefaultFillParam, defaultFillColor,
                   hasFillOpacityParam, hasDefaultFillOpacity, defaultFillOpacity,
                   hasOutlineParam, hasDefaultOutlineColor, defaultOutlineColor,
                   hasOutlineWidthParam, hasDefaultOutlineWidth, defaultOutlineWidth,

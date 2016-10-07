@@ -31,7 +31,7 @@ class QgsVectorDataProvider : QgsDataProvider
       SelectAtId,
       /** Allows modifications of geometries */
       ChangeGeometries,
-      /** DEPRECATED - do not use */
+      /** Can create indexes on provider's fields */
       CreateAttributeIndex,
       /** Allows user to select encoding */
       SelectEncoding,
@@ -302,7 +302,7 @@ class QgsVectorDataProvider : QgsDataProvider
 
     struct NativeType
     {
-      NativeType( const QString& typeDesc, const QString& typeName, QVariant::Type type, int minLen = 0, int maxLen = 0, int minPrec = 0, int maxPrec = 0 );
+      NativeType( const QString& typeDesc, const QString& typeName, QVariant::Type type, int minLen = 0, int maxLen = 0, int minPrec = 0, int maxPrec = 0, QVariant::Type subType = QVariant::Invalid );
 
       QString mTypeDesc;
       QString mTypeName;
@@ -311,6 +311,7 @@ class QgsVectorDataProvider : QgsDataProvider
       int mMaxLen;
       int mMinPrec;
       int mMaxPrec;
+      QVariant::Type mSubType;
     };
 
     /**
@@ -368,7 +369,16 @@ class QgsVectorDataProvider : QgsDataProvider
     /**
      * Get the list of layer ids on which this layer depends. This in particular determines the order of layer loading.
      */
-    virtual QSet<QString> layerDependencies() const;
+    virtual QSet<QgsMapLayerDependency> dependencies() const;
+
+    /**
+     * Discover the available relations with the given layers.
+     * @param self the layer using this data provider.
+     * @param layers the other layers.
+     * @return the list of N-1 relations from this provider.
+     * @note added in QGIS 3.0
+     */
+    virtual QList<QgsRelation> discoverRelations( const QgsVectorLayer* self, const QList<QgsVectorLayer*>& layers ) const;
 
   signals:
     /** Signals an error in this provider */

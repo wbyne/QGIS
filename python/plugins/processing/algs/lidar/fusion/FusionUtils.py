@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from builtins import object
 
 __author__ = 'Victor Olaya'
 __date__ = 'August 2012'
@@ -48,7 +49,7 @@ class FusionUtils(object):
     @staticmethod
     def tempFileListFilepath():
         filename = 'fusion_files_list.txt'
-        filepath = userFolder() + os.sep + filename
+        filepath = os.path.join(userFolder(), filename)
         return filepath
 
     @staticmethod

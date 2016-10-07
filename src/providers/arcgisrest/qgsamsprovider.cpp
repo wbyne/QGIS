@@ -25,7 +25,8 @@
 #include "qgsgeometry.h"
 
 #include <cstring>
-#include <qjson/parser.h>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QPainter>
@@ -57,13 +58,13 @@ void QgsAmsLegendFetcher::handleError( QString errorTitle, QString errorMsg )
 void QgsAmsLegendFetcher::handleFinished()
 {
   // Parse result
-  QJson::Parser parser;
-  bool ok = false;
-  QVariantMap queryResults = parser.parse( mQueryReply, &ok ).toMap();
-  if ( !ok )
+  QJsonParseError err;
+  QJsonDocument doc = QJsonDocument::fromJson( mQueryReply, &err );
+  if ( doc.isNull() )
   {
-    emit error( QString( "Parsing error at line %1: %2" ).arg( parser.errorLine() ).arg( parser.errorString() ) );
+    emit error( QString( "Parsing error:" ).arg( err.errorString() ) );
   }
+  QVariantMap queryResults = doc.object().toVariantMap();
   QgsDataSourceUri dataSource( mProvider->dataSourceUri() );
   QList< QPair<QString, QImage> > legendEntries;
   foreach ( const QVariant& result, queryResults["layers"].toList() )
@@ -336,7 +337,7 @@ QImage* QgsAmsProvider::draw( const QgsRectangle & viewExtent, int pixelWidth, i
     requestUrl.addQueryItem( "transparent", "true" );
     requestUrl.addQueryItem( "f", "image" );
     QByteArray reply = QgsArcGisRestUtils::queryService( requestUrl, mErrorTitle, mError );
-    mCachedImage = QImage::fromData( reply, dataSource.param( "format" ).toAscii() );
+    mCachedImage = QImage::fromData( reply, dataSource.param( "format" ).toLatin1() );
     if ( mCachedImage.format() != QImage::Format_ARGB32 )
     {
       mCachedImage = mCachedImage.convertToFormat( QImage::Format_ARGB32 );

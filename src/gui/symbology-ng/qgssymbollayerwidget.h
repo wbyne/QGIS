@@ -17,8 +17,8 @@
 #ifndef QGSSYMBOLLAYERWIDGET_H
 #define QGSSYMBOLLAYERWIDGET_H
 
-#include <qgsdatadefinedbutton.h>
-
+#include "qgsdatadefinedbutton.h"
+#include "qgssymbolwidgetcontext.h"
 #include <QWidget>
 #include <QStandardItemModel>
 
@@ -29,14 +29,13 @@ class QgsMapCanvas;
 /** \ingroup gui
  * \class QgsSymbolLayerWidget
  */
-class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, private QgsExpressionContextGenerator
+class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, protected QgsExpressionContextGenerator
 {
     Q_OBJECT
 
   public:
     QgsSymbolLayerWidget( QWidget* parent, const QgsVectorLayer* vl = nullptr )
         : QWidget( parent )
-        , mPresetExpressionContext( nullptr )
         , mVectorLayer( vl )
         , mMapCanvas( nullptr )
     {}
@@ -45,64 +44,33 @@ class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, private QgsExpressionCon
     virtual void setSymbolLayer( QgsSymbolLayer* layer ) = 0;
     virtual QgsSymbolLayer* symbolLayer() = 0;
 
-    /** Returns the expression context used for the widget, if set. This expression context is used for
-     * evaluating data defined symbol properties and for populating based expression widgets in
-     * the layer widget.
-     * @note added in QGIS 2.12
-     * @see setExpressionContext()
+    /** Sets the context in which the symbol widget is shown, eg the associated map canvas and expression contexts.
+     * @param context symbol widget context
+     * @see context()
+     * @note added in QGIS 3.0
      */
-    QgsExpressionContext* expressionContext() const { return mPresetExpressionContext; }
+    void setContext( const QgsSymbolWidgetContext& context );
 
-    /** Sets the map canvas associated with the widget. This allows the widget to retrieve the current
-     * map scale and other properties from the canvas.
-     * @param canvas map canvas
-     * @see mapCanvas()
-     * @note added in QGIS 2.12
+    /** Returns the context in which the symbol widget is shown, eg the associated map canvas and expression contexts.
+     * @see setContext()
+     * @note added in QGIS 3.0
      */
-    virtual void setMapCanvas( QgsMapCanvas* canvas );
-
-    /** Returns the map canvas associated with the widget.
-     * @see setMapCanvas
-     * @note added in QGIS 2.12
-     */
-    const QgsMapCanvas* mapCanvas() const;
+    QgsSymbolWidgetContext context() const;
 
     /** Returns the vector layer associated with the widget.
      * @note added in QGIS 2.12
      */
     const QgsVectorLayer* vectorLayer() const { return mVectorLayer; }
 
-  public slots:
-
-    /** Sets the optional expression context used for the widget. This expression context is used for
-     * evaluating data defined symbol properties and for populating based expression widgets in
-     * the layer widget.
-     * @param context expression context pointer. Ownership is not transferred and the object must
-     * be kept alive for the lifetime of the layer widget.
-     * @note added in QGIS 2.12
-     * @see expressionContext()
-     */
-    void setExpressionContext( QgsExpressionContext* context ) { mPresetExpressionContext = context; }
-
   protected:
     void registerDataDefinedButton( QgsDataDefinedButton* button, const QString& propertyName, QgsDataDefinedButton::DataType type, const QString& description );
 
     QgsExpressionContext createExpressionContext() const override;
 
-    //! Optional preset expression context
-    QgsExpressionContext* mPresetExpressionContext;
-
   private:
     const QgsVectorLayer* mVectorLayer;
 
     QgsMapCanvas* mMapCanvas;
-
-    /** Get label for data defined entry.
-     * Implemented only for 'size' of marker symbols
-     * @note added in 2.1
-     * @deprecated no longer used
-     */
-    Q_DECL_DEPRECATED virtual QString dataDefinedPropertyLabel( const QString &entryName );
 
   signals:
     /**
@@ -120,6 +88,9 @@ class GUI_EXPORT QgsSymbolLayerWidget : public QWidget, private QgsExpressionCon
 
   protected slots:
     void updateDataDefinedProperty();
+
+  private:
+    QgsSymbolWidgetContext mContext;
 };
 
 ///////////
@@ -198,8 +169,7 @@ class GUI_EXPORT QgsSimpleMarkerSymbolLayerWidget : public QgsSymbolLayerWidget,
     virtual QgsSymbolLayer* symbolLayer() override;
 
   public slots:
-    //TODO QGIS 3.0 - rename to setShape
-    void setName();
+
     void setColorBorder( const QColor& color );
     void setColorFill( const QColor& color );
     void setSize();
@@ -217,7 +187,7 @@ class GUI_EXPORT QgsSimpleMarkerSymbolLayerWidget : public QgsSymbolLayerWidget,
     QgsSimpleMarkerSymbolLayer* mLayer;
 
   private slots:
-
+    void setShape();
     void updateAssistantSymbol();
     void penJoinStyleChanged();
 
@@ -737,39 +707,6 @@ class GUI_EXPORT QgsCentroidFillSymbolLayerWidget : public QgsSymbolLayerWidget,
 };
 
 
-///@cond PRIVATE
-
-class QgsSvgListModel : public QAbstractListModel
-{
-    Q_OBJECT
-
-  public:
-    explicit QgsSvgListModel( QObject* parent );
-
-    // Constructor to create model for icons in a specific path
-    QgsSvgListModel( QObject* parent, const QString& path );
-
-    int rowCount( const QModelIndex & parent = QModelIndex() ) const override;
-
-    QVariant data( const QModelIndex & index, int role = Qt::DisplayRole ) const override;
-
-  protected:
-    QStringList mSvgFiles;
-};
-
-class QgsSvgGroupsModel : public QStandardItemModel
-{
-    Q_OBJECT
-
-  public:
-    explicit QgsSvgGroupsModel( QObject* parent );
-
-  private:
-    void createTree( QStandardItem* &parentGroup );
-};
-
-///@endcond
-
 #include "ui_qgsgeometrygeneratorwidgetbase.h"
 
 class QgsGeometryGeneratorSymbolLayer;
@@ -797,7 +734,7 @@ class GUI_EXPORT QgsGeometryGeneratorSymbolLayerWidget : public QgsSymbolLayerWi
     QgsGeometryGeneratorSymbolLayer* mLayer;
 
   private slots:
-    void updateExpression();
+    void updateExpression( const QString& string );
     void updateSymbolType();
 };
 

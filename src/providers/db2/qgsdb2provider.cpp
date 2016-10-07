@@ -1094,7 +1094,7 @@ bool QgsDb2Provider::addFeatures( QgsFeatureList & flist )
     for ( int i = 0; i < list.size(); ++i )
     {
       QgsDebugMsg( QString( "i: %1; value: %2; type: %3" )
-                   .arg( i ).arg( list.at( i ).toString().toAscii().data() ).arg( list.at( i ).typeName() ) );
+                   .arg( i ).arg( list.at( i ).toString().toLatin1().data() ).arg( list.at( i ).typeName() ) );
     }
 #endif
     if ( !query.exec() )
@@ -1400,7 +1400,7 @@ QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer( const QStrin
     {
       QgsField fld = fields.field( i );
       QgsDebugMsg( QString( "i: %1; fldIdx: %2; offset: %3" )
-                   .arg( i ).arg( fields.fieldNameIndex( fld.name() ) ).arg( offset ) );
+                   .arg( i ).arg( fields.lookupField( fld.name() ) ).arg( offset ) );
 
       if ( oldToNewAttrIdxMap && fld.name() == primaryKey )
       {
@@ -1426,7 +1426,7 @@ QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer( const QStrin
 
       if ( oldToNewAttrIdxMap )
       {
-        oldToNewAttrIdxMap->insert( fields.fieldNameIndex( fld.name() ), offset++ );
+        oldToNewAttrIdxMap->insert( fields.lookupField( fld.name() ), offset++ );
       }
       attr2Create += ',' + db2Field.toUpper();
     }
@@ -1529,7 +1529,7 @@ QgsVectorLayerImport::ImportError QgsDb2Provider::createEmptyLayer( const QStrin
       for ( int i = 0; i < list.size(); ++i )
       {
         QgsDebugMsg( QString( "i: %1; value: %2; type: %3" )
-                     .arg( i ).arg( list.at( i ).toString().toAscii().data() ).arg( list.at( i ).typeName() ) );
+                     .arg( i ).arg( list.at( i ).toString().toLatin1().data() ).arg( list.at( i ).typeName() ) );
       }
 
     }

@@ -17,7 +17,7 @@
 #include "qgsmemoryfeatureiterator.h"
 
 #include "qgsfeature.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsgeometry.h"
 #include "qgslogger.h"
 #include "qgsspatialindex.h"
@@ -47,23 +47,14 @@ QgsMemoryProvider::QgsMemoryProvider( const QString& uri )
     geometry = url.path();
   }
 
-  geometry = geometry.toLower();
-  if ( geometry == "point" )
-    mWkbType = QgsWkbTypes::Point;
-  else if ( geometry == "linestring" )
-    mWkbType = QgsWkbTypes::LineString;
-  else if ( geometry == "polygon" )
-    mWkbType = QgsWkbTypes::Polygon;
-  else if ( geometry == "multipoint" )
-    mWkbType = QgsWkbTypes::MultiPoint;
-  else if ( geometry == "multilinestring" )
-    mWkbType = QgsWkbTypes::MultiLineString;
-  else if ( geometry == "multipolygon" )
-    mWkbType = QgsWkbTypes::MultiPolygon;
-  else if ( geometry == "none" )
+  if ( geometry.toLower() == "none" )
+  {
     mWkbType = QgsWkbTypes::NoGeometry;
+  }
   else
-    mWkbType = QgsWkbTypes::Unknown;
+  {
+    mWkbType = QgsWkbTypes::parseType( geometry );
+  }
 
   if ( url.hasQueryItem( "crs" ) )
   {
@@ -110,14 +101,15 @@ QgsMemoryProvider::QgsMemoryProvider( const QString& uri )
     QRegExp reFieldDef( "\\:"
                         "(int|integer|long|int8|real|double|string|date|time|datetime)" // type
                         "(?:\\((\\-?\\d+)"                // length
-                        "(?:\\,(\\d+))?"                // precision
-                        "\\))?"
+                        "(?:\\,(\\d+))?"                  // precision
+                        "\\))?(\\[\\])?"                  // array
                         "$", Qt::CaseInsensitive );
     QStringList fields = url.allQueryItemValues( "field" );
     for ( int i = 0; i < fields.size(); i++ )
     {
       QString name = fields.at( i );
       QVariant::Type type = QVariant::String;
+      QVariant::Type subType = QVariant::Invalid;
       QString typeName( "string" );
       int length = 255;
       int precision = 0;
@@ -173,9 +165,14 @@ QgsMemoryProvider::QgsMemoryProvider( const QString& uri )
         {
           precision = reFieldDef.cap( 3 ).toInt();
         }
+        if ( reFieldDef.cap( 4 ) != "" )
+        {  //array
+          subType = type;
+          type = ( subType == QVariant::String ? QVariant::StringList : QVariant::List );
+        }
       }
       if ( name != "" )
-        attributes.append( QgsField( name, type, typeName, length, precision ) );
+        attributes.append( QgsField( name, type, typeName, length, precision, "", subType ) );
     }
     addAttributes( attributes );
   }
@@ -202,34 +199,7 @@ QString QgsMemoryProvider::dataSourceUri( bool expandAuthConfig ) const
   Q_UNUSED( expandAuthConfig )
 
   QUrl uri( "memory" );
-  QString geometry;
-  switch ( mWkbType )
-  {
-    case QgsWkbTypes::Point :
-      geometry = "Point";
-      break;
-    case QgsWkbTypes::LineString :
-      geometry = "LineString";
-      break;
-    case QgsWkbTypes::Polygon :
-      geometry = "Polygon";
-      break;
-    case QgsWkbTypes::MultiPoint :
-      geometry = "MultiPoint";
-      break;
-    case QgsWkbTypes::MultiLineString :
-      geometry = "MultiLineString";
-      break;
-    case QgsWkbTypes::MultiPolygon :
-      geometry = "MultiPolygon";
-      break;
-    case QgsWkbTypes::NoGeometry :
-      geometry = "None";
-      break;
-    default:
-      geometry = "";
-      break;
-  }
+  QString geometry = QgsWkbTypes::displayString( mWkbType );
   uri.addQueryItem( "geometry", geometry );
 
   if ( mCrs.isValid() )
@@ -384,6 +354,8 @@ bool QgsMemoryProvider::addAttributes( const QList<QgsField> &attributes )
       case QVariant::Time:
       case QVariant::DateTime:
       case QVariant::LongLong:
+      case QVariant::StringList:
+      case QVariant::List:
         break;
       default:
         QgsDebugMsg( "Field type not supported: " + it->typeName() );

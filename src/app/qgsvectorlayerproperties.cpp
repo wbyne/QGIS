@@ -52,6 +52,7 @@
 #include "qgsdatasourceuri.h"
 #include "qgsrenderer.h"
 #include "qgsexpressioncontext.h"
+#include "layertree/qgslayertreelayer.h"
 
 #include <QMessageBox>
 #include <QDir>
@@ -235,7 +236,7 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
   QVBoxLayout* diagLayout = new QVBoxLayout( mDiagramFrame );
   diagLayout->setMargin( 0 );
-  diagramPropertiesDialog = new QgsDiagramProperties( mLayer, mDiagramFrame, nullptr );
+  diagramPropertiesDialog = new QgsDiagramProperties( mLayer, mDiagramFrame, QgisApp::instance()->mapCanvas() );
   diagramPropertiesDialog->layout()->setContentsMargins( -1, 0, -1, 0 );
   diagLayout->addWidget( diagramPropertiesDialog );
   mDiagramFrame->setLayout( diagLayout );
@@ -291,6 +292,30 @@ QgsVectorLayerProperties::QgsVectorLayerProperties(
 
   QString title = QString( tr( "Layer Properties - %1" ) ).arg( mLayer->name() );
   restoreOptionsBaseUi( title );
+
+  mLayersDependenciesTreeGroup.reset( QgsProject::instance()->layerTreeRoot()->clone() );
+  QgsLayerTreeLayer* layer = mLayersDependenciesTreeGroup->findLayer( mLayer->id() );
+  if ( layer )
+  {
+    layer->parent()->takeChild( layer );
+  }
+  mLayersDependenciesTreeModel.reset( new QgsLayerTreeModel( mLayersDependenciesTreeGroup.data() ) );
+  // use visibility as selection
+  mLayersDependenciesTreeModel->setFlag( QgsLayerTreeModel::AllowNodeChangeVisibility );
+
+  mLayersDependenciesTreeGroup->setVisible( Qt::Unchecked );
+
+  QSet<QString> dependencySources;
+  Q_FOREACH ( const QgsMapLayerDependency& dep, mLayer->dependencies() )
+  {
+    dependencySources << dep.layerId();
+  }
+  Q_FOREACH ( QgsLayerTreeLayer* layer, mLayersDependenciesTreeGroup->findLayers() )
+  {
+    layer->setVisible( dependencySources.contains( layer->layerId() ) ? Qt::Checked : Qt::Unchecked );
+  }
+
+  mLayersDependenciesTreeView->setModel( mLayersDependenciesTreeModel.data() );
 } // QgsVectorLayerProperties ctor
 
 
@@ -543,7 +568,7 @@ void QgsVectorLayerProperties::apply()
   }
   QgsVectorSimplifyMethod simplifyMethod = mLayer->simplifyMethod();
   simplifyMethod.setSimplifyHints( simplifyHints );
-  simplifyMethod.setSimplifyAlgorithm( static_cast< QgsVectorSimplifyMethod::SimplifyAlgorithm >( mSimplifyAlgorithmComboBox->itemData( mSimplifyAlgorithmComboBox->currentIndex() ).toInt() ) );
+  simplifyMethod.setSimplifyAlgorithm( static_cast< QgsVectorSimplifyMethod::SimplifyAlgorithm >( mSimplifyAlgorithmComboBox->currentData().toInt() ) );
   simplifyMethod.setThreshold( mSimplifyDrawingSpinBox->value() );
   simplifyMethod.setForceLocalOptimization( !mSimplifyDrawingAtProvider->isChecked() );
   simplifyMethod.setMaximumScale( 1.0 / mSimplifyMaximumScaleComboBox->scale() );
@@ -557,6 +582,18 @@ void QgsVectorLayerProperties::apply()
   //save variables
   QgsExpressionContextUtils::setLayerVariables( mLayer, mVariableEditor->variablesInActiveScope() );
   updateVariableEditor();
+
+  // save dependencies
+  QSet<QgsMapLayerDependency> deps;
+  Q_FOREACH ( const QgsLayerTreeLayer* layer, mLayersDependenciesTreeGroup->findLayers() )
+  {
+    if ( layer->isVisible() )
+      deps << QgsMapLayerDependency( layer->layerId() );
+  }
+  if ( ! mLayer->setDependencies( deps ) )
+  {
+    QMessageBox::warning( nullptr, tr( "Dependency cycle" ), tr( "This configuration introduces a cycle in data dependencies and will be ignored" ) );
+  }
 
   // update symbology
   emit refreshLegend( mLayer->id() );
@@ -1297,6 +1334,6 @@ void QgsVectorLayerProperties::updateVariableEditor()
 
 void QgsVectorLayerProperties::updateFieldsPropertiesDialog()
 {
-  QgsEditFormConfig* cfg = mLayer->editFormConfig();
-  mFieldsPropertiesDialog->setEditFormInit( cfg->uiForm(), cfg->initFunction(), cfg->initCode(), cfg->initFilePath(), cfg->initCodeSource() );
+  QgsEditFormConfig cfg = mLayer->editFormConfig();
+  mFieldsPropertiesDialog->setEditFormInit( cfg.uiForm(), cfg.initFunction(), cfg.initCode(), cfg.initFilePath(), cfg.initCodeSource() );
 }

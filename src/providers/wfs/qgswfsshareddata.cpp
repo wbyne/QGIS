@@ -27,6 +27,7 @@
 #include "qgsvectorfilewriter.h"
 #include "qgsproviderregistry.h"
 #include "qgsslconnect.h"
+#include "qgslogger.h"
 
 #include <cpl_vsi.h>
 #include <cpl_conv.h>
@@ -246,9 +247,9 @@ bool QgsWFSSharedData::createCache()
   // Only GDAL >= 2.0 can use an alternate geometry or FID field name
   // but QgsVectorFileWriter will refuse anyway to create a ogc_fid, so we will
   // do it manually
-  bool useReservedNames = cacheFields.fieldNameIndex( "ogc_fid" ) >= 0;
+  bool useReservedNames = cacheFields.lookupField( "ogc_fid" ) >= 0;
 #if GDAL_VERSION_MAJOR < 2
-  if ( cacheFields.fieldNameIndex( "geometry" ) >= 0 )
+  if ( cacheFields.lookupField( "geometry" ) >= 0 )
     useReservedNames = true;
 #endif
   if ( !useReservedNames )
@@ -353,7 +354,7 @@ bool QgsWFSSharedData::createCache()
 
     // Copy the in-memory template Spatialite DB into the target DB
     QFile dbFile( mCacheDbname );
-    if ( !dbFile.open( QIODevice::WriteOnly ) )
+    if ( !dbFile.open( QIODevice::WriteOnly | QIODevice::Truncate ) )
     {
       QgsMessageLog::logMessage( tr( "Cannot create temporary SpatiaLite cache" ), tr( "WFS" ) );
       return false;

@@ -17,7 +17,7 @@ class QgsScopedExpressionFunction : QgsExpression::Function
                                  const QString& group,
                                  const QString& helpText = QString(),
                                  bool usesGeometry = false,
-                                 const QStringList& referencedColumns = QStringList(),
+                                 const QSet<QString>& referencedColumns = QSet<QString>(),
                                  bool lazyEval = false,
                                  bool handlesNull = false,
                                  bool isContextual = true );
@@ -457,6 +457,10 @@ class QgsExpressionContext
     static const QString EXPR_GEOMETRY_PART_COUNT;
     //! Inbuilt variable name for geometry part number variable
     static const QString EXPR_GEOMETRY_PART_NUM;
+    //! Inbuilt variable name for cluster size variable
+    static const QString EXPR_CLUSTER_SIZE;
+    //! Inbuilt variable name for cluster color variable
+    static const QString EXPR_CLUSTER_COLOR;
 };
 
 /** \ingroup core

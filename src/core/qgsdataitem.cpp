@@ -131,7 +131,7 @@ const QIcon &QgsLayerItem::iconTable()
   static QIcon icon;
 
   if ( icon.isNull() )
-    icon = QgsApplication::getThemeIcon( "/mIconTableLayer.png" );
+    icon = QgsApplication::getThemeIcon( "/mIconTableLayer.svg" );
 
   return icon;
 }
@@ -583,7 +583,7 @@ int QgsDataItem::findItem( QVector<QgsDataItem*> items, QgsDataItem * item )
 {
   for ( int i = 0; i < items.size(); i++ )
   {
-    Q_ASSERT_X( items[i], "findItem", QString( "item %1 is nullptr" ).arg( i ).toAscii() );
+    Q_ASSERT_X( items[i], "findItem", QString( "item %1 is nullptr" ).arg( i ).toLatin1() );
     QgsDebugMsgLevel( QString::number( i ) + " : " + items[i]->mPath + " x " + item->mPath, 2 );
     if ( items[i]->equal( item ) )
       return i;
@@ -659,7 +659,7 @@ QgsLayerItem::QgsLayerItem( QgsDataItem* parent, const QString& name, const QStr
       mIconName = "/mIconPolygonLayer.svg";
       break;
     case TableLayer:
-      mIconName = "/mIconTableLayer.png";
+      mIconName = "/mIconTableLayer.svg";
       break;
     case Raster:
       mIconName = "/mIconRaster.svg";

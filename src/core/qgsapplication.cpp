@@ -83,7 +83,7 @@ QString QgsApplication::sPlatformName = "desktop";
 
 const char* QgsApplication::QGIS_ORGANIZATION_NAME = "QGIS";
 const char* QgsApplication::QGIS_ORGANIZATION_DOMAIN = "qgis.org";
-const char* QgsApplication::QGIS_APPLICATION_NAME = "QGIS2";
+const char* QgsApplication::QGIS_APPLICATION_NAME = "QGIS3";
 
 /*!
   \class QgsApplication
@@ -116,10 +116,7 @@ void QgsApplication::init( QString customConfigPath )
     }
     else
     {
-      // TODO Switch to this for release.
-      //customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( Qgis::QGIS_VERSION_INT / 10000 );
-      // Use qgis-dev for dev versions of QGIS to avoid mixing 2 and 3 API plugins.
-      customConfigPath = QString( "%1/.qgis%2/" ).arg( QDir::homePath() ).arg( "-dev" );
+      customConfigPath = QString( "%1/.qgis3/" ).arg( QDir::homePath() );
     }
   }
 
@@ -494,7 +491,7 @@ void QgsApplication::setUITheme( const QString &themeName )
 
   if ( variableInfo.exists() && variablesfile.open( QIODevice::ReadOnly ) )
   {
-    if ( !file.open( QIODevice::ReadOnly ) || !fileout.open( QIODevice::WriteOnly | QIODevice::Text ) )
+    if ( !file.open( QIODevice::ReadOnly ) || !fileout.open( QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate ) )
     {
       return;
     }
@@ -714,8 +711,20 @@ QStringList QgsApplication::svgPaths()
     myPathList = myPaths.split( '|' );
   }
 
-  myPathList << ABISYM( mDefaultSvgPaths );
-  return myPathList;
+  // maintain user set order while stripping duplicates
+  QStringList paths;
+  Q_FOREACH ( const QString& path, myPathList )
+  {
+    if ( !paths.contains( path ) )
+      paths.append( path );
+  }
+  Q_FOREACH ( const QString& path, ABISYM( mDefaultSvgPaths ) )
+  {
+    if ( !paths.contains( path ) )
+      paths.append( path );
+  }
+
+  return paths;
 }
 
 /*!

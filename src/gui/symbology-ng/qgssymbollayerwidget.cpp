@@ -27,13 +27,14 @@
 #include "qgssymbolselectordialog.h"
 #include "qgssvgcache.h"
 #include "qgssymbollayerutils.h"
-#include "qgsvectorcolorramp.h"
-#include "qgsvectorgradientcolorrampdialog.h"
+#include "qgscolorramp.h"
+#include "qgsgradientcolorrampdialog.h"
 #include "qgsdatadefined.h"
 #include "qgsstyle.h" //for symbol selector dialog
 #include "qgsmapcanvas.h"
 #include "qgsapplication.h"
 #include "qgsvectorlayer.h"
+#include "qgssvgselectorwidget.h"
 
 #include "qgslogger.h"
 #include "qgssizescalewidget.h"
@@ -51,18 +52,18 @@
 
 QgsExpressionContext QgsSymbolLayerWidget::createExpressionContext() const
 {
-  if ( expressionContext() )
-    return *expressionContext();
+  if ( mContext.expressionContext() )
+    return *mContext.expressionContext();
 
   QgsExpressionContext expContext;
   expContext << QgsExpressionContextUtils::globalScope()
   << QgsExpressionContextUtils::projectScope()
   << QgsExpressionContextUtils::atlasScope( nullptr );
 
-  if ( mapCanvas() )
+  if ( mContext.mapCanvas() )
   {
-    expContext << QgsExpressionContextUtils::mapSettingsScope( mapCanvas()->mapSettings() )
-    << new QgsExpressionContextScope( mapCanvas()->expressionContextScope() );
+    expContext << QgsExpressionContextUtils::mapSettingsScope( mContext.mapCanvas()->mapSettings() )
+    << new QgsExpressionContextScope( mContext.mapCanvas()->expressionContextScope() );
   }
   else
   {
@@ -84,32 +85,40 @@ QgsExpressionContext QgsSymbolLayerWidget::createExpressionContext() const
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT, 1, true ) );
   expContext.lastScope()->addVariable( QgsExpressionContextScope::StaticVariable( QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM, 1, true ) );
 
+  // additional scopes
+  Q_FOREACH ( const QgsExpressionContextScope& scope, mContext.additionalExpressionContextScopes() )
+  {
+    expContext.appendScope( new QgsExpressionContextScope( scope ) );
+  }
+
   //TODO - show actual value
   expContext.setOriginalValueVariable( QVariant() );
+
   expContext.setHighlightedVariables( QStringList() << QgsExpressionContext::EXPR_ORIGINAL_VALUE << QgsExpressionContext::EXPR_SYMBOL_COLOR
                                       << QgsExpressionContext::EXPR_GEOMETRY_PART_COUNT << QgsExpressionContext::EXPR_GEOMETRY_PART_NUM
-                                      << QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT << QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM );
+                                      << QgsExpressionContext::EXPR_GEOMETRY_POINT_COUNT << QgsExpressionContext::EXPR_GEOMETRY_POINT_NUM
+                                      << QgsExpressionContext::EXPR_CLUSTER_COLOR << QgsExpressionContext::EXPR_CLUSTER_SIZE );
 
   return expContext;
 }
 
-void QgsSymbolLayerWidget::setMapCanvas( QgsMapCanvas *canvas )
+void QgsSymbolLayerWidget::setContext( const QgsSymbolWidgetContext& context )
 {
-  mMapCanvas = canvas;
+  mContext = context;
   Q_FOREACH ( QgsUnitSelectionWidget* unitWidget, findChildren<QgsUnitSelectionWidget*>() )
   {
-    unitWidget->setMapCanvas( mMapCanvas );
+    unitWidget->setMapCanvas( mContext.mapCanvas() );
   }
   Q_FOREACH ( QgsDataDefinedButton* ddButton, findChildren<QgsDataDefinedButton*>() )
   {
     if ( ddButton->assistant() )
-      ddButton->assistant()->setMapCanvas( mMapCanvas );
+      ddButton->assistant()->setMapCanvas( mContext.mapCanvas() );
   }
 }
 
-const QgsMapCanvas* QgsSymbolLayerWidget::mapCanvas() const
+QgsSymbolWidgetContext QgsSymbolLayerWidget::context() const
 {
-  return mMapCanvas;
+  return mContext;
 }
 
 void QgsSymbolLayerWidget::registerDataDefinedButton( QgsDataDefinedButton * button, const QString & propertyName, QgsDataDefinedButton::DataType type, const QString & description )
@@ -137,29 +146,6 @@ void QgsSymbolLayerWidget::updateDataDefinedProperty()
   button->updateDataDefined( dd );
 
   emit changed();
-}
-
-QString QgsSymbolLayerWidget::dataDefinedPropertyLabel( const QString &entryName )
-{
-  QString label = entryName;
-  if ( entryName == "size" )
-  {
-    label = tr( "Size" );
-    QgsMarkerSymbolLayer * layer = dynamic_cast<QgsMarkerSymbolLayer *>( symbolLayer() );
-    if ( layer )
-    {
-      switch ( layer->scaleMethod() )
-      {
-        case QgsSymbol::ScaleArea:
-          label += " (" + tr( "area" ) + ')';
-          break;
-        case QgsSymbol::ScaleDiameter:
-          label += " (" + tr( "diameter" ) + ')';
-          break;
-      }
-    }
-  }
-  return label;
 }
 
 QgsSimpleLineSymbolLayerWidget::QgsSimpleLineSymbolLayerWidget( const QgsVectorLayer* vl, QWidget* parent )
@@ -451,7 +437,7 @@ QgsSimpleMarkerSymbolLayerWidget::QgsSimpleMarkerSymbolLayerWidget( const QgsVec
     delete lyr;
   }
 
-  connect( lstNames, SIGNAL( currentRowChanged( int ) ), this, SLOT( setName() ) );
+  connect( lstNames, SIGNAL( currentRowChanged( int ) ), this, SLOT( setShape() ) );
   connect( btnChangeColorBorder, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( setColorBorder( const QColor& ) ) );
   connect( btnChangeColorFill, SIGNAL( colorChanged( const QColor& ) ), this, SLOT( setColorFill( const QColor& ) ) );
   connect( cboJoinStyle, SIGNAL( currentIndexChanged( int ) ), this, SLOT( penJoinStyleChanged() ) );
@@ -562,7 +548,7 @@ QgsSymbolLayer* QgsSimpleMarkerSymbolLayerWidget::symbolLayer()
   return mLayer;
 }
 
-void QgsSimpleMarkerSymbolLayerWidget::setName()
+void QgsSimpleMarkerSymbolLayerWidget::setShape()
 {
   mLayer->setShape( static_cast< QgsSimpleMarkerSymbolLayerBase::Shape>( lstNames->currentItem()->data( Qt::UserRole ).toInt() ) );
   btnChangeColorFill->setEnabled( QgsSimpleMarkerSymbolLayerBase::shapeIsFilled( mLayer->shape() ) );
@@ -1233,7 +1219,7 @@ void QgsGradientFillSymbolLayerWidget::colorModeChanged()
 
 void QgsGradientFillSymbolLayerWidget::applyColorRamp()
 {
-  QgsVectorColorRamp* ramp = cboGradientColorRamp->currentColorRamp();
+  QgsColorRamp* ramp = cboGradientColorRamp->currentColorRamp();
   if ( !ramp )
     return;
 
@@ -1567,7 +1553,7 @@ void QgsShapeburstFillSymbolLayerWidget::on_mRadioUseWholeShape_toggled( bool va
 
 void QgsShapeburstFillSymbolLayerWidget::applyColorRamp()
 {
-  QgsVectorColorRamp* ramp = cboGradientColorRamp->currentColorRamp();
+  QgsColorRamp* ramp = cboGradientColorRamp->currentColorRamp();
   if ( !ramp )
     return;
 
@@ -1817,8 +1803,11 @@ QgsSvgMarkerSymbolLayerWidget::~QgsSvgMarkerSymbolLayerWidget()
 
 void QgsSvgMarkerSymbolLayerWidget::populateList()
 {
-  QgsSvgGroupsModel* g = new QgsSvgGroupsModel( viewGroups );
+  QAbstractItemModel* oldModel = viewGroups->model();
+  QgsSvgSelectorGroupsModel* g = new QgsSvgSelectorGroupsModel( viewGroups );
   viewGroups->setModel( g );
+  delete oldModel;
+
   // Set the tree expanded at the first level
   int rows = g->rowCount( g->indexFromItem( g->invisibleRootItem() ) );
   for ( int i = 0; i < rows; i++ )
@@ -1827,19 +1816,22 @@ void QgsSvgMarkerSymbolLayerWidget::populateList()
   }
 
   // Initally load the icons in the List view without any grouping
-  QgsSvgListModel* m = new QgsSvgListModel( viewImages );
+  oldModel = viewImages->model();
+  QgsSvgSelectorListModel* m = new QgsSvgSelectorListModel( viewImages );
   viewImages->setModel( m );
+  delete oldModel;
 }
 
 void QgsSvgMarkerSymbolLayerWidget::populateIcons( const QModelIndex& idx )
 {
   QString path = idx.data( Qt::UserRole + 1 ).toString();
 
-  QgsSvgListModel* m = new QgsSvgListModel( viewImages, path );
+  QAbstractItemModel* oldModel = viewImages->model();
+  QgsSvgSelectorListModel* m = new QgsSvgSelectorListModel( viewImages, path );
   viewImages->setModel( m );
+  delete oldModel;
 
   connect( viewImages->selectionModel(), SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), this, SLOT( setName( const QModelIndex& ) ) );
-  emit changed();
 }
 
 void QgsSvgMarkerSymbolLayerWidget::setGuiForSvg( const QgsSvgMarkerSymbolLayer* layer )
@@ -2300,8 +2292,11 @@ void QgsSVGFillSymbolLayerWidget::setFile( const QModelIndex& item )
 
 void QgsSVGFillSymbolLayerWidget::insertIcons()
 {
-  QgsSvgGroupsModel* g = new QgsSvgGroupsModel( mSvgTreeView );
+  QAbstractItemModel* oldModel = mSvgTreeView->model();
+  QgsSvgSelectorGroupsModel* g = new QgsSvgSelectorGroupsModel( mSvgTreeView );
   mSvgTreeView->setModel( g );
+  delete oldModel;
+
   // Set the tree expanded at the first level
   int rows = g->rowCount( g->indexFromItem( g->invisibleRootItem() ) );
   for ( int i = 0; i < rows; i++ )
@@ -2309,19 +2304,22 @@ void QgsSVGFillSymbolLayerWidget::insertIcons()
     mSvgTreeView->setExpanded( g->indexFromItem( g->item( i ) ), true );
   }
 
-  QgsSvgListModel* m = new QgsSvgListModel( mSvgListView );
+  oldModel = mSvgListView->model();
+  QgsSvgSelectorListModel* m = new QgsSvgSelectorListModel( mSvgListView );
   mSvgListView->setModel( m );
+  delete oldModel;
 }
 
 void QgsSVGFillSymbolLayerWidget::populateIcons( const QModelIndex& idx )
 {
   QString path = idx.data( Qt::UserRole + 1 ).toString();
 
-  QgsSvgListModel* m = new QgsSvgListModel( mSvgListView, path );
+  QAbstractItemModel* oldModel = mSvgListView->model();
+  QgsSvgSelectorListModel* m = new QgsSvgSelectorListModel( mSvgListView, path );
   mSvgListView->setModel( m );
+  delete oldModel;
 
   connect( mSvgListView->selectionModel(), SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), this, SLOT( setFile( const QModelIndex& ) ) );
-  emit changed();
 }
 
 
@@ -3218,151 +3216,25 @@ void QgsRasterFillSymbolLayerWidget::updatePreviewImage()
 }
 
 
-/// @cond PRIVATE
-
-QgsSvgListModel::QgsSvgListModel( QObject* parent ) : QAbstractListModel( parent )
-{
-  mSvgFiles = QgsSymbolLayerUtils::listSvgFiles();
-}
-
-QgsSvgListModel::QgsSvgListModel( QObject* parent, const QString& path ) : QAbstractListModel( parent )
-{
-  mSvgFiles = QgsSymbolLayerUtils::listSvgFilesAt( path );
-}
-
-int QgsSvgListModel::rowCount( const QModelIndex& parent ) const
-{
-  Q_UNUSED( parent );
-  return mSvgFiles.count();
-}
-
-QVariant QgsSvgListModel::data( const QModelIndex& index, int role ) const
-{
-  QString entry = mSvgFiles.at( index.row() );
-
-  if ( role == Qt::DecorationRole ) // icon
-  {
-    QPixmap pixmap;
-    if ( !QPixmapCache::find( entry, pixmap ) )
-    {
-      // render SVG file
-      QColor fill, outline;
-      double outlineWidth, fillOpacity, outlineOpacity;
-      bool fillParam, fillOpacityParam, outlineParam, outlineWidthParam, outlineOpacityParam;
-      bool hasDefaultFillColor = false, hasDefaultFillOpacity = false, hasDefaultOutlineColor = false,
-                                 hasDefaultOutlineWidth = false, hasDefaultOutlineOpacity = false;
-      QgsSvgCache::instance()->containsParams( entry, fillParam, hasDefaultFillColor, fill,
-          fillOpacityParam, hasDefaultFillOpacity, fillOpacity,
-          outlineParam, hasDefaultOutlineColor, outline,
-          outlineWidthParam, hasDefaultOutlineWidth, outlineWidth,
-          outlineOpacityParam, hasDefaultOutlineOpacity, outlineOpacity );
-
-      //if defaults not set in symbol, use these values
-      if ( !hasDefaultFillColor )
-        fill = QColor( 200, 200, 200 );
-      fill.setAlphaF( hasDefaultFillOpacity ? fillOpacity : 1.0 );
-      if ( !hasDefaultOutlineColor )
-        outline = Qt::black;
-      outline.setAlphaF( hasDefaultOutlineOpacity ? outlineOpacity : 1.0 );
-      if ( !hasDefaultOutlineWidth )
-        outlineWidth = 0.6;
-
-      bool fitsInCache; // should always fit in cache at these sizes (i.e. under 559 px ^ 2, or half cache size)
-      const QImage& img = QgsSvgCache::instance()->svgAsImage( entry, 30.0, fill, outline, outlineWidth, 3.5 /*appr. 88 dpi*/, 1.0, fitsInCache );
-      pixmap = QPixmap::fromImage( img );
-      QPixmapCache::insert( entry, pixmap );
-    }
-
-    return pixmap;
-  }
-  else if ( role == Qt::UserRole || role == Qt::ToolTipRole )
-  {
-    return entry;
-  }
-
-  return QVariant();
-}
-
-
-QgsSvgGroupsModel::QgsSvgGroupsModel( QObject* parent ) : QStandardItemModel( parent )
-{
-  QStringList svgPaths = QgsApplication::svgPaths();
-  QStandardItem *parentItem = invisibleRootItem();
-
-  for ( int i = 0; i < svgPaths.size(); i++ )
-  {
-    QDir dir( svgPaths[i] );
-    QStandardItem *baseGroup;
-
-    if ( dir.path().contains( QgsApplication::pkgDataPath() ) )
-    {
-      baseGroup = new QStandardItem( QString( "App Symbols" ) );
-    }
-    else if ( dir.path().contains( QgsApplication::qgisSettingsDirPath() ) )
-    {
-      baseGroup = new QStandardItem( QString( "User Symbols" ) );
-    }
-    else
-    {
-      baseGroup = new QStandardItem( dir.dirName() );
-    }
-    baseGroup->setData( QVariant( svgPaths[i] ) );
-    baseGroup->setEditable( false );
-    baseGroup->setCheckable( false );
-    baseGroup->setIcon( QgsApplication::style()->standardIcon( QStyle::SP_DirIcon ) );
-    baseGroup->setToolTip( dir.path() );
-    parentItem->appendRow( baseGroup );
-    createTree( baseGroup );
-    QgsDebugMsg( QString( "SVG base path %1: %2" ).arg( i ).arg( baseGroup->data().toString() ) );
-  }
-}
-
-void QgsSvgGroupsModel::createTree( QStandardItem*& parentGroup )
-{
-  QDir parentDir( parentGroup->data().toString() );
-  Q_FOREACH ( const QString& item, parentDir.entryList( QDir::Dirs | QDir::NoDotAndDotDot ) )
-  {
-    QStandardItem* group = new QStandardItem( item );
-    group->setData( QVariant( parentDir.path() + '/' + item ) );
-    group->setEditable( false );
-    group->setCheckable( false );
-    group->setToolTip( parentDir.path() + '/' + item );
-    group->setIcon( QgsApplication::style()->standardIcon( QStyle::SP_DirIcon ) );
-    parentGroup->appendRow( group );
-    createTree( group );
-  }
-}
-
-
-/// @endcond
-
-
-
-
-
-
 QgsGeometryGeneratorSymbolLayerWidget::QgsGeometryGeneratorSymbolLayerWidget( const QgsVectorLayer* vl, QWidget* parent )
     : QgsSymbolLayerWidget( parent, vl )
     , mLayer( nullptr )
 {
   setupUi( this );
+  modificationExpressionSelector->setMultiLine( true );
   modificationExpressionSelector->setLayer( const_cast<QgsVectorLayer*>( vl ) );
-  modificationExpressionSelector->loadFieldNames();
-  modificationExpressionSelector->setExpressionContext( createExpressionContext() );
+  modificationExpressionSelector->registerExpressionContextGenerator( this );
   cbxGeometryType->addItem( QgsApplication::getThemeIcon( "/mIconPolygonLayer.svg" ), tr( "Polygon / MultiPolygon" ), QgsSymbol::Fill );
   cbxGeometryType->addItem( QgsApplication::getThemeIcon( "/mIconLineLayer.svg" ), tr( "LineString / MultiLineString" ), QgsSymbol::Line );
   cbxGeometryType->addItem( QgsApplication::getThemeIcon( "/mIconPointLayer.svg" ), tr( "Point / MultiPoint" ), QgsSymbol::Marker );
-  connect( modificationExpressionSelector, SIGNAL( expressionParsed( bool ) ), this, SLOT( updateExpression() ) );
+  connect( modificationExpressionSelector, SIGNAL( expressionChanged( QString ) ), this, SLOT( updateExpression( QString ) ) );
   connect( cbxGeometryType, SIGNAL( currentIndexChanged( int ) ), this, SLOT( updateSymbolType() ) );
 }
 
 void QgsGeometryGeneratorSymbolLayerWidget::setSymbolLayer( QgsSymbolLayer* l )
 {
   mLayer = static_cast<QgsGeometryGeneratorSymbolLayer*>( l );
-
-  if ( mPresetExpressionContext )
-    modificationExpressionSelector->setExpressionContext( *mPresetExpressionContext );
-  modificationExpressionSelector->setExpressionText( mLayer->geometryExpression() );
+  modificationExpressionSelector->setExpression( mLayer->geometryExpression() );
   cbxGeometryType->setCurrentIndex( cbxGeometryType->findData( mLayer->symbolType() ) );
 }
 
@@ -3371,16 +3243,16 @@ QgsSymbolLayer* QgsGeometryGeneratorSymbolLayerWidget::symbolLayer()
   return mLayer;
 }
 
-void QgsGeometryGeneratorSymbolLayerWidget::updateExpression()
+void QgsGeometryGeneratorSymbolLayerWidget::updateExpression( const QString& string )
 {
-  mLayer->setGeometryExpression( modificationExpressionSelector->expressionText() );
+  mLayer->setGeometryExpression( string );
 
   emit changed();
 }
 
 void QgsGeometryGeneratorSymbolLayerWidget::updateSymbolType()
 {
-  mLayer->setSymbolType( static_cast<QgsSymbol::SymbolType>( cbxGeometryType->itemData( cbxGeometryType->currentIndex() ).toInt() ) );
+  mLayer->setSymbolType( static_cast<QgsSymbol::SymbolType>( cbxGeometryType->currentData().toInt() ) );
 
   emit symbolChanged();
 }

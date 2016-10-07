@@ -282,9 +282,9 @@ QMenu* QgsAppLayerTreeViewMenuProvider::createContextMenu()
       // symbology item
       if ( symbolNode->flags() & Qt::ItemIsUserCheckable )
       {
-        menu->addAction( QgsApplication::getThemeIcon( "/mActionShowAllLayers.png" ), tr( "&Show All Items" ),
+        menu->addAction( QgsApplication::getThemeIcon( "/mActionShowAllLayers.svg" ), tr( "&Show All Items" ),
                          symbolNode, SLOT( checkAllItems() ) );
-        menu->addAction( QgsApplication::getThemeIcon( "/mActionHideAllLayers.png" ), tr( "&Hide All Items" ),
+        menu->addAction( QgsApplication::getThemeIcon( "/mActionHideAllLayers.svg" ), tr( "&Hide All Items" ),
                          symbolNode, SLOT( uncheckAllItems() ) );
         menu->addSeparator();
       }
@@ -495,7 +495,9 @@ void QgsAppLayerTreeViewMenuProvider::editVectorSymbol()
   QScopedPointer< QgsSymbol > symbol( singleRenderer->symbol() ? singleRenderer->symbol()->clone() : nullptr );
   QgsSymbolSelectorDialog dlg( symbol.data(), QgsStyle::defaultStyle(), layer, mView->window() );
   dlg.setWindowTitle( tr( "Symbol selector" ) );
-  dlg.setMapCanvas( mCanvas );
+  QgsSymbolWidgetContext context;
+  context.setMapCanvas( mCanvas );
+  dlg.setContext( context );
   if ( dlg.exec() )
   {
     singleRenderer->setSymbol( symbol.take() );
@@ -570,7 +572,9 @@ void QgsAppLayerTreeViewMenuProvider::editSymbolLegendNodeSymbol()
   QgsVectorLayer* vlayer = qobject_cast<QgsVectorLayer*>( node->layerNode()->layer() );
   QgsSymbolSelectorDialog dlg( symbol.data(), QgsStyle::defaultStyle(), vlayer, mView->window() );
   dlg.setWindowTitle( tr( "Symbol selector" ) );
-  dlg.setMapCanvas( mCanvas );
+  QgsSymbolWidgetContext context;
+  context.setMapCanvas( mCanvas );
+  dlg.setContext( context );
   if ( dlg.exec() )
   {
     node->setSymbol( symbol.take() );

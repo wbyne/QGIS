@@ -15,11 +15,12 @@
  *                                                                         *
  ***************************************************************************/
 
+
 #include "qgswmsserver.h"
 #include "qgscapabilitiescache.h"
 #include "qgscsexception.h"
 #include "qgsdxfexport.h"
-#include "qgsfield.h"
+#include "qgsfields.h"
 #include "qgsfeatureiterator.h"
 #include "qgsgeometry.h"
 #include "qgslayertree.h"
@@ -2107,7 +2108,7 @@ int QgsWmsServer::initializeSLDParser( QStringList& layersList, QStringList& sty
 
     if ( !theDocument->setContent( xml, true, &errorMsg, &errorLine, &errorColumn ) )
     {
-      //std::cout << xml.toAscii().data() << std::endl;
+      //std::cout << xml.toLatin1().data() << std::endl;
       QgsMessageLog::logMessage( "Error, could not create DomDocument from SLD" );
       QgsMessageLog::logMessage( QString( "The error message is: %1" ).arg( errorMsg ) );
       delete theDocument;
@@ -2194,6 +2195,7 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
   layer->updateFields();
   const QgsFields& fields = layer->pendingFields();
   bool addWktGeometry = mConfigParser && mConfigParser->featureInfoWithWktGeometry();
+  bool segmentizeWktGeometry = mConfigParser && mConfigParser->segmentizeFeatureInfoWktGeometry();
   const QSet<QString>& excludedAttributes = layer->excludeAttributesWms();
 
   QgsFeatureRequest fReq;
@@ -2364,6 +2366,19 @@ int QgsWmsServer::featureInfoFromVectorLayer( QgsVectorLayer* layer,
             QgsCoordinateTransform transform = mapRender->transformation( layer );
             if ( transform.isValid() )
               geom.transform( transform );
+          }
+
+          if ( segmentizeWktGeometry )
+          {
+            QgsAbstractGeometry* abstractGeom = geom.geometry();
+            if ( abstractGeom )
+            {
+              if ( QgsWkbTypes::isCurvedType( abstractGeom->wkbType() ) )
+              {
+                QgsAbstractGeometry* segmentizedGeom = abstractGeom-> segmentize();
+                geom.setGeometry( segmentizedGeom );
+              }
+            }
           }
           QDomElement geometryElement = infoDocument.createElement( "Attribute" );
           geometryElement.setAttribute( "name", "geometry" );
@@ -3319,11 +3334,11 @@ QDomElement QgsWmsServer::createFeatureGML(
 
 QString QgsWmsServer::replaceValueMapAndRelation( QgsVectorLayer* vl, int idx, const QString& attributeVal )
 {
-  if ( QgsEditorWidgetFactory *factory = QgsEditorWidgetRegistry::instance()->factory( vl->editFormConfig()->widgetType( idx ) ) )
+  const QgsEditorWidgetSetup setup = QgsEditorWidgetRegistry::instance()->findBest( vl, vl->fields().field( idx ).name() );
+  if ( QgsEditorWidgetFactory *factory = QgsEditorWidgetRegistry::instance()->factory( setup.type() ) )
   {
-    QgsEditorWidgetConfig cfg( vl->editFormConfig()->widgetConfig( idx ) );
-    QString value( factory->representValue( vl, idx, cfg, QVariant(), attributeVal ) );
-    if ( cfg.value( "AllowMulti" ).toBool() && value.startsWith( "{" ) && value.endsWith( "}" ) )
+    QString value( factory->representValue( vl, idx, setup.config(), QVariant(), attributeVal ) );
+    if ( setup.config().value( "AllowMulti" ).toBool() && value.startsWith( "{" ) && value.endsWith( "}" ) )
     {
       value = value.mid( 1, value.size() - 2 );
     }

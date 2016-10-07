@@ -51,9 +51,7 @@
 #include "qgscomposerscalebarwidget.h"
 #include "qgscomposershape.h"
 #include "qgscomposershapewidget.h"
-#include "qgscomposerattributetable.h"
 #include "qgscomposerattributetablev2.h"
-#include "qgscomposertablewidget.h"
 #include "qgsexception.h"
 #include "qgslogger.h"
 #include "qgsproject.h"
@@ -69,6 +67,7 @@
 #include "qgsvectorlayer.h"
 #include "qgscomposerimageexportoptionsdialog.h"
 #include "ui_qgssvgexportoptions.h"
+#include "qgspanelwidgetstack.h"
 
 #include <QCloseEvent>
 #include <QCheckBox>
@@ -387,7 +386,7 @@ QgsComposer::QgsComposer( QgisApp *qgis, const QString& title )
   layoutMenu->addAction( mActionAddNewLegend );
   layoutMenu->addAction( mActionAddImage );
   QMenu *shapeMenu = layoutMenu->addMenu( "Add Shape" );
-  shapeMenu->setIcon( QgsApplication::getThemeIcon( "/mActionAddBasicShape.png" ) );
+  shapeMenu->setIcon( QgsApplication::getThemeIcon( "/mActionAddBasicShape.svg" ) );
   shapeMenu->addAction( mActionAddRectangle );
   shapeMenu->addAction( mActionAddTriangle );
   shapeMenu->addAction( mActionAddEllipse );
@@ -580,6 +579,8 @@ QgsComposer::QgsComposer( QgisApp *qgis, const QString& title )
   mItemDock = new QgsDockWidget( tr( "Item properties" ), this );
   mItemDock->setObjectName( "ItemDock" );
   mItemDock->setMinimumWidth( minDockWidth );
+  mItemPropertiesStack = new QgsPanelWidgetStack();
+  mItemDock->setWidget( mItemPropertiesStack );
   mPanelMenu->addAction( mItemDock->toggleViewAction() );
   mUndoDock = new QgsDockWidget( tr( "Command history" ), this );
   mUndoDock->setObjectName( "CommandDock" );
@@ -800,7 +801,6 @@ void QgsComposer::connectCompositionSlots()
   connect( mComposition, SIGNAL( composerLegendAdded( QgsComposerLegend* ) ), this, SLOT( addComposerLegend( QgsComposerLegend* ) ) );
   connect( mComposition, SIGNAL( composerPictureAdded( QgsComposerPicture* ) ), this, SLOT( addComposerPicture( QgsComposerPicture* ) ) );
   connect( mComposition, SIGNAL( composerShapeAdded( QgsComposerShape* ) ), this, SLOT( addComposerShape( QgsComposerShape* ) ) );
-  connect( mComposition, SIGNAL( composerTableAdded( QgsComposerAttributeTable* ) ), this, SLOT( addComposerTable( QgsComposerAttributeTable* ) ) );
   connect( mComposition, SIGNAL( composerTableFrameAdded( QgsComposerAttributeTableV2*, QgsComposerFrame* ) ), this, SLOT( addComposerTableV2( QgsComposerAttributeTableV2*, QgsComposerFrame* ) ) );
   connect( mComposition, SIGNAL( itemRemoved( QgsComposerItem* ) ), this, SLOT( deleteItem( QgsComposerItem* ) ) );
   connect( mComposition, SIGNAL( paperSizeChanged() ), mHorizontalRuler, SLOT( update() ) );
@@ -999,28 +999,27 @@ void QgsComposer::updateStatusAtlasMsg( const QString& message )
 
 void QgsComposer::showItemOptions( QgsComposerItem* item )
 {
-  QWidget* currentWidget = mItemDock->widget();
-
   if ( !item )
   {
-    mItemDock->setWidget( nullptr );
+    mItemPropertiesStack->takeMainPanel();
     return;
   }
 
-  QMap<QgsComposerItem*, QWidget*>::const_iterator it = mItemWidgetMap.constFind( item );
+  QMap<QgsComposerItem*, QgsPanelWidget*>::const_iterator it = mItemWidgetMap.constFind( item );
   if ( it == mItemWidgetMap.constEnd() )
   {
     return;
   }
 
-  QWidget* newWidget = it.value();
-
-  if ( !newWidget || newWidget == currentWidget ) //bail out if new widget does not exist or is already there
+  QgsPanelWidget* newWidget = it.value();
+  if ( !newWidget || newWidget == mItemPropertiesStack->mainPanel() ) //bail out if new widget does not exist or is already there
   {
     return;
   }
 
-  mItemDock->setWidget( newWidget );
+  ( void ) mItemPropertiesStack->takeMainPanel();
+  newWidget->setDockMode( true );
+  mItemPropertiesStack->setMainPanel( newWidget );
 }
 
 void QgsComposer::on_mActionOptions_triggered()
@@ -2877,7 +2876,7 @@ void QgsComposer::exportCompositionAsSVG( QgsComposer::OutputMode mode )
         QFileInfo fi( outputFileName );
         QString currentFileName = i == 0 ? outputFileName : fi.absolutePath() + '/' + fi.baseName() + '_' + QString::number( i + 1 ) + '.' + fi.suffix();
         QFile out( currentFileName );
-        bool openOk = out.open( QIODevice::WriteOnly | QIODevice::Text );
+        bool openOk = out.open( QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate );
         if ( !openOk )
         {
           QMessageBox::warning( this, tr( "SVG export error" ),
@@ -3099,7 +3098,7 @@ void QgsComposer::on_mActionSaveAsTemplate_triggered()
   settings.setValue( "UI/lastComposerTemplateDir", saveFileInfo.absolutePath() );
 
   QFile templateFile( saveFileName );
-  if ( !templateFile.open( QIODevice::WriteOnly ) )
+  if ( !templateFile.open( QIODevice::WriteOnly | QIODevice::Truncate ) )
   {
     return;
   }
@@ -3479,15 +3478,6 @@ void QgsComposer::writeXml( QDomNode& parentNode, QDomDocument& doc )
   }
   mMapsToRestore.clear();
 
-  //store if composer is open or closed
-  if ( isVisible() )
-  {
-    composerElem.setAttribute( "visible", 1 );
-  }
-  else
-  {
-    composerElem.setAttribute( "visible", 0 );
-  }
   parentNode.appendChild( composerElem );
 
   //store composition
@@ -3763,17 +3753,6 @@ void QgsComposer::addComposerShape( QgsComposerShape* shape )
   mItemWidgetMap.insert( shape, sWidget );
 }
 
-void QgsComposer::addComposerTable( QgsComposerAttributeTable* table )
-{
-  if ( !table )
-  {
-    return;
-  }
-
-  QgsComposerTableWidget* tWidget = new QgsComposerTableWidget( table );
-  mItemWidgetMap.insert( table, tWidget );
-}
-
 void QgsComposer::addComposerTableV2( QgsComposerAttributeTableV2 *table, QgsComposerFrame* frame )
 {
   if ( !table )
@@ -3797,7 +3776,7 @@ void QgsComposer::addComposerHtmlFrame( QgsComposerHtml* html, QgsComposerFrame*
 
 void QgsComposer::deleteItem( QgsComposerItem* item )
 {
-  QMap<QgsComposerItem*, QWidget*>::const_iterator it = mItemWidgetMap.constFind( item );
+  QMap<QgsComposerItem*, QgsPanelWidget*>::const_iterator it = mItemWidgetMap.constFind( item );
 
   if ( it == mItemWidgetMap.constEnd() )
   {
@@ -3823,7 +3802,7 @@ void QgsComposer::setSelectionTool()
 
 bool QgsComposer::containsWmsLayer() const
 {
-  QMap<QgsComposerItem*, QWidget*>::const_iterator item_it = mItemWidgetMap.constBegin();
+  QMap<QgsComposerItem*, QgsPanelWidget*>::const_iterator item_it = mItemWidgetMap.constBegin();
   QgsComposerItem* currentItem = nullptr;
   QgsComposerMap* currentMap = nullptr;
 
@@ -3845,7 +3824,7 @@ bool QgsComposer::containsWmsLayer() const
 bool QgsComposer::containsAdvancedEffects() const
 {
   // Check if composer contains any blend modes or flattened layers for transparency
-  QMap<QgsComposerItem*, QWidget*>::const_iterator item_it = mItemWidgetMap.constBegin();
+  QMap<QgsComposerItem*, QgsPanelWidget*>::const_iterator item_it = mItemWidgetMap.constBegin();
   QgsComposerItem* currentItem = nullptr;
   QgsComposerMap* currentMap = nullptr;
 
@@ -3916,7 +3895,7 @@ void QgsComposer::showAdvancedEffectsWarning()
 
 void QgsComposer::cleanupAfterTemplateRead()
 {
-  QMap<QgsComposerItem*, QWidget*>::const_iterator itemIt = mItemWidgetMap.constBegin();
+  QMap<QgsComposerItem*, QgsPanelWidget*>::const_iterator itemIt = mItemWidgetMap.constBegin();
   for ( ; itemIt != mItemWidgetMap.constEnd(); ++itemIt )
   {
     //update all legends completely
@@ -4077,7 +4056,7 @@ void QgsComposer::createComposerView()
 void QgsComposer::writeWorldFile( const QString& worldFileName, double a, double b, double c, double d, double e, double f ) const
 {
   QFile worldFile( worldFileName );
-  if ( !worldFile.open( QIODevice::WriteOnly | QIODevice::Text ) )
+  if ( !worldFile.open( QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate ) )
   {
     return;
   }
