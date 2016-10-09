@@ -240,7 +240,10 @@ QgsMapLayer* QgsServerProjectParser::createLayerFromElement( const QDomElement& 
     {
       addValueRelationLayersForLayer( dynamic_cast<QgsVectorLayer *>( layer ) );
       // Reload joins and expression fields
-      layer->readLayerXML( const_cast<QDomElement&>( elem ) );
+      QgsVectorLayer* vlayer = dynamic_cast<QgsVectorLayer *>( layer );
+      QString subsetString = vlayer->subsetString();
+      layer->readLayerXml( const_cast<QDomElement&>( elem ) );
+      vlayer->setSubsetString( subsetString );
     }
     return layer;
   }
